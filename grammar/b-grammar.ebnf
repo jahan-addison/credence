@@ -2,8 +2,7 @@
 //            B Language Grammar
 //           Author: Jahan Addison
 //         LALR(1) EBNF-like Grammar
-//        Placed in **public domain**
-// (No Warranty: Section 7-8 of Apache 2 License)
+//           Placed under CC0 1.0
 /////////////////////////////////////////////////////////////
 
 program : ( definition ) *
