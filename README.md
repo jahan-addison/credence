@@ -3,7 +3,12 @@
 ### B Compiler to z80 in C++
 
 * The frontend is built with Parsing Expression Grammars (PEG) via [cpp-peglib](https://github.com/yhirose/cpp-peglib)
-* The backend will focus on modern work in SSA, Sea of Nodes; compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains.
+* The backend will focus on modern work in SSA, Sea of Nodes, and compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains.
+
+#### Resources
+
+* [Simple and Efficient Construction of Static Single
+Assignment Form](https://c9x.me/compile/bib/braun13cc.pdf)
 
 Check the [project board](https://github.com/users/jahan-addison/projects/3/views/1) for development and feature progress.
 
@@ -15,3 +20,8 @@ Check the [project board](https://github.com/users/jahan-addison/projects/3/view
 	</td>
 	<td border="0"><img src="docs/images/roxas.jpg" width="400px" alt="sunil sapkota twitter" > </img></td>
 </table>
+
+
+#### Special Thanks
+
+* [Engineering a compiler](https://shop.elsevier.com/books/engineering-a-compiler/cooper/978-0-12-815412-0)
