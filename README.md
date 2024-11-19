@@ -2,8 +2,8 @@
 
 ### B Compiler to z80 in C++
 
-* Compiler frontend with Parsing Expression Grammars (PEG) via [cpp-peglib](https://github.com/yhirose/cpp-peglib)
-
+* The frontend is built with Parsing Expression Grammars (PEG) via [cpp-peglib](https://github.com/yhirose/cpp-peglib)
+* The backend will focus on modern work in SSA, Sea of Nodes; compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains.
 
 Check the [project board](https://github.com/users/jahan-addison/projects/3/views/1) for development and feature progress.
 
