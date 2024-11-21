@@ -11,7 +11,7 @@ repos:
       - id: clang-format
         args: [--style=file]
       - id: cppcheck
+      - id: cpplint
       # - id: clang-tidy
-      # - id: cpplint
       # - id: include-what-you-use
 

@@ -5,7 +5,20 @@
 * The frontend is built with Parsing Expression Grammars (PEG) via [cpp-peglib](https://github.com/yhirose/cpp-peglib)
 * The backend will focus on modern work in SSA, Sea of Nodes, and compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains.
 
-#### Resources
+
+### Installation
+
+...
+
+#### MacOS
+
+...
+
+#### Windows (mingw/msys)
+
+...
+
+### Resources
 
 * [Simple and Efficient Construction of Static Single
 Assignment Form](https://c9x.me/compile/bib/braun13cc.pdf)
