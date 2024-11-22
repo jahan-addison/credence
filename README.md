@@ -2,7 +2,7 @@
 
 ### B Compiler to z80 in C++
 
-* The frontend is built with Parsing Expression Grammars (PEG) via [cpp-peglib](https://github.com/yhirose/cpp-peglib)
+* The frontend is built with a [easy-to-read LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via CPython
 * The backend will focus on modern work in SSA, Sea of Nodes, and compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains.
 
 
