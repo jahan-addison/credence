@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include <iostream>
-
-// https://stackoverflow.com/questions/39813301/creating-a-python-object-in-c-and-calling-its-method
-#include <Python.h>
 
 int main(void)
 {
