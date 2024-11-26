@@ -8,6 +8,12 @@
 
 ### Installation
 
+* Install git submodules
+
+```bash
+git submodule update --init --recursive
+```
+
 ...
 
 #### MacOS
