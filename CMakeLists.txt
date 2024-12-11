@@ -30,7 +30,6 @@ endif()
 
 # ---- Add dependencies via CPM ----
 include(cmake/CPM.cmake)
-include(cmake/tools.cmake)
 
 # Add python-dev library to interface with python
 
