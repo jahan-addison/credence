@@ -22,13 +22,15 @@ git submodule update --init --recursive
 
 #### Windows (mingw/msys)
 
+
 ```bash
 pacman -S mingw-w64-i686-python3
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 make
-...
+
+```
 
 ### Resources
 
