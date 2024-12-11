@@ -24,7 +24,9 @@
 namespace roxas {
 
 /**
- * @brief Construct a new Parse Tree Loader:: Parse Tree Loader object
+ * @brief ParseTreeLoader constructor
+ *
+ * Constructs object that interfaces with a compiler frontend in python
  *
  * @param module_path an absolute path to the frontend python module
  * @param file_path an absolute path to the source file to parse
@@ -42,6 +44,13 @@ ParseTreeLoader::ParseTreeLoader(std::string& module_path,
     PyRun_SimpleString(tree_.location.c_str());
 }
 
+/**
+ * @brief
+ *
+ * Parses a source program and gives the parse tree as a string.
+ *
+ * @return std::string_view parse tree as a parsable string
+ */
 std::string_view ParseTreeLoader::get_parse_tree_as_string()
 {
     const char* ret;

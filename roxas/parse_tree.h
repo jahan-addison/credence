@@ -47,9 +47,11 @@ class ParseTreeLoader
   public:
     ParseTreeLoader(ParseTreeLoader const&) = delete;
     /**
-     * @brief Construct a new Parse Tree Loader:: Parse Tree Loader object
+     * @brief ParseTreeLoader constructor
      *
-     * @param module_path an absolute path to the frontend module
+     * Constructs object that interfaces with a compiler frontend in python
+     *
+     * @param module_path an absolute path to the frontend python module
      * @param file_path an absolute path to the source file to parse
      */
     explicit ParseTreeLoader(std::string& module_path, std::string& file_path);
@@ -61,6 +63,13 @@ class ParseTreeLoader
     ~ParseTreeLoader();
 
   public:
+    /**
+     * @brief
+     *
+     * Parses a source program and gives the parse tree as a string.
+     *
+     * @return std::string_view parse tree as a parsable string
+     */
     std::string_view get_parse_tree_as_string();
 
   private:
