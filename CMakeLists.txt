@@ -2,11 +2,18 @@ cmake_minimum_required(VERSION 3.14...3.22)
 
 # ---- Project ----
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+
 project(
   roxas
   VERSION 1.0
   LANGUAGES CXX
 )
+
+include(GNUInstallDirs)
+
 
 # ---- Include guards ----
 
@@ -15,6 +22,10 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
     FATAL_ERROR
       "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
   )
+endif()
+
+if (WIN32)
+    set(SUBSYSTEM_LINKER_OPTIONS "-mwindows")
 endif()
 
 # ---- Add dependencies via CPM ----
@@ -40,8 +51,10 @@ add_executable(${PROJECT_NAME} ${sources})
 set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "roxas")
 
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/${PROJECT_NAME}>
+  ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${PYTHON_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PUBLIC ${PYTHON_INCLUDE_DIRS})
+
+target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})

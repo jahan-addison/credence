@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#include <assert.h>
-#include <iostream>
+#include <roxas/parse_tree.h>
 
 int main(void)
 {
