@@ -16,12 +16,15 @@
 
 #pragma once
 
+#include <cstddef>
+#include <optional>
 #include <roxas/config.h>
 #include <string>
 
 namespace roxas {
 
 namespace detail {
+
 /**
  * @brief
  *
@@ -53,8 +56,12 @@ class ParseTreeLoader
      *
      * @param module_path an absolute path to the frontend python module
      * @param file_path an absolute path to the source file to parse
+     * @param env_path an optional absolute path to a venv directory where
+     * dependecies are installed
      */
-    ParseTreeLoader(const char* module_path, const char* file_path);
+    ParseTreeLoader(const char* module_path,
+                    const char* file_path,
+                    const char* env_path = nullptr);
 
     /**
      * @brief clean up
@@ -66,9 +73,10 @@ class ParseTreeLoader
     /**
      * @brief
      *
-     * Parses a source program and gives the parse tree as a string.
+     * Parse a source program and provides the parse tree as a string
      *
-     * @return const char* parse tree as string via PyUnicode_AsUTF8
+     * @param module_name a python frontend compiler for B
+     * @return std::string parse tree as a readable string
      */
     std::string get_parse_tree_as_string_from_module(
         std::string_view module_name);

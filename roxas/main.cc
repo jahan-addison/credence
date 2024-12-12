@@ -31,8 +31,12 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     try {
-        auto parse_tree = roxas::ParseTreeLoader(argv[2], argv[3]);
-        parse_tree.get_parse_tree_as_string_from_module(argv[1]);
+        // ~/.cache/pypoetry/virtualenvs/xion-I1_4RUhc-py3.11/lib/python3.11/site-packages
+        auto parse_tree =
+            argc == 5 ? roxas::ParseTreeLoader(argv[2], argv[3], argv[4])
+                      : roxas::ParseTreeLoader(argv[2], argv[3]);
+        std::cout << parse_tree.get_parse_tree_as_string_from_module(argv[1])
+                  << std::endl;
     } catch (std::runtime_error& e) {
         std::cerr << "Runtime Exception :: " << e.what() << std::endl;
         return EXIT_FAILURE;

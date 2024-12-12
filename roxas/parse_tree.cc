@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <roxas/parse_tree.h>
 #include <sstream>
@@ -24,21 +26,48 @@
 
 namespace roxas {
 
+namespace fs = std::filesystem;
+
+/**
+ * @brief read source file
+ *
+ * @param path path to file
+ * @return std::string
+ */
+std::string read_source_file(fs::path path)
+{
+    std::ifstream f(path, std::ios::in | std::ios::binary);
+    const auto sz = fs::file_size(path);
+
+    std::string result(sz, '\0');
+    f.read(result.data(), sz);
+
+    return result;
+}
+
 /**
  * @brief ParseTreeLoader constructor
  *
- * Constructs an object that interfaces with a compiler frontend in python
+ * Constructs object that interfaces with a compiler frontend in python
  *
  * @param module_path an absolute path to the frontend python module
  * @param file_path an absolute path to the source file to parse
+ * @param env_path an optional absolute path to a venv directory where
+ * dependecies are installed
  */
-ParseTreeLoader::ParseTreeLoader(const char* module_path, const char* file_path)
+ParseTreeLoader::ParseTreeLoader(const char* module_path,
+                                 const char* file_path,
+                                 const char* env_path)
 {
     std::ostringstream python_path;
     tree_.location = std::string{ file_path };
     module_path_ = std::string{ module_path };
 
     python_path << "sys.path.append(\"" << module_path << "\")";
+
+    if (env_path != nullptr) {
+        python_path << std::endl << "sys.path.append(\"" << env_path << "\")";
+    }
 
     // Initialize the Python Interpreter
     Py_Initialize();
@@ -48,11 +77,14 @@ ParseTreeLoader::ParseTreeLoader(const char* module_path, const char* file_path)
 }
 
 /**
- * @brief
+ * @brief ParseTreeLoader constructor
  *
- * Parse a source program and provides the parse tree as a string
+ * Constructs object that interfaces with a compiler frontend in python
  *
- * @return std::string_view parse tree as a readable string
+ * @param module_path an absolute path to the frontend python module
+ * @param file_path an absolute path to the source file to parse
+ * @param env_path an optional absolute path to a venv directory where
+ * dependecies are installed
  */
 std::string ParseTreeLoader::get_parse_tree_as_string_from_module(
     std::string_view module_name)
@@ -94,24 +126,21 @@ std::string ParseTreeLoader::get_parse_tree_as_string_from_module(
     }
 
     if (PyCallable_Check(pFunc)) {
-        pArgs = PyUnicode_FromString(tree_.location.c_str());
+        pArgs = PyTuple_New(1);
+        PyTuple_SetItem(
+            pArgs,
+            0,
+            PyUnicode_FromString(read_source_file(tree_.location).c_str()));
         pValue = PyObject_CallObject(pFunc, pArgs);
         if (pValue != NULL) {
-#if VERBOSE
-            std::cout << PyUnicode_AsUTF8(pValue) << std::endl;
-#endif
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
-
             Py_DECREF(pValue);
-            return ret;
         } else {
-            PyErr_Print();
+            throw std::runtime_error("memory error: failed to allocate pValue");
         }
         if (pArgs != NULL) {
             Py_DECREF(pArgs);
         }
-    } else {
-        // give warning
     }
     Py_DECREF(pModule);
     Py_DECREF(pDict);
