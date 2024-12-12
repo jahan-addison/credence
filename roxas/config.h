@@ -15,5 +15,4 @@
  */
 #pragma once
 
-#include <iostream>
 #define VERBOSE true

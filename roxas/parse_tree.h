@@ -54,7 +54,7 @@ class ParseTreeLoader
      * @param module_path an absolute path to the frontend python module
      * @param file_path an absolute path to the source file to parse
      */
-    explicit ParseTreeLoader(std::string& module_path, std::string& file_path);
+    ParseTreeLoader(const char* module_path, const char* file_path);
 
     /**
      * @brief clean up
@@ -68,9 +68,10 @@ class ParseTreeLoader
      *
      * Parses a source program and gives the parse tree as a string.
      *
-     * @return std::string_view parse tree as a parsable string
+     * @return const char* parse tree as string via PyUnicode_AsUTF8
      */
-    std::string_view get_parse_tree_as_string();
+    std::string get_parse_tree_as_string_from_module(
+        std::string_view module_name);
 
   private:
     std::string module_path_;

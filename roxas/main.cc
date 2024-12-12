@@ -14,9 +14,29 @@
  * limitations under the License.
  */
 
+#include <cstdlib>
+#include <iostream>
 #include <roxas/parse_tree.h>
 
-int main(void)
+int main(int argc, char* argv[])
 {
-    std::cout << "Hello, World" << std::endl;
+    if (argc < 4) {
+        if (argc < 2) {
+            std::cout << "Roxas :: Axel... What's this?" << std::endl;
+            return EXIT_SUCCESS;
+        }
+        std::cerr << "Invalid arguments :: please provide the frontend python "
+                     "module name, path, and B source program to compile"
+                  << std::endl;
+        return EXIT_FAILURE;
+    }
+    try {
+        auto parse_tree = roxas::ParseTreeLoader(argv[2], argv[3]);
+        parse_tree.get_parse_tree_as_string_from_module(argv[1]);
+    } catch (std::runtime_error& e) {
+        std::cerr << "Runtime Exception :: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }

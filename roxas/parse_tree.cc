@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#include <iostream>
 #include <roxas/parse_tree.h>
+#include <sstream>
 #include <stdexcept>
 
 // https://docs.python.org/3/extending/embedding.html#pure-embedding
@@ -30,17 +32,19 @@ namespace roxas {
  * @param module_path an absolute path to the frontend python module
  * @param file_path an absolute path to the source file to parse
  */
-ParseTreeLoader::ParseTreeLoader(std::string& module_path,
-                                 std::string& file_path)
+ParseTreeLoader::ParseTreeLoader(const char* module_path, const char* file_path)
 {
-    tree_.location = std::move(file_path);
-    module_path_ = std::move(module_path);
+    std::ostringstream python_path;
+    tree_.location = std::string{ file_path };
+    module_path_ = std::string{ module_path };
+
+    python_path << "sys.path.append(\"" << module_path << "\")";
 
     // Initialize the Python Interpreter
     Py_Initialize();
 
     PyRun_SimpleString("import sys");
-    PyRun_SimpleString(tree_.location.c_str());
+    PyRun_SimpleString(python_path.str().c_str());
 }
 
 /**
@@ -50,19 +54,16 @@ ParseTreeLoader::ParseTreeLoader(std::string& module_path,
  *
  * @return std::string_view parse tree as a readable string
  */
-std::string_view ParseTreeLoader::get_parse_tree_as_string()
+std::string ParseTreeLoader::get_parse_tree_as_string_from_module(
+    std::string_view module_name)
 {
-    const char* ret;
-    PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs,
-        *pValues = NULL, *pConfig = NULL, *k, *v;
-    // Build the name object
-    pName = PyUnicode_FromString(module_path_.c_str());
+    std::string ret{};
+    PyObject *pModule, *pDict, *pFunc, *pValue, *pArgs, *vModule;
 
     // Load the module object
-    pModule = PyImport_Import(pName);
+    pModule = PyImport_ImportModule(module_name.data());
 
     if (pModule == NULL) {
-        Py_DECREF(pName);
         throw std::runtime_error("memory error: failed to allocate pModule");
     }
 
@@ -70,15 +71,23 @@ std::string_view ParseTreeLoader::get_parse_tree_as_string()
     pDict = PyModule_GetDict(pModule);
 
     if (pDict == NULL) {
-        Py_DECREF(pName);
         Py_DECREF(pModule);
         throw std::runtime_error("memory error: failed to allocate pDict");
     }
+
+    vModule = PyDict_GetItemString(pDict, "__name__");
+
+    if (vModule == NULL) {
+        Py_DECREF(pModule);
+        Py_DECREF(pDict);
+        throw std::runtime_error(
+            "memory error: failed to allocate module name");
+    }
+
     // pFunc is also a borrowed reference
     pFunc = PyDict_GetItemString(pDict, "parse_source_program_as_string");
 
     if (pFunc == NULL) {
-        Py_DECREF(pName);
         Py_DECREF(pModule);
         Py_DECREF(pDict);
         throw std::runtime_error("memory error: failed to allocate pFunc");
@@ -91,14 +100,23 @@ std::string_view ParseTreeLoader::get_parse_tree_as_string()
 #if VERBOSE
             std::cout << PyUnicode_AsUTF8(pValue) << std::endl;
 #endif
-            ret = PyUnicode_AsUTF8(pValue);
+            ret = std::string{ PyUnicode_AsUTF8(pValue) };
+
             Py_DECREF(pValue);
             return ret;
+        } else {
+            PyErr_Print();
         }
         if (pArgs != NULL) {
             Py_DECREF(pArgs);
         }
+    } else {
+        // give warning
     }
+    Py_DECREF(pModule);
+    Py_DECREF(pDict);
+    Py_DECREF(pFunc);
+    Py_DECREF(vModule);
     return ret;
 }
 
