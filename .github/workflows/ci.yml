@@ -31,7 +31,7 @@ jobs:
       - name: build
         run: cmake --build build -j4
 
-      - name: cppcheck static analysis
+      - name: static analysis (cppcheck)
         uses: deep5050/cppcheck-action@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN}}
