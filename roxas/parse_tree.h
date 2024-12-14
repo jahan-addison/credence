@@ -58,10 +58,12 @@ class ParseTreeModuleLoader
      * Parse a source program and provides the parse tree as a string
      *
      * @param module_name a python frontend compiler for B
+     * @param pretty boolean for pretty format
      * @return std::string parse tree as a readable string
      */
     std::string get_parse_tree_as_string_from_module(
-        std::string const& module_name);
+        std::string const& module_name,
+        bool pretty = false);
 
   private:
     std::string module_path_;

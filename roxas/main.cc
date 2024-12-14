@@ -35,7 +35,8 @@ int main(int argc, const char* argv[])
         auto parse_tree =
             argc == 5 ? roxas::ParseTreeModuleLoader(argv[2], argv[3], argv[4])
                       : roxas::ParseTreeModuleLoader(argv[2], argv[3]);
-        std::cout << parse_tree.get_parse_tree_as_string_from_module(argv[1])
+        std::cout << parse_tree.get_parse_tree_as_string_from_module(argv[1],
+                                                                     false)
                   << std::endl;
     } catch (std::runtime_error& e) {
         std::cerr << "Runtime Exception :: " << e.what() << std::endl;

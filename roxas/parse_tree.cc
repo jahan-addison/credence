@@ -80,10 +80,12 @@ ParseTreeModuleLoader::ParseTreeModuleLoader(std::string const& module_path,
  * Parse a source program and provides the parse tree as a string
  *
  * @param module_name a python frontend compiler for B
+ * @param pretty boolean for string format
  * @return std::string parse tree as a readable string
  */
 std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
-    std::string const& module_name)
+    std::string const& module_name,
+    bool pretty)
 {
     std::string ret{};
     PyObject *pModule, *pDict, *pFunc, *vModule;
@@ -123,11 +125,13 @@ std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
 
     if (PyCallable_Check(pFunc)) {
         PyObject *pValue, *pArgs;
-        pArgs = PyTuple_New(1);
+        pArgs = PyTuple_New(2);
         PyTuple_SetItem(
             pArgs,
             0,
             PyUnicode_FromString(read_source_file(file_path_).c_str()));
+        PyTuple_SetItem(pArgs, 1, pretty ? Py_True : Py_False);
+
         pValue = PyObject_CallObject(pFunc, pArgs);
         if (pValue != NULL) {
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
@@ -138,6 +142,9 @@ std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
         if (pArgs != NULL) {
             Py_DECREF(pArgs);
         }
+    } else {
+        throw std::runtime_error(
+            "error: pFunc not callable object in python interface");
     }
     Py_DECREF(pModule);
     Py_DECREF(pDict);
