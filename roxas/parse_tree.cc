@@ -16,7 +16,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <roxas/parse_tree.h>
 #include <sstream>
 #include <stdexcept>
@@ -46,7 +45,7 @@ std::string read_source_file(fs::path path)
 }
 
 /**
- * @brief ParseTreeLoader constructor
+ * @brief ParseTreeModuleLoader constructor
  *
  * Constructs object that interfaces with a compiler frontend in python
  *
@@ -55,17 +54,16 @@ std::string read_source_file(fs::path path)
  * @param env_path an optional absolute path to a venv directory where
  * dependecies are installed
  */
-ParseTreeLoader::ParseTreeLoader(const char* module_path,
-                                 const char* file_path,
-                                 const char* env_path)
+ParseTreeModuleLoader::ParseTreeModuleLoader(std::string const& module_path,
+                                             std::string const& file_path,
+                                             std::string const& env_path)
+    : module_path_(std::move(module_path))
+    , file_path_(std::move(file_path))
 {
     std::ostringstream python_path;
-    tree_.location = std::string{ file_path };
-    module_path_ = std::string{ module_path };
+    python_path << "sys.path.append(\"" << module_path_ << "\")";
 
-    python_path << "sys.path.append(\"" << module_path << "\")";
-
-    if (env_path != nullptr) {
+    if (not env_path.empty()) {
         python_path << std::endl << "sys.path.append(\"" << env_path << "\")";
     }
 
@@ -77,23 +75,21 @@ ParseTreeLoader::ParseTreeLoader(const char* module_path,
 }
 
 /**
- * @brief ParseTreeLoader constructor
+ * @brief
  *
- * Constructs object that interfaces with a compiler frontend in python
+ * Parse a source program and provides the parse tree as a string
  *
- * @param module_path an absolute path to the frontend python module
- * @param file_path an absolute path to the source file to parse
- * @param env_path an optional absolute path to a venv directory where
- * dependecies are installed
+ * @param module_name a python frontend compiler for B
+ * @return std::string parse tree as a readable string
  */
-std::string ParseTreeLoader::get_parse_tree_as_string_from_module(
-    std::string_view module_name)
+std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
+    std::string const& module_name)
 {
     std::string ret{};
-    PyObject *pModule, *pDict, *pFunc, *pValue, *pArgs, *vModule;
+    PyObject *pModule, *pDict, *pFunc, *vModule;
 
     // Load the module object
-    pModule = PyImport_ImportModule(module_name.data());
+    pModule = PyImport_ImportModule(module_name.c_str());
 
     if (pModule == NULL) {
         throw std::runtime_error("memory error: failed to allocate pModule");
@@ -126,11 +122,12 @@ std::string ParseTreeLoader::get_parse_tree_as_string_from_module(
     }
 
     if (PyCallable_Check(pFunc)) {
+        PyObject *pValue, *pArgs;
         pArgs = PyTuple_New(1);
         PyTuple_SetItem(
             pArgs,
             0,
-            PyUnicode_FromString(read_source_file(tree_.location).c_str()));
+            PyUnicode_FromString(read_source_file(file_path_).c_str()));
         pValue = PyObject_CallObject(pFunc, pArgs);
         if (pValue != NULL) {
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
@@ -153,7 +150,7 @@ std::string ParseTreeLoader::get_parse_tree_as_string_from_module(
  * @brief clean up
  *
  */
-ParseTreeLoader::~ParseTreeLoader()
+ParseTreeModuleLoader::~ParseTreeModuleLoader()
 {
     Py_Finalize();
 }

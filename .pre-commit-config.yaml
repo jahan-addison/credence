@@ -11,6 +11,8 @@ repos:
       - id: clang-format
         args: [--style=file]
       - id: cppcheck
+      # example: https://github.com/ScintillaOrg/lexilla/blob/master/cppcheck.suppress
+        args: [--enable=all, --language=c++, -I., --suppressions-list=./cppcheck.suppress]
       # - id: clang-tidy
       # - id: include-what-you-use
 

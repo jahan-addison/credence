@@ -16,41 +16,23 @@
 
 #pragma once
 
-#include <cstddef>
-#include <optional>
 #include <roxas/config.h>
 #include <string>
 
 namespace roxas {
 
-namespace detail {
-
 /**
  * @brief
  *
- * Parse tree data structure.
+ * Module loader via libpython interface to the compiler frontend module
  *
  */
-struct ParseTree
-{
-    std::string source{};
-    std::string location{};
-};
-
-} // namespace detail
-
-/**
- * @brief
- *
- * Parse tree loader via python interface to the python compiler frontend
- *
- */
-class ParseTreeLoader
+class ParseTreeModuleLoader
 {
   public:
-    ParseTreeLoader(ParseTreeLoader const&) = delete;
+    ParseTreeModuleLoader(ParseTreeModuleLoader const&) = delete;
     /**
-     * @brief ParseTreeLoader constructor
+     * @brief ParseTreeModuleLoader constructor
      *
      * Constructs object that interfaces with a compiler frontend in python
      *
@@ -59,15 +41,15 @@ class ParseTreeLoader
      * @param env_path an optional absolute path to a venv directory where
      * dependecies are installed
      */
-    ParseTreeLoader(const char* module_path,
-                    const char* file_path,
-                    const char* env_path = nullptr);
+    ParseTreeModuleLoader(std::string const& module_path,
+                          std::string const& file_path,
+                          std::string const& env_path = "");
 
     /**
      * @brief clean up
      *
      */
-    ~ParseTreeLoader();
+    ~ParseTreeModuleLoader();
 
   public:
     /**
@@ -79,11 +61,11 @@ class ParseTreeLoader
      * @return std::string parse tree as a readable string
      */
     std::string get_parse_tree_as_string_from_module(
-        std::string_view module_name);
+        std::string const& module_name);
 
   private:
     std::string module_path_;
-    detail::ParseTree tree_;
+    std::string file_path_;
 };
 
 } // namespace roxas

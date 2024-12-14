@@ -18,7 +18,7 @@
 #include <iostream>
 #include <roxas/parse_tree.h>
 
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
     if (argc < 4) {
         if (argc < 2) {
@@ -33,8 +33,8 @@ int main(int argc, char* argv[])
     try {
         // ~/.cache/pypoetry/virtualenvs/xion-I1_4RUhc-py3.11/lib/python3.11/site-packages
         auto parse_tree =
-            argc == 5 ? roxas::ParseTreeLoader(argv[2], argv[3], argv[4])
-                      : roxas::ParseTreeLoader(argv[2], argv[3]);
+            argc == 5 ? roxas::ParseTreeModuleLoader(argv[2], argv[3], argv[4])
+                      : roxas::ParseTreeModuleLoader(argv[2], argv[3]);
         std::cout << parse_tree.get_parse_tree_as_string_from_module(argv[1])
                   << std::endl;
     } catch (std::runtime_error& e) {
