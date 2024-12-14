@@ -31,5 +31,15 @@ jobs:
       - name: build
         run: cmake --build build -j4
 
+      - name: cppcheck static analysis
+        uses: deep5050/cppcheck-action@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN}}
+          enable: all
+          force_language: c++
+          std: c++20
+          other_options: |
+            --suppressions-list=./cppcheck.suppress
+
       - name: run
         run: ./build/roxas

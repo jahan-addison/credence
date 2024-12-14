@@ -1,0 +1,11 @@
+// Just a report of how many checkers are run
+checkersReport
+
+// This just warns that cppcheck isn't exhaustive and it still appears in exhaustive mode
+normalCheckLevelMaxBranches
+
+// cppcheck 2.11 can't find system headers on Win32.
+missingIncludeSystem
+
+# Causes false positives
+unusedStructMember
