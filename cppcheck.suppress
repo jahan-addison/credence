@@ -1,3 +1,5 @@
+# Example: https://github.com/ScintillaOrg/lexilla/blob/master/cppcheck.suppress
+
 // Just a report of how many checkers are run
 checkersReport
 
@@ -7,5 +9,12 @@ normalCheckLevelMaxBranches
 // cppcheck 2.11 can't find system headers on Win32.
 missingIncludeSystem
 
-# Causes false positives
+// Causes false positives
 unusedStructMember
+unmatchedSuppression
+
+// libpython uses this a lot, unfortunately
+cstyleCast
+
+// Suppress python directories
+*:*python*

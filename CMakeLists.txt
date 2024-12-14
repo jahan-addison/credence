@@ -1,10 +1,7 @@
-cmake_minimum_required(VERSION 3.14...3.22)
-
-# ---- Project ----
+cmake_minimum_required(VERSION 3.14)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 
 project(
   roxas
@@ -14,8 +11,26 @@ project(
 
 include(GNUInstallDirs)
 
+if(MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus /utf-8 /D_CRT_SECURE_NO_DEPRECATE /W4 /WX")
+  else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Werror")
+endif()
 
-# ---- Include guards ----
+include(cmake/CPM.cmake)
+
+CPMAddPackage("gh:StableCoder/cmake-scripts#24.04")
+include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
+include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
+include_what_you_use()
+cppcheck("--enable=all"
+         "--language=c++"
+         "--error-exitcode=1"
+         "--force"
+         "--suppressions-list=${CMAKE_CURRENT_SOURCE_DIR}/cppcheck.suppress"
+         "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}"
+         "${CMAKE_CURRENT_SOURCE_DIR}/test"
+)
 
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   message(
@@ -24,22 +39,11 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
-if (WIN32)
-    set(SUBSYSTEM_LINKER_OPTIONS "-mwindows")
-endif()
-
-# ---- Add dependencies via CPM ----
-include(cmake/CPM.cmake)
-
 # Add python-dev library to interface with python
 
-find_package(PythonLibs REQUIRED)
+find_package (Python3 COMPONENTS Interpreter Development)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
-# ---- Add source files ----
-
-# Note: globbing sources is considered bad practice as CMake's generators may not detect new files
-# automatically. Keep that in mind when changing files, or explicitly mention them here.
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.cc")
 
@@ -54,12 +58,4 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-if(MSVC)
-  target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX)
-else()
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-endif()
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${PYTHON_INCLUDE_DIRS})
-
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+target_link_libraries (${PROJECT_NAME} Python3::Python)

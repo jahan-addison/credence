@@ -18,6 +18,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Installation
+        run:
+          sudo apt-get update
+
+          sudo apt-get install iwyu python3-dev cppcheck clang-tidy
+
       - uses: actions/checkout@v3
 
       - uses: actions/cache@v3
@@ -25,21 +31,16 @@ jobs:
           path: "**/cpm_modules"
           key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.16.x'
+
       - name: configure
         run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug
 
       - name: build
         run: cmake --build build -j4
-
-      - name: static analysis (cppcheck)
-        uses: deep5050/cppcheck-action@main
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN}}
-          enable: all
-          force_language: c++
-          std: c++20
-          other_options: |
-            --suppressions-list=./cppcheck.suppress
 
       - name: run
         run: ./build/roxas
