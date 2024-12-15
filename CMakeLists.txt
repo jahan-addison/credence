@@ -22,7 +22,11 @@ include(cmake/CPM.cmake)
 CPMAddPackage("gh:StableCoder/cmake-scripts#24.04")
 include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
 include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
-include_what_you_use()
+
+if(DEFINED ENV{CI})
+  include_what_you_use()
+endif()
+
 cppcheck("--enable=all"
          "--language=c++"
          "--error-exitcode=1"
