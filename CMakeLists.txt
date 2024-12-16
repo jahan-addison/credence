@@ -48,10 +48,10 @@ endif()
 find_package (Python3 COMPONENTS Interpreter Development)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
+# Create standalone executable
+
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.cc")
-
-# ---- Create standalone executable ----
 
 add_executable(${PROJECT_NAME} ${sources})
 

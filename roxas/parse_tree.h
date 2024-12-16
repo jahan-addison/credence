@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <roxas/config.h>
 #include <string>
 
 namespace roxas {
