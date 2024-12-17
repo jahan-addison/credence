@@ -37,7 +37,7 @@ jobs:
           cmake-version: '3.16.x'
 
       - name: configure
-        run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined"
 
       - name: build
         run: cmake --build build -j4
