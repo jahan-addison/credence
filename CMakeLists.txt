@@ -19,8 +19,16 @@ endif()
 
 include(cmake/CPM.cmake)
 
+# https://github.com/StableCoder/cmake-scripts
 CPMAddPackage("gh:StableCoder/cmake-scripts#24.04")
-include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
+
+# Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake
+# enables sanitizers support using the the `USE_SANITIZER` flag available values are: Address,
+# Memory, MemoryWithOrigins, Undefined, Thread, Leak, 'Address;Undefined'
+if(USE_SANITIZER)
+    include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
+endif()
+
 include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 
 if(DEFINED ENV{CI})

@@ -50,14 +50,17 @@ std::string read_source_file(fs::path path)
  * Constructs object that interfaces with a compiler frontend in python
  *
  * @param module_path an absolute path to the frontend python module
+ * @param module_name the module name as a string
  * @param file_path an absolute path to the source file to parse
  * @param env_path an optional absolute path to a venv directory where
  * dependecies are installed
  */
 ParseTreeModuleLoader::ParseTreeModuleLoader(std::string const& module_path,
+                                             std::string const& module_name,
                                              std::string const& file_path,
                                              std::string const& env_path)
     : module_path_(std::move(module_path))
+    , module_name_(std::move(module_name))
     , file_path_(std::move(file_path))
 {
     std::ostringstream python_path;
@@ -77,21 +80,20 @@ ParseTreeModuleLoader::ParseTreeModuleLoader(std::string const& module_path,
 /**
  * @brief
  *
- * Parse a source program and provides the parse tree as a string
+ * Call a method on the parser module and provides the result as a
+ * string
  *
- * @param module_name a python frontend compiler for B
- * @param pretty boolean for string format
- * @return std::string parse tree as a readable string
+ * @param method_name the method name
+ * @return std::string result of method call
  */
-std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
-    std::string const& module_name,
-    bool pretty)
+std::string ParseTreeModuleLoader::call_method_on_module(
+    std::string const& method_name)
 {
     std::string ret{};
     PyObject *pModule, *pDict, *pFunc, *vModule;
 
     // Load the module object
-    pModule = PyImport_ImportModule(module_name.c_str());
+    pModule = PyImport_ImportModule(module_name_.c_str());
 
     if (pModule == NULL) {
         throw std::runtime_error("memory error: failed to allocate pModule");
@@ -115,7 +117,7 @@ std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
     }
 
     // pFunc is also a borrowed reference
-    pFunc = PyDict_GetItemString(pDict, "parse_source_program_as_string");
+    pFunc = PyDict_GetItemString(pDict, method_name.c_str());
 
     if (pFunc == NULL) {
         Py_DECREF(pModule);
@@ -130,7 +132,7 @@ std::string ParseTreeModuleLoader::get_parse_tree_as_string_from_module(
             pArgs,
             0,
             PyUnicode_FromString(read_source_file(file_path_).c_str()));
-        PyTuple_SetItem(pArgs, 1, pretty ? Py_True : Py_False);
+        PyTuple_SetItem(pArgs, 1, Py_True);
 
         pValue = PyObject_CallObject(pFunc, pArgs);
         if (pValue != NULL) {

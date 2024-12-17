@@ -23,7 +23,8 @@ namespace roxas {
 /**
  * @brief
  *
- * Module loader via libpython interface to the compiler frontend module
+ * Module loader via libpython interface to a compiler frontend (lexer/parser)
+ * python module
  *
  */
 class ParseTreeModuleLoader
@@ -36,11 +37,13 @@ class ParseTreeModuleLoader
      * Constructs object that interfaces with a compiler frontend in python
      *
      * @param module_path an absolute path to the frontend python module
+     * @param module_name the module name as a string
      * @param file_path an absolute path to the source file to parse
      * @param env_path an optional absolute path to a venv directory where
      * dependecies are installed
      */
     ParseTreeModuleLoader(std::string const& module_path,
+                          std::string const& module_name,
                           std::string const& file_path,
                           std::string const& env_path = "");
 
@@ -54,18 +57,17 @@ class ParseTreeModuleLoader
     /**
      * @brief
      *
-     * Parse a source program and provides the parse tree as a string
+     * Call a method on the parser module and provides the result as a
+     * string
      *
-     * @param module_name a python frontend compiler for B
-     * @param pretty boolean for pretty format
-     * @return std::string parse tree as a readable string
+     * @param method_name the method name
+     * @return std::string result of method call
      */
-    std::string get_parse_tree_as_string_from_module(
-        std::string const& module_name,
-        bool pretty = false);
+    std::string call_method_on_module(std::string const& method_name);
 
   private:
     std::string module_path_;
+    std::string module_name_;
     std::string file_path_;
 };
 
