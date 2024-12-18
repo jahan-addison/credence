@@ -13,6 +13,9 @@ missingIncludeSystem
 unusedStructMember
 unmatchedSuppression
 
+// Ignore debug methods
+unusedFunction
+
 // libpython uses this a lot, unfortunately
 cstyleCast
 
