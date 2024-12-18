@@ -55,9 +55,9 @@ std::string read_source_file(fs::path path)
  * @param env_path an optional absolute path to a venv directory where
  * dependecies are installed
  */
-ParseTreeModuleLoader::ParseTreeModuleLoader(std::string const& module_path,
-                                             std::string const& module_name,
-                                             std::string const& file_path,
+ParseTreeModuleLoader::ParseTreeModuleLoader(std::string module_path,
+                                             std::string module_name,
+                                             std::string file_path,
                                              std::string const& env_path)
     : module_path_(std::move(module_path))
     , module_name_(std::move(module_name))

@@ -42,9 +42,9 @@ class ParseTreeModuleLoader
      * @param env_path an optional absolute path to a venv directory where
      * dependecies are installed
      */
-    ParseTreeModuleLoader(std::string const& module_path,
-                          std::string const& module_name,
-                          std::string const& file_path,
+    ParseTreeModuleLoader(std::string module_path,
+                          std::string module_name,
+                          std::string file_path,
                           std::string const& env_path = "");
 
     /**
