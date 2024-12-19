@@ -14,7 +14,7 @@ namespace ast {
 class node;
 struct definition;
 class lvalue_node;
-class rvalue_node;
+class expression_node;
 
 class Abstract_Syntax_Tree
 {
@@ -69,12 +69,11 @@ class node
     virtual void print() const = 0;
 };
 
-class expression_node final : public node
+class rvalue_node final : public node
 {
   public:
-    using expression_datatype =
-        std::vector<std::variant<std::monostate, lvalue_node, rvalue_node>>;
-    explicit expression_node(std::string type)
+    using expr_ptr = std::unique_ptr<expression_node>;
+    explicit rvalue_node(std::string type = "unknown")
         : type_(std::move(type))
     {
     }
@@ -83,25 +82,7 @@ class expression_node final : public node
 
   private:
     std::string type_;
-    expression_datatype expr_;
-};
-
-class statement_node final : public node
-{
-  public:
-    using statement_datatype = std::
-        variant<std::monostate, std::string, expression_node, literal_type>;
-    explicit statement_node(std::string type)
-        : type_(std::move(type))
-    {
-    }
-
-    void print() const override;
-
-  private:
-    std::string type_;
-    statement_datatype data_;
-    std::vector<node> children_;
+    expr_ptr rvalue_;
 };
 
 class lvalue_node final : public node
@@ -118,11 +99,12 @@ class lvalue_node final : public node
     std::string identifier_;
 };
 
-class rvalue_node final : public node
+class expression_node final : public node
 {
   public:
-    using rvalue_datatype = expression_node;
-    explicit rvalue_node(std::string type = "unknown")
+    using expr_datatype =
+        std::vector<std::variant<std::monostate, lvalue_node, rvalue_node>>;
+    explicit expression_node(std::string type)
         : type_(std::move(type))
     {
     }
@@ -131,7 +113,25 @@ class rvalue_node final : public node
 
   private:
     std::string type_;
-    rvalue_datatype rvalue_{ type_ };
+    expr_datatype expr_;
+};
+
+class statement_node final : public node
+{
+  public:
+    using statement_datatype = std::
+        variant<std::monostate, std::string, expression_node, literal_type>;
+    explicit statement_node(std::string type)
+        : type_(std::move(type))
+    {
+    }
+
+    void print() const override;
+
+  private:
+    std::string type_;
+    statement_datatype data_{};
+    std::vector<node> children_{};
 };
 
 } // namespace ast
