@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
 #include <memory>
@@ -24,13 +25,26 @@
 
 namespace roxas {
 
+// Link to the grammar can be found here:
+// https://github.com/jahan-addison/xion/blob/master/xion/grammar.lark
+
 namespace ast {
 
 class node;
 struct definition;
 class lvalue_node;
+class rvalue_node;
 class expression_node;
 
+} // namespace ast
+
+/**
+ * @brief
+ *
+ * The AST object that holds a representation of a parse tree from
+ * the ParseTreeModuleLoader object suitable to construct a B program.
+ *
+ */
 class Abstract_Syntax_Tree
 {
   public:
@@ -40,12 +54,37 @@ class Abstract_Syntax_Tree
     using ast_type = std::vector<ast::definition>;
 
   public:
+    /**
+     * @brief Construct a new Abstract_Syntax_Tree object
+     *
+     * @param parse_tree A parse tree from the ParseTreeModuleLoader
+     */
     explicit Abstract_Syntax_Tree(std::string_view parse_tree);
-    ~Abstract_Syntax_Tree();
+    ~Abstract_Syntax_Tree() = default;
+
+  public:
+    /**
+     * @brief Get the AST
+     *
+     * @return ast_type the AST data structure
+     */
+    ast_type& get_ast();
 
   private:
+    std::string_view parse_tree_;
     ast_type ast_;
 };
+
+namespace ast {
+
+// The overload pattern
+template<class... Ts>
+struct overload : Ts...
+{
+    using Ts::operator()...;
+};
+template<class... Ts>
+overload(Ts...) -> overload<Ts...>;
 
 enum class literal : int
 {
@@ -55,8 +94,14 @@ enum class literal : int
     Unknown
 };
 
+/**
+ * @brief A representation of a Definition (vector or function) in the B
+ * language
+ *
+ */
 struct definition
 {
+    using ptr = std::unique_ptr<node>;
     enum class type : int
     {
         Function,
@@ -65,11 +110,17 @@ struct definition
     };
 
     type type{ type::Unknown };
-    std::vector<node> children{};
+    std::vector<ptr> children{};
 };
 
 using literal_type = std::tuple<literal, std::string>;
 
+/**
+ * @brief
+ *
+ * The AST node abstract class
+ *
+ */
 class node
 {
   public:
@@ -84,69 +135,139 @@ class node
     virtual void print() const = 0;
 };
 
-class rvalue_node final : public node
-{
-  public:
-    using expr_ptr = std::unique_ptr<expression_node>;
-    explicit rvalue_node(std::string type = "unknown")
-        : type_(std::move(type))
-    {
-    }
-
-    void print() const override;
-
-  private:
-    std::string type_;
-    expr_ptr rvalue_;
-};
-
+/**
+ * @brief The lvalue node
+ *
+ * Provides a string to its identifer
+ *
+ */
 class lvalue_node final : public node
 {
   public:
-    explicit lvalue_node(std::string type = "unknown")
+    /**
+     * @brief Construct a new lvalue node
+     *
+     * @param type lvalue type, per the grammar
+     */
+    explicit lvalue_node(std::string type)
         : identifier_(std::move(type))
     {
     }
-
+    /**
+     * @brief The lvalue node print function
+     *
+     */
     void print() const override;
 
   private:
     std::string identifier_;
 };
 
+/**
+ * @brief The expression node
+ *
+ * An expression can be one or many of an lvalue, or rvalue
+ *
+ */
 class expression_node final : public node
 {
   public:
-    using expr_datatype =
+    using datatype =
         std::vector<std::variant<std::monostate, lvalue_node, rvalue_node>>;
-    explicit expression_node(std::string type)
+    /**
+     * @brief Construct a new expression node
+     *
+     * @param type expression type, per the grammar
+     * @param expr the lvalue or rvalue of the expression
+     */
+    explicit expression_node(std::string type, datatype expr)
         : type_(std::move(type))
+        , expr_(std::move(expr))
     {
     }
 
+    /**
+     * @brief The expression node print function
+     *
+     */
     void print() const override;
 
   private:
     std::string type_;
-    expr_datatype expr_;
+    datatype expr_;
 };
 
+/**
+ * @brief The rvalue node
+ *
+ * Holds a pointer to its data expression
+ *
+ */
+class rvalue_node final : public node
+{
+  public:
+    using ptr = std::unique_ptr<expression_node>;
+    /**
+     * @brief Construct a new rvalue node
+     *
+     * @param type rvalue type, per te grammar
+     * @param node the rvalue expression
+     */
+    explicit rvalue_node(std::string type, ptr node_ptr)
+        : type_(std::move(type))
+        , rvalue_(std::move(node_ptr))
+
+    {
+    }
+
+    /**
+     * @brief The rvalue node print function
+     *
+     */
+    void print() const override;
+
+  private:
+    std::string type_;
+    ptr rvalue_;
+};
+
+/**
+ * @brief The statement node
+ *
+ * A statement may hold construct one of a string, expression, or literal.
+ * Note that statements may have branches (such as if statements or switch/case)
+ *
+ */
 class statement_node final : public node
 {
   public:
-    using statement_datatype = std::
+    using ptr = std::unique_ptr<statement_node>;
+    using datatype = std::
         variant<std::monostate, std::string, expression_node, literal_type>;
-    explicit statement_node(std::string type)
+    /**
+     * @brief Construct a new statement node
+     *
+     * @param type statement type, per the grammar
+     * @param branches a vector of the statement branches
+     */
+    explicit statement_node(std::string type,
+                            std::vector<statement_node::ptr> branches)
         : type_(std::move(type))
+        , branches_(std::move(branches))
+
     {
     }
 
+    /**
+     * @brief The statement node print function
+     *
+     */
     void print() const override;
 
   private:
     std::string type_;
-    statement_datatype data_{};
-    std::vector<node> children_{};
+    std::vector<statement_node::ptr> branches_;
+    datatype data_;
 };
 
 } // namespace ast
