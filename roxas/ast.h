@@ -68,7 +68,7 @@ class Abstract_Syntax_Tree
      *
      * @return ast_type the AST data structure
      */
-    ast_type& get_ast();
+    const ast_type& get_ast();
 
   private:
     std::string_view parse_tree_;

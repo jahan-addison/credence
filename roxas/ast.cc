@@ -35,7 +35,7 @@ Abstract_Syntax_Tree::Abstract_Syntax_Tree(std::string_view parse_tree)
  * @return ast_type the AST data structure
  */
 
-Abstract_Syntax_Tree::ast_type& Abstract_Syntax_Tree::get_ast()
+const Abstract_Syntax_Tree::ast_type& Abstract_Syntax_Tree::get_ast()
 {
     return ast_;
 }
