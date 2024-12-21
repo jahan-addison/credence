@@ -206,16 +206,15 @@ class expression_node final : public node
 class rvalue_node final : public node
 {
   public:
-    using ptr = std::unique_ptr<expression_node>;
     /**
      * @brief Construct a new rvalue node
      *
      * @param type rvalue type, per te grammar
      * @param node the rvalue expression
      */
-    explicit rvalue_node(std::string type, ptr node_ptr)
+    explicit rvalue_node(std::string type, std::string rvalue)
         : type_(std::move(type))
-        , rvalue_(std::move(node_ptr))
+        , rvalue_(std::move(rvalue))
 
     {
     }
@@ -228,7 +227,7 @@ class rvalue_node final : public node
 
   private:
     std::string type_;
-    ptr rvalue_;
+    std::string rvalue_;
 };
 
 /**

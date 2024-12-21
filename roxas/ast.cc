@@ -46,7 +46,9 @@ const Abstract_Syntax_Tree::ast_type& Abstract_Syntax_Tree::get_ast()
  */
 void ast::rvalue_node::print() const
 {
-    rvalue_->print();
+    std::cout << "rvalue: " << std::endl;
+    std::cout << "\ttype: " << type_ << std::endl;
+    std::cout << "\tvalue: " << rvalue_ << std::endl;
 }
 
 /**
@@ -55,7 +57,8 @@ void ast::rvalue_node::print() const
  */
 void ast::lvalue_node::print() const
 {
-    std::cout << "lvalue: " << identifier_ << std::endl;
+    std::cout << "lvalue: " << std::endl;
+    std::cout << "\tvalue: " << identifier_ << std::endl;
 }
 
 /**
