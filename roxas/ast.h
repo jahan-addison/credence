@@ -30,11 +30,22 @@ namespace roxas {
 
 namespace ast {
 
-class node;
 struct definition;
+class node;
+class expression_node;
+class statement_node;
 class lvalue_node;
 class rvalue_node;
-class expression_node;
+
+enum class literal : int
+{
+    Number,
+    Constant,
+    String,
+    Unknown
+};
+
+using literal_node = std::tuple<literal, std::string>;
 
 } // namespace ast
 
@@ -43,6 +54,9 @@ class expression_node;
  *
  * The AST object that holds a representation of a parse tree from
  * the ParseTreeModuleLoader object suitable to construct a B program.
+ *
+ * Constructs child nodes with recursive descent on ast data types,
+ * prepares data for future compiler passes.
  *
  */
 class Abstract_Syntax_Tree
@@ -68,7 +82,19 @@ class Abstract_Syntax_Tree
      *
      * @return ast_type the AST data structure
      */
-    const ast_type& get_ast();
+    const ast_type& get_ast_definitions() const;
+
+  private:
+    ast::definition construct_definition_ast_();
+    ast::statement_node construct_statement_node_();
+    ast::expression_node construct_expression_node_();
+
+  private:
+    ast::lvalue_node construct_lvalue_node_();
+    ast::rvalue_node construct_rvalue_node_();
+
+  private:
+    ast::literal_node construct_constant_ast_();
 
   private:
     std::string_view parse_tree_;
@@ -85,14 +111,6 @@ struct overload : Ts...
 };
 template<class... Ts>
 overload(Ts...) -> overload<Ts...>;
-
-enum class literal : int
-{
-    Number,
-    Constant,
-    String,
-    Unknown
-};
 
 /**
  * @brief A representation of a Definition (vector or function) in the B
@@ -112,8 +130,6 @@ struct definition
     type type{ type::Unknown };
     std::vector<ptr> children{};
 };
-
-using literal_type = std::tuple<literal, std::string>;
 
 /**
  * @brief
@@ -242,7 +258,7 @@ class statement_node final : public node
   public:
     using ptr = std::unique_ptr<statement_node>;
     using datatype = std::
-        variant<std::monostate, std::string, expression_node, literal_type>;
+        variant<std::monostate, std::string, expression_node, literal_node>;
     /**
      * @brief Construct a new statement node
      *
@@ -270,4 +286,5 @@ class statement_node final : public node
 };
 
 } // namespace ast
+
 } // namespace roxas
