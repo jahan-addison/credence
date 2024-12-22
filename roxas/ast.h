@@ -180,6 +180,39 @@ class lvalue_node final : public node
 };
 
 /**
+ * @brief The rvalue node
+ *
+ * Holds a pointer to its data expression
+ *
+ */
+class rvalue_node final : public node
+{
+  public:
+    /**
+     * @brief Construct a new rvalue node
+     *
+     * @param type rvalue type, per te grammar
+     * @param node the rvalue expression
+     */
+    explicit rvalue_node(std::string type, std::string rvalue)
+        : type_(std::move(type))
+        , rvalue_(std::move(rvalue))
+
+    {
+    }
+
+    /**
+     * @brief The rvalue node print function
+     *
+     */
+    void print() const override;
+
+  private:
+    std::string type_;
+    std::string rvalue_;
+};
+
+/**
  * @brief The expression node
  *
  * An expression can be one or many of an lvalue, or rvalue
@@ -211,39 +244,6 @@ class expression_node final : public node
   private:
     std::string type_;
     datatype expr_;
-};
-
-/**
- * @brief The rvalue node
- *
- * Holds a pointer to its data expression
- *
- */
-class rvalue_node final : public node
-{
-  public:
-    /**
-     * @brief Construct a new rvalue node
-     *
-     * @param type rvalue type, per te grammar
-     * @param node the rvalue expression
-     */
-    explicit rvalue_node(std::string type, std::string rvalue)
-        : type_(std::move(type))
-        , rvalue_(std::move(rvalue))
-
-    {
-    }
-
-    /**
-     * @brief The rvalue node print function
-     *
-     */
-    void print() const override;
-
-  private:
-    std::string type_;
-    std::string rvalue_;
 };
 
 /**
@@ -286,5 +286,4 @@ class statement_node final : public node
 };
 
 } // namespace ast
-
 } // namespace roxas
