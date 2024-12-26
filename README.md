@@ -22,15 +22,17 @@ git submodule update --init --recursive
 
 #### Windows (mingw/msys)
 
-
 ```bash
-pacman -S mingw-w64-i686-python3
+pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
 make
 
 ```
+
+[More information on llvm in mingw.](https://github.com/mstorsjo/llvm-mingw)
+
 
 ### Resources
 
