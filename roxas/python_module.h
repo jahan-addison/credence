@@ -16,59 +16,60 @@
 
 #pragma once
 
+#include <initializer_list>
 #include <string>
+#include <string_view>
 
 namespace roxas {
 
 /**
  * @brief
  *
- * Module loader via libpython interface to a compiler frontend (lexer/parser)
- * python module
+ * Module loader via libpython.
  *
  */
-class ParseTreeModuleLoader
+class PythonModuleLoader
 {
   public:
-    ParseTreeModuleLoader(ParseTreeModuleLoader const&) = delete;
+    PythonModuleLoader(PythonModuleLoader const&) = delete;
     /**
-     * @brief ParseTreeModuleLoader constructor
+     * @brief PythonModuleLoader constructor
      *
-     * Constructs object that interfaces with a compiler frontend in python
+     * Constructs object that interfaces with libpython
      *
-     * @param module_path an absolute path to the frontend python module
+     * @param module_path an absolute path to a python module
      * @param module_name the module name as a string
      * @param file_path an absolute path to the source file to parse
      * @param env_path an optional absolute path to a venv directory where
      * dependecies are installed
      */
-    ParseTreeModuleLoader(std::string module_path,
-                          std::string module_name,
-                          std::string file_path,
-                          std::string const& env_path = "");
+    PythonModuleLoader(std::string_view module_path,
+                       std::string_view module_name,
+                       std::string const& env_path = "");
 
     /**
      * @brief clean up
      *
      */
-    ~ParseTreeModuleLoader();
+    ~PythonModuleLoader();
 
   public:
     /**
      * @brief
      *
-     * Call a method on the parser module and provides the result as a
+     * Call a method on the python module and return the result as a
      * string
      *
      * @param method_name the method name
+     * @param args initializer list of arguments to pass to the python method
      * @return std::string result of method call
      */
-    std::string call_method_on_module(std::string const& method_name);
+    std::string call_method_on_module(std::string_view method_name,
+                                      std::initializer_list<std::string> args);
 
   private:
-    std::string module_path_;
-    std::string module_name_;
-    std::string file_path_;
+    std::string_view module_path_;
+    std::string_view module_name_;
 };
 
 } // namespace roxas

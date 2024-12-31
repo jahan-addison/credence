@@ -16,11 +16,10 @@
 
 #include <filesystem>
 #include <fstream>
-#include <roxas/parse_tree.h>
+#include <roxas/python_module.h>
 #include <sstream>
 #include <stdexcept>
 
-// https://docs.python.org/3/extending/embedding.html#pure-embedding
 #include <Python.h>
 
 namespace roxas {
@@ -45,23 +44,20 @@ std::string read_source_file(fs::path path)
 }
 
 /**
- * @brief ParseTreeModuleLoader constructor
+ * @brief PythonModuleLoader constructor
  *
- * Constructs object that interfaces with a compiler frontend in python
+ * Constructs object that interfaces with libpython
  *
- * @param module_path an absolute path to the frontend python module
+ * @param module_path an absolute path to a python module
  * @param module_name the module name as a string
- * @param file_path an absolute path to the source file to parse
  * @param env_path an optional absolute path to a venv directory where
  * dependecies are installed
  */
-ParseTreeModuleLoader::ParseTreeModuleLoader(std::string module_path,
-                                             std::string module_name,
-                                             std::string file_path,
-                                             std::string const& env_path)
-    : module_path_(std::move(module_path))
-    , module_name_(std::move(module_name))
-    , file_path_(std::move(file_path))
+PythonModuleLoader::PythonModuleLoader(std::string_view module_path,
+                                       std::string_view module_name,
+                                       std::string const& env_path)
+    : module_path_(module_path)
+    , module_name_(module_name)
 {
     std::ostringstream python_path;
     python_path << "sys.path.append(\"" << module_path_ << "\")";
@@ -80,14 +76,15 @@ ParseTreeModuleLoader::ParseTreeModuleLoader(std::string module_path,
 /**
  * @brief
  *
- * Call a method on the parser module and provides the result as a
+ * Call a method on the python module and return the result as a
  * string
  *
  * @param method_name the method name
+ * @param args initializer list of arguments to pass to the python method
  * @return std::string result of method call
  */
-std::string ParseTreeModuleLoader::call_method_on_module(
-    std::string const& method_name)
+std::string call_method_on_module(std::string_view method_name,
+                                  std::initializer_list<std::string> args);
 {
     std::string ret{};
     PyObject *pModule, *pDict, *pFunc, *vModule;
@@ -127,13 +124,19 @@ std::string ParseTreeModuleLoader::call_method_on_module(
 
     if (PyCallable_Check(pFunc)) {
         PyObject *pValue, *pArgs;
-        pArgs = PyTuple_New(2);
-        PyTuple_SetItem(
-            pArgs,
-            0,
-            PyUnicode_FromString(read_source_file(file_path_).c_str()));
-        PyTuple_SetItem(pArgs, 1, Py_True);
-
+        int pIndex = 0;
+        pArgs = PyTuple_New(args.size());
+        // construct the arguments from the initializer list `args'
+        for (std::string arg const& : args) {
+            if (arg == "true") {
+                PyTuple_SetItem(pArgs, pIndex, Py_True);
+            } else if (arg == "false") {
+                PyTuple_SetItem(pArgs, pIndex, Py_False);
+            } else {
+                PyTuple_SetItem(pArgs, index, PyUnicode_FromString(arg));
+            }
+            index++;
+        }
         pValue = PyObject_CallObject(pFunc, pArgs);
         if (pValue != NULL) {
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
@@ -159,7 +162,7 @@ std::string ParseTreeModuleLoader::call_method_on_module(
  * @brief clean up
  *
  */
-ParseTreeModuleLoader::~ParseTreeModuleLoader()
+PythonModuleLoader::~PythonModuleLoader()
 {
     Py_Finalize();
 }

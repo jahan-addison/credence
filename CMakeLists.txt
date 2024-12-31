@@ -56,6 +56,16 @@ endif()
 find_package (Python3 COMPONENTS Interpreter Development)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
+# CPM Packages
+
+CPMAddPackage(
+  NAME simdjson
+  VERSION 3.11.3
+  GITHUB_REPOSITORY simdjson/simdjson
+  OPTIONS
+    "SIMDJSON_BUILD_STATIC_LIB OFF"
+)
+
 # Create standalone executable
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
@@ -70,4 +80,5 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_link_libraries (${PROJECT_NAME} Python3::Python)
+target_include_directories(${PROJECT_NAME} PUBLIC simdjson::simdjson Python3::Python)
+target_link_libraries(${PROJECT_NAME} PUBLIC simdjson::simdjson Python3::Python)

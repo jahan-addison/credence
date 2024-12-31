@@ -17,7 +17,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <roxas/ast.h>
-#include <roxas/parse_tree.h>
+#include <roxas/python_module.h>
 
 int main(int argc, const char* argv[])
 {
