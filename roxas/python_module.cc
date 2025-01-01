@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <filesystem>
-#include <fstream>
 #include <roxas/python_module.h>
 #include <sstream>
 #include <stdexcept>
@@ -23,25 +21,6 @@
 #include <Python.h>
 
 namespace roxas {
-
-namespace fs = std::filesystem;
-
-/**
- * @brief read source file
- *
- * @param path path to file
- * @return std::string
- */
-std::string read_source_file(fs::path path)
-{
-    std::ifstream f(path, std::ios::in | std::ios::binary);
-    const auto sz = fs::file_size(path);
-
-    std::string result(sz, '\0');
-    f.read(result.data(), sz);
-
-    return result;
-}
 
 /**
  * @brief PythonModuleLoader constructor
@@ -83,14 +62,15 @@ PythonModuleLoader::PythonModuleLoader(std::string_view module_path,
  * @param args initializer list of arguments to pass to the python method
  * @return std::string result of method call
  */
-std::string call_method_on_module(std::string_view method_name,
-                                  std::initializer_list<std::string> args);
+std::string PythonModuleLoader::call_method_on_module(
+    std::string_view method_name,
+    std::initializer_list<std::string> args)
 {
     std::string ret{};
     PyObject *pModule, *pDict, *pFunc, *vModule;
 
     // Load the module object
-    pModule = PyImport_ImportModule(module_name_.c_str());
+    pModule = PyImport_ImportModule(module_name_.data());
 
     if (pModule == NULL) {
         throw std::runtime_error("memory error: failed to allocate pModule");
@@ -114,7 +94,7 @@ std::string call_method_on_module(std::string_view method_name,
     }
 
     // pFunc is also a borrowed reference
-    pFunc = PyDict_GetItemString(pDict, method_name.c_str());
+    pFunc = PyDict_GetItemString(pDict, method_name.data());
 
     if (pFunc == NULL) {
         Py_DECREF(pModule);
@@ -124,16 +104,17 @@ std::string call_method_on_module(std::string_view method_name,
 
     if (PyCallable_Check(pFunc)) {
         PyObject *pValue, *pArgs;
-        int pIndex = 0;
+        int index = 0;
         pArgs = PyTuple_New(args.size());
         // construct the arguments from the initializer list `args'
-        for (std::string arg const& : args) {
+        for (std::string const& arg : args) {
             if (arg == "true") {
-                PyTuple_SetItem(pArgs, pIndex, Py_True);
+                PyTuple_SetItem(pArgs, index, Py_True);
             } else if (arg == "false") {
-                PyTuple_SetItem(pArgs, pIndex, Py_False);
+                PyTuple_SetItem(pArgs, index, Py_False);
             } else {
-                PyTuple_SetItem(pArgs, index, PyUnicode_FromString(arg));
+                PyTuple_SetItem(
+                    pArgs, index, PyUnicode_FromString(arg.c_str()));
             }
             index++;
         }

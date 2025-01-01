@@ -19,5 +19,7 @@ unusedFunction
 // libpython uses this a lot, unfortunately
 cstyleCast
 
-// Suppress python directories
+// ignore dependencies
 *:*python*
+*:*cpm_modules*
+*:*_deps*

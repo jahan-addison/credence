@@ -16,9 +16,19 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <roxas/ast.h>
 #include <roxas/python_module.h>
+#include <roxas/util.h>
 
+/**
+ * @brief
+ *  Arguments
+ *  Loads a Parser via a python module frontend for the first pass.
+ *
+ *  1) Python module importable name
+ *  2) Directory to python module
+ *  3) Path to B program
+ *  4) Optional path to a python venv
+ */
 int main(int argc, const char* argv[])
 {
     if (argc < 4) {
@@ -32,15 +42,15 @@ int main(int argc, const char* argv[])
         return EXIT_FAILURE;
     }
     try {
-        // Dependency venv Example:
-        // ~/.cache/pypoetry/virtualenvs/xion-I1_4RUhc-py3.11/lib/python3.11/site-packages
-        auto parse_tree =
-            argc == 5 ? roxas::ParseTreeModuleLoader(
-                            argv[2], argv[1], argv[3], argv[4])
-                      : roxas::ParseTreeModuleLoader(argv[2], argv[1], argv[3]);
-        std::cout << parse_tree.call_method_on_module(
-                         "get_source_program_ast_as_string")
+        auto source = roxas::util::read_file_from_path(argv[3]);
+        auto python_module =
+            argc == 5 ? roxas::PythonModuleLoader(argv[2], argv[1], argv[4])
+                      : roxas::PythonModuleLoader(argv[2], argv[1]);
+
+        std::cout << python_module.call_method_on_module(
+                         "get_source_program_ast_as_json", { source })
                   << std::endl;
+
     } catch (std::runtime_error& e) {
         std::cerr << "Runtime Exception :: " << e.what() << std::endl;
         return EXIT_FAILURE;
