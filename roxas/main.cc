@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-/* clang-format off */
-
 #include <cstdlib>
 #include <cxxopts.hpp>
 #include <iostream>
@@ -32,12 +30,16 @@ int main(int argc, char** argv)
     try {
         cxxopts::Options options("roxas", "B Compiler in C++");
 
-        options.add_options()
-            ("j,json", "Load AST from JSON file", cxxopts::value<std::string>())
-            ("p,python", "Use PythonModuleLoader to load a Parser python module and build an AST", cxxopts::value<bool>()->default_value("false"))
-            ("python-use", "Arguments to pass to python module loader", cxxopts::value<std::vector<std::string>>())
-            ("h,help", "Print usage")
-        ;
+        options.add_options()(
+            "j,json", "Load AST from JSON file", cxxopts::value<std::string>())(
+            "p,python",
+            "Use PythonModuleLoader to load a Parser python module and build "
+            "an AST",
+            cxxopts::value<bool>()->default_value("false"))(
+            "python-use",
+            "Arguments to pass to python module loader",
+            cxxopts::value<std::vector<std::string>>())("h,help",
+                                                        "Print usage");
 
         auto result = options.parse(argc, argv);
         auto python_opt = result["python"].as<bool>();
@@ -45,9 +47,12 @@ int main(int argc, char** argv)
         std::string ast_as_json{};
 
         if (result.count("help")) {
-            std::cout << "Usage: \n\t-j,--json: Load AST from JSON file\n"
-                      << "\t-p,--python: Use PythonModuleLoader to load a Parser python module and build an AST\n"
-                      << "\t--python-use: Arguments to pass to PythonModuleLoader. I.e. --python-use=module,path,env_dir\n";
+            std::cout
+                << "Usage: \n\t-j,--json: Load AST from JSON file\n"
+                << "\t-p,--python: Use PythonModuleLoader to load a Parser "
+                   "python module and build an AST\n"
+                << "\t--python-use: Arguments to pass to PythonModuleLoader. "
+                   "I.e. --python-use=module,path,env_dir\n";
             return EXIT_SUCCESS;
         }
 
@@ -70,7 +75,8 @@ int main(int argc, char** argv)
             ast_as_json = python_module.call_method_on_module(
                 "get_source_program_ast_as_json", { source });
         } else {
-            std::cerr << "Error :: Invalid arguments try -j <json file> or -p --python-use=module,path,env_dir"
+            std::cerr << "Error :: Invalid arguments try -j <json file> or -p "
+                         "--python-use=module,path,env_dir"
                       << std::endl;
             return EXIT_FAILURE;
         }
