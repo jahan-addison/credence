@@ -15,12 +15,8 @@
  */
 
 #include <iostream>
-#include <roxas/ast.h>
+#include <roxas/symbol.h>
 
 namespace roxas {
-
-namespace json {
-
-} // namespace json
 
 } // namespace roxas

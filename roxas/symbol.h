@@ -16,11 +16,6 @@
 
 #pragma once
 
-#include <simdjson.h>
-
 namespace roxas {
 
-namespace json {
-
-} // namespace json
 } // namespace roxas
