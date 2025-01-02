@@ -26,7 +26,7 @@ git submodule update --init --recursive
 #### Windows (mingw/msys)
 
 ```bash
-pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
+pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool mingw-w64-x86_64-unicode-character-database
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug

@@ -15,14 +15,21 @@
  */
 
 #pragma once
-
 #include <filesystem>
+#include <simdjson.h>
 
 namespace roxas {
 
 namespace util {
 
 namespace fs = std::filesystem;
+
+/**
+ * @brief Recursively print a simdjson::ondemand json element
+ *
+ * @param element
+ */
+void recursive_print_json(simdjson::ondemand::value element);
 
 /**
  * @brief read a file from a fs::path

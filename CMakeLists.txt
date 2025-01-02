@@ -63,7 +63,14 @@ CPMAddPackage(
   VERSION 3.11.3
   GITHUB_REPOSITORY simdjson/simdjson
   OPTIONS
-    "SIMDJSON_BUILD_STATIC_LIB OFF"
+    # "SIMDJSON_BUILD_STATIC_LIB ON"
+    # "BUILD_SHARED_LIBS ON"
+)
+
+CPMAddPackage(
+  NAME cxxopts
+  VERSION 3.2.0
+  GITHUB_REPOSITORY jarro2783/cxxopts
 )
 
 # Create standalone executable
@@ -80,5 +87,6 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC simdjson::simdjson Python3::Python)
-target_link_libraries(${PROJECT_NAME} PUBLIC simdjson::simdjson Python3::Python)
+target_include_directories(${PROJECT_NAME} PUBLIC ${PYTHON_INCLUDE_DIRS})
+
+target_link_libraries(${PROJECT_NAME} PUBLIC simdjson::simdjson Python3::Python cxxopts::cxxopts)
