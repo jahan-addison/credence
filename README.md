@@ -37,12 +37,12 @@ make
 [More information on llvm in mingw.](https://github.com/mstorsjo/llvm-mingw)
 
 
-#### Dependencies
+### Dependencies
 
 Note: These are installed automatically via CPM and cmake.
 
-* simdjson
-* cxxopts
+* `simdjson` - Ultra-performant json parser
+* `cxxopts` - Lightweight commandline option parser
 
 ### Resources
 
