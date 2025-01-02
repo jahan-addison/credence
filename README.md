@@ -37,6 +37,13 @@ make
 [More information on llvm in mingw.](https://github.com/mstorsjo/llvm-mingw)
 
 
+#### Dependencies
+
+Note: These are installed automatically via CPM and cmake.
+
+* simdjson
+* cxxopts
+
 ### Resources
 
 * [Simple and Efficient Construction of Static Single
