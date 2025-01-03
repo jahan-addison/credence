@@ -73,7 +73,7 @@ int main(int argc, char** argv)
                 module_args[1], module_args[0], module_args[3]);
 
             ast_as_json = python_module.call_method_on_module(
-                "get_source_program_ast_as_json", { source });
+                "get_source_program_ast_as_json", { source, "true", "true" });
         } else {
             std::cerr << "Error :: Invalid arguments try -j <json file> or -p "
                          "--python-use=module,path,env_dir"
