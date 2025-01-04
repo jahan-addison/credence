@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <cxxopts.hpp>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <roxas/python_module.h>
 #include <roxas/util.h>
 
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
         auto result = options.parse(argc, argv);
         auto python_opt = result["python"].as<bool>();
 
-        std::string ast_as_json{};
+        std::string ast_as_json_string{};
 
         if (result.count("help")) {
             std::cout
@@ -57,9 +58,12 @@ int main(int argc, char** argv)
         }
 
         if (result.count("json")) {
-            ast_as_json = roxas::util::read_file_from_path(
+            // If `-j' is passed, load the AST from a pre-compiled JSON on-disk
+            ast_as_json_string = roxas::util::read_file_from_path(
                 result["json"].as<std::string>());
         } else if (python_opt) {
+            // Otherwise, use roxas::PythonModuleLoader to compute an AST from
+            // a source program and a Lexer/Parser in Python (default: Xion)
             auto module_args =
                 result["python-use"].as<std::vector<std::string>>();
 
@@ -72,7 +76,7 @@ int main(int argc, char** argv)
             auto python_module = roxas::PythonModuleLoader(
                 module_args[1], module_args[0], module_args[3]);
 
-            ast_as_json = python_module.call_method_on_module(
+            ast_as_json_string = python_module.call_method_on_module(
                 "get_source_program_ast_as_json", { source, "true", "true" });
         } else {
             std::cerr << "Error :: Invalid arguments try -j <json file> or -p "
@@ -81,10 +85,8 @@ int main(int argc, char** argv)
             return EXIT_FAILURE;
         }
 
-        simdjson::ondemand::parser parser;
-        auto doc = parser.iterate(ast_as_json);
-
-        roxas::util::recursive_print_json(doc);
+        auto json = nlohmann::json::parse(ast_as_json_string);
+        std::cout << "AST: " << json.dump() << std::endl;
 
     } catch (std::runtime_error& e) {
         std::cerr << "Runtime Exception :: " << e.what() << std::endl;

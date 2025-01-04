@@ -15,21 +15,23 @@
  */
 
 #pragma once
+
 #include <filesystem>
-#include <simdjson.h>
 
 namespace roxas {
 
 namespace util {
 
-namespace fs = std::filesystem;
+// The overload pattern
+template<class... Ts>
+struct overload : Ts...
+{
+    using Ts::operator()...;
+};
+template<class... Ts>
+overload(Ts...) -> overload<Ts...>;
 
-/**
- * @brief Recursively print a simdjson::ondemand json element
- *
- * @param element
- */
-void recursive_print_json(simdjson::ondemand::value element);
+namespace fs = std::filesystem;
 
 /**
  * @brief read a file from a fs::path

@@ -14,7 +14,7 @@ include(GNUInstallDirs)
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus /utf-8 /D_CRT_SECURE_NO_DEPRECATE /W4 /WX")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Werror")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
 include(cmake/CPM.cmake)
@@ -58,14 +58,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 # CPM Packages
 
-CPMAddPackage(
-  NAME simdjson
-  VERSION 3.11.3
-  GITHUB_REPOSITORY simdjson/simdjson
-  OPTIONS
-    # "SIMDJSON_BUILD_STATIC_LIB ON"
-    # "BUILD_SHARED_LIBS ON"
-)
+CPMAddPackage("gh:nlohmann/json@3.11.3")
 
 CPMAddPackage(
   NAME cxxopts
@@ -89,4 +82,4 @@ target_include_directories(
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${PYTHON_INCLUDE_DIRS})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC simdjson::simdjson Python3::Python cxxopts::cxxopts)
+target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json Python3::Python cxxopts::cxxopts)

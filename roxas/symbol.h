@@ -16,6 +16,62 @@
 
 #pragma once
 
+#include <array>
+#include <roxas/util.h>
+#include <string>
+#include <unordered_map>
+#include <variant>
+
 namespace roxas {
+/**
+ * @brief Symbol table object
+ *
+ * Constructs a symbol table via pass on an AST in simdjson::ondemand::value
+ * format.
+ *
+ * Structure:
+ *
+ * Name (LValue)
+ *        \
+ *         \
+ *   ------------------------------------------------------
+ *   | Type | Size | Line Declare | Line Usage |  Address |
+ *   ------------------------------------------------------
+ */
+class Symbol_Table
+{
+  public:
+  public:
+    Symbol_Table& operator=(Symbol_Table const&) = delete;
+    Symbol_Table(Symbol_Table const&) = delete;
+
+    using symbol_data = std::array<std::string, 5>;
+
+    /**
+     * @brief Construct a new Symbol_Table object
+     *
+     * @param ast simdjson::ondemand::value
+     */
+    explicit Symbol_Table(std::string_view ast);
+
+  public:
+    /**
+     * @brief Get a symbol by name in the symbol table
+     *
+     * @param name
+     * @return symbol_data
+     */
+    symbol_data get_symbol_by_name(std::string_view name);
+    /**
+     * @brief Get a symbol by address in the symbol table
+     *
+     * @param name
+     * @return symbol_data
+     */
+    symbol_data get_symbol_by_address(unsigned int address);
+
+  private:
+    std::unordered_map<std::string, symbol_data> table_;
+};
 
 } // namespace roxas

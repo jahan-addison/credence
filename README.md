@@ -2,7 +2,7 @@
 
 ### B Compiler to z80 in C++
 
-* The frontend (Lexer, Parser) and first-pass is built with an [easy-to-use LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython or json via `simdjson`
+* The frontend (Lexer, Parser) and first-pass is built with an [easy-to-use LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython or json via `nlohmann`
 * The backend will focus on modern work in SSA, Sea of Nodes, and compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains
 
 
@@ -41,7 +41,7 @@ make
 
 Note: These are installed automatically via CPM and cmake.
 
-* `simdjson` - Ultra-performant json parser
+* `nlohmann` - JSON for Modern C++
 * `cxxopts` - Lightweight commandline option parser
 
 ### Resources
