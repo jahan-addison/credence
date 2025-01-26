@@ -86,7 +86,7 @@ int main(int argc, char** argv)
         }
 
         auto json = nlohmann::json::parse(ast_as_json_string);
-        std::cout << "AST: " << json.dump() << std::endl;
+        std::cout << "AST: " << json.dump(2) << std::endl;
 
     } catch (std::runtime_error& e) {
         std::cerr << "Runtime Exception :: " << e.what() << std::endl;

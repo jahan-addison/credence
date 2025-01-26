@@ -17,35 +17,42 @@
 #pragma once
 
 #include <array>
+#include <map>
 #include <roxas/util.h>
 #include <string>
-#include <unordered_map>
-#include <variant>
 
 namespace roxas {
-/**
- * @brief Symbol table object
- *
- * Constructs a symbol table via pass on an AST in simdjson::ondemand::value
- * format.
- *
- * Structure:
- *
- * Name (LValue)
- *        \
- *         \
- *   ------------------------------------------------------
- *   | Type | Size | Line Declare | Line Usage |  Address |
- *   ------------------------------------------------------
- */
+
+template<typename T>
 class Symbol_Table
 {
-  public:
+    /**
+     * @brief Symbol table template class
+     *
+     * Constructs a symbol table from a template data structure
+     *
+     * An example table may be a map to `std::array<std::string, 5>':
+     *
+     * Name
+     *     \
+     *     |
+     *   ------------------------------------------------------
+     *   | Type | Size | Line Declare | Line Usage |  Address |
+     *   ------------------------------------------------------
+     * ...
+     * ...
+     * Name
+     *     \
+     *     |
+     *   ------------------------------------------------------
+     *   | Type | Size | Line Declare | Line Usage |  Address |
+     *   ------------------------------------------------------
+     * ...
+     * ...
+     */
   public:
     Symbol_Table& operator=(Symbol_Table const&) = delete;
     Symbol_Table(Symbol_Table const&) = delete;
-
-    using symbol_data = std::array<std::string, 5>;
 
     /**
      * @brief Construct a new Symbol_Table object
@@ -61,17 +68,10 @@ class Symbol_Table
      * @param name
      * @return symbol_data
      */
-    symbol_data get_symbol_by_name(std::string_view name);
-    /**
-     * @brief Get a symbol by address in the symbol table
-     *
-     * @param name
-     * @return symbol_data
-     */
-    symbol_data get_symbol_by_address(unsigned int address);
+    T get_symbol_by_name(std::string_view name);
 
   private:
-    std::unordered_map<std::string, symbol_data> table_;
+    std::map<std::string, T> table_;
 };
 
 } // namespace roxas
