@@ -51,11 +51,15 @@ int main(int argc, const char* argv[])
                 cxxopts::value<std::string>())(
                 "site-packages",
                 "Directory of python site-packages",
+                cxxopts::value<std::string>())(
+                "additional",
+                "additional arguments for the python loader",
                 cxxopts::value<std::vector<std::string>>());
         options.parse_positional({ "source-code",
                                    "python-module",
                                    "module-directory",
-                                   "site-packages" });
+                                   "site-packages",
+                                   "additional" });
 
         auto result = options.parse(argc, argv);
 
