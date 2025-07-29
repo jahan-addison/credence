@@ -23,7 +23,6 @@ Usage:
       --python-module arg     Compiler frontend python module name
       --module-directory arg  Directory of compiler frontend module
       --site-packages arg     Directory of python site-packages
-      --additional arg        additional arguments for the python loader
 ```
 
 ### Installation

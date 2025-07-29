@@ -37,7 +37,7 @@ int main(int argc, const char* argv[])
             /*
                 Positional arguments
                 *  1) B Program source code
-                *  2) Python module importable name
+                *  2) compiler frontend module name
                 *  3) Directory to python module
                 *  4) Path to python site-packages
 
