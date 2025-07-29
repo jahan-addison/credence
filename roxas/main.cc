@@ -82,6 +82,13 @@ int main(int argc, const char* argv[])
             auto python_module = roxas::PythonModuleLoader(
                 module_directory, module_name, site_packages);
 
+            if (result["debug"].count()) {
+                auto symbol_table = python_module.call_method_on_module(
+                    "get_source_program_symbol_table_as_json", { source });
+                std::cout << "*** Symbol Table:" << std::endl
+                          << json::JSON::Load(symbol_table) << std::endl;
+            }
+
             auto ast_as_json = python_module.call_method_on_module(
                 "get_source_program_ast_as_json", { source });
 
