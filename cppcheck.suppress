@@ -20,6 +20,7 @@ unusedFunction
 cstyleCast
 
 // ignore dependencies
+*:*json*
 *:*python*
 *:*cpm_modules*
 *:*_deps*

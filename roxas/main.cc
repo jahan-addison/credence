@@ -14,84 +14,91 @@
  * limitations under the License.
  */
 
-#include <cstdlib>
-#include <cxxopts.hpp>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <roxas/json.h>
 #include <roxas/python_module.h>
 #include <roxas/util.h>
 
-int main(int argc, char** argv)
+#include <cxxopts.hpp>
+
+int main(int argc, const char* argv[])
 {
-    if (argc < 2) {
-        std::cout << "Roxas :: Axel... What's this?" << std::endl;
-        return EXIT_SUCCESS;
-    }
-
     try {
-        cxxopts::Options options("roxas", "B Compiler in C++");
-
+        cxxopts::Options options("Roxas", "Roxas :: Axel... What's this?");
+        options.show_positional_help();
         options.add_options()(
-            "j,json", "Load AST from JSON file", cxxopts::value<std::string>())(
-            "p,python",
-            "Use PythonModuleLoader to load a Parser python module and build "
-            "an AST",
-            cxxopts::value<bool>()->default_value("false"))(
-            "python-use",
-            "Arguments to pass to python module loader",
-            cxxopts::value<std::vector<std::string>>())("h,help",
-                                                        "Print usage");
+            "a,ast-loader",
+            "AST Loader (json or python)",
+            cxxopts::value<std::string>()->default_value("json"))(
+            "d,debug",
+            "Enable debugging",
+            cxxopts::value<bool>()->default_value("false"))("h,help",
+                                                            "Print usage")
+            /*
+                Positional arguments
+                *  1) B Program source code
+                *  2) Python module importable name
+                *  3) Directory to python module
+                *  4) Path to python site-packages
+
+            */
+            ("source-code", "B Source file", cxxopts::value<std::string>())(
+                "python-module",
+                "Compiler frontend python module name",
+                cxxopts::value<std::string>())(
+                "module-directory",
+                "Directory of compiler frontend module",
+                cxxopts::value<std::string>())(
+                "site-packages",
+                "Directory of python site-packages",
+                cxxopts::value<std::string>())(
+                "additional",
+                "additional arguments for the python loader",
+                cxxopts::value<std::vector<std::string>>());
+        options.parse_positional({ "source-code",
+                                   "python-module",
+                                   "module-directory",
+                                   "site-packages",
+                                   "additional" });
 
         auto result = options.parse(argc, argv);
-        auto python_opt = result["python"].as<bool>();
-
-        std::string ast_as_json_string{};
 
         if (result.count("help")) {
-            std::cout
-                << "Usage: \n\t-j,--json: Load AST from JSON file\n"
-                << "\t-p,--python: Use PythonModuleLoader to load a Parser "
-                   "python module and build an AST\n"
-                << "\t--python-use: Arguments to pass to PythonModuleLoader. "
-                   "I.e. --python-use=module,path,env_dir\n";
-            return EXIT_SUCCESS;
+            std::cout << options.help() << std::endl;
+            exit(0);
         }
 
-        if (result.count("json")) {
-            // If `-j' is passed, load the AST from a pre-compiled JSON on-disk
-            ast_as_json_string = roxas::util::read_file_from_path(
-                result["json"].as<std::string>());
-        } else if (python_opt) {
-            // Otherwise, use roxas::PythonModuleLoader to compute an AST from
-            // a source program and a Lexer/Parser in Python (default: Xion)
-            auto module_args =
-                result["python-use"].as<std::vector<std::string>>();
+        json::JSON ast;
 
-            if (module_args.size() != 4) {
-                std::cerr << "Error :: Invalid arguments passed to --python-use"
-                          << std::endl;
-                return EXIT_FAILURE;
-            }
-            auto source = roxas::util::read_file_from_path(module_args[2]);
+        auto type = result["ast-loader"].as<std::string>();
+        auto source = roxas::util::read_file_from_path(
+            result["source-code"].as<std::string>());
+
+        if (type == "python") {
+            auto module_name = result["python-module"].as<std::string>();
+            auto module_directory =
+                result["module-directory"].as<std::string>();
+            auto site_packages = result["site-packages"].as<std::string>();
             auto python_module = roxas::PythonModuleLoader(
-                module_args[1], module_args[0], module_args[3]);
+                module_directory, module_name, site_packages);
 
-            ast_as_json_string = python_module.call_method_on_module(
-                "get_source_program_ast_as_json", { source, "true", "true" });
+            auto ast_as_json = python_module.call_method_on_module(
+                "get_source_program_ast_as_json", { source });
+
+            ast["root"] = json::JSON::Load(ast_as_json);
+
+        } else if (type == "json") {
+            ast["root"] = json::JSON::Load(source);
         } else {
-            std::cerr << "Error :: Invalid arguments try -j <json file> or -p "
-                         "--python-use=module,path,env_dir"
-                      << std::endl;
-            return EXIT_FAILURE;
+            std::cerr << "Error :: No source file provided" << std::endl;
         }
 
-        auto json = nlohmann::json::parse(ast_as_json_string);
-        std::cout << "AST: " << json.dump(2) << std::endl;
-
+        if (!ast.IsNull()) {
+            std::cout << ast["root"] << std::endl;
+        }
     } catch (std::runtime_error& e) {
         std::cerr << "Runtime Exception :: " << e.what() << std::endl;
-        return EXIT_FAILURE;
+        exit(1);
     }
-
-    return EXIT_SUCCESS;
+    return 0;
 }

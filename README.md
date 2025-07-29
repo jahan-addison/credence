@@ -2,12 +2,29 @@
 
 ### B Compiler to z80 in C++
 
-* The frontend (Lexer, Parser) and first-pass is built with an [easy-to-use LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython or json via `nlohmann`.
+* The frontend (Lexer, Parser) and first-pass is built with an [easy-to-use LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython or json via `SimpleJSON`
 * The backend will focus on modern work in SSA, Sea of Nodes, and compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and related toolchains
 
 
-<img src="docs/images/roxas-2.png" width="800px" alt="sunil sapkota twitter" > </img>
+<img src="docs/images/roxas-3.png" width="800px" alt="sunil sapkota twitter" > </img>
 
+
+### Usage
+
+```
+Roxas :: Axel... What's this?
+Usage:
+  Roxas [OPTION...] positional parameters
+
+  -a, --ast-loader arg        AST Loader (json or python) (default: json)
+  -d, --debug                 Enable debugging
+  -h, --help                  Print usage
+      --source-code arg       B Source file
+      --python-module arg     Compiler frontend python module name
+      --module-directory arg  Directory of compiler frontend module
+      --site-packages arg     Directory of python site-packages
+      --additional arg        additional arguments for the python loader
+```
 
 ### Installation
 
@@ -26,7 +43,7 @@ git submodule update --init --recursive
 #### Windows (mingw/msys)
 
 ```bash
-pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool mingw-w64-x86_64-unicode-character-database
+pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug
@@ -34,14 +51,11 @@ make
 
 ```
 
-[More information on llvm in mingw.](https://github.com/mstorsjo/llvm-mingw)
-
-
 ### Dependencies
 
-Note: These are installed automatically via CPM and cmake.
+**Note: These are installed automatically via CPM and cmake.**
 
-* `nlohmann` - JSON for Modern C++
+* `SimpleJSON` - Simple JSON parser
 * `cxxopts` - Lightweight commandline option parser
 
 ### Resources
@@ -57,4 +71,4 @@ Check the [project board](https://github.com/users/jahan-addison/projects/3/view
 Apache 2 License.
 
 
-![img2](docs/images/roxas-xion-axel.jpg)
+![img2](docs/images/roxas-xion-axel.png)

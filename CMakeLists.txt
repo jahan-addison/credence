@@ -58,8 +58,6 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 # CPM Packages
 
-CPMAddPackage("gh:nlohmann/json@3.11.3")
-
 CPMAddPackage(
   NAME cxxopts
   VERSION 3.2.0
@@ -80,6 +78,5 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${PYTHON_INCLUDE_DIRS})
-
-target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json Python3::Python cxxopts::cxxopts)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
