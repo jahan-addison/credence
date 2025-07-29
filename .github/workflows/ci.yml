@@ -43,4 +43,4 @@ jobs:
         run: cmake --build build -j4
 
       - name: run
-        run: ./build/roxas
+        run: ./build/roxas -h
