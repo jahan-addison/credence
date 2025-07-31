@@ -30,7 +30,7 @@ Usage:
 * Install git submodules
 
 ```bash
-git submodule update --init --recursive
+bash ./scripts/install.sh`
 ```
 
 ...

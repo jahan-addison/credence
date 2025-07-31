@@ -23,15 +23,12 @@
 
 namespace roxas {
 
-template<typename T>
 class Symbol_Table
 {
     /**
      * @brief Symbol table template class
      *
      * Constructs a symbol table from a template data structure
-     *
-     * An example table may be a map to `std::array<std::string, 5>':
      *
      * Name
      *     \
@@ -71,7 +68,7 @@ class Symbol_Table
     T get_symbol_by_name(std::string_view name);
 
   private:
-    std::map<std::string, T> table_;
+    std::map < std::string, std::array<std::string, 5> table_;
 };
 
 } // namespace roxas

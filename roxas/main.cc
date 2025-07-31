@@ -16,7 +16,7 @@
 
 #include <iostream>
 #include <roxas/json.h>
-#include <roxas/python_module.h>
+#include <roxas/python.h>
 #include <roxas/util.h>
 
 #include <cxxopts.hpp>

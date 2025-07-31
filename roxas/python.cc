@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <roxas/python_module.h>
+#include <roxas/python.h>
 #include <sstream>
 #include <stdexcept>
 
