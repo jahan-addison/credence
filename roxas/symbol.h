@@ -23,6 +23,7 @@
 
 namespace roxas {
 
+template<typename T>
 class Symbol_Table
 {
     /**
@@ -30,14 +31,8 @@ class Symbol_Table
      *
      * Constructs a symbol table from a template data structure
      *
-     * Name
-     *     \
-     *     |
-     *   ------------------------------------------------------
-     *   | Type | Size | Line Declare | Line Usage |  Address |
-     *   ------------------------------------------------------
-     * ...
-     * ...
+     * An example table may be a map to `std::array<std::string, 5>':
+     *
      * Name
      *     \
      *     |
@@ -54,11 +49,11 @@ class Symbol_Table
     /**
      * @brief Construct a new Symbol_Table object
      *
-     * @param ast simdjson::ondemand::value
      */
-    explicit Symbol_Table(std::string_view ast);
+    Symbol_Table() = default;
 
   public:
+    using Table_Entry = std::string_view;
     /**
      * @brief Get a symbol by name in the symbol table
      *
@@ -66,9 +61,16 @@ class Symbol_Table
      * @return symbol_data
      */
     T get_symbol_by_name(std::string_view name);
+    /**
+     * @brief Get a symbol by name in the symbol table
+     *
+     * @param name
+     * @return symbol_data
+     */
+    T set_symbol_by_name(std::string_view name, T entry);
 
   private:
-    std::map < std::string, std::array<std::string, 5> table_;
+    std::map<Table_Entry, T> table_;
 };
 
 } // namespace roxas

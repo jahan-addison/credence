@@ -16,4 +16,58 @@
 
 #pragma once
 
+#include <array>
+#include <roxas/symbol.h>
+#include <string_view>
+#include <vector>
+
 // https://github.com/shinh/elvm/blob/master/ir/ir.h
+// https://github.com/arnlaugsson/project-3/blob/master/code.py
+
+namespace roxas {
+
+class Quintdruple
+{
+  public:
+    Quintdruple(Quadruple const&) = delete;
+    Quintdruple& operator=(Quintdruple const&) = delete;
+
+  public:
+    enum class Operator
+    {
+        LABEL,
+        GOTO,
+        CALL,
+        PARAM_F, // function parameters
+        PARAM_A, // array parameters
+        VARIABLE,
+        RETURN,
+        NOOP
+    };
+
+  public:
+    using Entry = Symbol_Table::Table_Entry;
+    explicit Quintdruple(Entry op,
+                         Entry arg1,
+                         Entry arg2,
+                         Entry result, // quadruple: result or label
+                         Entry label = "")
+        : quintdruple_({ op, arg1, arg2, result, label })
+    {
+    }
+    ~Quintdruple() = default;
+
+  public:
+    std::string_view get();
+
+  private:
+    std::array<std::string, 5> quintdruple_{};
+};
+
+struct ThreeAddressCode
+{
+    Symbol_Table<std::array<Symbol_Table::Table_Entry, 2>> symbols{};
+    std::vector<Quintdruple> quintdruple_list{};
+};
+
+} // namespace roxas
