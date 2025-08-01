@@ -24,6 +24,8 @@
 // https://github.com/shinh/elvm/blob/master/ir/ir.h
 // https://github.com/arnlaugsson/project-3/blob/master/code.py
 
+// https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/13/Slides13.pdf
+
 namespace roxas {
 
 class Quintdruple
@@ -37,9 +39,9 @@ class Quintdruple
     {
         LABEL,
         GOTO,
+        PUSH,
+        POP,
         CALL,
-        PARAM_F, // function parameters
-        PARAM_A, // array parameters
         VARIABLE,
         RETURN,
         NOOP
