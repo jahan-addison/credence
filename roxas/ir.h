@@ -17,6 +17,8 @@
 #pragma once
 
 #include <array>
+#include <fstream>
+#include <roxas/json.h>
 #include <roxas/symbol.h>
 #include <string_view>
 #include <vector>
@@ -25,6 +27,7 @@
 // https://github.com/arnlaugsson/project-3/blob/master/code.py
 
 // https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/13/Slides13.pdf
+// ^ slide 156
 
 namespace roxas {
 
@@ -42,6 +45,8 @@ class Quintdruple
         PUSH,
         POP,
         CALL,
+        FUNC_START,
+        FUCN_END,
         VARIABLE,
         RETURN,
         NOOP
@@ -66,10 +71,40 @@ class Quintdruple
     std::array<std::string, 5> quintdruple_{};
 };
 
-struct ThreeAddressCode
+class Intermediate_Representation
 {
+  public:
+    Intermediate_Representation(Intermediate_Representation const&) = delete;
+    Intermediate_Representation& operator=(Intermediate_Representation const&) =
+        delete;
+
+  public:
+    explicit Intermediate_Representation(json::JSON& ast)
+        : ast_(std::move(ast))
+    {
+    }
+    ~Intermediate_Representation() = default;
+
+  public:
+    using Node = json::Object;
+    using Nodes = json::Array;
+    void emit_to_stdout();
+    void emit_to(std::fstream const& fstream);
+
+  private:
+    void from_assignment_expression(Node node);
+    // inline lvalues
+    void from_identifier(Node node);
+    void from_indirect_identifier(Node node);
+    void from_vector_idenfitier(Node node);
+    // constants
+    void from_number_literal(Node node);
+
+  private:
+    json::JSON ast_;
     Symbol_Table<std::array<Symbol_Table::Table_Entry, 2>> symbols{};
     std::vector<Quintdruple> quintdruple_list{};
+    std::vector<Symbol_Table::Table_Entry> labels_{};
 };
 
 } // namespace roxas
