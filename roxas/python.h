@@ -43,9 +43,7 @@ class PythonModuleLoader
      * @param env_path an optional absolute path to a venv directory where
      * dependecies are installed
      */
-    PythonModuleLoader(std::string_view module_path,
-                       std::string_view module_name,
-                       std::string const& env_path = "");
+    PythonModuleLoader(std::string_view module_name);
 
     /**
      * @brief clean up

@@ -30,7 +30,7 @@ int main(int argc, const char* argv[])
         options.add_options()(
             "a,ast-loader",
             "AST Loader (json or python)",
-            cxxopts::value<std::string>()->default_value("json"))(
+            cxxopts::value<std::string>()->default_value("python"))(
             "d,debug",
             "Enable debugging",
             cxxopts::value<bool>()->default_value("false"))("h,help",
@@ -46,21 +46,12 @@ int main(int argc, const char* argv[])
             ("source-code", "B Source file", cxxopts::value<std::string>())(
                 "python-module",
                 "Compiler frontend python module name",
-                cxxopts::value<std::string>())(
-                "module-directory",
-                "Directory of compiler frontend module",
-                cxxopts::value<std::string>())(
-                "site-packages",
-                "Directory of python site-packages",
-                cxxopts::value<std::string>())(
+                cxxopts::value<std::string>()->default_value("xion.parser"))(
                 "additional",
                 "additional arguments for the python loader",
                 cxxopts::value<std::vector<std::string>>());
-        options.parse_positional({ "source-code",
-                                   "python-module",
-                                   "module-directory",
-                                   "site-packages",
-                                   "additional" });
+        options.parse_positional(
+            { "source-code", "python-module", "additional" });
 
         auto result = options.parse(argc, argv);
 
@@ -77,11 +68,7 @@ int main(int argc, const char* argv[])
 
         if (type == "python") {
             auto module_name = result["python-module"].as<std::string>();
-            auto module_directory =
-                result["module-directory"].as<std::string>();
-            auto site_packages = result["site-packages"].as<std::string>();
-            auto python_module = roxas::PythonModuleLoader(
-                module_directory, module_name, site_packages);
+            auto python_module = roxas::PythonModuleLoader(module_name);
 
             if (result["debug"].count()) {
                 auto symbol_table = python_module.call_method_on_module(

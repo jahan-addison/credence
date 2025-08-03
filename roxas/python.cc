@@ -27,24 +27,12 @@ namespace roxas {
  *
  * Constructs object that interfaces with libpython
  *
- * @param module_path an absolute path to a python module
  * @param module_name the module name as a string
- * @param env_path an optional absolute path to a venv directory where
- * dependecies are installed
  */
-PythonModuleLoader::PythonModuleLoader(std::string_view module_path,
-                                       std::string_view module_name,
-                                       std::string const& env_path)
-    : module_path_(module_path)
-    , module_name_(module_name)
+PythonModuleLoader::PythonModuleLoader(std::string_view module_name)
+    : module_name_(module_name)
 {
     std::ostringstream python_path;
-    python_path << "sys.path.append(\"" << module_path_ << "\")";
-
-    if (not env_path.empty()) {
-        python_path << std::endl << "sys.path.append(\"" << env_path << "\")";
-    }
-
     // Initialize the Python Interpreter
     Py_Initialize();
 

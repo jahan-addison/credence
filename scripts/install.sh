@@ -1,20 +1,26 @@
-#!/usr/bin/bash
-echo "### Installing Lexer/Parser ..."
+#!/bin/bash
+echo "### Installing dependencies ..."
 
 directory=$(pwd)
 
 git submodule update --init --recursive
 cd external/xion
 poetry install
+make install
 
-echo "### Saving Lexer/Parser site-packages ..."
+echo "### Creating build directory"
 
-path=$(poetry env info --path)
-version=$(poetry run python --version | cut -f2 -d " " | cut -f1,2 -d "." )
-
+cd "$directory"
 mkdir -p "$directory"/build
 
-echo "$path/lib/python$version/site-packages" > $directory/build/.site-packages
+
+echo "### Running Cmake ..."
+
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+
+echo "### Building ..."
+
+make
 
 echo "Done."
 
