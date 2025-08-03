@@ -21,6 +21,7 @@ include(cmake/CPM.cmake)
 
 # https://github.com/StableCoder/cmake-scripts
 CPMAddPackage("gh:StableCoder/cmake-scripts#24.04")
+CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
 # Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake
 # enables sanitizers support using the the `USE_SANITIZER` flag available values are: Address,
@@ -53,25 +54,29 @@ endif()
 
 # Add python-dev library to interface with python
 
-find_package (Python3 COMPONENTS Interpreter Development)
+find_package(Python3 COMPONENTS Interpreter Development)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
 # CPM Packages
+
+CPMAddPackage("gh:doctest/doctest@2.4.9")
 
 CPMAddPackage(
   NAME cxxopts
   VERSION 3.2.0
   GITHUB_REPOSITORY jarro2783/cxxopts
+  OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
 )
 
-# Create standalone executable
+# --- Executable ----
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.cc")
+file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cc")
 
-add_executable(${PROJECT_NAME} ${sources})
+add_executable(${PROJECT_NAME} ${sources} ${headers})
 
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "roxas")
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
@@ -80,3 +85,8 @@ target_include_directories(
 
 target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
 target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
+
+
+# --- Tests ----
+
+include(cmake/doctest.cmake)

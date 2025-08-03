@@ -19,30 +19,30 @@
 #include <array>
 #include <map>
 #include <roxas/util.h>
-#include <string>
+#include <string_view>
 
 namespace roxas {
 
 template<typename T>
 class Symbol_Table
 {
-    /**
-     * @brief Symbol table template class
-     *
-     * Constructs a symbol table from a template data structure
-     *
-     * An example table may be a map to `std::array<std::string, 5>':
-     *
-     * Name
-     *     \
-     *     |
-     *   ------------------------------------------------------
-     *   | Type | Size | Line Declare | Line Usage |  Address |
-     *   ------------------------------------------------------
-     * ...
-     * ...
-     */
-  public:
+  /**
+   * @brief Symbol table template class
+   *
+   * Constructs a symbol table from a template data structure
+   *
+   * An example table may be a map to `std::array<std::string, 5>':
+   *
+   * Name
+   *     \
+   *     |
+   *   ------------------------------------------------------
+   *   | Type | Size | Line Declare | Line Usage |  Address |
+   *   ------------------------------------------------------
+   * ...
+   * ...
+   */
+    ROXAS_PUBLIC:
     Symbol_Table& operator=(Symbol_Table const&) = delete;
     Symbol_Table(Symbol_Table const&) = delete;
 
@@ -51,8 +51,9 @@ class Symbol_Table
      *
      */
     Symbol_Table() = default;
+    ~Symbol_Table() = default;
 
-  public:
+    ROXAS_PUBLIC:
     using Table_Entry = std::string_view;
     /**
      * @brief Get a symbol by name in the symbol table
@@ -60,16 +61,20 @@ class Symbol_Table
      * @param name
      * @return symbol_data
      */
-    T get_symbol_by_name(std::string_view name);
+    T inline get_symbol_by_name(std::string_view name) { return table_[name]; }
     /**
      * @brief Get a symbol by name in the symbol table
      *
      * @param name
      * @return symbol_data
      */
-    T set_symbol_by_name(std::string_view name, T entry);
+    T inline set_symbol_by_name(std::string_view name, T entry)
+    {
+        table_.emplace(name, entry);
+        return entry;
+    }
 
-  private:
+    ROXAS_PRIVATE:
     std::map<Table_Entry, T> table_;
 };
 

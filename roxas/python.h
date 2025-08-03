@@ -17,6 +17,7 @@
 #pragma once
 
 #include <initializer_list>
+#include <roxas/util.h>
 #include <string>
 #include <string_view>
 
@@ -30,7 +31,7 @@ namespace roxas {
  */
 class PythonModuleLoader
 {
-  public:
+    ROXAS_PUBLIC:
     PythonModuleLoader(PythonModuleLoader const&) = delete;
     /**
      * @brief PythonModuleLoader constructor
@@ -53,7 +54,7 @@ class PythonModuleLoader
      */
     ~PythonModuleLoader();
 
-  public:
+    ROXAS_PUBLIC:
     /**
      * @brief
      *
@@ -67,7 +68,7 @@ class PythonModuleLoader
     std::string call_method_on_module(std::string_view method_name,
                                       std::initializer_list<std::string> args);
 
-  private:
+    ROXAS_PRIVATE:
     std::string_view module_path_;
     std::string_view module_name_;
 };

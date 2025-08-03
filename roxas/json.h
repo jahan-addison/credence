@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- *   https://github.com/nbsdx/SimpleJSON
  */
 #pragma once
 
@@ -77,6 +76,11 @@ string json_escape(const string& str)
 
 class JSON
 {
+    inline friend std::ostream& operator<<(std::ostream& os, const JSON& json)
+    {
+        os << json.dump();
+        return os;
+    }
     union BackingData
     {
         BackingData(double d)
@@ -598,28 +602,22 @@ class JSON
     Class Type = Class::Null;
 };
 
-JSON Array()
+inline JSON Array()
 {
     return JSON::Make(JSON::Class::Array);
 }
 
 template<typename... T>
-JSON Array(T... args)
+inline JSON Array(T... args)
 {
     JSON arr = JSON::Make(JSON::Class::Array);
     arr.append(args...);
     return arr;
 }
 
-JSON Object()
+inline JSON Object()
 {
     return JSON::Make(JSON::Class::Object);
-}
-
-std::ostream& operator<<(std::ostream& os, const JSON& json)
-{
-    os << json.dump();
-    return os;
 }
 
 namespace {
@@ -869,7 +867,7 @@ JSON parse_next(const string& str, size_t& offset)
 }
 }
 
-JSON JSON::Load(const string& str)
+inline JSON JSON::Load(const string& str)
 {
     size_t offset = 0;
     return parse_next(str, offset);

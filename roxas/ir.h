@@ -20,7 +20,9 @@
 #include <fstream>
 #include <roxas/json.h>
 #include <roxas/symbol.h>
+#include <roxas/util.h>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 // https://github.com/shinh/elvm/blob/master/ir/ir.h
@@ -33,65 +35,91 @@ namespace roxas {
 
 class Quintdruple
 {
-  public:
-    Quintdruple(Quadruple const&) = delete;
+    ROXAS_PUBLIC:
+    Quintdruple(Quintdruple const&) = delete;
     Quintdruple& operator=(Quintdruple const&) = delete;
 
-  public:
+    ROXAS_PUBLIC:
     enum class Operator
     {
+        FUNC_START,
+        FUNC_END,
         LABEL,
         GOTO,
+        MINUS,
+        PLUS,
+        LT,
+        GT,
+        LE,
+        GE,
+        XOR,
+        LSHIFT,
+        RSHIFT,
+        SUBTRACT,
+        ADD,
+        MOD,
+        MUL,
+        DIV,
+        INDIRECT,
+        ADDR_OF,
+        UMINUS,
+        UNOT,
+        UONE,
         PUSH,
         POP,
         CALL,
-        FUNC_START,
-        FUCN_END,
         VARIABLE,
         RETURN,
         NOOP
     };
 
-  public:
-    using Entry = Symbol_Table::Table_Entry;
-    explicit Quintdruple(Entry op,
+    constexpr std::string_view operator_to_string(Operator op) noexcept;
+
+    ROXAS_PUBLIC:
+    using Table = std::pair<std::string_view, std::size_t>;
+    using Entry = Symbol_Table<std::array<std::string_view, 4>>::Table_Entry;
+    using Quint = std::pair<Operator, std::array<std::string_view, 4>>;
+    explicit Quintdruple(Operator op,
                          Entry arg1,
                          Entry arg2,
-                         Entry result, // quadruple: result or label
+                         Entry result, // result or label
                          Entry label = "")
-        : quintdruple_({ op, arg1, arg2, result, label })
+        : quintdruple_(std::pair(
+              op,
+              std::array<std::string_view, 4>{ arg1, arg2, result, label }))
     {
     }
     ~Quintdruple() = default;
 
-  public:
-    std::string_view get();
+    ROXAS_PUBLIC:
+    Quint get() noexcept;
 
-  private:
-    std::array<std::string, 5> quintdruple_{};
+    ROXAS_PRIVATE:
+    Quint quintdruple_{};
 };
 
 class Intermediate_Representation
 {
-  public:
+    ROXAS_PUBLIC:
     Intermediate_Representation(Intermediate_Representation const&) = delete;
     Intermediate_Representation& operator=(Intermediate_Representation const&) =
         delete;
 
-  public:
+    ROXAS_PUBLIC:
     explicit Intermediate_Representation(json::JSON& ast)
         : ast_(std::move(ast))
     {
     }
     ~Intermediate_Representation() = default;
 
-  public:
-    using Node = json::Object;
-    using Nodes = json::Array;
+    ROXAS_PUBLIC:
+    using Node = json::JSON;
+    using Nodes = json::JSON;
+    using Symbol = Symbol_Table<unsigned int>::Table_Entry;
     void emit_to_stdout();
     void emit_to(std::fstream const& fstream);
 
-  private:
+    ROXAS_PRIVATE:
     void from_assignment_expression(Node node);
     // inline lvalues
     void from_identifier(Node node);
@@ -100,11 +128,13 @@ class Intermediate_Representation
     // constants
     void from_number_literal(Node node);
 
-  private:
+    ROXAS_PRIVATE:
     json::JSON ast_;
-    Symbol_Table<std::array<Symbol_Table::Table_Entry, 2>> symbols{};
-    std::vector<Quintdruple> quintdruple_list{};
-    std::vector<Symbol_Table::Table_Entry> labels_{};
+
+    ROXAS_PRIVATE:
+    Symbol_Table<Symbol> symbols_{};
+    std::vector<Quintdruple> quintdruple_list_{};
+    std::vector<Quintdruple::Entry> labels_{};
 };
 
 } // namespace roxas

@@ -16,6 +16,14 @@
 
 #pragma once
 
+// access specifier macros for Doctest
+#define ROXAS_PUBLIC public
+#if defined(DOCTEST_LIBRARY_INCLUDED)
+#define ROXAS_PRIVATE public
+#else
+#define ROXAS_PRIVATE private
+#endif
+
 #include <filesystem>
 
 namespace roxas {
