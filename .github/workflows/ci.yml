@@ -44,3 +44,6 @@ jobs:
 
       - name: run
         run: ./build/roxas -h
+
+      - name: test
+        run: ./build/test_suite
