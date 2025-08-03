@@ -77,7 +77,7 @@ class Symbol_Table
     /* clang-format off */
   ROXAS_PRIVATE_UNLESS_TESTED:
     std::map<Table_Entry, T> table_;
-  /* clang-format on*/
+    /* clang-format on*/
 };
 
 } // namespace roxas
