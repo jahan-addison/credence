@@ -20,7 +20,6 @@
 #include <fstream>
 #include <roxas/json.h>
 #include <roxas/symbol.h>
-#include <roxas/util.h>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -35,11 +34,11 @@ namespace roxas {
 
 class Quintdruple
 {
-    ROXAS_PUBLIC:
+  public:
     Quintdruple(Quintdruple const&) = delete;
     Quintdruple& operator=(Quintdruple const&) = delete;
 
-    ROXAS_PUBLIC:
+  public:
     enum class Operator
     {
         FUNC_START,
@@ -75,7 +74,7 @@ class Quintdruple
 
     constexpr std::string_view operator_to_string(Operator op) noexcept;
 
-    ROXAS_PUBLIC:
+  public:
     using Table = std::pair<std::string_view, std::size_t>;
     using Entry = Symbol_Table<std::array<std::string_view, 4>>::Table_Entry;
     using Quint = std::pair<Operator, std::array<std::string_view, 4>>;
@@ -91,35 +90,35 @@ class Quintdruple
     }
     ~Quintdruple() = default;
 
-    ROXAS_PUBLIC:
+  public:
     Quint get() noexcept;
 
-    ROXAS_PRIVATE:
+  private:
     Quint quintdruple_{};
 };
 
 class Intermediate_Representation
 {
-    ROXAS_PUBLIC:
+  public:
     Intermediate_Representation(Intermediate_Representation const&) = delete;
     Intermediate_Representation& operator=(Intermediate_Representation const&) =
         delete;
 
-    ROXAS_PUBLIC:
+  public:
     explicit Intermediate_Representation(json::JSON& ast)
         : ast_(std::move(ast))
     {
     }
     ~Intermediate_Representation() = default;
 
-    ROXAS_PUBLIC:
+  public:
     using Node = json::JSON;
     using Nodes = json::JSON;
     using Symbol = Symbol_Table<unsigned int>::Table_Entry;
     void emit_to_stdout();
     void emit_to(std::fstream const& fstream);
 
-    ROXAS_PRIVATE:
+  private:
     void from_assignment_expression(Node node);
     // inline lvalues
     void from_identifier(Node node);
@@ -128,10 +127,10 @@ class Intermediate_Representation
     // constants
     void from_number_literal(Node node);
 
-    ROXAS_PRIVATE:
+  private:
     json::JSON ast_;
 
-    ROXAS_PRIVATE:
+  private:
     Symbol_Table<Symbol> symbols_{};
     std::vector<Quintdruple> quintdruple_list_{};
     std::vector<Quintdruple::Entry> labels_{};

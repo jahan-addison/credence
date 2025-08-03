@@ -26,23 +26,23 @@ namespace roxas {
 template<typename T>
 class Symbol_Table
 {
-  /**
-   * @brief Symbol table template class
-   *
-   * Constructs a symbol table from a template data structure
-   *
-   * An example table may be a map to `std::array<std::string, 5>':
-   *
-   * Name
-   *     \
-   *     |
-   *   ------------------------------------------------------
-   *   | Type | Size | Line Declare | Line Usage |  Address |
-   *   ------------------------------------------------------
-   * ...
-   * ...
-   */
-    ROXAS_PUBLIC:
+    /**
+     * @brief Symbol table template class
+     *
+     * Constructs a symbol table from a template data structure
+     *
+     * An example table may be a map to `std::array<std::string, 5>':
+     *
+     * Name
+     *     \
+     *     |
+     *   ------------------------------------------------------
+     *   | Type | Size | Line Declare | Line Usage |  Address |
+     *   ------------------------------------------------------
+     * ...
+     * ...
+     */
+  public:
     Symbol_Table& operator=(Symbol_Table const&) = delete;
     Symbol_Table(Symbol_Table const&) = delete;
 
@@ -53,7 +53,7 @@ class Symbol_Table
     Symbol_Table() = default;
     ~Symbol_Table() = default;
 
-    ROXAS_PUBLIC:
+  public:
     using Table_Entry = std::string_view;
     /**
      * @brief Get a symbol by name in the symbol table
@@ -74,8 +74,10 @@ class Symbol_Table
         return entry;
     }
 
-    ROXAS_PRIVATE:
+    /* clang-format off */
+  ROXAS_PRIVATE_UNLESS_TESTED:
     std::map<Table_Entry, T> table_;
+  /* clang-format on*/
 };
 
 } // namespace roxas

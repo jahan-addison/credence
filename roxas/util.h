@@ -19,12 +19,13 @@
 // access specifier macros for Doctest
 #define ROXAS_PUBLIC public
 #if defined(DOCTEST_LIBRARY_INCLUDED)
-#define ROXAS_PRIVATE public
+#define ROXAS_PRIVATE_UNLESS_TESTED public
 #else
-#define ROXAS_PRIVATE private
+#define ROXAS_PRIVATE_UNLESS_TESTED private
 #endif
 
 #include <filesystem>
+#include <string>
 
 namespace roxas {
 
