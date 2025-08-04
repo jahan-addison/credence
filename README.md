@@ -40,7 +40,7 @@ Usage:
 ### Installation
 
 ```bash
-bash ./scripts/install.sh`
+bash ./scripts/install.sh
 ```
 
 ...

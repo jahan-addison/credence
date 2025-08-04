@@ -15,6 +15,12 @@
  */
 
 #pragma once
+#include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <iomanip> // For std::put_time
+#include <iostream>
+#include <string>
 
 // access specifier macros for Doctest
 #define ROXAS_PUBLIC public
@@ -24,12 +30,26 @@
 #define ROXAS_PRIVATE_UNLESS_TESTED private
 #endif
 
-#include <filesystem>
 #include <string>
 
 namespace roxas {
 
 namespace util {
+
+enum class Logging
+{
+    INFO,
+    WARNING,
+    ERROR
+};
+
+/**
+ * @brief log function
+ *
+ * @param level LogLevel log level
+ * @param message log message
+ */
+void log(Logging level, std::string_view message);
 
 // The overload pattern
 template<class... Ts>

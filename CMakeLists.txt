@@ -14,7 +14,11 @@ include(GNUInstallDirs)
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus /utf-8 /D_CRT_SECURE_NO_DEPRECATE /W4 /WX")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic")
+    if(CMAKE_BUILD_TYPE EQUAL Debug)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -DDEBUG")
+    else()
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic")
+    endif()
 endif()
 
 include(cmake/CPM.cmake)
@@ -68,7 +72,7 @@ CPMAddPackage(
   OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
 )
 
-# --- Executable ----
+# --- Executables ----
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
 file(GLOB_RECURSE sources CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.cc")
@@ -85,8 +89,5 @@ target_include_directories(
 
 target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
 target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
-
-
-# --- Tests ----
 
 include(cmake/doctest.cmake)

@@ -4,10 +4,6 @@
 
 using namespace roxas;
 
-/*************************************************************************/
-/* symbol tests */
-/*************************************************************************/
-
 TEST_CASE("symbol.cc: Symbol_table::get_symbol_by_name")
 {
     auto temp = Symbol_Table<int>{};

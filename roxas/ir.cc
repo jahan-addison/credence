@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) Jahan Addison
  *
@@ -16,16 +15,20 @@
  */
 
 #include <cassert>
+#include <format>
 #include <roxas/ir.h>
 
 namespace roxas {
 
-Quintdruple::Quint Quintdruple::get() noexcept
-{
-    return quintdruple_;
-}
-
-constexpr std::string_view Quintdruple::operator_to_string(Operator op) noexcept
+/**
+ * @brief
+ * Operator to string
+ *
+ * @param op
+ * @return constexpr std::string_view
+ */
+constexpr std::string_view Intermediate_Representation::operator_to_string(
+    Operator op) noexcept
 {
     switch (op) {
         case Operator::LABEL:
@@ -89,10 +92,52 @@ constexpr std::string_view Quintdruple::operator_to_string(Operator op) noexcept
     }
 }
 
+/**
+ * @brief
+ * Parse number literal node into IR symbols
+ *
+ * @param node
+ */
 void Intermediate_Representation::from_number_literal(Node node)
 {
-    assert(node.hasKey("node"));
+    assert(node["node"].ToString().compare("number_literal") == 0);
+    assert(node.hasKey("root"));
+    symbols_.set_symbol_by_name(
+        std::format("_t{}", temporaries_),
+        { node["root"].ToString(), "int", sizeof(int) });
+    temporaries_++;
+}
+
+/**
+ * @brief
+ * Parse string literal node into IR symbols
+ *
+ * @param node
+ */
+void Intermediate_Representation::from_string_literal(Node node)
+{
+    assert(node["node"].ToString().compare("string_literal") == 0);
+    assert(node.hasKey("root"));
+    auto value = node["root"].ToString();
+    symbols_.set_symbol_by_name(std::format("_t{}", temporaries_),
+                                { value, "string", value.size() });
+    temporaries_++;
+}
+
+/**
+ * @brief
+ * Parse constant literal node into IR symbols
+ *
+ * @param node
+ */
+void Intermediate_Representation::from_constant_literal(Node node)
+{
     assert(node["node"].ToString().compare("constant_literal") == 0);
+    assert(node.hasKey("root"));
+    symbols_.set_symbol_by_name(
+        std::format("_t{}", temporaries_),
+        { node["root"].ToString(), "int", sizeof(int) });
+    temporaries_++;
 }
 
 } // namespace roxas

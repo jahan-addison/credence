@@ -16,14 +16,21 @@
 
 #pragma once
 
-#include <array>
 #include <map>
 #include <roxas/util.h>
-#include <string_view>
+#include <string>
+#include <tuple>
 
 namespace roxas {
+/*
+ *.
+ *   ------------------------
+ *   | Value | Type | Size |
+ *   ------------------------
+ */
+using Default_Table_Type = std::tuple<std::string, std::string, std::size_t>;
 
-template<typename T>
+template<typename T = Default_Table_Type>
 class Symbol_Table
 {
     /**
@@ -35,7 +42,7 @@ class Symbol_Table
      *
      * Name
      *     \
-     *     |
+     *
      *   ------------------------------------------------------
      *   | Type | Size | Line Declare | Line Usage |  Address |
      *   ------------------------------------------------------
@@ -54,29 +61,30 @@ class Symbol_Table
     ~Symbol_Table() = default;
 
   public:
-    using Table_Entry = std::string_view;
     /**
      * @brief Get a symbol by name in the symbol table
      *
      * @param name
      * @return symbol_data
      */
-    T inline get_symbol_by_name(std::string_view name) { return table_[name]; }
-    /**
-     * @brief Get a symbol by name in the symbol table
-     *
-     * @param name
-     * @return symbol_data
-     */
-    T inline set_symbol_by_name(std::string_view name, T entry)
+    T inline get_symbol_by_name(std::string const& name)
     {
-        table_.emplace(name, entry);
-        return entry;
+        return table_.at(name);
+    }
+    /**
+     * @brief Get a symbol by name in the symbo table
+     *
+     * @param name
+     * @return symbol_data
+     */
+    void inline set_symbol_by_name(std::string const& name, T entry)
+    {
+        table_.insert_or_assign(name, std::move(entry));
     }
 
     /* clang-format off */
   ROXAS_PRIVATE_UNLESS_TESTED:
-    std::map<Table_Entry, T> table_;
+    std::map<std::string, T> table_{};
     /* clang-format on*/
 };
 

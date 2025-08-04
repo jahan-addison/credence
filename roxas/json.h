@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -24,8 +25,10 @@
 #include <iostream>
 #include <map>
 #include <ostream>
+#include <ranges>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace json {
 
@@ -403,6 +406,19 @@ class JSON
         if (Type == Class::Object)
             return Internal.Map->find(key) != Internal.Map->end();
         return false;
+    }
+
+    void dumpKeys() const
+    {
+        if (Type == Class::Object) {
+            std::cout << "JSON:: Keys: " << std::endl;
+            std::vector<std::string> keys;
+            std::ranges::copy(*(Internal.Map) | std::views::keys,
+                              std::back_inserter(keys));
+            for (auto const& key : keys) {
+                std::cout << "\tKey: " << key << std::endl;
+            }
+        }
     }
 
     int size() const

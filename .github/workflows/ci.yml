@@ -18,32 +18,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Installation
-        run:
-          sudo apt-get update
+    - uses: actions/checkout@v3
 
-          sudo apt-get install iwyu python3-dev cppcheck clang-tidy
+    - name: Installation
+      run: |
+        sudo apt-get update
 
-      - uses: actions/checkout@v3
+        sudo apt-get install -y gcc-10 llvm-18 clang-18 iwyu python3-dev cppcheck clang-tidy
+        sudo update-alternatives \
+          --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
+          --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-10 \
+          --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-10 \
+          --slave /usr/bin/gcov gcov /usr/bin/gcov-10
+        sudo update-alternatives \
+          --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-18 100 \
+          --slave /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-18 \
+          --slave /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-18
+        sudo update-alternatives \
+          --install /usr/bin/clang clang /usr/bin/clang-18 100
 
-      - uses: actions/cache@v3
-        with:
-          path: "**/cpm_modules"
-          key: ${{ github.workflow }}-cpm-modules-${{ hashFiles('**/CMakeLists.txt', '**/*.cmake') }}
+    - name: configure
+      run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined"
 
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.16.x'
+    - name: build
+      run: cmake --build build -j4
 
-      - name: configure
-        run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined"
+    - name: run
+      run: ./build/roxas -h
 
-      - name: build
-        run: cmake --build build -j4
-
-      - name: run
-        run: ./build/roxas -h
-
-      - name: test
-        run: ./build/test_suite
+    - name: test
+      run: ./build/test_suite

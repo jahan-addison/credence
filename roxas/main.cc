@@ -34,22 +34,14 @@ int main(int argc, const char* argv[])
             "d,debug",
             "Enable debugging",
             cxxopts::value<bool>()->default_value("false"))("h,help",
-                                                            "Print usage")
-            /*
-                Positional arguments
-                *  1) B Program source code
-                *  2) compiler frontend module name
-                *  3) Directory to python module
-                *  4) Path to python site-packages
-
-            */
-            ("source-code", "B Source file", cxxopts::value<std::string>())(
-                "python-module",
-                "Compiler frontend python module name",
-                cxxopts::value<std::string>()->default_value("xion.parser"))(
-                "additional",
-                "additional arguments for the python loader",
-                cxxopts::value<std::vector<std::string>>());
+                                                            "Print usage")(
+            "source-code", "B Source file", cxxopts::value<std::string>())(
+            "python-module",
+            "Compiler frontend python module name",
+            cxxopts::value<std::string>()->default_value("xion.parser"))(
+            "additional",
+            "additional arguments for the python loader",
+            cxxopts::value<std::vector<std::string>>());
         options.parse_positional(
             { "source-code", "python-module", "additional" });
 

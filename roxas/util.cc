@@ -38,6 +38,36 @@ std::string read_file_from_path(fs::path path)
     return result;
 }
 
+/**
+ * @brief log function
+ *
+ * @param level Logging log level
+ * @param message log message
+ */
+void log(Logging level, std::string_view message)
+{
+    auto now = std::chrono::system_clock::now();
+    std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+
+    std::tm* localTime = std::localtime(&currentTime);
+    std::cout << "[" << std::put_time(localTime, "%Y-%m-%d %H:%M:%S") << "] ";
+
+    switch (level) {
+        case Logging::INFO:
+#ifndef DEBUG
+            return;
+#endif
+            std::cout << "[INFO] " << message << std::endl;
+            break;
+        case Logging::WARNING:
+            std::cout << "[WARNING] " << message << std::endl;
+            break;
+        case Logging::ERROR:
+            std::cout << "[ERROR] " << message << std::endl;
+            break;
+    }
+}
+
 } // namespace util
 
 } // namespace roxas
