@@ -107,7 +107,10 @@ class Intermediate_Representation
      * @brief Construct a new Intermediate_Representation object
      *
      */
-    Intermediate_Representation() = default;
+    explicit Intermediate_Representation(json::JSON const& symbols)
+        : internal_symbols_(symbols)
+    {
+    }
     /**
      * @brief Destroy the Intermediate_Representation object
      *
@@ -122,6 +125,14 @@ class Intermediate_Representation
   public:
     void from_assignment_expression(Node node);
     // inline lvalues
+    /**
+     * @brief
+     * Parse identifier lvalue
+     *
+     *  Parse and verify identifer is declared with auto or extern
+     *
+     * @param node
+     */
     void from_identifier(Node node);
     void from_indirect_identifier(Node node);
     void from_vector_idenfitier(Node node);
@@ -150,10 +161,11 @@ class Intermediate_Representation
     /* clang-format off */
   ROXAS_PRIVATE_UNLESS_TESTED:
     /* clang-format on*/
-    int temporaries_{ 0 };
+    json::JSON internal_symbols_;
+    int temporary_{ 0 };
     Symbol_Table<> symbols_{};
     std::vector<Quintuple> quintuples_{};
-    std::vector<std::string_view> labels_{};
+    std::vector<std::string> labels_{};
 };
 
 } // namespace roxas

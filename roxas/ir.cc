@@ -17,6 +17,7 @@
 #include <cassert>
 #include <format>
 #include <roxas/ir.h>
+#include <stdexcept>
 
 namespace roxas {
 
@@ -94,6 +95,39 @@ constexpr std::string_view Intermediate_Representation::operator_to_string(
 
 /**
  * @brief
+ * Parse identifier lvalue
+ *
+ *  Parse and verify identifer is declared with auto or extern
+ *
+ * @param node
+ */
+void Intermediate_Representation::from_identifier(Node node)
+{
+    assert(node["node"].ToString().compare("lvalue") == 0);
+    auto lvalue = node["root"].ToString();
+    // check declared with either `auto'` or `extern'
+    if (!symbols_.get_symbol_defined(lvalue)) {
+        // use the pre-computed symbols from the first pass
+        if (internal_symbols_.hasKey(lvalue)) {
+            throw std::runtime_error(std::format(
+                "Parsing error: \"{}\" is not declared with auto or extern\n\t"
+                "on line {} in column {} :: {}",
+                lvalue,
+                internal_symbols_[lvalue]["line"].ToInt(),
+                internal_symbols_[lvalue]["column"].ToInt(),
+                internal_symbols_[lvalue]["end_column"].ToInt()));
+        } else {
+            throw std::runtime_error(std::format(
+                "Parsing error: \"{}\" is not declared with auto or extern",
+                lvalue));
+        }
+    } else {
+        // emit assignment quintuple
+    }
+}
+
+/**
+ * @brief
  * Parse number literal node into IR symbols
  *
  * @param node
@@ -101,11 +135,10 @@ constexpr std::string_view Intermediate_Representation::operator_to_string(
 void Intermediate_Representation::from_number_literal(Node node)
 {
     assert(node["node"].ToString().compare("number_literal") == 0);
-    assert(node.hasKey("root"));
     symbols_.set_symbol_by_name(
-        std::format("_t{}", temporaries_),
+        std::format("_t{}", temporary_),
         { node["root"].ToString(), "int", sizeof(int) });
-    temporaries_++;
+    temporary_++;
 }
 
 /**
@@ -117,11 +150,10 @@ void Intermediate_Representation::from_number_literal(Node node)
 void Intermediate_Representation::from_string_literal(Node node)
 {
     assert(node["node"].ToString().compare("string_literal") == 0);
-    assert(node.hasKey("root"));
     auto value = node["root"].ToString();
-    symbols_.set_symbol_by_name(std::format("_t{}", temporaries_),
+    symbols_.set_symbol_by_name(std::format("_t{}", temporary_),
                                 { value, "string", value.size() });
-    temporaries_++;
+    temporary_++;
 }
 
 /**
@@ -133,11 +165,10 @@ void Intermediate_Representation::from_string_literal(Node node)
 void Intermediate_Representation::from_constant_literal(Node node)
 {
     assert(node["node"].ToString().compare("constant_literal") == 0);
-    assert(node.hasKey("root"));
     symbols_.set_symbol_by_name(
-        std::format("_t{}", temporaries_),
+        std::format("_t{}", temporary_),
         { node["root"].ToString(), "int", sizeof(int) });
-    temporaries_++;
+    temporary_++;
 }
 
 } // namespace roxas

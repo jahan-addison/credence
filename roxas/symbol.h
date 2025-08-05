@@ -67,9 +67,18 @@ class Symbol_Table
      * @param name
      * @return symbol_data
      */
-    T inline get_symbol_by_name(std::string const& name)
+    inline T get_symbol_by_name(std::string const& name)
     {
         return table_.at(name);
+    }
+    /**
+     * @brief Check if a symbol exists
+     *
+     * @param name
+     */
+    inline bool get_symbol_defined(std::string const& name) const
+    {
+        return table_.contains(name);
     }
     /**
      * @brief Get a symbol by name in the symbo table
@@ -77,7 +86,7 @@ class Symbol_Table
      * @param name
      * @return symbol_data
      */
-    void inline set_symbol_by_name(std::string const& name, T entry)
+    inline void set_symbol_by_name(std::string const& name, T entry)
     {
         table_.insert_or_assign(name, std::move(entry));
     }
