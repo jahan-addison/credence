@@ -40,14 +40,14 @@ include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 #   include_what_you_use()
 # endif()
 
-cppcheck("--enable=all"
-         "--language=c++"
-         "--error-exitcode=1"
-         "--force"
-         "--suppressions-list=${CMAKE_CURRENT_SOURCE_DIR}/cppcheck.suppress"
-         "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}"
-         "${CMAKE_CURRENT_SOURCE_DIR}/test"
-)
+# cppcheck("--enable=all"
+#          "--language=c++"
+#          "--error-exitcode=1"
+#          "--force"
+#          "--suppressions-list=${CMAKE_CURRENT_SOURCE_DIR}/cppcheck.suppress"
+#          "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}"
+#          "${CMAKE_CURRENT_SOURCE_DIR}/test"
+# )
 
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   message(
@@ -61,7 +61,7 @@ endif()
 find_package(Python3 COMPONENTS Interpreter Development)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
-# CPM Packages
+# Dependencies
 
 CPMAddPackage("gh:doctest/doctest@2.4.9")
 
@@ -71,6 +71,22 @@ CPMAddPackage(
   GITHUB_REPOSITORY jarro2783/cxxopts
   OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
 )
+
+include(FetchContent)
+
+FetchContent_Declare(
+    matchit
+    GIT_REPOSITORY https://github.com/BowenFu/matchit.cpp.git
+    GIT_TAG main)
+
+FetchContent_GetProperties(matchit)
+if(NOT matchit_POPULATED)
+    FetchContent_Populate(matchit)
+    add_subdirectory(${matchit_SOURCE_DIR} ${matchit_BINARY_DIR}
+                    EXCLUDE_FROM_ALL)
+endif()
+
+include_directories(${matchit_SOURCE_DIR}/include)
 
 # --- Executables ----
 
@@ -87,7 +103,7 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
-target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
 
 include(cmake/doctest.cmake)

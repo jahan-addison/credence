@@ -16,84 +16,79 @@
 
 #include <cassert>
 #include <format>
+#include <matchit.h>
 #include <roxas/ir.h>
+#include <roxas/util.h>
 #include <stdexcept>
 
 namespace roxas {
 
+using DataType = Intermediate_Representation::DataType;
+
 /**
  * @brief
- * Operator to string
+ * Throw Parsing or program flow error
  *
- * @param op
- * @return constexpr std::string_view
+ * Use source data provided by internal symbol table
+ *
+ * @param message
+ * @param object
  */
-constexpr std::string_view Intermediate_Representation::operator_to_string(
-    Operator op) noexcept
+void Intermediate_Representation::parsing_error(std::string_view message,
+                                                std::string_view object)
 {
-    switch (op) {
-        case Operator::LABEL:
-        case Operator::VARIABLE:
-        case Operator::NOOP:
-            return "";
-
-        case Operator::FUNC_START:
-            return "BeginFunc";
-        case Operator::FUNC_END:
-            return "EndFunc";
-
-        case Operator::MINUS:
-            return "-";
-        case Operator::PLUS:
-            return "+";
-        case Operator::LT:
-            return "<";
-        case Operator::GT:
-            return ">";
-        case Operator::LE:
-            return "<=";
-        case Operator::GE:
-            return ">=";
-        case Operator::XOR:
-            return "^";
-        case Operator::LSHIFT:
-            return "<<";
-        case Operator::RSHIFT:
-            return ">>";
-        case Operator::SUBTRACT:
-            return "-";
-        case Operator::ADD:
-            return "+";
-        case Operator::MOD:
-            return "%";
-        case Operator::MUL:
-            return "*";
-        case Operator::DIV:
-            return "/";
-        case Operator::INDIRECT:
-            return "*";
-        case Operator::ADDR_OF:
-            return "&";
-        case Operator::UMINUS:
-            return "-";
-        case Operator::UNOT:
-            return "!";
-        case Operator::UONE:
-            return "~";
-        case Operator::PUSH:
-            return "Push";
-        case Operator::POP:
-            return "Pop";
-        case Operator::CALL:
-            return "Call";
-        case Operator::GOTO:
-            return "Goto";
-        default:
-            return "null";
+    if (internal_symbols_.hasKey(object.data())) {
+        throw std::runtime_error(std::format(
+            "Parsing error :: \"{}\" {}\n\t"
+            "on line {} in column {} :: {}",
+            object,
+            message,
+            internal_symbols_[object.data()]["line"].ToInt(),
+            internal_symbols_[object.data()]["column"].ToInt(),
+            internal_symbols_[object.data()]["end_column"].ToInt()));
+    } else {
+        throw std::runtime_error(
+            std::format("Parsing error :: \"{}\" {}", object.data(), message));
     }
 }
 
 /**
+ * @brief
+ *  Parse assignment expression
+ *
+ * @param node
+ */
+void Intermediate_Representation::from_assignment_expression(Node& node)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("assignment_expression") == 0);
+    assert(node.hasKey("left"));
+    assert(node.hasKey("right"));
+
+    auto left_child_node = node["left"];
+    auto right_child_node = node["right"];
+
+    from_identifier(left_child_node);
+
+    /* clang-format off */
+    auto rhs = match(right_child_node["node"].ToString())(
+        pattern | "constant_literal" = [&] { return from_constant_literal(right_child_node); },
+        pattern | "number_literal" = [&] { return from_number_literal(right_child_node); },
+        pattern | "string_literal" = [&] { return from_string_literal(right_child_node); },
+        pattern | _ = [&] {
+            util::log(util::Logging::WARNING, "lhs of assignment expression has unknown type");
+            return std::make_tuple("", "null", 0);
+        }
+    );
+    /* clang-format on */
+
+    quintuples_.emplace_back(std::make_tuple(Operator::EQUAL,
+                                             left_child_node["root"].ToString(),
+                                             util::tuple_to_string(rhs),
+                                             "",
+                                             ""));
+}
+/*
  * @brief
  * Parse identifier lvalue
  *
@@ -101,29 +96,13 @@ constexpr std::string_view Intermediate_Representation::operator_to_string(
  *
  * @param node
  */
-void Intermediate_Representation::from_identifier(Node node)
+void Intermediate_Representation::from_identifier(Node& node)
 {
     assert(node["node"].ToString().compare("lvalue") == 0);
     auto lvalue = node["root"].ToString();
-    // check declared with either `auto'` or `extern'
-    if (!symbols_.get_symbol_defined(lvalue)) {
-        // use the pre-computed symbols from the first pass
-        if (internal_symbols_.hasKey(lvalue)) {
-            throw std::runtime_error(std::format(
-                "Parsing error: \"{}\" is not declared with auto or extern\n\t"
-                "on line {} in column {} :: {}",
-                lvalue,
-                internal_symbols_[lvalue]["line"].ToInt(),
-                internal_symbols_[lvalue]["column"].ToInt(),
-                internal_symbols_[lvalue]["end_column"].ToInt()));
-        } else {
-            throw std::runtime_error(std::format(
-                "Parsing error: \"{}\" is not declared with auto or extern",
-                lvalue));
-        }
-    } else {
-        // emit assignment quintuple
-    }
+    // must be  declared with either `auto'` or `extern'
+    if (!symbols_.get_symbol_defined(lvalue))
+        parsing_error("not declared with 'auto' or 'extern'", lvalue);
 }
 
 /**
@@ -132,13 +111,11 @@ void Intermediate_Representation::from_identifier(Node node)
  *
  * @param node
  */
-void Intermediate_Representation::from_number_literal(Node node)
+DataType Intermediate_Representation::from_number_literal(Node& node)
 {
+    // use stack
     assert(node["node"].ToString().compare("number_literal") == 0);
-    symbols_.set_symbol_by_name(
-        std::format("_t{}", temporary_),
-        { node["root"].ToString(), "int", sizeof(int) });
-    temporary_++;
+    return { std::to_string(node["root"].ToInt()), "int", sizeof(int) };
 }
 
 /**
@@ -147,13 +124,12 @@ void Intermediate_Representation::from_number_literal(Node node)
  *
  * @param node
  */
-void Intermediate_Representation::from_string_literal(Node node)
+DataType Intermediate_Representation::from_string_literal(Node& node)
 {
+    // use stack
     assert(node["node"].ToString().compare("string_literal") == 0);
     auto value = node["root"].ToString();
-    symbols_.set_symbol_by_name(std::format("_t{}", temporary_),
-                                { value, "string", value.size() });
-    temporary_++;
+    return { value, "string", value.size() };
 }
 
 /**
@@ -162,13 +138,11 @@ void Intermediate_Representation::from_string_literal(Node node)
  *
  * @param node
  */
-void Intermediate_Representation::from_constant_literal(Node node)
+DataType Intermediate_Representation::from_constant_literal(Node& node)
 {
+    // use stack
     assert(node["node"].ToString().compare("constant_literal") == 0);
-    symbols_.set_symbol_by_name(
-        std::format("_t{}", temporary_),
-        { node["root"].ToString(), "int", sizeof(int) });
-    temporary_++;
+    return { node["root"].ToString(), "int", sizeof(int) };
 }
 
 } // namespace roxas

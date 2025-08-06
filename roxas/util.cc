@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <roxas/util.h>
+#include <utility> // For std::index_sequence
 
 namespace roxas {
 

@@ -20,7 +20,10 @@
 #include <filesystem>
 #include <iomanip> // For std::put_time
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <tuple>
+#include <utility> // For std::apply
 
 // access specifier macros for Doctest
 #define ROXAS_PUBLIC public
@@ -29,8 +32,6 @@
 #else
 #define ROXAS_PRIVATE_UNLESS_TESTED private
 #endif
-
-#include <string>
 
 namespace roxas {
 
@@ -42,6 +43,28 @@ enum class Logging
     WARNING,
     ERROR
 };
+
+/**
+ * @brief
+ * Recursively converts tuple elements
+ * to string if << operator is defined
+ *
+ * @tparam Types
+ * @param t
+ * @return std::string
+ */
+template<typename... Types>
+std::string tuple_to_string(std::tuple<Types...> const& t)
+{
+    std::stringstream ss;
+    bool first = true;
+    std::apply(
+        [&](const auto&... args) {
+            ((ss << (first ? "" : ", ") << args, first = false), ...);
+        },
+        t);
+    return ss.str();
+}
 
 /**
  * @brief log function
