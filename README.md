@@ -66,6 +66,7 @@ make
 
 * `SimpleJSON` - Simple JSON parser
 * `cxxopts` - Lightweight commandline option parser
+* `matchit` - C++17 pattern matching
 
 ### Resources
 
