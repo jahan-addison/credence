@@ -15,15 +15,11 @@
  */
 
 #pragma once
-#include <chrono>
-#include <ctime>
-#include <filesystem>
-#include <iomanip> // For std::put_time
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <tuple>
-#include <utility> // For std::apply
+#include <filesystem>  // for path
+#include <sstream>     // for basic_stringstream, stringstream
+#include <string>      // for char_traits, allocator, string
+#include <string_view> // for basic_string_view, string_view
+#include <tuple>       // for apply, tuple
 
 // access specifier macros for Doctest
 #define ROXAS_PUBLIC public
@@ -54,13 +50,14 @@ enum class Logging
  * @return std::string
  */
 template<typename... Types>
-std::string tuple_to_string(std::tuple<Types...> const& t)
+std::string tuple_to_string(std::tuple<Types...> const& t,
+                            std::string_view separator = ", ")
 {
     std::stringstream ss;
-    bool first = true;
+    auto first = true;
     std::apply(
         [&](const auto&... args) {
-            ((ss << (first ? "" : ", ") << args, first = false), ...);
+            ((ss << (first ? "" : separator) << args, first = false), ...);
         },
         t);
     return ss.str();

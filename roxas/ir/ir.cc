@@ -14,16 +14,89 @@
  * limitations under the License.
  */
 
-#include <cassert>
-#include <format>
-#include <matchit.h>
-#include <roxas/ir.h>
-#include <roxas/util.h>
-#include <stdexcept>
+#include <cassert>   // for assert
+#include <format>    // for format
+#include <matchit.h> // for pattern, match, PatternHelper, Patte...
+#include <roxas/ir/ir.h>
+#include <roxas/ir/operators.h> // for Operator
+#include <roxas/util.h>         // for log, Logging, tuple_to_string
+#include <stdexcept>            // for runtime_error
+#include <tuple>                // for make_tuple, tuple
+
+#include <roxas/json.h>   // for JSON
+#include <roxas/symbol.h> // for Symbol_Table
 
 namespace roxas {
 
+namespace ir {
+
 using DataType = Intermediate_Representation::DataType;
+
+/**
+ * @brief
+ *  Parse an ast node recursively
+ *
+ * @param node
+ */
+void Intermediate_Representation::parse_node(Node& node)
+{
+    using namespace matchit;
+    if (node.JSONType() == json::JSON::Class::Array) {
+        for (auto& child_node : node.ArrayRange()) {
+            parse_node(child_node);
+        }
+    }
+    /* clang-format off */
+    match(node["node"].ToString()) (
+        /**************/
+        /* Statements */
+        /**************/
+        pattern | "statement" = [&] {
+            auto statement_type = node["root"].ToString();
+            match (statement_type) (
+                pattern | "auto" = [&] {
+                    util::log(util::Logging::INFO, "parsing auto statement");
+                    from_auto_statement(node);
+                }
+            );
+        },
+        /**************/
+        /* Expressions */
+        /**************/
+        pattern | "assignment_expression" = [&] {
+            util::log(util::Logging::INFO, "parsing assignment expression");
+            from_assignment_expression(node);
+        }
+    );
+    /* clang-format on */
+    if (node.hasKey("left")) {
+        parse_node(node["left"]);
+    }
+    if (node.hasKey("right")) {
+        parse_node(node["right"]);
+    }
+}
+
+/**
+ * @brief
+ * Parse auto statements and declare in symbol table
+ *
+ * @param node
+ */
+void Intermediate_Representation::from_auto_statement(Node& node)
+{
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("auto") == 0);
+    assert(node.hasKey("left"));
+
+    auto left_child_node = node["left"];
+
+    for (auto& ident : left_child_node.ArrayRange()) {
+        assert(ident["node"].ToString().compare("lvalue") == 0);
+        symbols_.set_symbol_by_name(ident["root"].ToString(),
+                                    { "", "null", 0 });
+    }
+}
 
 /**
  * @brief
@@ -68,23 +141,25 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
 
-    from_identifier(left_child_node);
+    on_identifier(left_child_node);
 
-    /* clang-format off */
     auto rhs = match(right_child_node["node"].ToString())(
-        pattern | "constant_literal" = [&] { return from_constant_literal(right_child_node); },
-        pattern | "number_literal" = [&] { return from_number_literal(right_child_node); },
-        pattern | "string_literal" = [&] { return from_string_literal(right_child_node); },
-        pattern | _ = [&] {
-            util::log(util::Logging::WARNING, "lhs of assignment expression has unknown type");
-            return std::make_tuple("", "null", 0);
-        }
-    );
-    /* clang-format on */
+        pattern | "constant_literal" =
+            [&] { return from_constant_literal(right_child_node); },
+        pattern | "number_literal" =
+            [&] { return from_number_literal(right_child_node); },
+        pattern | "string_literal" =
+            [&] { return from_string_literal(right_child_node); },
+        pattern | _ =
+            [&] {
+                util::log(util::Logging::WARNING,
+                          "lhs of assignment expression has unknown type");
+                return std::make_tuple("", "null", 0);
+            });
 
     quintuples_.emplace_back(std::make_tuple(Operator::EQUAL,
                                              left_child_node["root"].ToString(),
-                                             util::tuple_to_string(rhs),
+                                             util::tuple_to_string(rhs, ":"),
                                              "",
                                              ""));
 }
@@ -96,13 +171,13 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
  *
  * @param node
  */
-void Intermediate_Representation::from_identifier(Node& node)
+void Intermediate_Representation::on_identifier(Node& node)
 {
     assert(node["node"].ToString().compare("lvalue") == 0);
     auto lvalue = node["root"].ToString();
-    // must be  declared with either `auto'` or `extern'
     if (!symbols_.get_symbol_defined(lvalue))
-        parsing_error("not declared with 'auto' or 'extern'", lvalue);
+        parsing_error("identifier not declared with 'auto' or 'extern'",
+                      lvalue);
 }
 
 /**
@@ -144,5 +219,7 @@ DataType Intermediate_Representation::from_constant_literal(Node& node)
     assert(node["node"].ToString().compare("constant_literal") == 0);
     return { node["root"].ToString(), "int", sizeof(int) };
 }
+
+} // namespace ir
 
 } // namespace roxas

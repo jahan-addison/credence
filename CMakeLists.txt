@@ -36,9 +36,7 @@ endif()
 
 include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 
-# if(DEFINED ENV{CI})
-#   include_what_you_use()
-# endif()
+#include_what_you_use()
 
 # cppcheck("--enable=all"
 #          "--language=c++"

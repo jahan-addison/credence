@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-#include <iostream>
-#include <roxas/json.h>
-#include <roxas/python.h>
-#include <roxas/symbol.h>
-#include <roxas/util.h>
-
-#include <cxxopts.hpp>
+#include <cxxopts.hpp>    // for value, Options, OptionAdder
+#include <filesystem>     // for path
+#include <iostream>       // for cout, cerr
+#include <memory>         // for shared_ptr
+#include <ostream>        // for basic_ostream, operator<<, endl
+#include <roxas/json.h>   // for JSON, operator<<
+#include <roxas/python.h> // for PythonModuleLoader
+#include <roxas/util.h>   // for read_file_from_path
+#include <stdexcept>      // for runtime_error
+#include <string>         // for basic_string, char_traits, string
+#include <string_view>    // for basic_string_view
+#include <vector>         // for vector
 
 int main(int argc, const char* argv[])
 {
@@ -49,7 +54,7 @@ int main(int argc, const char* argv[])
 
         if (result.count("help")) {
             std::cout << options.help() << std::endl;
-            exit(0);
+            return 0;
         }
 
         json::JSON ast;

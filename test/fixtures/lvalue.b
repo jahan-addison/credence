@@ -1,4 +1,4 @@
 main () {
-  auto x;
+  auto x,y,z;
   x = 5;
 }

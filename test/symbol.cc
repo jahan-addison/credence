@@ -1,6 +1,8 @@
-#include <array>
-#include <doctest/doctest.h>
-#include <roxas/symbol.h>
+#include <array>             // for array
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
+#include <map>               // for map
+#include <roxas/symbol.h>    // for Symbol_Table
+#include <string>            // for basic_string, string
 
 using namespace roxas;
 
