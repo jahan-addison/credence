@@ -26,6 +26,8 @@ namespace ir {
 using Quintuple =
     std::tuple<Operator, std::string, std::string, std::string, std::string>;
 
+using Instruction = Quintuple;
+
 using Instructions = std::vector<Quintuple>;
 
 } // namespace ir

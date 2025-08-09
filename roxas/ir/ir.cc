@@ -79,22 +79,49 @@ void Intermediate_Representation::parse_node(Node& node)
 
 /**
  * @brief
+ * Parse fixed-size vector (array) lvalue
+ *
+ * @param node
+ */
+void Intermediate_Representation::from_vector_idenfitier(Node& node)
+{
+    assert(node["node"].ToString().compare("vector_lvalue") == 0);
+
+    check_identifier_symbol(node);
+}
+
+/**
+ * @brief
  * Parse auto statements and declare in symbol table
  *
  * @param node
  */
 void Intermediate_Representation::from_auto_statement(Node& node)
 {
+    using namespace matchit;
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("auto") == 0);
     assert(node.hasKey("left"));
-
     auto left_child_node = node["left"];
-
     for (auto& ident : left_child_node.ArrayRange()) {
-        assert(ident["node"].ToString().compare("lvalue") == 0);
-        symbols_.set_symbol_by_name(ident["root"].ToString(),
-                                    { "", "null", 0 });
+        match(ident["node"].ToString())(
+            pattern | "lvalue" =
+                [&] {
+                    symbols_.set_symbol_by_name(ident["root"].ToString(),
+                                                { "", "null", 0 });
+                },
+            pattern | "vector_lvalue" =
+                [&] {
+                    auto size = ident["left"]["root"].ToInt();
+                    symbols_.set_symbol_by_name(ident["root"].ToString(),
+                                                { "", "array", size });
+                },
+            pattern | "indirect_lvalue" =
+                [&] {
+                    symbols_.set_symbol_by_name(
+                        ident["left"]["root"].ToString(),
+                        { "", "pointer", sizeof(int*) });
+                });
     }
 }
 
@@ -141,7 +168,7 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
 
-    on_identifier(left_child_node);
+    check_identifier_symbol(left_child_node);
 
     auto rhs = match(right_child_node["node"].ToString())(
         pattern | "constant_literal" =
@@ -152,6 +179,7 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
             [&] { return from_string_literal(right_child_node); },
         pattern | _ =
             [&] {
+                // need to allow assignment of symbols
                 util::log(util::Logging::WARNING,
                           "lhs of assignment expression has unknown type");
                 return std::make_tuple("", "null", 0);
@@ -167,17 +195,18 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
  * @brief
  * Parse identifier lvalue
  *
- *  Parse and verify identifer is declared with auto or extern
+ *  Parse and verify scaler identifer is declared with auto or extern
  *
  * @param node
  */
-void Intermediate_Representation::on_identifier(Node& node)
+void Intermediate_Representation::check_identifier_symbol(Node& node)
 {
-    assert(node["node"].ToString().compare("lvalue") == 0);
     auto lvalue = node["root"].ToString();
-    if (!symbols_.get_symbol_defined(lvalue))
+    if (!symbols_.get_symbol_defined(lvalue) &&
+        (!globals_.get_symbol_defined(lvalue))) {
         parsing_error("identifier not declared with 'auto' or 'extern'",
                       lvalue);
+    }
 }
 
 /**

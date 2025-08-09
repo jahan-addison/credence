@@ -1,4 +1,3 @@
 main () {
-  auto x,y,z;
-  x = 5;
+  auto x[50],*y,z;
 }

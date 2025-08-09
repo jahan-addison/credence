@@ -54,6 +54,7 @@ enum class Operator
     CALL,
     VARIABLE,
     RETURN,
+    EOL,
     NOOP
 };
 
@@ -150,6 +151,9 @@ inline std::ostream& operator<<(std::ostream& os, Operator const& op)
             break;
         case Operator::GOTO:
             os << "Goto";
+            break;
+        case Operator::EOL:
+            os << ";";
             break;
         default:
             os << "null";

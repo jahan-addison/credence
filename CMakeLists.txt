@@ -36,16 +36,18 @@ endif()
 
 include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 
-#include_what_you_use()
+# Include-what-you-use
 
-# cppcheck("--enable=all"
-#          "--language=c++"
-#          "--error-exitcode=1"
-#          "--force"
-#          "--suppressions-list=${CMAKE_CURRENT_SOURCE_DIR}/cppcheck.suppress"
-#          "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}"
-#          "${CMAKE_CURRENT_SOURCE_DIR}/test"
-# )
+find_program(IWYU_EXECUTABLE include-what-you-use)
+if(IWYU_EXECUTABLE)
+    # Enable IWYU for C++ targets
+    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_EXECUTABLE};;-Isystem")
+    message(STATUS "IWYU enabled for C++ targets.")
+else()
+    message(WARNING "Include-What-You-Use executable not found. IWYU will not be run.")
+endif()
+
+set_source_files_properties(doctest.h PROPERTIES SKIP_LINTING TRUE)
 
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   message(

@@ -22,7 +22,8 @@ namespace roxas {
 
 namespace ir {
 
-void emit(Instructions instructions, std::ostream& os);
+void emit(Instructions const& instructions, std::ostream& os);
+constexpr void emit_equal(Instruction const& inst, std::ostream& os);
 
 } // namespace ir
 

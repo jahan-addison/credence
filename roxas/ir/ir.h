@@ -84,6 +84,13 @@ class Intermediate_Representation
      * @param node
      */
     void parse_node(Node& node);
+    /**
+     * @brief
+     * Get IR as list of ordered instructions
+     *
+     * @return constexpr Instructions
+     */
+    constexpr Instructions instructions() { return quintuples_; }
 
   public:
     /**
@@ -110,8 +117,14 @@ class Intermediate_Representation
      *
      * @param node
      */
-    void on_identifier(Node& node);
+    void check_identifier_symbol(Node& node);
     void from_indirect_identifier(Node& node);
+    /**
+     * @brief
+     * Parse fixed-size vector (array) lvalue
+     *
+     * @param node
+     */
     void from_vector_idenfitier(Node& node);
     /**
      * @brief
@@ -140,6 +153,7 @@ class Intermediate_Representation
     /* clang-format on*/
     json::JSON internal_symbols_;
     Symbol_Table<> symbols_{};
+    Symbol_Table<> globals_{};
     Instructions quintuples_{};
     std::vector<std::string> labels_{};
 };
