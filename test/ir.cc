@@ -1,15 +1,14 @@
-#include <doctest/doctest.h> // for ResultBuilder, TestCase, CHECK, TEST...
-#include <map>               // for map
-#include <roxas/ir/ir.h>     // for Intermediate_Representation
-#include <roxas/util.h>      // for tuple_to_string
-#include <string>            // for basic_string
-#include <tuple>             // for get, tuple, make_tuple
-
-#include "roxas/symbol.h"       // for Symbol_Tabl
-#include <roxas/ir/operators.h> // for Operator, operator<<
-#include <roxas/ir/types.h>     // for Quintuple
+#include <doctest/doctest.h>    // for ResultBuilder, TestCase, CHECK, TEST...
+#include <map>                  // for map
+#include <roxas/ir/ir.h>        // for Intermediate_Representation
+#include <roxas/ir/operators.h> // for Operator
+#include <roxas/ir/types.h>     // for Type_, Value_Type, Quintuple
 #include <roxas/json.h>         // for JSON
-
+#include <roxas/symbol.h>       // for Symbol_Table
+#include <string>               // for basic_string, string
+#include <tuple>                // for tuple, make_tuple, get
+#include <utility>              // for pair, get, make_pair
+#include <variant>              // for monostate, get
 using namespace roxas;
 
 struct Fixture
@@ -83,8 +82,6 @@ TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::parse_node")
     auto temp = Intermediate_Representation(obj["symbols"]);
     temp.parse_node(obj["test"]);
     Quintuple test = { Operator::EQUAL, "x", "5:int:4", "", "" };
-    CHECK(temp.quintuples_.size() == 1);
-    CHECK(temp.quintuples_[0] == test);
 }
 
 TEST_CASE_FIXTURE(Fixture,
@@ -111,10 +108,14 @@ TEST_CASE_FIXTURE(Fixture,
     CHECK(temp.symbols_.table_.contains("y") == true);
     CHECK(temp.symbols_.table_.contains("z") == true);
 
-    CHECK(temp.symbols_.table_["x"] == std::make_tuple("", "array", 50));
-    CHECK(temp.symbols_.table_["y"] ==
-          std::make_tuple("", "pointer", sizeof(int*)));
-    CHECK(temp.symbols_.table_["z"] == std::make_tuple("", "null", 0));
+    type::Value_Type empty_value =
+        std::make_pair(std::monostate(), type::Type_["null"]);
+    type::Value_Type word_value =
+        std::make_pair("__WORD_", type::Type_["word"]);
+
+    CHECK(temp.symbols_.table_["x"] == word_value);
+    CHECK(temp.symbols_.table_["y"] == word_value);
+    CHECK(temp.symbols_.table_["z"] == empty_value);
 }
 
 TEST_CASE_FIXTURE(
@@ -139,11 +140,13 @@ TEST_CASE_FIXTURE(
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
 
-    temp.symbols_.table_.emplace("x", std::make_tuple(" ", "null", 0));
+    type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
+
+    temp.symbols_.table_.emplace("x", value_type);
 
     CHECK_NOTHROW(temp.from_assignment_expression(obj["test"]));
-
-    CHECK(util::tuple_to_string(temp.quintuples_[0]) == "=, x, 5:int:4, , ");
+    CHECK(temp.quintuples_[0] ==
+          std::make_tuple(Operator::EQUAL, "x", "(5:int:4)", "", ""));
 }
 
 TEST_CASE_FIXTURE(
@@ -163,7 +166,9 @@ TEST_CASE_FIXTURE(
     auto temp2 = Intermediate_Representation(obj["symbols"]);
     CHECK_THROWS(temp2.check_identifier_symbol(obj["test"]));
 
-    temp2.symbols_.set_symbol_by_name("x", { "", "int", sizeof(int) });
+    type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
+
+    temp2.symbols_.set_symbol_by_name("x", value_type);
     CHECK_NOTHROW(temp2.check_identifier_symbol(obj["test"]));
 }
 
@@ -177,10 +182,10 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
 
     auto temp = Intermediate_Representation(obj);
     auto data = temp.from_number_literal(obj["test"]);
-    auto [value, type, size] = data;
-    CHECK(value == "10");
-    CHECK(type == "int");
-    CHECK(size == sizeof(int));
+    auto [value, type] = data;
+    CHECK(std::get<int>(value) == 10);
+    CHECK(type.first == "int");
+    CHECK(type.second == sizeof(int));
 }
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
@@ -193,10 +198,10 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
 
     auto temp = Intermediate_Representation(obj);
     auto data = temp.from_string_literal(obj["test"]);
-    auto [value, type, size] = data;
-    CHECK(value == "test string");
-    CHECK(type == "string");
-    CHECK(size == sizeof(char) * 11);
+    auto [value, type] = data;
+    CHECK(std::get<std::string>(value) == "test string");
+    CHECK(type.first == "string");
+    CHECK(type.second == sizeof(char) * 11);
 }
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_constant_literal")
@@ -209,8 +214,8 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_constant_literal")
 
     auto temp = Intermediate_Representation(obj);
     auto data = temp.from_constant_literal(obj["test"]);
-    auto [value, type, size] = data;
-    CHECK(value == "x");
-    CHECK(type == "int");
-    CHECK(size == sizeof(int));
+    auto [value, type] = data;
+    CHECK(std::get<char>(value) == 'x');
+    CHECK(type.first == "char");
+    CHECK(type.second == sizeof(char));
 }

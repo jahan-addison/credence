@@ -16,16 +16,20 @@
 
 #pragma once
 
-#include <roxas/ir/types.h> // for Instructions
+#include <deque>            // for deque
+#include <map>              // for map
+#include <roxas/ir/types.h> // for Instructions, Value_Type
 #include <roxas/json.h>     // for JSON
-#include <roxas/symbol.h>   // for Symbol_Table, Default_Table_Type
+#include <roxas/symbol.h>   // for Symbol_Table
 #include <roxas/util.h>     // for ROXAS_PRIVATE_UNLESS_TESTED
-#include <string>           // for basic_string, string
+#include <string>           // for string
 #include <string_view>      // for string_view
 #include <vector>           // for vector
 
 namespace roxas {
 namespace ir {
+
+using namespace type;
 
 /**
  * @brief
@@ -46,7 +50,7 @@ class Intermediate_Representation
         delete;
 
   public:
-    using DataType = Default_Table_Type;
+    using DataType = type::Value_Type;
 
   public:
     /**

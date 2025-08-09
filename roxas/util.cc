@@ -15,12 +15,12 @@
  */
 
 #include <chrono>   // for system_clock
-#include <ctime>    // for time_t, localtime, tm
-#include <fstream>  // for std::fstream
+#include <ctime>    // for localtime, time_t, tm
+#include <fstream>  // for basic_ifstream
 #include <iomanip>  // for operator<<, put_time
 #include <iostream> // for cout
 #include <roxas/util.h>
-#include <time.h> // for localtime, tm (ptr only)
+struct tm;
 
 namespace roxas {
 

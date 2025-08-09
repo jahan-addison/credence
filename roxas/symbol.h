@@ -18,6 +18,7 @@
 
 #include <format>
 #include <map>
+#include <roxas/ir/types.h>
 #include <roxas/util.h>
 #include <string>
 #include <tuple>
@@ -29,9 +30,8 @@ namespace roxas {
  *   | Value | Type | Size |
  *   ------------------------
  */
-using Default_Table_Type = std::tuple<std::string, std::string, std::size_t>;
 
-template<typename T = Default_Table_Type>
+template<typename T = ir::type::Value_Type>
 class Symbol_Table
 {
     /**

@@ -16,10 +16,11 @@
 
 #pragma once
 #include <filesystem>  // for path
-#include <sstream>     // for basic_stringstream, stringstream
-#include <string>      // for char_traits, allocator, string
-#include <string_view> // for basic_string_view, string_view
-#include <tuple>       // for apply, tuple
+#include <sstream>     // for basic_stringstream, basic_ostream, stringstream
+#include <string>      // for allocator, char_traits, string
+#include <string_view> // for operator<<, string_view
+#include <tuple>       // for apply
+#include <variant>     // for tuple
 
 // access specifier macros for Doctest
 #define ROXAS_PUBLIC public

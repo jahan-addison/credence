@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-#include <cxxopts.hpp>    // for value, Options, OptionAdder
+#include <cxxopts.hpp>    // for value, OptionAdder, Options, ParseResult
 #include <filesystem>     // for path
-#include <iostream>       // for cout, cerr
-#include <memory>         // for shared_ptr
-#include <ostream>        // for basic_ostream, operator<<, endl
+#include <iostream>       // for basic_ostream, operator<<, endl, cout, cerr
+#include <memory>         // for allocator, shared_ptr, __shared_ptr_access
 #include <roxas/json.h>   // for JSON, operator<<
 #include <roxas/python.h> // for PythonModuleLoader
 #include <roxas/util.h>   // for read_file_from_path
 #include <stdexcept>      // for runtime_error
-#include <string>         // for basic_string, char_traits, string
-#include <string_view>    // for basic_string_view
+#include <stdlib.h>       // for exit
+#include <string>         // for char_traits, basic_string, string, operator==
 #include <vector>         // for vector
 
 int main(int argc, const char* argv[])

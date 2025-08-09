@@ -16,14 +16,20 @@
 
 #pragma once
 #include <ostream>          // for ostream
-#include <roxas/ir/types.h> // for Instructions
+#include <roxas/ir/types.h> // for Instruction, Instructions, Value_Type
+#include <string>           // for string
+#include <string_view>      // for string_view
 
 namespace roxas {
 
 namespace ir {
 
+using namespace type;
+
 void emit(Instructions const& instructions, std::ostream& os);
-constexpr void emit_equal(Instruction const& inst, std::ostream& os);
+inline void emit_equal(Instruction const& inst, std::ostream& os);
+std::string emit_value(type::Value_Type const& type,
+                       std::string_view separator);
 
 } // namespace ir
 

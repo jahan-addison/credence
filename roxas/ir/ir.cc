@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-#include <cassert>   // for assert
-#include <format>    // for format
-#include <matchit.h> // for pattern, match, PatternHelper, Patte...
+#include <algorithm>       // for max
+#include <cassert>         // for assert
+#include <format>          // for format, format_string
+#include <map>             // for map
+#include <matchit.h>       // for pattern, match, PatternHelper, Patte...
+#include <roxas/ir/emit.h> // for emit_value
 #include <roxas/ir/ir.h>
 #include <roxas/ir/operators.h> // for Operator
-#include <roxas/util.h>         // for log, Logging, tuple_to_string
+#include <roxas/ir/types.h>     // for Type_
+#include <roxas/json.h>         // for JSON
+#include <roxas/symbol.h>       // for Symbol_Table
+#include <roxas/util.h>         // for log, Logging
 #include <stdexcept>            // for runtime_error
-#include <tuple>                // for make_tuple, tuple
-
-#include <roxas/json.h>   // for JSON
-#include <roxas/symbol.h> // for Symbol_Table
+#include <tuple>                // for make_tuple
+#include <utility>              // for pair, make_pair
+#include <variant>              // for monostate, variant
 
 namespace roxas {
 
@@ -107,20 +112,20 @@ void Intermediate_Representation::from_auto_statement(Node& node)
         match(ident["node"].ToString())(
             pattern | "lvalue" =
                 [&] {
-                    symbols_.set_symbol_by_name(ident["root"].ToString(),
-                                                { "", "null", 0 });
+                    symbols_.set_symbol_by_name(
+                        ident["root"].ToString(),
+                        { std::monostate(), Type_["null"] });
                 },
             pattern | "vector_lvalue" =
                 [&] {
-                    auto size = ident["left"]["root"].ToInt();
                     symbols_.set_symbol_by_name(ident["root"].ToString(),
-                                                { "", "array", size });
+                                                { "__WORD_", Type_["word"] });
                 },
             pattern | "indirect_lvalue" =
                 [&] {
                     symbols_.set_symbol_by_name(
                         ident["left"]["root"].ToString(),
-                        { "", "pointer", sizeof(int*) });
+                        { "__WORD_", Type_["word"] });
                 });
     }
 }
@@ -170,7 +175,7 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
 
     check_identifier_symbol(left_child_node);
 
-    auto rhs = match(right_child_node["node"].ToString())(
+    DataType rhs = match(right_child_node["node"].ToString())(
         pattern | "constant_literal" =
             [&] { return from_constant_literal(right_child_node); },
         pattern | "number_literal" =
@@ -178,16 +183,11 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
         pattern | "string_literal" =
             [&] { return from_string_literal(right_child_node); },
         pattern | _ =
-            [&] {
-                // need to allow assignment of symbols
-                util::log(util::Logging::WARNING,
-                          "lhs of assignment expression has unknown type");
-                return std::make_tuple("", "null", 0);
-            });
+            [&] { return std::make_pair(std::monostate(), Type_["null"]); });
 
     quintuples_.emplace_back(std::make_tuple(Operator::EQUAL,
                                              left_child_node["root"].ToString(),
-                                             util::tuple_to_string(rhs, ":"),
+                                             ir::emit_value(rhs, ":"),
                                              "",
                                              ""));
 }
@@ -219,7 +219,7 @@ DataType Intermediate_Representation::from_number_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("number_literal") == 0);
-    return { std::to_string(node["root"].ToInt()), "int", sizeof(int) };
+    return { static_cast<int>(node["root"].ToInt()), Type_["int"] };
 }
 
 /**
@@ -233,7 +233,7 @@ DataType Intermediate_Representation::from_string_literal(Node& node)
     // use stack
     assert(node["node"].ToString().compare("string_literal") == 0);
     auto value = node["root"].ToString();
-    return { value, "string", value.size() };
+    return { node["root"].ToString(), { "string", value.size() } };
 }
 
 /**
@@ -246,7 +246,7 @@ DataType Intermediate_Representation::from_constant_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("constant_literal") == 0);
-    return { node["root"].ToString(), "int", sizeof(int) };
+    return { static_cast<char>(node["root"].ToString()[0]), Type_["char"] };
 }
 
 } // namespace ir

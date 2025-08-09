@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(
   roxas
-  VERSION 1.0
+  VERSION 1.0.0
   LANGUAGES CXX
 )
 
@@ -41,7 +41,11 @@ include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 find_program(IWYU_EXECUTABLE include-what-you-use)
 if(IWYU_EXECUTABLE)
     # Enable IWYU for C++ targets
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_EXECUTABLE};;-Isystem")
+    if (APPLE)
+      set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_EXECUTABLE};;-isysroot $(xcrun --sdk macosx --show-sdk-path)")
+    else()
+      set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_EXECUTABLE};;")
+    endif()
     message(STATUS "IWYU enabled for C++ targets.")
 else()
     message(WARNING "Include-What-You-Use executable not found. IWYU will not be run.")

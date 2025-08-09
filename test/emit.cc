@@ -1,9 +1,9 @@
-#include <doctest/doctest.h> // for TestCase, ResultBuilder, CHECK, TEST_CA...
+#include <doctest/doctest.h> // for ResultBuilder, TestCase, CHECK, TEST_CA...
 #include <roxas/ir/emit.h>   // for emit
 #include <roxas/ir/ir.h>     // for Intermediate_Representation
 #include <roxas/json.h>      // for JSON
 #include <sstream>           // for basic_ostringstream, ostringstream
-#include <string>            // for basic_string, allocator, char_traits
+#include <string>            // for allocator, basic_string, operator==
 
 #include <roxas/json.h>
 
@@ -67,5 +67,5 @@ TEST_CASE_FIXTURE(Fixture, "ir/emit.cc: emit_equal")
 
     temp.parse_node(obj["test"]);
     emit(temp.instructions(), os);
-    CHECK(os.str() == "x = 5:int:4;");
+    CHECK(os.str() == "x = (5:int:4);");
 }
