@@ -14,28 +14,54 @@
  * limitations under the License.
  */
 
-#include <algorithm>       // for max
-#include <cassert>         // for assert
-#include <format>          // for format, format_string
-#include <map>             // for map
-#include <matchit.h>       // for pattern, match, PatternHelper, Patte...
-#include <roxas/ir/emit.h> // for emit_value
+#include <cassert>   // for assert
+#include <format>    // for format
+#include <map>       // for map
+#include <matchit.h> // for pattern, PatternHelper, PatternPipable
+#include <optional>  // for optional, nullopt, nullopt_t
 #include <roxas/ir/ir.h>
-#include <roxas/ir/operators.h> // for Operator
-#include <roxas/ir/types.h>     // for Type_
-#include <roxas/json.h>         // for JSON
-#include <roxas/symbol.h>       // for Symbol_Table
-#include <roxas/util.h>         // for log, Logging
-#include <stdexcept>            // for runtime_error
-#include <tuple>                // for make_tuple
-#include <utility>              // for pair, make_pair
-#include <variant>              // for monostate, variant
+#include <roxas/ir/types.h> // for Type_, Byte
+#include <roxas/json.h>     // for JSON
+#include <roxas/symbol.h>   // for Symbol_Table
+#include <roxas/util.h>     // for log, Logging
+#include <stdexcept>        // for runtime_error
+#include <utility>          // for pair, make_pair
+#include <variant>          // for monostate, variant
 
 namespace roxas {
 
 namespace ir {
 
+using namespace matchit;
+
 using DataType = Intermediate_Representation::DataType;
+
+/**
+ * @brief
+ * Throw Parsing or program flow error
+ *
+ * Use source data provided by internal symbol table
+ *
+ * @param message
+ * @param object
+ */
+void Intermediate_Representation::parsing_error(std::string_view message,
+                                                std::string_view object)
+{
+    if (internal_symbols_.hasKey(object.data())) {
+        throw std::runtime_error(std::format(
+            "Parsing error :: \"{}\" {}\n\t"
+            "on line {} in column {} :: {}",
+            object,
+            message,
+            internal_symbols_[object.data()]["line"].ToInt(),
+            internal_symbols_[object.data()]["column"].ToInt(),
+            internal_symbols_[object.data()]["end_column"].ToInt()));
+    } else {
+        throw std::runtime_error(
+            std::format("Parsing error :: \"{}\" {}", object.data(), message));
+    }
+}
 
 /**
  * @brief
@@ -45,7 +71,6 @@ using DataType = Intermediate_Representation::DataType;
  */
 void Intermediate_Representation::parse_node(Node& node)
 {
-    using namespace matchit;
     if (node.JSONType() == json::JSON::Class::Array) {
         for (auto& child_node : node.ArrayRange()) {
             parse_node(child_node);
@@ -84,26 +109,12 @@ void Intermediate_Representation::parse_node(Node& node)
 
 /**
  * @brief
- * Parse fixed-size vector (array) lvalue
- *
- * @param node
- */
-void Intermediate_Representation::from_vector_idenfitier(Node& node)
-{
-    assert(node["node"].ToString().compare("vector_lvalue") == 0);
-
-    check_identifier_symbol(node);
-}
-
-/**
- * @brief
  * Parse auto statements and declare in symbol table
  *
  * @param node
  */
 void Intermediate_Representation::from_auto_statement(Node& node)
 {
-    using namespace matchit;
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("auto") == 0);
     assert(node.hasKey("left"));
@@ -118,8 +129,10 @@ void Intermediate_Representation::from_auto_statement(Node& node)
                 },
             pattern | "vector_lvalue" =
                 [&] {
-                    symbols_.set_symbol_by_name(ident["root"].ToString(),
-                                                { "__WORD_", Type_["word"] });
+                    auto size = ident["left"]["root"].ToInt();
+                    symbols_.set_symbol_by_name(
+                        ident["root"].ToString(),
+                        { static_cast<Byte>('0'), { "byte", size } });
                 },
             pattern | "indirect_lvalue" =
                 [&] {
@@ -132,40 +145,40 @@ void Intermediate_Representation::from_auto_statement(Node& node)
 
 /**
  * @brief
- * Throw Parsing or program flow error
+ * Parse rvalue expression data types
  *
- * Use source data provided by internal symbol table
- *
- * @param message
- * @param object
+ * @param node
+ * @return DataType
  */
-void Intermediate_Representation::parsing_error(std::string_view message,
-                                                std::string_view object)
+DataType Intermediate_Representation::from_rvalue_expression(Node& node)
 {
-    if (internal_symbols_.hasKey(object.data())) {
-        throw std::runtime_error(std::format(
-            "Parsing error :: \"{}\" {}\n\t"
-            "on line {} in column {} :: {}",
-            object,
-            message,
-            internal_symbols_[object.data()]["line"].ToInt(),
-            internal_symbols_[object.data()]["column"].ToInt(),
-            internal_symbols_[object.data()]["end_column"].ToInt()));
-    } else {
-        throw std::runtime_error(
-            std::format("Parsing error :: \"{}\" {}", object.data(), message));
-    }
+    std::optional<DataType> expression = std::nullopt;
+    match(node["node"].ToString())(
+        pattern | "constant_literal" =
+            [&] { expression = from_constant_literal(node); },
+        pattern |
+            "number_literal" = [&] { expression = from_number_literal(node); },
+        pattern |
+            "string_literal" = [&] { expression = from_string_literal(node); },
+        pattern | "lvalue" = [&] { expression = from_lvalue_expression(node); },
+        pattern | "vector_lvalue" =
+            [&] { expression = from_lvalue_expression(node); },
+        pattern | "indirect_lvalue" =
+            [&] { expression = from_lvalue_expression(node); });
+
+    return expression.value_or(std::make_pair(std::monostate(), Type_["null"]));
 }
 
 /**
  * @brief
- *  Parse assignment expression
+ * Parse assignment expression into pairs of left-hand-side and right-hand-side
  *
  * @param node
+ * @return std::pair<DataType, DataType>
  */
-void Intermediate_Representation::from_assignment_expression(Node& node)
+std::pair<DataType, DataType>
+Intermediate_Representation::from_assignment_expression(Node& node)
 {
-    using namespace matchit;
     assert(node["node"].ToString().compare("assignment_expression") == 0);
     assert(node.hasKey("left"));
     assert(node.hasKey("right"));
@@ -173,40 +186,102 @@ void Intermediate_Representation::from_assignment_expression(Node& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
 
-    check_identifier_symbol(left_child_node);
+    if (!is_symbol(left_child_node)) {
+        parsing_error(
+            "lvalue of assignment not declared with 'auto' or 'extern'",
+            left_child_node["root"].ToString());
+    }
 
-    DataType rhs = match(right_child_node["node"].ToString())(
-        pattern | "constant_literal" =
-            [&] { return from_constant_literal(right_child_node); },
-        pattern | "number_literal" =
-            [&] { return from_number_literal(right_child_node); },
-        pattern | "string_literal" =
-            [&] { return from_string_literal(right_child_node); },
-        pattern | _ =
-            [&] { return std::make_pair(std::monostate(), Type_["null"]); });
+    auto lhs = from_lvalue_expression(left_child_node);
+    auto rhs = from_rvalue_expression(right_child_node);
 
-    quintuples_.emplace_back(std::make_tuple(Operator::EQUAL,
-                                             left_child_node["root"].ToString(),
-                                             ir::emit_value(rhs, ":"),
-                                             "",
-                                             ""));
+    return { lhs, rhs };
 }
-/*
+
+/**
  * @brief
- * Parse identifier lvalue
+ * Parse lvalue expression data types
  *
- *  Parse and verify scaler identifer is declared with auto or extern
+ * @param node
+ * @return DataType
+ */
+DataType Intermediate_Representation::from_lvalue_expression(Node& node)
+{
+    auto constant_type = node["node"].ToString();
+    if (!symbols_.get_symbol_defined(node["node"].ToString()) &&
+        !symbols_.get_symbol_defined(node["left"]["root"].ToString())) {
+        auto name = node.hasKey("left") ? node["left"]["root"].ToString()
+                                        : node["node"].ToString();
+        parsing_error("undefined lvalue, did you forget to declare with "
+                      "auto or extern?",
+                      name);
+    }
+    return match(node["node"].ToString())(
+        pattern | "lvalue" =
+            [&] {
+                return symbols_.get_symbol_by_name(node["root"].ToString());
+            },
+        pattern | "vector_lvalue" =
+            [&] {
+                return symbols_.get_symbol_by_name(node["root"].ToString());
+            },
+        pattern | "indirect_lvalue" =
+            [&] {
+                return symbols_.get_symbol_by_name(
+                    node["left"]["root"].ToString());
+            });
+}
+
+/**
+ * @brief
+ * Parse constant expression data types
+ *
+ * @param node
+ * @return DataType
+ */
+DataType Intermediate_Representation::from_constant_expression(Node& node)
+{
+    auto constant_type = node["node"].ToString();
+    return match(constant_type)(
+        pattern |
+            "constant_literal" = [&] { return from_constant_literal(node); },
+        pattern | "number_literal" = [&] { return from_number_literal(node); },
+        pattern | "string_literal" = [&] { return from_string_literal(node); });
+}
+
+/**
+ * @brief
+ * Parse lvalue to pointer data type
+ *
+ * @param node
+ * @return DataType
+ */
+DataType Intermediate_Representation::from_indirect_identifier(Node& node)
+{
+    assert(node["node"].ToString().compare("indirect_lvalue") == 0);
+    assert(node.hasKey("left"));
+    if (!is_symbol(node["left"])) {
+        parsing_error("pointer not declared with 'auto' or 'extern'",
+                      node["root"].ToString());
+    }
+    return symbols_.get_symbol_by_name(node["left"]["root"].ToString());
+}
+
+/**
+ * @brief
+ * Parse fixed-size vector (array) lvalue
  *
  * @param node
  */
-void Intermediate_Representation::check_identifier_symbol(Node& node)
+DataType Intermediate_Representation::from_vector_idenfitier(Node& node)
 {
-    auto lvalue = node["root"].ToString();
-    if (!symbols_.get_symbol_defined(lvalue) &&
-        (!globals_.get_symbol_defined(lvalue))) {
-        parsing_error("identifier not declared with 'auto' or 'extern'",
-                      lvalue);
+    assert(node["node"].ToString().compare("vector_lvalue") == 0);
+
+    if (!is_symbol(node)) {
+        parsing_error("vector not declared with 'auto' or 'extern'",
+                      node["root"].ToString());
     }
+    return symbols_.get_symbol_by_name(node["root"].ToString());
 }
 
 /**

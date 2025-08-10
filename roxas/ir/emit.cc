@@ -51,7 +51,7 @@ inline void emit_equal(Instruction const& inst, std::ostream& os)
     os << arg1 << " = " << arg2 << Operator::EOL;
 }
 
-std::string emit_value(Value_Type const& type, std::string_view separator = ":")
+std::string emit_value(Value_Type const& type, std::string_view separator)
 {
     std::ostringstream os;
     os << "(";
@@ -80,6 +80,10 @@ std::string emit_value(Value_Type const& type, std::string_view separator = ":")
                    [&]([[maybe_unused]] std::monostate i) {
                        os << "null" << separator << Type_["null"].first
                           << separator << Type_["null"].second;
+                   },
+                   [&](type::Byte i) {
+                       os << i << separator << Type_["byte"].first << separator
+                          << type.second.second;
                    },
                    [&](char i) {
                        os << i << Type_["char"].first << separator

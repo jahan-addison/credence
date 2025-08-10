@@ -16,14 +16,13 @@
 
 #pragma once
 
-#include <deque>            // for deque
-#include <map>              // for map
 #include <roxas/ir/types.h> // for Instructions, Value_Type
 #include <roxas/json.h>     // for JSON
 #include <roxas/symbol.h>   // for Symbol_Table
 #include <roxas/util.h>     // for ROXAS_PRIVATE_UNLESS_TESTED
-#include <string>           // for string
+#include <string>           // for basic_string, string
 #include <string_view>      // for string_view
+#include <utility>          // for pair
 #include <vector>           // for vector
 
 namespace roxas {
@@ -106,30 +105,84 @@ class Intermediate_Representation
     void from_auto_statement(Node& node);
 
   public:
+    /***************/
+    /* Expressions */
+    /***************/
+
     /**
      * @brief
-     *  Parse assignment expression
+     * Parse rvalue expression data types
+     *
+     * @param node
+     * @return DataType
+     */
+    DataType from_rvalue_expression(Node& node);
+    /**
+     * @brief
+     * Parse lvalue expression data types
+     *
+     * @param node
+     * @return DataType
+     */
+    DataType from_lvalue_expression(Node& node);
+    /**
+     * @brief
+     * Parse assignment expression into pairs of left-hand-side and
+     * right-hand-side
+     *
+     * @param node
+     * @return std::pair<DataType, DataType>
+     */
+    std::pair<DataType, DataType> from_assignment_expression(Node& node);
+    /**
+     * @brief
+     * Parse constant expression data types
+     *
+     * @param node
+     * @return DataType
+     */
+    DataType from_constant_expression(Node& node);
+    DataType from_unary_expression(Node& node);
+
+  public:
+    /*************/
+    /* Lvalues   */
+    /*************/
+
+    /*
+     * @brief
+     *
+     *  Check verify identifier is declared in symbol table
      *
      * @param node
      */
-    void from_assignment_expression(Node& node);
+    inline bool is_symbol(Node& node)
+    {
+        auto lvalue = node["root"].ToString();
+        return symbols_.get_symbol_defined(lvalue) ||
+               globals_.get_symbol_defined(lvalue);
+    }
     /**
      * @brief
-     * Parse identifier lvalue
-     *
-     *  Parse and verify identifer is declared with auto or extern
+     * Parse lvalue to pointer data type
      *
      * @param node
+     * @return DataType
      */
-    void check_identifier_symbol(Node& node);
-    void from_indirect_identifier(Node& node);
+    DataType from_indirect_identifier(Node& node);
     /**
      * @brief
      * Parse fixed-size vector (array) lvalue
      *
      * @param node
      */
-    void from_vector_idenfitier(Node& node);
+    DataType from_vector_idenfitier(Node& node);
+
+  public:
+    /**************/
+    /* Constants  */
+    /**************/
+
     /**
      * @brief
      * Parse number literal node into IR symbols

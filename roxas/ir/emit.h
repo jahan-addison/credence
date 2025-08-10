@@ -29,7 +29,7 @@ using namespace type;
 void emit(Instructions const& instructions, std::ostream& os);
 inline void emit_equal(Instruction const& inst, std::ostream& os);
 std::string emit_value(type::Value_Type const& type,
-                       std::string_view separator);
+                       std::string_view separator = ":");
 
 } // namespace ir
 

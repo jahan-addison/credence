@@ -28,13 +28,23 @@ namespace ir {
 
 namespace type {
 
-using Value = std::
-    variant<std::monostate, int, long, float, double, bool, std::string, char>;
+using Byte = unsigned char;
+
+using Value = std::variant<std::monostate,
+                           int,
+                           long,
+                           Byte,
+                           float,
+                           double,
+                           bool,
+                           std::string,
+                           char>;
 
 using Type_Size = std::pair<std::string, std::size_t>;
 
 static std::map<std::string, Type_Size> Type_ = {
     { "word", { "word", sizeof(void*) } },
+    { "byte", { "byte", sizeof(unsigned char) } },
     { "int", { "int", sizeof(int) } },
     { "long", { "long", sizeof(long) } },
     { "float", { "float", sizeof(float) } },

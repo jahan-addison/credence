@@ -112,8 +112,10 @@ TEST_CASE_FIXTURE(Fixture,
         std::make_pair(std::monostate(), type::Type_["null"]);
     type::Value_Type word_value =
         std::make_pair("__WORD_", type::Type_["word"]);
+    type::Value_Type byte_value = std::make_pair(static_cast<type::Byte>('0'),
+                                                 std::make_pair("byte", 50));
 
-    CHECK(temp.symbols_.table_["x"] == word_value);
+    CHECK(temp.symbols_.table_["x"] == byte_value);
     CHECK(temp.symbols_.table_["y"] == word_value);
     CHECK(temp.symbols_.table_["z"] == empty_value);
 }
@@ -149,9 +151,7 @@ TEST_CASE_FIXTURE(
           std::make_tuple(Operator::EQUAL, "x", "(5:int:4)", "", ""));
 }
 
-TEST_CASE_FIXTURE(
-    Fixture,
-    "ir/ir.cc: Intermediate_Representation::check_identifier_symbol")
+TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::is_symbol")
 {
     using namespace ir;
     json::JSON obj;
@@ -161,15 +161,49 @@ TEST_CASE_FIXTURE(
                                    "}");
     auto temp = Intermediate_Representation(obj["test"]);
     // not declared with `auto' or `extern', should throw
-    CHECK_THROWS(temp.check_identifier_symbol(obj["test"]));
+    CHECK(temp.is_symbol(obj["test"]) == false);
 
     auto temp2 = Intermediate_Representation(obj["symbols"]);
-    CHECK_THROWS(temp2.check_identifier_symbol(obj["test"]));
+    CHECK(temp2.is_symbol(obj["test"]) == false);
 
     type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
 
     temp2.symbols_.set_symbol_by_name("x", value_type);
-    CHECK_NOTHROW(temp2.check_identifier_symbol(obj["test"]));
+    CHECK(temp2.is_symbol(obj["test"]) == true);
+}
+
+TEST_CASE("ir/ir.cc: Intermediate_Representation::from_indirect_identifier")
+{
+    using namespace ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "{\n                \"left\" : {\n                  \"node\" : "
+        "\"lvalue\",\n                  \"root\" : \"x\"\n                },\n "
+        "               \"node\" : \"indirect_lvalue\",\n                "
+        "\"root\" : [\"*\"]\n              }");
+
+    auto temp = Intermediate_Representation(obj["test"]);
+    CHECK_THROWS(temp.from_indirect_identifier(obj["test"]));
+    type::Value_Type test = { "__WORD_", type::Type_["word"] };
+    temp.symbols_.table_["x"] = test;
+    temp.from_indirect_identifier(obj["test"]);
+}
+
+TEST_CASE("ir/ir.cc: Intermediate_Representation::from_vector_idenfitier")
+{
+    using namespace ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "{\n                \"left\" : {\n                  \"node\" : "
+        "\"number_literal\",\n                  \"root\" : 50\n                "
+        "},\n                \"node\" : \"vector_lvalue\",\n                "
+        "\"root\" : \"x\"\n              }");
+
+    auto temp = Intermediate_Representation(obj["test"]);
+    CHECK_THROWS(temp.from_vector_idenfitier(obj["test"]));
+    type::Value_Type test = std::make_tuple('0', std::make_pair("byte", 50));
+    temp.symbols_.table_["x"] = test;
+    CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
 }
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
