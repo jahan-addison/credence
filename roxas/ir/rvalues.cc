@@ -19,7 +19,7 @@
 #include <map>       // for map
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
 #include <memory>    // for make_unique, unique_ptr
-#include <roxas/ir/ir.h>
+#include <roxas/ir/rvalues.h>
 #include <roxas/ir/types.h> // for Type_, Byte
 #include <roxas/json.h>     // for JSON
 #include <roxas/symbol.h>   // for Symbol_Table
@@ -34,7 +34,7 @@ namespace ir {
 
 using namespace matchit;
 
-using DataType = Intermediate_Representation::DataType;
+using DataType = RValue_Table::DataType;
 
 /**
  * @brief
@@ -45,8 +45,8 @@ using DataType = Intermediate_Representation::DataType;
  * @param message
  * @param object
  */
-void Intermediate_Representation::parsing_error(std::string_view message,
-                                                std::string_view object)
+void RValue_Table::parsing_error(std::string_view message,
+                                 std::string_view object)
 {
     if (internal_symbols_.hasKey(object.data())) {
         throw std::runtime_error(std::format(
@@ -69,7 +69,7 @@ void Intermediate_Representation::parsing_error(std::string_view message,
  *
  * @param node
  */
-void Intermediate_Representation::parse_node(Node& node)
+void RValue_Table::parse_node(Node& node)
 {
     if (node.JSONType() == json::JSON::Class::Array) {
         for (auto& child_node : node.ArrayRange()) {
@@ -113,7 +113,7 @@ void Intermediate_Representation::parse_node(Node& node)
  *
  * @param node
  */
-void Intermediate_Representation::from_auto_statement(Node& node)
+void RValue_Table::from_auto_statement(Node& node)
 {
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("auto") == 0);
@@ -150,7 +150,7 @@ void Intermediate_Representation::from_auto_statement(Node& node)
  * @param node
  * @return DataType
  */
-RValue Intermediate_Representation::from_rvalue_expression(Node& node)
+RValue RValue_Table::from_rvalue_expression(Node& node)
 {
     RValue rvalue = RValue{};
      match(node["node"].ToString())(
@@ -183,7 +183,7 @@ RValue Intermediate_Representation::from_rvalue_expression(Node& node)
  * @param node
  * @return std::pair<DataType, DataType>
  */
-RValue Intermediate_Representation::from_assignment_expression(Node& node)
+RValue RValue_Table::from_assignment_expression(Node& node)
 {
     assert(node["node"].ToString().compare("assignment_expression") == 0);
     assert(node.hasKey("left"));
@@ -213,7 +213,7 @@ RValue Intermediate_Representation::from_assignment_expression(Node& node)
  * @param node
  * @return LValue
  */
-LValue Intermediate_Representation::from_lvalue_expression(Node& node)
+LValue RValue_Table::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
     if (!symbols_.get_symbol_defined(node["root"].ToString()) &&
@@ -254,7 +254,7 @@ LValue Intermediate_Representation::from_lvalue_expression(Node& node)
  * @param node
  * @return DataType
  */
-DataType Intermediate_Representation::from_constant_expression(Node& node)
+DataType RValue_Table::from_constant_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
     return match(constant_type)(
@@ -271,7 +271,7 @@ DataType Intermediate_Representation::from_constant_expression(Node& node)
  * @param node
  * @return DataType
  */
-DataType Intermediate_Representation::from_indirect_identifier(Node& node)
+DataType RValue_Table::from_indirect_identifier(Node& node)
 {
     assert(node["node"].ToString().compare("indirect_lvalue") == 0);
     assert(node.hasKey("left"));
@@ -288,7 +288,7 @@ DataType Intermediate_Representation::from_indirect_identifier(Node& node)
  *
  * @param node
  */
-DataType Intermediate_Representation::from_vector_idenfitier(Node& node)
+DataType RValue_Table::from_vector_idenfitier(Node& node)
 {
     assert(node["node"].ToString().compare("vector_lvalue") == 0);
 
@@ -305,7 +305,7 @@ DataType Intermediate_Representation::from_vector_idenfitier(Node& node)
  *
  * @param node
  */
-DataType Intermediate_Representation::from_number_literal(Node& node)
+DataType RValue_Table::from_number_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("number_literal") == 0);
@@ -318,7 +318,7 @@ DataType Intermediate_Representation::from_number_literal(Node& node)
  *
  * @param node
  */
-DataType Intermediate_Representation::from_string_literal(Node& node)
+DataType RValue_Table::from_string_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("string_literal") == 0);
@@ -332,7 +332,7 @@ DataType Intermediate_Representation::from_string_literal(Node& node)
  *
  * @param node
  */
-DataType Intermediate_Representation::from_constant_literal(Node& node)
+DataType RValue_Table::from_constant_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("constant_literal") == 0);

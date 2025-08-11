@@ -32,38 +32,32 @@ using namespace type;
 /**
  * @brief
  *
- *  Intermediate_Representation Class
- *
- * An implementation of the Three-address IR as Quintuple,
- * where there can be 4 or less arguments with an operator.
- * Notes:
- *  https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/13/Slides13.pdf
+ * Parse expression AST nodes into a table of symbols and algebraic types
  *
  */
-class Intermediate_Representation
+class RValue_Table
 {
   public:
-    Intermediate_Representation(Intermediate_Representation const&) = delete;
-    Intermediate_Representation& operator=(Intermediate_Representation const&) =
-        delete;
+    RValue_Table(RValue_Table const&) = delete;
+    RValue_Table& operator=(RValue_Table const&) = delete;
 
   public:
     using DataType = Value_Type;
 
   public:
     /**
-     * @brief Construct a new Intermediate_Representation object
+     * @brief Construct a new RValue_Table object
      *
      */
-    explicit Intermediate_Representation(json::JSON const& symbols)
+    explicit RValue_Table(json::JSON const& symbols)
         : internal_symbols_(symbols)
     {
     }
     /**
-     * @brief Destroy the Intermediate_Representation object
+     * @brief Destroy the RValue_Table object
      *
      */
-    ~Intermediate_Representation() = default;
+    ~RValue_Table() = default;
 
   public:
     using Node = json::JSON;
@@ -86,13 +80,6 @@ class Intermediate_Representation
      * @param node
      */
     void parse_node(Node& node);
-    /**
-     * @brief
-     * Get IR as list of ordered instructions
-     *
-     * @return constexpr Instructions
-     */
-    constexpr Instructions instructions() { return quintuples_; }
 
   public:
     /**
@@ -210,8 +197,6 @@ class Intermediate_Representation
     json::JSON internal_symbols_;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
-    Instructions quintuples_{};
-    std::vector<std::string> labels_{};
 };
 } // namespace ir
 } // namespace roxas

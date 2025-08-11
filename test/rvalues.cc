@@ -1,14 +1,13 @@
-#include <doctest/doctest.h> // for ResultBuilder, TestCase, CHECK, TEST_CASE
-#include <map>               // for map
-#include <memory>            // for unique_ptr
-#include <roxas/ir/ir.h>     // for Intermediate_Representation
-#include <roxas/ir/types.h>  // for Value_Type, Type_, RValue, Byte
-#include <roxas/json.h>      // for JSON
-#include <roxas/symbol.h>    // for Symbol_Table
-#include <string>            // for basic_string, string
-#include <tuple>             // for get, make_tuple
-#include <utility>           // for pair, get, make_pair
-#include <variant>           // for get, monostate
+#include <doctest/doctest.h>  // for ResultBuilder, TestCase, CHECK, TEST_CASE
+#include <map>                // for map
+#include <memory>             // for unique_ptr
+#include <roxas/ir/rvalues.h> // for RValue_Table
+#include <roxas/ir/types.h>   // for Value_Type, Type_, RValue, Byte
+#include <roxas/json.h>       // for JSON
+#include <roxas/symbol.h>     // for Symbol_Table
+#include <string>             // for basic_string, string
+#include <utility>            // for pair, get, make_pair
+#include <variant>            // for get, monostate
 
 struct Fixture
 {
@@ -55,8 +54,8 @@ struct Fixture
     ~Fixture() = default;
 };
 
-// TEST_CASE_FIXTURE(Fixture, "ir/ir.cc:
-// Intermediate_Representation::parse_node")
+// TEST_CASE_FIXTURE(Fixture, "ir/rvalues.cc:
+// RValue_Table::parse_node")
 // {
 //     using namespace ir;
 //     json::JSON obj;
@@ -80,13 +79,12 @@ struct Fixture
 //         "\"statement\",\n            \"root\" : \"rvalue\"\n          }]\n "
 //         "}\n ");
 
-//     auto temp = Intermediate_Representation(obj["symbols"]);
+//     auto temp = RValue_Table(obj["symbols"]);
 //     temp.parse_node(obj["test"]);
 //     Quintuple test = { Operator::EQUAL, "x", "5:int:4", "", "" };
 // }
 
-TEST_CASE_FIXTURE(Fixture,
-                  "ir/ir.cc: Intermediate_Representation::from_auto_statement")
+TEST_CASE_FIXTURE(Fixture, "ir/rvalues.cc: RValue_Table::from_auto_statement")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -100,7 +98,7 @@ TEST_CASE_FIXTURE(Fixture,
         "\"root\" : \"z\"\n    }],\n  \"node\" : \"statement\",\n  \"root\" : "
         "\"auto\"\n}");
 
-    auto temp = Intermediate_Representation(obj["test"]);
+    auto temp = RValue_Table(obj["test"]);
     temp.from_auto_statement(obj["test"]);
 
     CHECK(temp.symbols_.table_.size() == 3);
@@ -121,9 +119,8 @@ TEST_CASE_FIXTURE(Fixture,
     CHECK(temp.symbols_.table_["z"] == empty_value);
 }
 
-TEST_CASE_FIXTURE(
-    Fixture,
-    "ir/ir.cc: Intermediate_Representation::from_assignment_expression")
+TEST_CASE_FIXTURE(Fixture,
+                  "ir/rvalues.cc: RValue_Table::from_assignment_expression")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -139,7 +136,7 @@ TEST_CASE_FIXTURE(
         "    "
         "   },\n                  \"root\" : [\"=\", null]\n               "
         " }");
-    auto temp = Intermediate_Representation(obj["symbols"]);
+    auto temp = RValue_Table(obj["symbols"]);
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
 
@@ -158,7 +155,7 @@ TEST_CASE_FIXTURE(
     CHECK(std::get<type::Value_Type>((*rhs)->value) == assigned_type);
 }
 
-TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::is_symbol")
+TEST_CASE_FIXTURE(Fixture, "ir/rvalues.cc: RValue_Table::is_symbol")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -166,11 +163,11 @@ TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::is_symbol")
     obj["test"] = json::JSON::Load("{\"node\":  \"lvalue\","
                                    "\"root\": \"x\""
                                    "}");
-    auto temp = Intermediate_Representation(obj["test"]);
+    auto temp = RValue_Table(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
 
-    auto temp2 = Intermediate_Representation(obj["symbols"]);
+    auto temp2 = RValue_Table(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
     type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
@@ -179,7 +176,7 @@ TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::is_symbol")
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }
 
-TEST_CASE("ir/ir.cc: Intermediate_Representation::from_indirect_identifier")
+TEST_CASE("ir/rvalues.cc: RValue_Table::from_indirect_identifier")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -189,14 +186,14 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_indirect_identifier")
         "               \"node\" : \"indirect_lvalue\",\n                "
         "\"root\" : [\"*\"]\n              }");
 
-    auto temp = Intermediate_Representation(obj["test"]);
+    auto temp = RValue_Table(obj["test"]);
     CHECK_THROWS(temp.from_indirect_identifier(obj["test"]));
     type::Value_Type test = { "__WORD_", type::Type_["word"] };
     temp.symbols_.table_["x"] = test;
     temp.from_indirect_identifier(obj["test"]);
 }
 
-TEST_CASE("ir/ir.cc: Intermediate_Representation::from_vector_idenfitier")
+TEST_CASE("ir/rvalues.cc: RValue_Table::from_vector_idenfitier")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -206,14 +203,14 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_vector_idenfitier")
         "},\n                \"node\" : \"vector_lvalue\",\n                "
         "\"root\" : \"x\"\n              }");
 
-    auto temp = Intermediate_Representation(obj["test"]);
+    auto temp = RValue_Table(obj["test"]);
     CHECK_THROWS(temp.from_vector_idenfitier(obj["test"]));
     type::Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = test;
     CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
 }
 
-TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
+TEST_CASE("ir/rvalues.cc: RValue_Table::from_number_literal")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -221,7 +218,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
                                    "\"root\": 10"
                                    "}");
 
-    auto temp = Intermediate_Representation(obj);
+    auto temp = RValue_Table(obj);
     auto data = temp.from_number_literal(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
@@ -229,7 +226,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
+TEST_CASE("ir/rvalues.cc: RValue_Table::from_string_literal")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -237,7 +234,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
                                    "\"root\": \"test string\""
                                    "}");
 
-    auto temp = Intermediate_Representation(obj);
+    auto temp = RValue_Table(obj);
     auto data = temp.from_string_literal(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<std::string>(value) == "test string");
@@ -245,7 +242,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
     CHECK(type.second == sizeof(char) * 11);
 }
 
-TEST_CASE("ir/ir.cc: Intermediate_Representation::from_constant_literal")
+TEST_CASE("ir/rvalues.cc: RValue_Table::from_constant_literal")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -253,7 +250,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_constant_literal")
                                    "\"root\": \"x\""
                                    "}");
 
-    auto temp = Intermediate_Representation(obj);
+    auto temp = RValue_Table(obj);
     auto data = temp.from_constant_literal(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<char>(value) == 'x');

@@ -1,9 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, TestCase, CHECK, TEST_CA...
-#include <roxas/ir/emit.h>   // for emit
-#include <roxas/ir/ir.h>     // for Intermediate_Representation
-#include <roxas/json.h>      // for JSON
-#include <sstream>           // for basic_ostringstream, ostringstream
-#include <string>            // for allocator, basic_string, operator==
+#include <roxas/ir/operators.h> // for roxas
+#include <roxas/json.h>         // for JSON
+#include <string>               // for basic_string
 
 #include <roxas/json.h>
 
