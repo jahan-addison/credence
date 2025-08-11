@@ -15,10 +15,10 @@
  */
 #pragma once
 #include <map>
+#include <memory> // For std::unique_ptr
 #include <roxas/ir/operators.h>
 #include <sstream> // for basic_ostringstream, ostringstream
 #include <string>
-#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -55,6 +55,26 @@ static std::map<std::string, Type_Size> Type_ = {
 };
 
 using Value_Type = std::pair<Value, Type_Size>;
+
+using LValue = std::pair<std::string, Value_Type>;
+
+// Recursive RValue expression type
+struct RValue;
+namespace detail {
+using _RValue_PTR = std::unique_ptr<RValue>;
+} // namespace detail
+
+struct RValue
+{
+    using _RValue = detail::_RValue_PTR;
+    using Symbol = std::pair<LValue, detail::_RValue_PTR>;
+    using Type = std::variant<std::monostate,
+                              detail::_RValue_PTR,
+                              Symbol,
+                              LValue,
+                              Value_Type>;
+    Type value;
+};
 
 using Quintuple =
     std::tuple<Operator, std::string, std::string, std::string, std::string>;

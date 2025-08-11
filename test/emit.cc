@@ -53,19 +53,3 @@ struct Fixture
     }
     ~Fixture() = default;
 };
-
-TEST_CASE_FIXTURE(Fixture, "ir/emit.cc: emit_equal")
-{
-    using namespace ir;
-    json::JSON obj;
-    std::ostringstream os;
-    obj["symbols"] = lvalue_symbol_table_json;
-
-    obj["test"] = lvalue_ast_node_json;
-
-    auto temp = Intermediate_Representation(obj["symbols"]);
-
-    temp.parse_node(obj["test"]);
-    emit(temp.instructions(), os);
-    CHECK(os.str() == "x = (5:int:4);");
-}

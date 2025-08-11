@@ -1,15 +1,14 @@
-#include <doctest/doctest.h>    // for ResultBuilder, TestCase, CHECK, TEST...
-#include <map>                  // for map
-#include <roxas/ir/ir.h>        // for Intermediate_Representation
-#include <roxas/ir/operators.h> // for Operator
-#include <roxas/ir/types.h>     // for Type_, Value_Type, Quintuple
-#include <roxas/json.h>         // for JSON
-#include <roxas/symbol.h>       // for Symbol_Table
-#include <string>               // for basic_string, string
-#include <tuple>                // for tuple, make_tuple, get
-#include <utility>              // for pair, get, make_pair
-#include <variant>              // for monostate, get
-using namespace roxas;
+#include <doctest/doctest.h> // for ResultBuilder, TestCase, CHECK, TEST_CASE
+#include <map>               // for map
+#include <memory>            // for unique_ptr
+#include <roxas/ir/ir.h>     // for Intermediate_Representation
+#include <roxas/ir/types.h>  // for Value_Type, Type_, RValue, Byte
+#include <roxas/json.h>      // for JSON
+#include <roxas/symbol.h>    // for Symbol_Table
+#include <string>            // for basic_string, string
+#include <tuple>             // for get, make_tuple
+#include <utility>           // for pair, get, make_pair
+#include <variant>           // for get, monostate
 
 struct Fixture
 {
@@ -56,38 +55,40 @@ struct Fixture
     ~Fixture() = default;
 };
 
-TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::parse_node")
-{
-    using namespace ir;
-    json::JSON obj;
-    obj["symbols"] = assignment_symbol_table;
+// TEST_CASE_FIXTURE(Fixture, "ir/ir.cc:
+// Intermediate_Representation::parse_node")
+// {
+//     using namespace ir;
+//     json::JSON obj;
+//     obj["symbols"] = assignment_symbol_table;
 
-    obj["test"] = json::JSON::Load(
-        " {\n        \"left\" : [{\n            \"left\" : [{\n                "
-        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
-        "  }, {\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : \"y\"\n              }, {\n                \"node\" : "
-        "\"lvalue\",\n                \"root\" :\"z\"\n              }],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : \"auto\"\n  "
-        "        }, {\n            \"left\" : [[{\n                  \"left\" "
-        ": {\n                    \"node\" : \"lvalue\",\n                    "
-        "\"root\" : \"x\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n         "
-        "           \"node\" : \"number_literal\",\n                    "
-        "\"root\" : 5\n                  },\n                  \"root\" : "
-        "[\"=\", null]\n                }]],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          }]\n "
-        "}\n ");
+//     obj["test"] = json::JSON::Load(
+//         " {\n        \"left\" : [{\n            \"left\" : [{\n "
+//         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n " "  },
+//         {\n                \"node\" : \"lvalue\",\n                "
+//         "\"root\" : \"y\"\n              }, {\n                \"node\" : "
+//         "\"lvalue\",\n                \"root\" :\"z\"\n              }],\n "
+//         "        \"node\" : \"statement\",\n            \"root\" : \"auto\"\n
+//         " "        }, {\n            \"left\" : [[{\n \"left\" "
+//         ": {\n                    \"node\" : \"lvalue\",\n "
+//         "\"root\" : \"x\"\n                  },\n                  \"node\" :
+//         "
+//         "\"assignment_expression\",\n                  \"right\" : {\n " "
+//         \"node\" : \"number_literal\",\n                    "
+//         "\"root\" : 5\n                  },\n                  \"root\" : "
+//         "[\"=\", null]\n                }]],\n            \"node\" : "
+//         "\"statement\",\n            \"root\" : \"rvalue\"\n          }]\n "
+//         "}\n ");
 
-    auto temp = Intermediate_Representation(obj["symbols"]);
-    temp.parse_node(obj["test"]);
-    Quintuple test = { Operator::EQUAL, "x", "5:int:4", "", "" };
-}
+//     auto temp = Intermediate_Representation(obj["symbols"]);
+//     temp.parse_node(obj["test"]);
+//     Quintuple test = { Operator::EQUAL, "x", "5:int:4", "", "" };
+// }
 
 TEST_CASE_FIXTURE(Fixture,
                   "ir/ir.cc: Intermediate_Representation::from_auto_statement")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n  \"left\" : [{\n      \"left\" : {\n        \"node\" : "
@@ -124,7 +125,7 @@ TEST_CASE_FIXTURE(
     Fixture,
     "ir/ir.cc: Intermediate_Representation::from_assignment_expression")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = json::JSON::Load(
@@ -143,17 +144,23 @@ TEST_CASE_FIXTURE(
     CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
 
     type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
+    type::Value_Type assigned_type = { 5, type::Type_["int"] };
 
     temp.symbols_.table_.emplace("x", value_type);
 
-    CHECK_NOTHROW(temp.from_assignment_expression(obj["test"]));
-    CHECK(temp.quintuples_[0] ==
-          std::make_tuple(Operator::EQUAL, "x", "(5:int:4)", "", ""));
+    auto expr = temp.from_assignment_expression(obj["test"]);
+
+    auto lhs = std::get<type::RValue::Symbol>(expr.value).first;
+    auto* rhs = &std::get<type::RValue::Symbol>(expr.value).second;
+
+    CHECK(lhs.first == "x");
+    CHECK(lhs.second == value_type);
+    CHECK(std::get<type::Value_Type>((*rhs)->value) == assigned_type);
 }
 
 TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::is_symbol")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = json::JSON::Load("{\"node\":  \"lvalue\","
@@ -174,7 +181,7 @@ TEST_CASE_FIXTURE(Fixture, "ir/ir.cc: Intermediate_Representation::is_symbol")
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_indirect_identifier")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
@@ -191,7 +198,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_indirect_identifier")
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_vector_idenfitier")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
@@ -201,14 +208,14 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_vector_idenfitier")
 
     auto temp = Intermediate_Representation(obj["test"]);
     CHECK_THROWS(temp.from_vector_idenfitier(obj["test"]));
-    type::Value_Type test = std::make_tuple('0', std::make_pair("byte", 50));
+    type::Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = test;
     CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
 }
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
@@ -224,7 +231,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_number_literal")
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"string_literal\","
                                    "\"root\": \"test string\""
@@ -240,7 +247,7 @@ TEST_CASE("ir/ir.cc: Intermediate_Representation::from_string_literal")
 
 TEST_CASE("ir/ir.cc: Intermediate_Representation::from_constant_literal")
 {
-    using namespace ir;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"constant_literal\","
                                    "\"root\": \"x\""

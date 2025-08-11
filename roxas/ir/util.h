@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
-#include <ostream>          // for ostream
-#include <roxas/ir/types.h> // for Instruction, Instructions
 
+#include <roxas/ir/types.h> // for Value_Type
+#include <string>           // for string
+#include <string_view>      // for string_view
 namespace roxas {
 
 namespace ir {
 
-void emit(type::Instructions const& instructions, std::ostream& os);
-inline void emit_equal(type::Instruction const& inst, std::ostream& os);
+std::string dump_value_type(type::Value_Type const& type,
+                            std::string_view separator = ":");
 
 } // namespace ir
 

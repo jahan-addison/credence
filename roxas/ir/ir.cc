@@ -18,7 +18,7 @@
 #include <format>    // for format
 #include <map>       // for map
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
-#include <optional>  // for optional, nullopt, nullopt_t
+#include <memory>    // for make_unique, unique_ptr
 #include <roxas/ir/ir.h>
 #include <roxas/ir/types.h> // for Type_, Byte
 #include <roxas/json.h>     // for JSON
@@ -98,7 +98,7 @@ void Intermediate_Representation::parse_node(Node& node)
             from_assignment_expression(node);
         }
     );
-    /* clang-format on */
+    // /* clang-format on */
     if (node.hasKey("left")) {
         parse_node(node["left"]);
     }
@@ -150,23 +150,30 @@ void Intermediate_Representation::from_auto_statement(Node& node)
  * @param node
  * @return DataType
  */
-DataType Intermediate_Representation::from_rvalue_expression(Node& node)
+RValue Intermediate_Representation::from_rvalue_expression(Node& node)
 {
-    std::optional<DataType> expression = std::nullopt;
-    match(node["node"].ToString())(
-        pattern | "constant_literal" =
-            [&] { expression = from_constant_literal(node); },
-        pattern |
-            "number_literal" = [&] { expression = from_number_literal(node); },
-        pattern |
-            "string_literal" = [&] { expression = from_string_literal(node); },
-        pattern | "lvalue" = [&] { expression = from_lvalue_expression(node); },
-        pattern | "vector_lvalue" =
-            [&] { expression = from_lvalue_expression(node); },
-        pattern | "indirect_lvalue" =
-            [&] { expression = from_lvalue_expression(node); });
+    RValue rvalue = RValue{};
+     match(node["node"].ToString())(
+        pattern | "constant_literal" = [&] {
+            rvalue.value = from_constant_expression(node); },
+        pattern | "number_literal" = [&] {
+            rvalue.value = from_constant_expression(node); },
+        pattern | "string_literal" = [&] {
+            rvalue.value = from_constant_expression(node); },
+        pattern | "lvalue" = [&] {
+            rvalue.value = from_lvalue_expression(node); },
+        pattern | "vector_lvalue" = [&] {
+            rvalue.value = from_lvalue_expression(node); },
+        pattern | "indirect_lvalue" = [&] {
+            rvalue.value = from_lvalue_expression(node); },
+        pattern | "assignment_expression" = [&] {
+            rvalue.value = std::make_unique<RValue>(from_assignment_expression(node)); },
+        pattern | _ = [&] {
+            rvalue.value = std::monostate();
+        }
 
-    return expression.value_or(std::make_pair(std::monostate(), Type_["null"]));
+    );
+    return rvalue;
 }
 
 /**
@@ -176,8 +183,7 @@ DataType Intermediate_Representation::from_rvalue_expression(Node& node)
  * @param node
  * @return std::pair<DataType, DataType>
  */
-std::pair<DataType, DataType>
-Intermediate_Representation::from_assignment_expression(Node& node)
+RValue Intermediate_Representation::from_assignment_expression(Node& node)
 {
     assert(node["node"].ToString().compare("assignment_expression") == 0);
     assert(node.hasKey("left"));
@@ -185,7 +191,6 @@ Intermediate_Representation::from_assignment_expression(Node& node)
 
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
-
     if (!is_symbol(left_child_node)) {
         parsing_error(
             "lvalue of assignment not declared with 'auto' or 'extern'",
@@ -194,8 +199,11 @@ Intermediate_Representation::from_assignment_expression(Node& node)
 
     auto lhs = from_lvalue_expression(left_child_node);
     auto rhs = from_rvalue_expression(right_child_node);
+    RValue rvalue = RValue{};
+    rvalue.value =
+        std::make_pair(lhs, std::make_unique<RValue>(std::move(rhs)));
 
-    return { lhs, rhs };
+    return rvalue;
 }
 
 /**
@@ -203,33 +211,40 @@ Intermediate_Representation::from_assignment_expression(Node& node)
  * Parse lvalue expression data types
  *
  * @param node
- * @return DataType
+ * @return LValue
  */
-DataType Intermediate_Representation::from_lvalue_expression(Node& node)
+LValue Intermediate_Representation::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
-    if (!symbols_.get_symbol_defined(node["node"].ToString()) &&
+    if (!symbols_.get_symbol_defined(node["root"].ToString()) &&
         !symbols_.get_symbol_defined(node["left"]["root"].ToString())) {
         auto name = node.hasKey("left") ? node["left"]["root"].ToString()
-                                        : node["node"].ToString();
+                                        : node["root"].ToString();
         parsing_error("undefined lvalue, did you forget to declare with "
                       "auto or extern?",
                       name);
     }
-    return match(node["node"].ToString())(
+    LValue lvalue{};
+    match(node["node"].ToString())(
         pattern | "lvalue" =
             [&] {
-                return symbols_.get_symbol_by_name(node["root"].ToString());
+                lvalue = std::make_pair(
+                    node["root"].ToString(),
+                    symbols_.get_symbol_by_name(node["root"].ToString()));
             },
         pattern | "vector_lvalue" =
             [&] {
-                return symbols_.get_symbol_by_name(node["root"].ToString());
+                lvalue = std::make_pair(
+                    node["root"].ToString(),
+                    symbols_.get_symbol_by_name(node["root"].ToString()));
             },
         pattern | "indirect_lvalue" =
             [&] {
-                return symbols_.get_symbol_by_name(
-                    node["left"]["root"].ToString());
+                lvalue = std::make_pair(node["left"]["root"].ToString(),
+                                      symbols_.get_symbol_by_name(
+                                          node["left"]["root"].ToString()));
             });
+    return lvalue;
 }
 
 /**

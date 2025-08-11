@@ -22,7 +22,6 @@
 #include <roxas/util.h>     // for ROXAS_PRIVATE_UNLESS_TESTED
 #include <string>           // for basic_string, string
 #include <string_view>      // for string_view
-#include <utility>          // for pair
 #include <vector>           // for vector
 
 namespace roxas {
@@ -49,7 +48,7 @@ class Intermediate_Representation
         delete;
 
   public:
-    using DataType = type::Value_Type;
+    using DataType = Value_Type;
 
   public:
     /**
@@ -116,7 +115,7 @@ class Intermediate_Representation
      * @param node
      * @return DataType
      */
-    DataType from_rvalue_expression(Node& node);
+    RValue from_rvalue_expression(Node& node);
     /**
      * @brief
      * Parse lvalue expression data types
@@ -124,7 +123,7 @@ class Intermediate_Representation
      * @param node
      * @return DataType
      */
-    DataType from_lvalue_expression(Node& node);
+    LValue from_lvalue_expression(Node& node);
     /**
      * @brief
      * Parse assignment expression into pairs of left-hand-side and
@@ -133,7 +132,7 @@ class Intermediate_Representation
      * @param node
      * @return std::pair<DataType, DataType>
      */
-    std::pair<DataType, DataType> from_assignment_expression(Node& node);
+    RValue from_assignment_expression(Node& node);
     /**
      * @brief
      * Parse constant expression data types
