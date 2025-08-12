@@ -32,36 +32,11 @@ class PythonModuleLoader
 {
   public:
     PythonModuleLoader(PythonModuleLoader const&) = delete;
-    /**
-     * @brief PythonModuleLoader constructor
-     *
-     * Constructs object that interfaces with libpython
-     *
-     * @param module_path an absolute path to a python module
-     * @param module_name the module name as a string
-     * @param file_path an absolute path to the source file to parse
-     * @param env_path an optional absolute path to a venv directory where
-     * dependecies are installed
-     */
     PythonModuleLoader(std::string_view module_name);
 
-    /**
-     * @brief clean up
-     *
-     */
     ~PythonModuleLoader();
 
   public:
-    /**
-     * @brief
-     *
-     * Call a method on the python module and return the result as a
-     * string
-     *
-     * @param method_name the method name
-     * @param args initializer list of arguments to pass to the python method
-     * @return std::string result of method call
-     */
     std::string call_method_on_module(std::string_view method_name,
                                       std::initializer_list<std::string> args);
 

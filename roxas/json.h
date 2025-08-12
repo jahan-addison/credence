@@ -142,6 +142,8 @@ class JSON
         {
         }
 
+        inline Container* get() const { return object; }
+
         typename Container::iterator begin()
         {
             return object ? object->begin() : typename Container::iterator();
@@ -174,6 +176,10 @@ class JSON
             : object(nullptr)
         {
         }
+
+        inline Container* get() const { return object; }
+
+        JSON& operator[](int index) const { return object->at(index); }
 
         typename Container::const_iterator begin() const
         {

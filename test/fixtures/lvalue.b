@@ -1,4 +1,4 @@
 main () {
-  auto *x, y;
-  x = &y;
+  auto x,*y,z[20];
+
 }

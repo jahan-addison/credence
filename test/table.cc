@@ -175,6 +175,43 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::is_symbol")
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }
 
+TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "[\n               {\n                \"left\" : {\n                  "
+        "\"node\" : \"number_literal\",\n                  \"root\" : 50\n     "
+        "           },\n                \"node\" : \"vector_lvalue\",\n        "
+        "        \"root\" : \"x\"\n              }, {\n                "
+        "\"left\" : {\n                  \"node\" : \"lvalue\",\n              "
+        "    \"root\" : \"y\"\n                },\n                \"node\" : "
+        "\"indirect_lvalue\",\n                \"root\" : [\"*\"]\n            "
+        "  }, {\n                \"node\" : \"lvalue\",\n                "
+        "\"root\" : \"z\"\n              }]");
+    auto temp = Table(obj);
+    type::RValue::Value empty_value =
+        std::make_pair('0', std::make_pair("byte", 50));
+    auto* lvalues = obj["test"].ArrayRange().get();
+    auto [vector, pointer, normal] =
+        std::tie(lvalues->at(0), lvalues->at(1), lvalues->at(2));
+    temp.symbols_.table_["x"] = empty_value;
+    temp.symbols_.table_["y"] = empty_value;
+    temp.symbols_.table_["z"] = empty_value;
+    // test vector
+    auto test1 = temp.from_lvalue_expression(vector);
+    CHECK(test1.first == "x");
+    CHECK(test1.second == empty_value);
+    // test pointer
+    auto test2 = temp.from_lvalue_expression(pointer);
+    CHECK(test2.first == "y");
+    CHECK(test2.second == empty_value);
+    // normal variable
+    auto test3 = temp.from_lvalue_expression(normal);
+    CHECK(test3.first == "z");
+    CHECK(test3.second == empty_value);
+}
+
 TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
 {
     using namespace roxas::ir;
@@ -187,12 +224,12 @@ TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
 
     auto temp = Table(obj["test"]);
     CHECK_THROWS(temp.from_indirect_identifier(obj["test"]));
-    type::Value_Type test = { "__WORD_", type::Type_["word"] };
-    temp.symbols_.table_["x"] = test;
-    temp.from_indirect_identifier(obj["test"]);
+    type::RValue::Value value = std::make_pair('0', std::make_pair("byte", 50));
+    temp.symbols_.table_["x"] = value;
+    auto test = temp.from_indirect_identifier(obj["test"]);
+    CHECK(test == value);
 }
-
-TEST_CASE("ir/table.cc: Table::from_vector_idenfitier")
+TEST_CASE("ir/tble.cc: Table::from_vector_idenfitier")
 {
     using namespace roxas::ir;
     json::JSON obj;
@@ -207,6 +244,22 @@ TEST_CASE("ir/table.cc: Table::from_vector_idenfitier")
     type::Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = test;
     CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
+}
+
+TEST_CASE("ir/table.cc: Table::from_constant_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
+                                   "\"root\": 10"
+                                   "}");
+
+    auto temp = Table(obj);
+    auto data = temp.from_constant_expression(obj["test"]);
+    auto [value, type] = data;
+    CHECK(std::get<int>(value) == 10);
+    CHECK(type.first == "int");
+    CHECK(type.second == sizeof(int));
 }
 
 TEST_CASE("ir/table.cc: Table::from_number_literal")

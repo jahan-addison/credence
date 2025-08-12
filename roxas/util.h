@@ -42,9 +42,8 @@ enum class Logging
 };
 
 /**
- * @brief
- * Recursively converts tuple elements
- * to string if << operator is defined
+ * @brief Recursively converts tuple elements
+ *  to string if << operator is defined
  *
  * @tparam Types
  * @param t

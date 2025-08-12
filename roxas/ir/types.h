@@ -72,6 +72,8 @@ struct RValue
 
     using Symbol = std::pair<LValue, detail::_RValue_PTR>;
 
+    using Unary = std::pair<Operator, LValue>;
+
     using Relation = std::tuple<Operator, _RValue, _RValue>;
 
     using Function = std::pair<std::string, _RValue>;
@@ -79,6 +81,7 @@ struct RValue
     using Type = std::variant<std::monostate,
                               _RValue,
                               Symbol,
+                              Unary,
                               Relation,
                               Function,
                               LValue,

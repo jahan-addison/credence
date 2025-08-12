@@ -15,17 +15,18 @@
  */
 
 #include <cassert>   // for assert
-#include <format>    // for format
+#include <format>    // for format, format_string
 #include <map>       // for map
-#include <matchit.h> // for pattern, PatternHelper, PatternPipable
-#include <memory>    // for make_unique, unique_ptr
+#include <matchit.h> // for pattern, match, PatternHelper, PatternPi...
+#include <memory>    // for unique_ptr, make_unique
 #include <roxas/ir/table.h>
-#include <roxas/ir/types.h> // for Type_, Byte
+#include <roxas/ir/types.h> // for RValue, Type_, Byte
 #include <roxas/json.h>     // for JSON
 #include <roxas/symbol.h>   // for Symbol_Table
 #include <roxas/util.h>     // for log, Logging
 #include <stdexcept>        // for runtime_error
-#include <utility>          // for pair, make_pair
+#include <string>           // for allocator, basic_string, operator<=>
+#include <utility>          // for pair, make_pair, move
 #include <variant>          // for monostate, variant
 
 namespace roxas {
@@ -35,79 +36,75 @@ namespace ir {
 using namespace matchit;
 
 /**
- * @brief
- * Throw program flow error
- *
- * Use source data provided by internal symbol table
+ * @brief Throw program flow error
  *
  * @param message
  * @param object
  */
-void Table::error(std::string_view message, std::string_view object)
+void Table::error(std::string_view message, std::string_view symbol_name)
 {
-    if (internal_symbols_.hasKey(object.data())) {
-        throw std::runtime_error(std::format(
-            "Parsing error :: \"{}\" {}\n\t"
-            "on line {} in column {} :: {}",
-            object,
-            message,
-            internal_symbols_[object.data()]["line"].ToInt(),
-            internal_symbols_[object.data()]["column"].ToInt(),
-            internal_symbols_[object.data()]["end_column"].ToInt()));
+    auto symbol = symbol_name.data();
+    if (internal_symbols_.hasKey(symbol)) {
+        throw std::runtime_error(
+            std::format("Parsing error :: \"{}\" {}\n\t"
+                        "on line {} in column {} :: {}",
+                        symbol,
+                        message,
+                        internal_symbols_[symbol]["line"].ToInt(),
+                        internal_symbols_[symbol]["column"].ToInt(),
+                        internal_symbols_[symbol]["end_column"].ToInt()));
     } else {
         throw std::runtime_error(
-            std::format("Parsing error :: \"{}\" {}", object.data(), message));
+            std::format("Parsing error :: \"{}\" {}", symbol, message));
     }
 }
 
 /**
- * @brief
- *  Parse an expression node in recursive descent
+ * @brief Parse an expression node in recursive descent
  *
  * @param node
  */
 
-void Table::from_expression(Node& node)
-{
-    if (node.JSONType() == json::JSON::Class::Array) {
-        for (auto& child_node : node.ArrayRange()) {
-            from_expression(child_node);
-        }
-    }
-    /* clang-format off */
-    match(node["node"].ToString()) (
-        /**************/
-        /* Statements */
-        /**************/
-        pattern | "statement" = [&] {
-            auto statement_type = node["root"].ToString();
-            match (statement_type) (
-                pattern | "auto" = [&] {
-                    util::log(util::Logging::INFO, "parsing auto statement");
-                    from_auto_statement(node);
-                }
-            );
-        },
-        /**************/
-        /* Expressions */
-        /**************/
-        pattern | "assignment_expression" = [&] {
-            util::log(util::Logging::INFO, "parsing assignment expression");
-            from_assignment_expression(node);
-        }
-    );
-    // /* clang-format on */
-    if (node.hasKey("left")) {
-        from_expression(node["left"]);
-    }
-    if (node.hasKey("right")) {
-        from_expression(node["right"]);
-    }
-}
+// void Table::from_expression(Node& node)
+// {
+//     if (node.JSONType() == json::JSON::Class::Array) {
+//         for (auto& child_node : node.ArrayRange()) {
+//             from_expression(child_node);
+//         }
+//     }
+//     /* clang-format off */
+//     match(node["node"].ToString()) (
+//         /**************/
+//         /* Statements */
+//         /**************/
+//         pattern | "statement" = [&] {
+//             auto statement_type = node["root"].ToString();
+//             match (statement_type) (
+//                 pattern | "auto" = [&] {
+//                     util::log(util::Logging::INFO, "parsing auto statement");
+//                     from_auto_statement(node);
+//                 }
+//             );
+//         },
+//         /**************/
+//         /* Expressions */
+//         /**************/
+//         pattern | "assignment_expression" = [&] {
+//             util::log(util::Logging::INFO, "parsing assignment expression");
+//             from_assignment_expression(node);
+//         }
+//     );
+//     // /* clang-format on */
+//     if (node.hasKey("left")) {
+//         from_expression(node["left"]);
+//     }
+//     if (node.hasKey("right")) {
+//         from_expression(node["right"]);
+//     }
+// }
 
 /**
- * @brief
- * Parse auto statements and declare in symbol table
+ * @brief Parse auto statements and declare in symbol table
  *
  * @param node
  */
@@ -142,9 +139,8 @@ void Table::from_auto_statement(Node& node)
 }
 
 /**
- * @brief
- * Parse assignment expression into pairs of left-hand-side and
- * right-hand-side
+ * @brief Parse assignment expression into pairs of left-hand-side and
+ *  right-hand-side
  *
  * @param node
  * @return std::pair<RValue, RValue>
@@ -152,32 +148,33 @@ void Table::from_auto_statement(Node& node)
 RValue Table::from_rvalue_expression(Node& node)
 {
     RValue rvalue = RValue{};
-     match(node["node"].ToString())(
-        pattern | "constant_literal" = [&] {
-            rvalue.value = from_constant_expression(node); },
-        pattern | "number_literal" = [&] {
-            rvalue.value = from_constant_expression(node); },
-        pattern | "string_literal" = [&] {
-            rvalue.value = from_constant_expression(node); },
-        pattern | "lvalue" = [&] {
-            rvalue.value = from_lvalue_expression(node); },
-        pattern | "vector_lvalue" = [&] {
-            rvalue.value = from_lvalue_expression(node); },
-        pattern | "indirect_lvalue" = [&] {
-            rvalue.value = from_lvalue_expression(node); },
-        pattern | "assignment_expression" = [&] {
-            rvalue.value = std::make_unique<RValue>(from_assignment_expression(node)); },
-        pattern | _ = [&] {
-            rvalue.value = std::monostate();
-        }
+    match(node["node"].ToString())(
+        pattern | "constant_literal" =
+            [&] { rvalue.value = from_constant_expression(node); },
+        pattern | "number_literal" =
+            [&] { rvalue.value = from_constant_expression(node); },
+        pattern | "string_literal" =
+            [&] { rvalue.value = from_constant_expression(node); },
+        pattern |
+            "lvalue" = [&] { rvalue.value = from_lvalue_expression(node); },
+        pattern | "vector_lvalue" =
+            [&] { rvalue.value = from_lvalue_expression(node); },
+        pattern | "indirect_lvalue" =
+            [&] { rvalue.value = from_lvalue_expression(node); },
+        pattern | "assignment_expression" =
+            [&] {
+                rvalue.value =
+                    std::make_unique<RValue>(from_assignment_expression(node));
+            },
+        pattern | _ = [&] { rvalue.value = std::monostate(); }
 
     );
     return rvalue;
 }
 
 /**
- * @brief
- * Parse assignment expression into pairs of left-hand-side and right-hand-side
+ * @brief Parse assignment expression into pairs of left-hand-side and
+ * right-hand-side
  *
  * @param node
  * @return std::pair<RValue, RValue>
@@ -191,9 +188,8 @@ RValue Table::from_assignment_expression(Node& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
     if (!is_symbol(left_child_node)) {
-        error(
-            "lvalue of assignment not declared with 'auto' or 'extern'",
-            left_child_node["root"].ToString());
+        error("lvalue of assignment not declared with 'auto' or 'extern'",
+              left_child_node["root"].ToString());
     }
 
     auto lhs = from_lvalue_expression(left_child_node);
@@ -206,8 +202,7 @@ RValue Table::from_assignment_expression(Node& node)
 }
 
 /**
- * @brief
- * Parse lvalue expression data types
+ * @brief Parse lvalue expression data types
  *
  * @param node
  * @return RValue::LValue
@@ -220,8 +215,8 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
         auto name = node.hasKey("left") ? node["left"]["root"].ToString()
                                         : node["root"].ToString();
         error("undefined lvalue, did you forget to declare with "
-                      "auto or extern?",
-                      name);
+              "auto or extern?",
+              name);
     }
     RValue::LValue lvalue{};
     match(node["node"].ToString())(
@@ -240,15 +235,14 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
         pattern | "indirect_lvalue" =
             [&] {
                 lvalue = std::make_pair(node["left"]["root"].ToString(),
-                                      symbols_.get_symbol_by_name(
-                                          node["left"]["root"].ToString()));
+                                        symbols_.get_symbol_by_name(
+                                            node["left"]["root"].ToString()));
             });
     return lvalue;
 }
 
 /**
- * @brief
- * Parse constant expression data types
+ * @brief Parse constant expression data types
  *
  * @param node
  * @return RValue
@@ -263,10 +257,8 @@ RValue::Value Table::from_constant_expression(Node& node)
         pattern | "string_literal" = [&] { return from_string_literal(node); });
 }
 
-/*
- * @brief
- * Parse lvalue to pointer data type
- *
+/**
+ * @brief Parse lvalue to pointer data type
  * @param node
  * @return RValue
  */
@@ -276,14 +268,13 @@ RValue::Value Table::from_indirect_identifier(Node& node)
     assert(node.hasKey("left"));
     if (!is_symbol(node["left"])) {
         error("pointer not declared with 'auto' or 'extern'",
-                      node["root"].ToString());
+              node["root"].ToString());
     }
     return symbols_.get_symbol_by_name(node["left"]["root"].ToString());
 }
 
 /**
- * @brief
- * Parse fixed-size vector (array) lvalue
+ * @brief Parse fixed-size vector (array) lvalue
  *
  * @param node
  */
@@ -293,14 +284,13 @@ RValue::Value Table::from_vector_idenfitier(Node& node)
 
     if (!is_symbol(node)) {
         error("vector not declared with 'auto' or 'extern'",
-                      node["root"].ToString());
+              node["root"].ToString());
     }
     return symbols_.get_symbol_by_name(node["root"].ToString());
 }
 
 /**
- * @brief
- * Parse number literal node into IR symbols
+ * @brief Parse number literal node into symbols
  *
  * @param node
  */
@@ -312,28 +302,24 @@ RValue::Value Table::from_number_literal(Node& node)
 }
 
 /**
- * @brief
- * Parse string literal node into IR symbols
+ * @brief Parse string literal node into symbols
  *
  * @param node
  */
 RValue::Value Table::from_string_literal(Node& node)
 {
-    // use stack
     assert(node["node"].ToString().compare("string_literal") == 0);
     auto value = node["root"].ToString();
     return { node["root"].ToString(), { "string", value.size() } };
 }
 
 /**
- * @brief
- * Parse constant literal node into IR symbols
+ * @brief Parse constant literal node into symbols
  *
  * @param node
  */
 RValue::Value Table::from_constant_literal(Node& node)
 {
-    // use stack
     assert(node["node"].ToString().compare("constant_literal") == 0);
     return { static_cast<char>(node["root"].ToString()[0]), Type_["char"] };
 }

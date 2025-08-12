@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <map>              // for allocator, map
 #include <roxas/ir/types.h> // for RValue
 #include <roxas/json.h>     // for JSON
 #include <roxas/symbol.h>   // for Symbol_Table
 #include <roxas/util.h>     // for ROXAS_PRIVATE_UNLESS_TESTED
-#include <string>           // for basic_string
 #include <string_view>      // for string_view
 
 namespace roxas {
@@ -43,38 +43,29 @@ class Table
     using Node = json::JSON;
 
   public:
-    /**
-     * @brief Construct a new Table object
-     *
-     */
     explicit Table(json::JSON const& symbols)
         : internal_symbols_(symbols)
     {
     }
-    /**
-     * @brief Destroy the Table object
-     *
-     */
     ~Table() = default;
-
-  public:
-    void from_expression(Node& node);
 
   public:
     void from_auto_statement(Node& node);
 
   public:
+    RValue from_rvalue_expression(Node& node);
+    RValue from_evaluated_expression(Node& node);
     RValue from_function_expression(Node& node);
     RValue from_relation_expression(Node& node);
-    RValue from_pre_inc_dec_expression(Node& node);
-    RValue from_post_inc_dec_expression(Node& node);
-    RValue from_address_of_expression(Node& node);
-    RValue from_evaluated_expression(Node& node);
-    RValue from_unary_expression(Node& node);
     RValue from_ternary_expression(Node& node);
 
   public:
-    RValue from_rvalue_expression(Node& node);
+    RValue from_unary_expression(Node& node);
+    RValue from_pre_inc_dec_expression(Node& node);
+    RValue from_post_inc_dec_expression(Node& node);
+    RValue from_address_of_expression(Node& node);
+
+  public:
     RValue::LValue from_lvalue_expression(Node& node);
     RValue::Value from_indirect_identifier(Node& node);
     RValue::Value from_vector_idenfitier(Node& node);
@@ -96,7 +87,7 @@ class Table
     RValue::Value from_constant_literal(Node& node);
 
   private:
-    void error(std::string_view message, std::string_view object);
+    void error(std::string_view message, std::string_view symbol_name);
 
     /* clang-format off */
   ROXAS_PRIVATE_UNLESS_TESTED:

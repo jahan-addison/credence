@@ -1,12 +1,11 @@
 #include <map>              // for map
-#include <ostream>          // for basic_ostream, operator<<
 #include <roxas/ir/types.h> // for Type_, Value_Type, Byte
 #include <roxas/ir/util.h>
 #include <roxas/util.h> // for overload
-#include <sstream>      // for basic_ostringstream, ostringstream
-#include <string>       // for basic_string, char_traits, string
+#include <sstream>      // for basic_ostream, basic_ostringstream, oper...
+#include <string>       // for char_traits, allocator, operator<<, basi...
 #include <utility>      // for pair
-#include <variant>      // for get, monostate, visit
+#include <variant>      // for get, visit, monostate
 
 namespace roxas {
 
