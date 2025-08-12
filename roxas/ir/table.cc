@@ -19,7 +19,7 @@
 #include <map>       // for map
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
 #include <memory>    // for make_unique, unique_ptr
-#include <roxas/ir/rvalues.h>
+#include <roxas/ir/table.h>
 #include <roxas/ir/types.h> // for Type_, Byte
 #include <roxas/json.h>     // for JSON
 #include <roxas/symbol.h>   // for Symbol_Table
@@ -34,19 +34,16 @@ namespace ir {
 
 using namespace matchit;
 
-using DataType = RValue_Table::DataType;
-
 /**
  * @brief
- * Throw Parsing or program flow error
+ * Throw program flow error
  *
  * Use source data provided by internal symbol table
  *
  * @param message
  * @param object
  */
-void RValue_Table::parsing_error(std::string_view message,
-                                 std::string_view object)
+void Table::error(std::string_view message, std::string_view object)
 {
     if (internal_symbols_.hasKey(object.data())) {
         throw std::runtime_error(std::format(
@@ -65,15 +62,16 @@ void RValue_Table::parsing_error(std::string_view message,
 
 /**
  * @brief
- *  Parse an ast node recursively
+ *  Parse an expression node in recursive descent
  *
  * @param node
  */
-void RValue_Table::parse_node(Node& node)
+
+void Table::from_expression(Node& node)
 {
     if (node.JSONType() == json::JSON::Class::Array) {
         for (auto& child_node : node.ArrayRange()) {
-            parse_node(child_node);
+            from_expression(child_node);
         }
     }
     /* clang-format off */
@@ -100,10 +98,10 @@ void RValue_Table::parse_node(Node& node)
     );
     // /* clang-format on */
     if (node.hasKey("left")) {
-        parse_node(node["left"]);
+        from_expression(node["left"]);
     }
     if (node.hasKey("right")) {
-        parse_node(node["right"]);
+        from_expression(node["right"]);
     }
 }
 
@@ -113,7 +111,7 @@ void RValue_Table::parse_node(Node& node)
  *
  * @param node
  */
-void RValue_Table::from_auto_statement(Node& node)
+void Table::from_auto_statement(Node& node)
 {
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("auto") == 0);
@@ -145,12 +143,13 @@ void RValue_Table::from_auto_statement(Node& node)
 
 /**
  * @brief
- * Parse rvalue expression data types
+ * Parse assignment expression into pairs of left-hand-side and
+ * right-hand-side
  *
  * @param node
- * @return DataType
+ * @return std::pair<RValue, RValue>
  */
-RValue RValue_Table::from_rvalue_expression(Node& node)
+RValue Table::from_rvalue_expression(Node& node)
 {
     RValue rvalue = RValue{};
      match(node["node"].ToString())(
@@ -181,9 +180,9 @@ RValue RValue_Table::from_rvalue_expression(Node& node)
  * Parse assignment expression into pairs of left-hand-side and right-hand-side
  *
  * @param node
- * @return std::pair<DataType, DataType>
+ * @return std::pair<RValue, RValue>
  */
-RValue RValue_Table::from_assignment_expression(Node& node)
+RValue Table::from_assignment_expression(Node& node)
 {
     assert(node["node"].ToString().compare("assignment_expression") == 0);
     assert(node.hasKey("left"));
@@ -192,7 +191,7 @@ RValue RValue_Table::from_assignment_expression(Node& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
     if (!is_symbol(left_child_node)) {
-        parsing_error(
+        error(
             "lvalue of assignment not declared with 'auto' or 'extern'",
             left_child_node["root"].ToString());
     }
@@ -211,20 +210,20 @@ RValue RValue_Table::from_assignment_expression(Node& node)
  * Parse lvalue expression data types
  *
  * @param node
- * @return LValue
+ * @return RValue::LValue
  */
-LValue RValue_Table::from_lvalue_expression(Node& node)
+RValue::LValue Table::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
     if (!symbols_.get_symbol_defined(node["root"].ToString()) &&
         !symbols_.get_symbol_defined(node["left"]["root"].ToString())) {
         auto name = node.hasKey("left") ? node["left"]["root"].ToString()
                                         : node["root"].ToString();
-        parsing_error("undefined lvalue, did you forget to declare with "
+        error("undefined lvalue, did you forget to declare with "
                       "auto or extern?",
                       name);
     }
-    LValue lvalue{};
+    RValue::LValue lvalue{};
     match(node["node"].ToString())(
         pattern | "lvalue" =
             [&] {
@@ -252,9 +251,9 @@ LValue RValue_Table::from_lvalue_expression(Node& node)
  * Parse constant expression data types
  *
  * @param node
- * @return DataType
+ * @return RValue
  */
-DataType RValue_Table::from_constant_expression(Node& node)
+RValue::Value Table::from_constant_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
     return match(constant_type)(
@@ -264,19 +263,19 @@ DataType RValue_Table::from_constant_expression(Node& node)
         pattern | "string_literal" = [&] { return from_string_literal(node); });
 }
 
-/**
+/*
  * @brief
  * Parse lvalue to pointer data type
  *
  * @param node
- * @return DataType
+ * @return RValue
  */
-DataType RValue_Table::from_indirect_identifier(Node& node)
+RValue::Value Table::from_indirect_identifier(Node& node)
 {
     assert(node["node"].ToString().compare("indirect_lvalue") == 0);
     assert(node.hasKey("left"));
     if (!is_symbol(node["left"])) {
-        parsing_error("pointer not declared with 'auto' or 'extern'",
+        error("pointer not declared with 'auto' or 'extern'",
                       node["root"].ToString());
     }
     return symbols_.get_symbol_by_name(node["left"]["root"].ToString());
@@ -288,12 +287,12 @@ DataType RValue_Table::from_indirect_identifier(Node& node)
  *
  * @param node
  */
-DataType RValue_Table::from_vector_idenfitier(Node& node)
+RValue::Value Table::from_vector_idenfitier(Node& node)
 {
     assert(node["node"].ToString().compare("vector_lvalue") == 0);
 
     if (!is_symbol(node)) {
-        parsing_error("vector not declared with 'auto' or 'extern'",
+        error("vector not declared with 'auto' or 'extern'",
                       node["root"].ToString());
     }
     return symbols_.get_symbol_by_name(node["root"].ToString());
@@ -305,7 +304,7 @@ DataType RValue_Table::from_vector_idenfitier(Node& node)
  *
  * @param node
  */
-DataType RValue_Table::from_number_literal(Node& node)
+RValue::Value Table::from_number_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("number_literal") == 0);
@@ -318,7 +317,7 @@ DataType RValue_Table::from_number_literal(Node& node)
  *
  * @param node
  */
-DataType RValue_Table::from_string_literal(Node& node)
+RValue::Value Table::from_string_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("string_literal") == 0);
@@ -332,7 +331,7 @@ DataType RValue_Table::from_string_literal(Node& node)
  *
  * @param node
  */
-DataType RValue_Table::from_constant_literal(Node& node)
+RValue::Value Table::from_constant_literal(Node& node)
 {
     // use stack
     assert(node["node"].ToString().compare("constant_literal") == 0);

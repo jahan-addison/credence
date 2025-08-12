@@ -56,8 +56,6 @@ static std::map<std::string, Type_Size> Type_ = {
 
 using Value_Type = std::pair<Value, Type_Size>;
 
-using LValue = std::pair<std::string, Value_Type>;
-
 // Recursive RValue expression type
 struct RValue;
 namespace detail {
@@ -67,10 +65,22 @@ using _RValue_PTR = std::unique_ptr<RValue>;
 struct RValue
 {
     using _RValue = detail::_RValue_PTR;
+
+    using Value = Value_Type;
+
+    using LValue = std::pair<std::string, Value_Type>;
+
     using Symbol = std::pair<LValue, detail::_RValue_PTR>;
+
+    using Relation = std::tuple<Operator, _RValue, _RValue>;
+
+    using Function = std::pair<std::string, _RValue>;
+
     using Type = std::variant<std::monostate,
-                              detail::_RValue_PTR,
+                              _RValue,
                               Symbol,
+                              Relation,
+                              Function,
                               LValue,
                               Value_Type>;
     Type value;
