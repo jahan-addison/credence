@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
-#include <cassert>   // for assert
-#include <format>    // for format, format_string
-#include <map>       // for map
-#include <matchit.h> // for pattern, match, PatternHelper, PatternPi...
-#include <memory>    // for unique_ptr, make_unique
+#include <algorithm>            // for __any_of_fn, any_of
+#include <cassert>              // for assert
+#include <deque>                // for deque
+#include <format>               // for format, format_string
+#include <functional>           // for identity
+#include <map>                  // for allocator, map
+#include <matchit.h>            // for pattern, PatternHelper, PatternPipable
+#include <memory>               // for unique_ptr, make_unique
+#include <roxas/ir/operators.h> // for Operator
 #include <roxas/ir/table.h>
 #include <roxas/ir/types.h> // for RValue, Type_, Byte
 #include <roxas/json.h>     // for JSON
 #include <roxas/symbol.h>   // for Symbol_Table
-#include <roxas/util.h>     // for log, Logging
 #include <stdexcept>        // for runtime_error
-#include <string>           // for allocator, basic_string, operator<=>
+#include <string>           // for basic_string, operator==, operator<=>
 #include <utility>          // for pair, make_pair, move
 #include <variant>          // for monostate, variant
 
@@ -140,7 +143,7 @@ void Table::from_auto_statement(Node& node)
 
 /**
  * @brief Parse assignment expression into pairs of left-hand-side and
- *  right-hand-side
+ *  right-hand-side pairs
  *
  * @param node
  * @return std::pair<RValue, RValue>
@@ -148,6 +151,10 @@ void Table::from_auto_statement(Node& node)
 RValue Table::from_rvalue_expression(Node& node)
 {
     RValue rvalue = RValue{};
+    bool is_unary =
+        std::ranges::any_of(unary_types_, [&](std::string const& str) {
+            return str == node["node"].ToString();
+        });
     match(node["node"].ToString())(
         pattern | "constant_literal" =
             [&] { rvalue.value = from_constant_expression(node); },
@@ -166,9 +173,84 @@ RValue Table::from_rvalue_expression(Node& node)
                 rvalue.value =
                     std::make_unique<RValue>(from_assignment_expression(node));
             },
-        pattern | _ = [&] { rvalue.value = std::monostate(); }
+        pattern | _ =
+            [&] {
+                if (is_unary) {
+                    rvalue.value =
+                        std::make_unique<RValue>(from_unary_expression(node));
+                } else {
+                    rvalue.value = std::monostate();
+                }
+            });
+    return rvalue;
+}
 
-    );
+/**
+ * @brief Unary operator expression to algebraic pair
+ * @param node
+ * @return RValue
+ */
+RValue Table::from_unary_expression(Node& node)
+{
+    std::map<std::string, Operator> const other_unary = {
+        { "!", Operator::U_NOT },
+        { "~", Operator::U_ONES_COMPLEMENT },
+        { "*", Operator::U_INDIRECTION },
+        { "-", Operator::U_MINUS },
+
+    };
+    RValue rvalue{};
+    match(node["node"].ToString())(
+        pattern | "pre_inc_dec_expression" =
+            [&] {
+                if (node["root"].ArrayRange().get()->at(0).ToString() == "++") {
+                    auto rhs = from_rvalue_expression(node["left"]);
+                    rvalue.value = std::make_pair(
+                        Operator::PRE_INC,
+                        std::make_unique<RValue>(std::move(rhs)));
+
+                } else if (node["root"].ArrayRange().get()->at(0).ToString() ==
+                           "--") {
+                    auto rhs = from_rvalue_expression(node["left"]);
+                    rvalue.value = std::make_pair(
+                        Operator::PRE_DEC,
+                        std::make_unique<RValue>(std::move(rhs)));
+                }
+            },
+        pattern | "post_inc_dec_expression" =
+            [&] {
+                if (node["root"].ArrayRange().get()->at(0).ToString() == "++") {
+                    auto rhs = from_rvalue_expression(node["right"]);
+                    rvalue.value = std::make_pair(
+                        Operator::POST_INC,
+                        std::make_unique<RValue>(std::move(rhs)));
+
+                } else if (node["root"].ArrayRange().get()->at(0).ToString() ==
+                           "--") {
+                    auto rhs = from_rvalue_expression(node["right"]);
+                    rvalue.value = std::make_pair(
+                        Operator::POST_DEC,
+                        std::make_unique<RValue>(std::move(rhs)));
+                }
+            },
+        pattern | "address_of_expression" =
+            [&] {
+                auto op = node["root"].ArrayRange().get()->at(0).ToString();
+                assert(op.compare("&") == 0);
+                auto rhs = from_rvalue_expression(node["left"]);
+                rvalue.value =
+                    std::make_pair(Operator::U_ADDR_OF,
+                                   std::make_unique<RValue>(std::move(rhs)));
+            },
+        // otherwise:
+        pattern | _ =
+            [&] {
+                auto op = node["root"].ArrayRange().get()->at(0).ToString();
+                auto rhs = from_rvalue_expression(node["left"]);
+                rvalue.value =
+                    std::make_pair(other_unary.at(op),
+                                   std::make_unique<RValue>(std::move(rhs)));
+            });
     return rvalue;
 }
 
@@ -212,9 +294,14 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
     auto constant_type = node["node"].ToString();
     if (!symbols_.get_symbol_defined(node["root"].ToString()) &&
         !symbols_.get_symbol_defined(node["left"]["root"].ToString())) {
-        auto name = node.hasKey("left") ? node["left"]["root"].ToString()
-                                        : node["root"].ToString();
-        error("undefined lvalue, did you forget to declare with "
+        std::string name{};
+        if (node.hasKey("left"))
+            name = node["left"]["root"].ToString();
+        if (node.hasKey("right"))
+            name = node["right"]["root"].ToString();
+        else
+            name = node["root"].ToString();
+        error("undefined value, did you forget to declare with "
               "auto or extern?",
               name);
     }

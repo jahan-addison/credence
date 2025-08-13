@@ -16,7 +16,7 @@
 
 #pragma once
 #include <ostream> // for ostream
-
+#include <sstream>
 namespace roxas {
 namespace ir {
 /**
@@ -25,30 +25,50 @@ namespace ir {
  */
 enum class Operator
 {
+    // relational operators
+    R_EQUAL,
+    R_NEQUAL,
+    R_LT,
+    R_GT,
+    R_LE,
+    R_GE,
+    R_OR,
+    R_AND,
+
+    // math binary operators
+    B_SUBTRACT,
+    B_ADD,
+    B_MOD,
+    B_MUL,
+    B_DIV,
+
+    // unary increment/decrement
+    PRE_INC,
+    PRE_DEC,
+    POST_INC,
+    POST_DEC,
+
+    // bit ops
+    RSHIFT,
+    XOR,
+    LSHIFT,
+    U_NOT,
+    U_ONES_COMPLEMENT,
+
+    U_MINUS,
+
+    // pointer operators
+    U_ADDR_OF,
+    U_INDIRECTION
+};
+
+namespace {
+enum class Instruction_Operator
+{
     FUNC_START,
     FUNC_END,
     LABEL,
     GOTO,
-    EQUAL,
-    MINUS,
-    PLUS,
-    LT,
-    GT,
-    LE,
-    GE,
-    XOR,
-    LSHIFT,
-    RSHIFT,
-    SUBTRACT,
-    ADD,
-    MOD,
-    MUL,
-    DIV,
-    INDIRECT,
-    ADDR_OF,
-    UMINUS,
-    UNOT,
-    UONE,
     PUSH,
     POP,
     CALL,
@@ -57,6 +77,7 @@ enum class Operator
     EOL,
     NOOP
 };
+} // namespace detail
 
 /**
  * @brief operator enum type << operator overload
@@ -68,91 +89,141 @@ enum class Operator
 inline std::ostream& operator<<(std::ostream& os, Operator const& op)
 {
     switch (op) {
-        case Operator::LABEL:
-        case Operator::VARIABLE:
-        case Operator::NOOP:
-            os << "";
+        // relational operators
+        case Operator::R_EQUAL:
+            os << "==";
             break;
-        case Operator::FUNC_START:
-            os << "BeginFunc";
+        case Operator::R_NEQUAL:
+            os << "!=";
             break;
-        case Operator::FUNC_END:
-            os << "EndFunc";
-            break;
-
-        case Operator::MINUS:
-            os << "-";
-            break;
-        case Operator::EQUAL:
-            os << "=";
-            break;
-        case Operator::PLUS:
-            os << "+";
-            break;
-        case Operator::LT:
+        case Operator::R_LT:
             os << "<";
             break;
-        case Operator::GT:
+        case Operator::R_GT:
             os << ">";
             break;
-        case Operator::LE:
+        case Operator::R_LE:
             os << "<=";
             break;
-        case Operator::GE:
+        case Operator::R_GE:
             os << ">=";
             break;
-        case Operator::XOR:
-            os << "^";
+        case Operator::R_OR:
+            os << "|";
+            break;
+        case Operator::R_AND:
+            os << "&";
+            break;
+
+        // math binary operators
+        case Operator::B_SUBTRACT:
+            os << "-";
+            break;
+        case Operator::B_ADD:
+            os << "+";
+            break;
+        case Operator::B_MOD:
+            os << "%";
+            break;
+        case Operator::B_MUL:
+            os << "*";
+            break;
+        case Operator::B_DIV:
+            os << "/";
+            break;
+
+        // unary increment/decrement
+        case Operator::PRE_INC:
+        case Operator::POST_INC:
+            os << "++";
+            break;
+
+        case Operator::PRE_DEC:
+        case Operator::POST_DEC:
+            os << "--";
+            break;
+
+        // bit ops
+        case Operator::RSHIFT:
+            os << ">>";
             break;
         case Operator::LSHIFT:
             os << "<<";
             break;
-        case Operator::RSHIFT:
-            os << ">>";
+        case Operator::XOR:
+            os << "^";
             break;
-        case Operator::SUBTRACT:
-            os << "-";
-            break;
-        case Operator::ADD:
-            os << "+";
-            break;
-        case Operator::MOD:
-            os << "%";
-            break;
-        case Operator::MUL:
-            os << "*";
-            break;
-        case Operator::DIV:
-            os << "/";
-            break;
-        case Operator::INDIRECT:
-            os << "*";
-            break;
-        case Operator::ADDR_OF:
-            os << "&";
-            break;
-        case Operator::UMINUS:
-            os << "-";
-            break;
-        case Operator::UNOT:
+
+        case Operator::U_NOT:
             os << "!";
             break;
-        case Operator::UONE:
+        case Operator::U_ONES_COMPLEMENT:
             os << "~";
             break;
-        case Operator::PUSH:
+
+        // pointer operators
+        case Operator::U_INDIRECTION:
+            os << "*";
+            break;
+        case Operator::U_ADDR_OF:
+            os << "&";
+
+        case Operator::U_MINUS:
+            os << "-";
+            break;
+
+        default:
+            os << "null";
+            break;
+    }
+    return os;
+}
+
+inline std::string operator_to_string(Operator op)
+{
+    std::ostringstream os;
+    os << op;
+    return os.str();
+}
+
+/**
+ * @brief Instruction_Operator enum type << operator overload
+ *
+ * @param os
+ * @param op
+ * @return std::ostream&
+ */
+inline std::ostream& operator<<(std::ostream& os,
+                                Instruction_Operator const& op)
+{
+    switch (op) {
+        case Instruction_Operator::FUNC_START:
+            os << "BeginFunc";
+            break;
+        case Instruction_Operator::FUNC_END:
+            os << "EndFunc";
+            break;
+        case Instruction_Operator::LABEL:
+        case Instruction_Operator::VARIABLE:
+        case Instruction_Operator::NOOP:
+            os << "";
+            break;
+        case Instruction_Operator::RETURN:
+            os << "Ret";
+            break;
+        case Instruction_Operator::PUSH:
             os << "Push";
             break;
-        case Operator::POP:
+        case Instruction_Operator::POP:
             os << "Pop";
             break;
-        case Operator::CALL:
+        case Instruction_Operator::CALL:
             os << "Call";
             break;
-        case Operator::GOTO:
+        case Instruction_Operator::GOTO:
             os << "Goto";
             break;
-        case Operator::EOL:
+        case Instruction_Operator::EOL:
             os << ";";
             break;
         default:

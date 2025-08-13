@@ -52,7 +52,6 @@ class Symbol_Table
      */
   public:
     Symbol_Table& operator=(Symbol_Table const&) = delete;
-    Symbol_Table(Symbol_Table const&) = delete;
 
     /**
      * @brief Construct a new Symbol_Table object

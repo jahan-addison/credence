@@ -1,12 +1,14 @@
-#include <doctest/doctest.h> // for ResultBuilder, TestCase, CHECK, TEST_CASE
+#include <deque>             // for deque
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 #include <map>               // for map
 #include <memory>            // for unique_ptr
 #include <roxas/ir/table.h>  // for Table
-#include <roxas/ir/types.h>  // for Value_Type, Type_, RValue, Byte
+#include <roxas/ir/types.h>  // for Value_Type, RValue, Type_, Byte
 #include <roxas/json.h>      // for JSON
 #include <roxas/symbol.h>    // for Symbol_Table
 #include <string>            // for basic_string, string
-#include <utility>           // for pair, get, make_pair
+#include <tuple>             // for get, tie
+#include <utility>           // for pair, make_pair, get
 #include <variant>           // for get, monostate
 
 struct Fixture
@@ -117,6 +119,85 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_auto_statement")
     CHECK(temp.symbols_.table_["x"] == byte_value);
     CHECK(temp.symbols_.table_["y"] == word_value);
     CHECK(temp.symbols_.table_["z"] == empty_value);
+}
+
+TEST_CASE("ir/table.cc: Table::from_unary_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "[{\n                  \"node\" : \"post_inc_dec_expression\",\n       "
+        "           \"right\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"root\" : [\"++\"]\n                }, {\n     "
+        "             \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"pre_inc_dec_expression\",\n        "
+        "          \"root\" : [\"++\"]\n                }, {\n                 "
+        " \"left\" : {\n                    \"node\" : \"lvalue\",\n           "
+        "         \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"address_of_expression\",\n                  \"root\" : "
+        "[\"&\"]\n                }, {\n                  \"left\" : {\n       "
+        "             \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 5\n                  },\n                  \"node\" : "
+        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n         "
+        "       }, {\n                  \"left\" : {\n                    "
+        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n        "
+        "          },\n                  \"node\" : \"indirect_lvalue\",\n     "
+        "             \"root\" : [\"*\"]\n                }, {\n               "
+        "     \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 5\n             "
+        "       },\n                    \"node\" : \"unary_expression\",\n     "
+        "               \"root\" : [\"-\"]\n                  },\n             "
+        "   {\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"unary_expression\",\n              "
+        "    \"root\" : [\"!\"]\n                }]");
+    auto temp = Table(obj);
+
+    RValue::Value null = { std::monostate(), type::Type_["null"] };
+
+    temp.symbols_.table_.emplace("x", null);
+
+    auto unary_expressions = obj["test"].ArrayRange().get();
+    std::unique_ptr<RValue> lvalue, constant;
+
+    auto test1 = temp.from_unary_expression(unary_expressions->at(0));
+    lvalue = std::move(std::get<RValue::Unary>(test1.value).second);
+    CHECK(std::get<RValue::Unary>(test1.value).first == Operator::POST_INC);
+    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
+
+    auto test2 = temp.from_unary_expression(unary_expressions->at(1));
+    lvalue = std::move(std::get<RValue::Unary>(test2.value).second);
+    CHECK(std::get<RValue::Unary>(test2.value).first == Operator::PRE_INC);
+    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
+
+    auto test3 = temp.from_unary_expression(unary_expressions->at(2));
+    lvalue = std::move(std::get<RValue::Unary>(test3.value).second);
+    CHECK(std::get<RValue::Unary>(test3.value).first == Operator::U_ADDR_OF);
+    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
+
+    auto test4 = temp.from_unary_expression(unary_expressions->at(3));
+    constant = std::move(std::get<RValue::Unary>(test4.value).second);
+    CHECK(std::get<RValue::Unary>(test4.value).first ==
+          Operator::U_ONES_COMPLEMENT);
+    CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
+
+    auto test5 = temp.from_unary_expression(unary_expressions->at(4));
+    lvalue = std::move(std::get<RValue::Unary>(test5.value).second);
+    CHECK(std::get<RValue::Unary>(test5.value).first ==
+          Operator::U_INDIRECTION);
+    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
+
+    auto test6 = temp.from_unary_expression(unary_expressions->at(5));
+    constant = std::move(std::get<RValue::Unary>(test6.value).second);
+    CHECK(std::get<RValue::Unary>(test6.value).first == Operator::U_MINUS);
+    CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
+
+    auto test7 = temp.from_unary_expression(unary_expressions->at(6));
+    lvalue = std::move(std::get<RValue::Unary>(test7.value).second);
+    CHECK(std::get<RValue::Unary>(test7.value).first == Operator::U_NOT);
+    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 }
 
 TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_assignment_expression")

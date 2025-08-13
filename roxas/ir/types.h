@@ -59,6 +59,7 @@ using Value_Type = std::pair<Value, Type_Size>;
 // Recursive RValue expression type
 struct RValue;
 namespace detail {
+// @TODO This needs to be an address table
 using _RValue_PTR = std::unique_ptr<RValue>;
 } // namespace detail
 
@@ -70,9 +71,9 @@ struct RValue
 
     using LValue = std::pair<std::string, Value_Type>;
 
-    using Symbol = std::pair<LValue, detail::_RValue_PTR>;
+    using Symbol = std::pair<LValue, _RValue>;
 
-    using Unary = std::pair<Operator, LValue>;
+    using Unary = std::pair<Operator, _RValue>;
 
     using Relation = std::tuple<Operator, _RValue, _RValue>;
 

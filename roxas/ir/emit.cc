@@ -14,37 +14,11 @@
  * limitations under the License.
  */
 
-#include <matchit.h> // for match, pattern, MatchHelper, Pattern...
-#include <ostream>   // for char_traits, basic_ostream, ostream
 #include <roxas/ir/emit.h>
-#include <roxas/ir/operators.h> // for Operator, operator<<
-#include <roxas/ir/types.h>     // for Instruction, Instructions
-#include <string>               // for operator<<
-#include <tuple>                // for get, tuple
-#include <vector>               // for vector
 
 namespace roxas {
 
 namespace ir {
-
-using namespace matchit;
-
-void emit(type::Instructions const& instructions, std::ostream& os)
-{
-    for (auto const& inst : instructions) {
-        /* clang-format off */
-        match(std::get<0>(inst))(
-            pattern | Operator::EQUAL = [&] { emit_equal(inst, os); }
-        );
-        /* clang-format on */
-    }
-}
-
-inline void emit_equal(type::Instruction const& inst, std::ostream& os)
-{
-    auto [op, arg1, arg2, arg3, arg4] = inst;
-    os << arg1 << " = " << arg2 << Operator::EOL;
-}
 
 } // namespace ir
 
