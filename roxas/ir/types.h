@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <list>
 #include <map>
 #include <memory> // For std::unique_ptr
 #include <roxas/ir/operators.h>
@@ -75,7 +76,7 @@ struct RValue
 
     using Unary = std::pair<Operator, _RValue>;
 
-    using Relation = std::tuple<Operator, _RValue, _RValue>;
+    using Relation = std::pair<Operator, std::vector<_RValue>>;
 
     using Function = std::pair<std::string, _RValue>;
 

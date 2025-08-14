@@ -34,7 +34,7 @@ using namespace type;
 /**
  * @brief
  *
- * A table of symbols and rvalues as algebraic data types
+ * Constructs a table of rvalues and temporaries as algebraic data types
  *
  */
 class Table
@@ -64,8 +64,9 @@ class Table
     RValue from_rvalue_expression(Node& node);
     RValue from_evaluated_expression(Node& node);
     RValue from_function_expression(Node& node);
+
+  public:
     RValue from_relation_expression(Node& node);
-    RValue from_ternary_expression(Node& node);
 
   public:
     RValue from_unary_expression(Node& node);

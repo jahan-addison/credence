@@ -20,6 +20,50 @@ namespace roxas {
 
 namespace ir {
 
+/**
+ * @brief Parse an expression node in recursive descent
+ *
+ * @param node
+ */
+
+// void Table::from_expression(Node& node)
+// {
+//     if (node.JSONType() == json::JSON::Class::Array) {
+//         for (auto& child_node : node.ArrayRange()) {
+//             from_expression(child_node);
+//         }
+//     }
+//     /* clang-format off */
+//     match(node["node"].ToString()) (
+//         /**************/
+//         /* Statements */
+//         /**************/
+//         pattern | "statement" = [&] {
+//             auto statement_type = node["root"].ToString();
+//             match (statement_type) (
+//                 pattern | "auto" = [&] {
+//                     util::log(util::Logging::INFO, "parsing auto statement");
+//                     from_auto_statement(node);
+//                 }
+//             );
+//         },
+//         /**************/
+//         /* Expressions */
+//         /**************/
+//         pattern | "assignment_expression" = [&] {
+//             util::log(util::Logging::INFO, "parsing assignment expression");
+//             from_assignment_expression(node);
+//         }
+//     );
+//     // /* clang-format on */
+//     if (node.hasKey("left")) {
+//         from_expression(node["left"]);
+//     }
+//     if (node.hasKey("right")) {
+//         from_expression(node["right"]);
+//     }
+// }
+
 } // namespace ir
 
 } // namespace roxas

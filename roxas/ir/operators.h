@@ -15,8 +15,10 @@
  */
 
 #pragma once
+#include <map>
 #include <ostream> // for ostream
 #include <sstream>
+
 namespace roxas {
 namespace ir {
 /**
@@ -60,6 +62,22 @@ enum class Operator
     // pointer operators
     U_ADDR_OF,
     U_INDIRECTION
+};
+
+static std::map<std::string, Operator> const BINARY_OPERATORS = {
+    { "|", Operator::R_OR },
+
+    { "&", Operator::R_AND },      { "==", Operator::R_EQUAL },
+    { "!=", Operator::R_NEQUAL },  { "<", Operator::R_LT },
+    { "<=", Operator::R_LE },      { ">", Operator::R_GT },
+    { ">=", Operator::R_GE },
+
+    { "^", Operator::XOR },        { "<<", Operator::LSHIFT },
+    { ">>", Operator::RSHIFT },
+
+    { "-", Operator::B_SUBTRACT }, { "+", Operator::B_ADD },
+    { "%", Operator::B_MOD },      { "*", Operator::B_MUL },
+    { "/", Operator::B_DIV }
 };
 
 namespace {

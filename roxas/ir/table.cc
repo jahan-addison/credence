@@ -18,7 +18,6 @@
 #include <cassert>              // for assert
 #include <deque>                // for deque
 #include <format>               // for format, format_string
-#include <functional>           // for identity
 #include <map>                  // for allocator, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
 #include <memory>               // for unique_ptr, make_unique
@@ -31,6 +30,7 @@
 #include <string>           // for basic_string, operator==, operator<=>
 #include <utility>          // for pair, make_pair, move
 #include <variant>          // for monostate, variant
+#include <vector>           // for vector
 
 namespace roxas {
 
@@ -61,50 +61,6 @@ void Table::error(std::string_view message, std::string_view symbol_name)
             std::format("Parsing error :: \"{}\" {}", symbol, message));
     }
 }
-
-/**
- * @brief Parse an expression node in recursive descent
- *
- * @param node
- */
-
-// void Table::from_expression(Node& node)
-// {
-//     if (node.JSONType() == json::JSON::Class::Array) {
-//         for (auto& child_node : node.ArrayRange()) {
-//             from_expression(child_node);
-//         }
-//     }
-//     /* clang-format off */
-//     match(node["node"].ToString()) (
-//         /**************/
-//         /* Statements */
-//         /**************/
-//         pattern | "statement" = [&] {
-//             auto statement_type = node["root"].ToString();
-//             match (statement_type) (
-//                 pattern | "auto" = [&] {
-//                     util::log(util::Logging::INFO, "parsing auto statement");
-//                     from_auto_statement(node);
-//                 }
-//             );
-//         },
-//         /**************/
-//         /* Expressions */
-//         /**************/
-//         pattern | "assignment_expression" = [&] {
-//             util::log(util::Logging::INFO, "parsing assignment expression");
-//             from_assignment_expression(node);
-//         }
-//     );
-//     // /* clang-format on */
-//     if (node.hasKey("left")) {
-//         from_expression(node["left"]);
-//     }
-//     if (node.hasKey("right")) {
-//         from_expression(node["right"]);
-//     }
-// }
 
 /**
  * @brief Parse auto statements and declare in symbol table
@@ -166,6 +122,11 @@ RValue Table::from_rvalue_expression(Node& node)
             "lvalue" = [&] { rvalue.value = from_lvalue_expression(node); },
         pattern | "vector_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
+        pattern | "relation_expression" =
+            [&] {
+                rvalue.value =
+                    std::make_unique<RValue>(from_relation_expression(node));
+            },
         pattern | "indirect_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
         pattern | "assignment_expression" =
@@ -182,6 +143,43 @@ RValue Table::from_rvalue_expression(Node& node)
                     rvalue.value = std::monostate();
                 }
             });
+    return rvalue;
+}
+/**
+ * @brief Relation to sum type of operator and chain of rvalues
+ *
+ * @param node
+ * @return RValue
+ */
+RValue Table::from_relation_expression(Node& node)
+{
+    RValue rvalue{};
+
+    assert(node["node"].ToString().compare("relation_expression") == 0);
+    std::vector<RValue::_RValue> blocks{};
+    if (node.hasKey("right") and
+        node["right"]["node"].ToString() == "ternary_expression") {
+        auto ternary = node["right"];
+        auto op = node["root"].ArrayRange().get()->at(0).ToString();
+        blocks.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(node["left"])));
+        blocks.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(ternary["root"])));
+        blocks.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(ternary["left"])));
+        blocks.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(ternary["right"])));
+        rvalue.value =
+            std::make_pair(BINARY_OPERATORS.at(op), std::move(blocks));
+    } else {
+        auto op = node["root"].ArrayRange().get()->at(0).ToString();
+        blocks.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(node["left"])));
+        blocks.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(node["right"])));
+        rvalue.value =
+            std::make_pair(BINARY_OPERATORS.at(op), std::move(blocks));
+    }
     return rvalue;
 }
 
@@ -292,7 +290,7 @@ RValue Table::from_assignment_expression(Node& node)
 RValue::LValue Table::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
-    if (!symbols_.get_symbol_defined(node["root"].ToString()) &&
+    if (!symbols_.get_symbol_defined(node["root"].ToString()) and
         !symbols_.get_symbol_defined(node["left"]["root"].ToString())) {
         std::string name{};
         if (node.hasKey("left"))

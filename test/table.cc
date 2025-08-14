@@ -121,6 +121,104 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_auto_statement")
     CHECK(temp.symbols_.table_["z"] == empty_value);
 }
 
+TEST_CASE("ir/table.cc: Table::from_relation_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": "
+        "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    \"right\": "
+        "{\n      \"node\": \"number_literal\",\n      \"root\": 10\n    },\n  "
+        "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n      "
+        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
+        "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n       "
+        " \"node\": \"number_literal\",\n        \"root\": 10\n      },\n      "
+        "\"node\": \"ternary_expression\",\n      \"right\": {\n        "
+        "\"node\": \"number_literal\",\n        \"root\": 1\n      },\n      "
+        "\"root\": {\n        \"node\": \"number_literal\",\n        \"root\": "
+        "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n  {\n "
+        "   \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": \"x\"\n  "
+        "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n      "
+        "\"node\": \"number_literal\",\n      \"root\": 5\n    },\n    "
+        "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n      "
+        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
+        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
+        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n     "
+        " \"!=\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
+        "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
+        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
+        "\"number_literal\",\n      \"root\": 0\n    },\n    \"root\": [\n     "
+        " \"^\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
+        "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
+        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
+        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n     "
+        " \"<\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
+        "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
+        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
+        "\"number_literal\",\n      \"root\": 10\n    },\n    \"root\": [\n    "
+        "  \"<=\"\n    ]\n  }\n]");
+    auto temp = Table(obj);
+    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    std::vector<RValue::_RValue> arguments{};
+    temp.symbols_.table_.emplace("x", null);
+
+    auto relation_expressions = obj["test"].ArrayRange().get();
+
+    // forgive me
+    using std::get;
+
+    auto test1 = temp.from_relation_expression(relation_expressions->at(0));
+    CHECK(std::get<RValue::Relation>(test1.value).first == Operator::B_MUL);
+    arguments = std::move(std::get<RValue::Relation>(test1.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+          10);
+
+    // ternary relation test
+    auto test2 = temp.from_relation_expression(relation_expressions->at(1));
+    CHECK(std::get<RValue::Relation>(test2.value).first == Operator::R_LE);
+    arguments = std::move(std::get<RValue::Relation>(test2.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(get<int>(get<RValue::Value>(arguments[1]->value).first) == 5);
+    CHECK(get<int>(get<RValue::Value>(arguments[2]->value).first) == 10);
+    CHECK(get<int>(get<RValue::Value>(arguments[3]->value).first) == 1);
+
+    auto test3 = temp.from_relation_expression(relation_expressions->at(2));
+    CHECK(std::get<RValue::Relation>(test3.value).first == Operator::R_EQUAL);
+    arguments = std::move(std::get<RValue::Relation>(test3.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+          5);
+
+    auto test4 = temp.from_relation_expression(relation_expressions->at(3));
+    CHECK(std::get<RValue::Relation>(test4.value).first == Operator::R_NEQUAL);
+    arguments = std::move(std::get<RValue::Relation>(test4.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+          5);
+
+    auto test5 = temp.from_relation_expression(relation_expressions->at(4));
+    CHECK(std::get<RValue::Relation>(test5.value).first == Operator::XOR);
+    arguments = std::move(std::get<RValue::Relation>(test5.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+          0);
+
+    auto test6 = temp.from_relation_expression(relation_expressions->at(5));
+    CHECK(std::get<RValue::Relation>(test6.value).first == Operator::R_LT);
+    arguments = std::move(std::get<RValue::Relation>(test6.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+          5);
+
+    auto test7 = temp.from_relation_expression(relation_expressions->at(6));
+    CHECK(std::get<RValue::Relation>(test7.value).first == Operator::R_LE);
+    arguments = std::move(std::get<RValue::Relation>(test7.value).second);
+    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+          10);
+}
+
 TEST_CASE("ir/table.cc: Table::from_unary_expression")
 {
     using namespace roxas::ir;
