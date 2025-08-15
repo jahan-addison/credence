@@ -1,9 +1,9 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CA...
 #include <map>               // for map
 #include <roxas/ir/quint.h>  // for build_from_auto_statement
-#include <roxas/ir/types.h>  // for Value_Type, Type_, Byte
 #include <roxas/json.h>      // for JSON
 #include <roxas/symbol.h>    // for Symbol_Table
+#include <roxas/types.h>     // for Value_Type, Type_, Byte
 #include <string>            // for basic_string
 #include <utility>           // for pair, make_pair
 #include <variant>           // for monostate
@@ -55,7 +55,7 @@ struct Fixture
 
 TEST_CASE_FIXTURE(Fixture, "ir/quint.cc: build_from_auto_statement")
 {
-    using namespace roxas::ir;
+    using namespace roxas;
     using namespace roxas::ir::quint;
     json::JSON obj;
     obj["test"] = json::JSON::Load(

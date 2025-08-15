@@ -1,11 +1,11 @@
-#include <map>              // for map
-#include <roxas/ir/types.h> // for Type_, Value_Type, Byte
+#include <map> // for map
 #include <roxas/ir/util.h>
-#include <roxas/util.h> // for overload
-#include <sstream>      // for basic_ostream, basic_ostringstream, oper...
-#include <string>       // for char_traits, allocator, operator<<, basi...
-#include <utility>      // for pair
-#include <variant>      // for get, visit, monostate
+#include <roxas/types.h> // for Type_, Value_Type, Byte
+#include <roxas/util.h>  // for overload
+#include <sstream>       // for basic_ostream, basic_ostringstream, oper...
+#include <string>        // for char_traits, allocator, operator<<, basi...
+#include <utility>       // for pair
+#include <variant>       // for get, visit, monostate
 
 namespace roxas {
 
@@ -14,7 +14,7 @@ namespace ir {
 std::string dump_value_type(type::Value_Type const& type,
                             std::string_view separator)
 {
-    using namespace type;
+    using namespace roxas::type;
     std::ostringstream os;
     os << "(";
     std::visit(util::overload{

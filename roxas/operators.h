@@ -20,7 +20,6 @@
 #include <sstream>
 
 namespace roxas {
-namespace ir {
 /**
  * @brief Operators
  *
@@ -187,5 +186,4 @@ inline std::string operator_to_string(Operator op)
     return os.str();
 }
 
-} // namespace ir
 } // namespace roxas

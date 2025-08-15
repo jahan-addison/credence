@@ -16,21 +16,20 @@
 
 #pragma once
 
-#include <array>            // for array
-#include <cstddef>          // for size_t
-#include <map>              // for allocator, map
-#include <roxas/ir/types.h> // for RValue
-#include <roxas/json.h>     // for JSON
-#include <roxas/symbol.h>   // for Symbol_Table
-#include <roxas/util.h>     // for ROXAS_PRIVATE_UNLESS_TESTED
-#include <string>           // for basic_string, string
-#include <string_view>      // for string_view
+#include <array>          // for array
+#include <roxas/json.h>   // for JSON
+#include <roxas/symbol.h> // for Symbol_Table
+#include <roxas/types.h>  // for RValue
+#include <roxas/util.h>   // for ROXAS_PRIVATE_UNLESS_TESTED
+#include <string>         // for basic_string, string
+#include <string_view>    // for string_view
 
 namespace roxas {
 namespace ir {
-/* clang-format off */
-using namespace type;
 
+using namespace roxas::type;
+
+/* clang-format off */
 /**
  * @brief
  *

@@ -3,13 +3,15 @@
 #include <map>               // for map
 #include <memory>            // for unique_ptr
 #include <roxas/ir/table.h>  // for Table
-#include <roxas/ir/types.h>  // for Value_Type, RValue, Type_, Byte
 #include <roxas/json.h>      // for JSON
 #include <roxas/symbol.h>    // for Symbol_Table
+#include <roxas/types.h>     // for Value_Type, RValue, Type_, Byte
 #include <string>            // for basic_string, string
 #include <tuple>             // for get, tie
 #include <utility>           // for pair, make_pair, get
 #include <variant>           // for get, monostate
+
+using namespace roxas;
 
 struct Fixture
 {
@@ -88,8 +90,8 @@ struct Fixture
 
 TEST_CASE("ir/table.cc: Table::rvalue_expression")
 {
-    using namespace roxas::ir;
     json::JSON obj;
+    using namespace roxas::ir;
     using std::get;
     obj["test"] = json::JSON::Load(
         "[{\n                  \"node\" : \"constant_literal\",\n              "

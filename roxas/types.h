@@ -17,15 +17,13 @@
 #include <list>
 #include <map>
 #include <memory> // For std::unique_ptr
-#include <roxas/ir/operators.h>
+#include <roxas/operators.h>
 #include <sstream> // for basic_ostringstream, ostringstream
 #include <string>
 #include <variant>
 #include <vector>
 
 namespace roxas {
-
-namespace ir {
 
 namespace type {
 
@@ -92,7 +90,5 @@ struct RValue
 };
 
 } // namespace type
-
-} // namespace ir
 
 } // namespace roxas

@@ -16,11 +16,11 @@
 #include <assert.h>  // for assert
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
 #include <roxas/ir/quint.h>
-#include <roxas/ir/types.h> // for Byte, Type_
-#include <roxas/json.h>     // for JSON
-#include <roxas/symbol.h>   // for Symbol_Table
-#include <utility>          // for pair
-#include <variant>          // for variant
+#include <roxas/json.h>   // for JSON
+#include <roxas/symbol.h> // for Symbol_Table
+#include <roxas/types.h>  // for Byte, Type_
+#include <utility>        // for pair
+#include <variant>        // for variant
 
 namespace roxas {
 

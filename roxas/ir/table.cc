@@ -14,28 +14,28 @@
  * limitations under the License.
  */
 
-#include <algorithm>            // for __any_of_fn, any_of
-#include <cassert>              // for assert
-#include <deque>                // for deque
-#include <format>               // for format, format_string
-#include <map>                  // for allocator, map
-#include <matchit.h>            // for pattern, PatternHelper, PatternPipable
-#include <memory>               // for unique_ptr, make_unique
-#include <roxas/ir/operators.h> // for Operator
+#include <algorithm> // for __any_of_fn, any_of
+#include <cassert>   // for assert
+#include <deque>     // for deque
+#include <format>    // for format, format_string
+#include <map>       // for allocator, map
+#include <matchit.h> // for pattern, PatternHelper, PatternPipable
+#include <memory>    // for unique_ptr, make_unique
 #include <roxas/ir/table.h>
-#include <roxas/ir/types.h> // for RValue, Type_, Byte
-#include <roxas/json.h>     // for JSON
-#include <roxas/symbol.h>   // for Symbol_Table
-#include <stdexcept>        // for runtime_error
-#include <string>           // for basic_string, operator==, operator<=>
-#include <utility>          // for pair, make_pair, move
-#include <variant>          // for monostate, variant
-#include <vector>           // for vector
+#include <roxas/json.h>      // for JSON
+#include <roxas/operators.h> // for Operator
+#include <roxas/symbol.h>    // for Symbol_Table
+#include <roxas/types.h>     // for RValue, Type_, Byte
+#include <stdexcept>         // for runtime_error
+#include <string>            // for basic_string, operator==, operator<=>
+#include <utility>           // for pair, make_pair, move
+#include <variant>           // for monostate, variant
+#include <vector>            // for vector
 
 namespace roxas {
 
 namespace ir {
-
+using namespace roxas::type;
 using namespace matchit;
 
 /**

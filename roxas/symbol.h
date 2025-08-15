@@ -18,7 +18,7 @@
 
 #include <format>
 #include <map>
-#include <roxas/ir/types.h>
+#include <roxas/types.h>
 #include <roxas/util.h>
 #include <string>
 #include <tuple>
@@ -31,7 +31,7 @@ namespace roxas {
  *   ------------------------
  */
 
-template<typename T = ir::type::Value_Type>
+template<typename T = type::Value_Type>
 class Symbol_Table
 {
     /**
