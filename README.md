@@ -31,11 +31,11 @@ Usage:
 ```
 
 ```bash
-./roxas ./my_b_program.b
+./roxas my_b_program.b
 ```
 
 ```bash
-./roxas --ast-loader=json -d ./my_ast.json
+./roxas --ast-loader=json -d my_ast.json
 ./roxas -h
 ```
 
@@ -63,7 +63,7 @@ git clone git@github.com:jahan-addison/roxas.git
 cd roxas
 bash ./scripts/install.sh
 cd build
-# Note: inwyu and sanitizers may not work in mingw
+# Note: iwyu and sanitizers may not work in mingw
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ninja
 ./roxas

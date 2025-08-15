@@ -86,41 +86,6 @@ struct Fixture
 //     Quintuple test = { Operator::EQUAL, "x", "5:int:4", "", "" };
 // }
 
-TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_auto_statement")
-{
-    using namespace roxas::ir;
-    json::JSON obj;
-    obj["test"] = json::JSON::Load(
-        "{\n  \"left\" : [{\n      \"left\" : {\n        \"node\" : "
-        "\"number_literal\",\n        \"root\" : 50\n      },\n      \"node\" "
-        ": \"vector_lvalue\",\n      \"root\" : \"x\"\n    }, {\n      "
-        "\"left\" : {\n        \"node\" : \"lvalue\",\n        \"root\" : "
-        "\"y\"\n      },\n      \"node\" : \"indirect_lvalue\",\n      "
-        "\"root\" : [\"*\"]\n    }, {\n      \"node\" : \"lvalue\",\n      "
-        "\"root\" : \"z\"\n    }],\n  \"node\" : \"statement\",\n  \"root\" : "
-        "\"auto\"\n}");
-
-    auto temp = Table(obj["test"]);
-    temp.from_auto_statement(obj["test"]);
-
-    CHECK(temp.symbols_.table_.size() == 3);
-
-    CHECK(temp.symbols_.table_.contains("x") == true);
-    CHECK(temp.symbols_.table_.contains("y") == true);
-    CHECK(temp.symbols_.table_.contains("z") == true);
-
-    type::Value_Type empty_value =
-        std::make_pair(std::monostate(), type::Type_["null"]);
-    type::Value_Type word_value =
-        std::make_pair("__WORD_", type::Type_["word"]);
-    type::Value_Type byte_value = std::make_pair(static_cast<type::Byte>('0'),
-                                                 std::make_pair("byte", 50));
-
-    CHECK(temp.symbols_.table_["x"] == byte_value);
-    CHECK(temp.symbols_.table_["y"] == word_value);
-    CHECK(temp.symbols_.table_["z"] == empty_value);
-}
-
 TEST_CASE("ir/table.cc: Table::rvalue_expression")
 {
     using namespace roxas::ir;

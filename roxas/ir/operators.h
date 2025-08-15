@@ -80,23 +80,6 @@ static std::map<std::string, Operator> const BINARY_OPERATORS = {
     { "/", Operator::B_DIV }
 };
 
-namespace {
-enum class Instruction_Operator
-{
-    FUNC_START,
-    FUNC_END,
-    LABEL,
-    GOTO,
-    PUSH,
-    POP,
-    CALL,
-    VARIABLE,
-    RETURN,
-    EOL,
-    NOOP
-};
-} // namespace detail
-
 /**
  * @brief operator enum type << operator overload
  *
@@ -202,53 +185,6 @@ inline std::string operator_to_string(Operator op)
     std::ostringstream os;
     os << op;
     return os.str();
-}
-
-/**
- * @brief Instruction_Operator enum type << operator overload
- *
- * @param os
- * @param op
- * @return std::ostream&
- */
-inline std::ostream& operator<<(std::ostream& os,
-                                Instruction_Operator const& op)
-{
-    switch (op) {
-        case Instruction_Operator::FUNC_START:
-            os << "BeginFunc";
-            break;
-        case Instruction_Operator::FUNC_END:
-            os << "EndFunc";
-            break;
-        case Instruction_Operator::LABEL:
-        case Instruction_Operator::VARIABLE:
-        case Instruction_Operator::NOOP:
-            os << "";
-            break;
-        case Instruction_Operator::RETURN:
-            os << "Ret";
-            break;
-        case Instruction_Operator::PUSH:
-            os << "Push";
-            break;
-        case Instruction_Operator::POP:
-            os << "Pop";
-            break;
-        case Instruction_Operator::CALL:
-            os << "Call";
-            break;
-        case Instruction_Operator::GOTO:
-            os << "Goto";
-            break;
-        case Instruction_Operator::EOL:
-            os << ";";
-            break;
-        default:
-            os << "null";
-            break;
-    }
-    return os;
 }
 
 } // namespace ir

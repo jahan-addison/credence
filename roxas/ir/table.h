@@ -28,7 +28,7 @@
 
 namespace roxas {
 namespace ir {
-
+/* clang-format off */
 using namespace type;
 
 /**
@@ -55,23 +55,22 @@ class Table
     ~Table() = default;
 
   public:
-    void from_auto_statement(Node& node);
-
-  public:
-    void from(Node& node);
-    // Below should probably be private
-  public:
+    inline RValue from_rvalue(Node& node) {
+      return from_rvalue_expression(node);
+    }
     RValue from_rvalue_expression(Node& node);
+
+  ROXAS_PRIVATE_UNLESS_TESTED:
     RValue from_evaluated_expression(Node& node);
     RValue from_function_expression(Node& node);
 
-  public:
+  ROXAS_PRIVATE_UNLESS_TESTED:
     RValue from_relation_expression(Node& node);
 
-  public:
+  ROXAS_PRIVATE_UNLESS_TESTED:
     RValue from_unary_expression(Node& node);
 
-  public:
+  ROXAS_PRIVATE_UNLESS_TESTED:
     RValue::LValue from_lvalue_expression(Node& node);
     RValue::Value from_indirect_identifier(Node& node);
     RValue::Value from_vector_idenfitier(Node& node);
@@ -79,14 +78,14 @@ class Table
     inline bool is_symbol(Node& node)
     {
         auto lvalue = node["root"].ToString();
-        return symbols_.get_symbol_defined(lvalue) or
-               globals_.get_symbol_defined(lvalue);
+        return symbols_.is_defined(lvalue) or
+               globals_.is_defined(lvalue);
     }
 
-  public:
+  ROXAS_PRIVATE_UNLESS_TESTED:
     RValue from_assignment_expression(Node& node);
 
-  public:
+  ROXAS_PRIVATE_UNLESS_TESTED:
     RValue::Value from_constant_expression(Node& node);
     RValue::Value from_number_literal(Node& node);
     RValue::Value from_string_literal(Node& node);
@@ -98,13 +97,10 @@ class Table
                                                       "post_inc_dec_expression",
                                                       "address_of_expression",
                                                       "unary_expression" };
-    /* clang-format off */
   ROXAS_PRIVATE_UNLESS_TESTED:
-    /* clang-format on*/
     json::JSON internal_symbols_;
     Symbol_Table<> globals_{};
     Symbol_Table<> symbols_{};
-    std::size_t memory_;
 };
 } // namespace ir
 } // namespace roxas

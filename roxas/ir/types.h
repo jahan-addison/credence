@@ -91,13 +91,6 @@ struct RValue
     Type value;
 };
 
-using Quintuple =
-    std::tuple<Operator, std::string, std::string, std::string, std::string>;
-
-using Instruction = Quintuple;
-
-using Instructions = std::vector<Quintuple>;
-
 } // namespace type
 
 } // namespace ir

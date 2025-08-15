@@ -13,14 +13,5 @@ echo "### Creating build directory"
 cd "$directory"
 mkdir -p "$directory"/build
 
-
-echo "### Running Cmake ..."
-
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-
-echo "### Building ..."
-
-make
-
 echo "Done."
 

@@ -76,7 +76,7 @@ class Symbol_Table
      *
      * @param name
      */
-    inline bool get_symbol_defined(std::string const& name) const
+    inline bool is_defined(std::string const& name) const
     {
         return table_.contains(name);
     }

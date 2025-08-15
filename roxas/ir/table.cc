@@ -63,41 +63,6 @@ void Table::error(std::string_view message, std::string_view symbol_name)
 }
 
 /**
- * @brief Parse auto statements and declare in symbol table
- *
- * @param node
- */
-void Table::from_auto_statement(Node& node)
-{
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("auto") == 0);
-    assert(node.hasKey("left"));
-    auto left_child_node = node["left"];
-    for (auto& ident : left_child_node.ArrayRange()) {
-        match(ident["node"].ToString())(
-            pattern | "lvalue" =
-                [&] {
-                    symbols_.set_symbol_by_name(
-                        ident["root"].ToString(),
-                        { std::monostate(), Type_["null"] });
-                },
-            pattern | "vector_lvalue" =
-                [&] {
-                    auto size = ident["left"]["root"].ToInt();
-                    symbols_.set_symbol_by_name(
-                        ident["root"].ToString(),
-                        { static_cast<Byte>('0'), { "byte", size } });
-                },
-            pattern | "indirect_lvalue" =
-                [&] {
-                    symbols_.set_symbol_by_name(
-                        ident["left"]["root"].ToString(),
-                        { "__WORD_", Type_["word"] });
-                });
-    }
-}
-
-/**
  * @brief Parse rvalues and temporaries into an algebraic type
  *
  * @param node
@@ -327,8 +292,8 @@ RValue Table::from_assignment_expression(Node& node)
 RValue::LValue Table::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
-    if (!symbols_.get_symbol_defined(node["root"].ToString()) and
-        !symbols_.get_symbol_defined(node["left"]["root"].ToString())) {
+    if (!symbols_.is_defined(node["root"].ToString()) and
+        !symbols_.is_defined(node["left"]["root"].ToString())) {
         std::string name{};
         if (node.hasKey("left"))
             name = node["left"]["root"].ToString();
