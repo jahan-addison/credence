@@ -98,11 +98,10 @@ void Table::from_auto_statement(Node& node)
 }
 
 /**
- * @brief Parse assignment expression into pairs of left-hand-side and
- *  right-hand-side pairs
+ * @brief Parse rvalues and temporaries into an algebraic type
  *
  * @param node
- * @return std::pair<RValue, RValue>
+ * @return RValue
  */
 RValue Table::from_rvalue_expression(Node& node)
 {
@@ -122,6 +121,12 @@ RValue Table::from_rvalue_expression(Node& node)
             "lvalue" = [&] { rvalue.value = from_lvalue_expression(node); },
         pattern | "vector_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
+        pattern | "function_expression" =
+            [&] {
+                rvalue.value =
+                    std::make_unique<RValue>(from_function_expression(node));
+            },
+
         pattern | "relation_expression" =
             [&] {
                 rvalue.value =
@@ -145,6 +150,38 @@ RValue Table::from_rvalue_expression(Node& node)
             });
     return rvalue;
 }
+
+RValue Table::from_function_expression(Node& node)
+{
+    RValue rvalue{};
+
+    assert(node["node"].ToString().compare("function_expression") == 0);
+    std::vector<RValue::_RValue> parameters{};
+
+    for (auto& param : node["right"].ArrayRange()) {
+        parameters.push_back(
+            std::make_unique<RValue>(from_rvalue_expression(param)));
+    }
+    rvalue.value =
+        std::make_pair(node["left"]["root"].ToString(), std::move(parameters));
+    return rvalue;
+}
+
+/**
+ * @brief An rvalue or temporary wrapped in parenthesis, pre-evaluated
+ *
+ * @param node
+ * @return RValue
+ */
+RValue Table::from_evaluated_expression(Node& node)
+{
+    RValue rvalue{};
+    assert(node["node"].ToString().compare("evaluated_expression") == 0);
+    rvalue.value =
+        std::make_unique<RValue>(from_rvalue_expression(node["root"]));
+    return rvalue;
+}
+
 /**
  * @brief Relation to sum type of operator and chain of rvalues
  *

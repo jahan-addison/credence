@@ -1,18 +1,17 @@
-# roxas
+<img src="docs/images/roxas-compiler-logo.png" width="800px" alt="sunil sapkota twitter" > </img>
 
-### B Compiler in C++
+> B Language Compiler in C++
 
-* My B Language grammar - [here](https://github.com/jahan-addison/xion/blob/master/xion/grammar.lark)
+* B Language grammar - [here](https://github.com/jahan-addison/xion/blob/master/xion/grammar.lark)
 * Language reference - [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 ---
 
 
-* The frontend (Lexer, Parser) and first-pass is built with an [easy-to-use LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython or json via `SimpleJSON`
-* The backend will focus on research in modern work in SSA, Sea of Nodes, and compiler optimizations through IR breakthroughs in LLVM, gcc, V8, and similar toolchains and use what's appropriate.
+* The frontend (Lexer, Parser) and first-pass is built with an [LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython
+* The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm, and z80.
 
-
-<img src="docs/images/roxas-3.png" width="800px" alt="sunil sapkota twitter" > </img>
+_**status**: in progress_
 
 
 ### Usage
@@ -32,31 +31,42 @@ Usage:
 ```
 
 ```bash
-./roxas -d ./my_b_program.b
+./roxas ./my_b_program.b
+```
+
+```bash
 ./roxas --ast-loader=json -d ./my_ast.json
 ./roxas -h
 ```
 
 ### Installation
 
-```bash
-bash ./scripts/install.sh
-```
-
-...
-
 #### MacOS
 
-...
+```bash
+brew update
+brew install coreutils include-what-you-use llvm@18 cmake python3 poetry
+git clone git@github.com:jahan-addison/roxas.git
+cd roxas
+bash ./scripts/install.sh
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+make
+./roxas
+```
 
 #### Windows (mingw/msys)
 
 ```bash
 pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
-mkdir build
+git clone git@github.com:jahan-addison/roxas.git
+cd roxas
+bash ./scripts/install.sh
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make
+# Note: inwyu and sanitizers may not work in mingw
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+ninja
+./roxas
 
 ```
 
@@ -79,4 +89,4 @@ Assignment Form](https://c9x.me/compile/bib/braun13cc.pdf)
 Apache 2 License.
 
 
-![img2](docs/images/roxas-xion-axel.png)
+![img2](docs/images/roxas-3.png)

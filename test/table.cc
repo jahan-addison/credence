@@ -121,41 +121,192 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_auto_statement")
     CHECK(temp.symbols_.table_["z"] == empty_value);
 }
 
+TEST_CASE("ir/table.cc: Table::rvalue_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    using std::get;
+    obj["test"] = json::JSON::Load(
+        "[{\n                  \"node\" : \"constant_literal\",\n              "
+        "    \"root\" : \"x\"\n                }, {\n                  "
+        "\"node\" : \"number_literal\",\n                  \"root\" : 10\n     "
+        "           }, {\n                  \"node\" : \"string_literal\",\n   "
+        "               \"root\" : \"\\\"hello world\\\"\"\n                }, "
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"node\" : "
+        "\"number_literal\",\n                    \"root\" : 5\n               "
+        "   },\n                  \"root\" : [\"=\", null]\n                }, "
+        "{\n                  \"node\" : \"evaluated_expression\",\n           "
+        "       \"root\" : {\n                    \"left\" : {\n               "
+        "       \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"putchar\"\n                    },\n                    \"node\" : "
+        "\"function_expression\",\n                    \"right\" : [{\n        "
+        "                \"node\" : \"lvalue\",\n                        "
+        "\"root\" : \"x\"\n                      }],\n                    "
+        "\"root\" : \"putchar\"\n                  }\n                }, {\n   "
+        "               \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"getchar\"\n             "
+        "     },\n                  \"node\" : \"function_expression\",\n      "
+        "            \"right\" : [{\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"c\"\n                 "
+        "   }],\n                  \"root\" : \"getchar\"\n                }, "
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"relation_expression\",\n           "
+        "       \"right\" : {\n                    \"node\" : "
+        "\"number_literal\",\n                    \"root\" : 5\n               "
+        "   },\n                  \"root\" : [\"<\"]\n                }, {\n   "
+        "               \"node\" : \"post_inc_dec_expression\",\n              "
+        "    \"right\" : {\n                    \"node\" : \"lvalue\",\n       "
+        "             \"root\" : \"x\"\n                  },\n                 "
+        " \"root\" : [\"++\"]\n                }, {\n                  "
+        "\"node\" : \"post_inc_dec_expression\",\n                  \"right\" "
+        ": {\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"x\"\n                  },\n                  \"root\" : "
+        "[\"--\"]\n                }, {\n                  \"left\" : {\n      "
+        "              \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 5\n                  },\n                  \"node\" : "
+        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n         "
+        "       }, {\n                  \"left\" : {\n                    "
+        "\"node\" : \"evaluated_expression\",\n                    \"root\" : "
+        "{\n                      \"left\" : {\n                        "
+        "\"node\" : \"number_literal\",\n                        \"root\" : "
+        "5\n                      },\n                      \"node\" : "
+        "\"unary_expression\",\n                      \"root\" : [\"~\"]\n     "
+        "               }\n                  },\n                  \"node\" : "
+        "\"relation_expression\",\n                  \"right\" : {\n           "
+        "         \"node\" : \"number_literal\",\n                    \"root\" "
+        ": 10\n                  },\n                  \"root\" : [\"^\"]\n    "
+        "            }]");
+    auto temp = Table(obj);
+    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    temp.symbols_.table_.emplace("x", null);
+    temp.symbols_.table_.emplace("c", null);
+
+    // check all
+    for (auto& rvalue : obj["test"].ArrayRange()) {
+        CHECK_NOTHROW(temp.from_rvalue_expression(rvalue));
+    }
+}
+
+TEST_CASE("ir/table.cc: Table::function_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    using std::get;
+    obj["test"] = json::JSON::Load(
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"putchar\"\n             "
+        "     },\n                  \"node\" : \"function_expression\",\n      "
+        "            \"right\" : [{\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"x\"\n                 "
+        "   }, {\n                      \"node\" : \"lvalue\",\n               "
+        "       \"root\" : \"y\"\n                    }, {\n                   "
+        "   \"node\" : \"lvalue\",\n                      \"root\" : \"z\"\n   "
+        "                 }]\n}\n                    ");
+    auto temp = Table(obj);
+    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    temp.symbols_.table_.emplace("x", null);
+    temp.symbols_.table_.emplace("y", null);
+    temp.symbols_.table_.emplace("z", null);
+
+    auto test1 = temp.from_function_expression(obj["test"]);
+    auto function = std::move(get<RValue::Function>(test1.value));
+    // parameters
+    CHECK(get<RValue::LValue>(function.second[0]->value).first == "x");
+    CHECK(get<RValue::LValue>(function.second[1]->value).first == "y");
+    CHECK(get<RValue::LValue>(function.second[2]->value).first == "z");
+}
+
+TEST_CASE("ir/table.cc: Table::evaluated_expression")
+{
+    using namespace roxas::ir;
+    json::JSON obj;
+    using std::get;
+    obj["test"] = json::JSON::Load(
+        "[{\n                  \"node\" : \"evaluated_expression\",\n          "
+        "        \"root\" : {\n                    \"left\" : {\n              "
+        "        \"node\" : \"number_literal\",\n                      "
+        "\"root\" : 5\n                    },\n                    \"node\" : "
+        "\"relation_expression\",\n                    \"right\" : {\n         "
+        "             \"node\" : \"number_literal\",\n                      "
+        "\"root\" : 5\n                    },\n                    \"root\" : "
+        "[\"*\"]\n                  }\n                }, {\n                  "
+        "\"node\" : \"evaluated_expression\",\n                  \"root\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"x\"\n                 "
+        "   },\n                    \"node\" : \"indirect_lvalue\",\n          "
+        "          \"root\" : [\"*\"]\n                  }\n                "
+        "}]");
+    auto temp = Table(obj);
+    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    temp.symbols_.table_.emplace("x", null);
+
+    auto expressions = obj["test"].ArrayRange().get();
+    auto test1 = temp.from_evaluated_expression(expressions->at(0));
+    auto expr1 = std::move(get<RValue::_RValue>(test1.value));
+    CHECK(get<RValue::Relation>(get<RValue::_RValue>(expr1->value)->value)
+              .first == Operator::B_MUL);
+    auto test2 = temp.from_evaluated_expression(expressions->at(1));
+    auto expr2 = std::move(get<RValue::_RValue>(test2.value));
+    CHECK(get<RValue::LValue>(expr2->value).first == "x");
+}
+
 TEST_CASE("ir/table.cc: Table::from_relation_expression")
 {
     using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
-        "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": "
-        "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    \"right\": "
-        "{\n      \"node\": \"number_literal\",\n      \"root\": 10\n    },\n  "
-        "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n      "
-        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n       "
-        " \"node\": \"number_literal\",\n        \"root\": 10\n      },\n      "
+        "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      "
+        "\"root\": "
+        "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    "
+        "\"right\": "
+        "{\n      \"node\": \"number_literal\",\n      \"root\": 10\n    "
+        "},\n  "
+        "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n   "
+        "   "
+        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
+        "\"node\": "
+        "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n   "
+        "    "
+        " \"node\": \"number_literal\",\n        \"root\": 10\n      },\n  "
+        "    "
         "\"node\": \"ternary_expression\",\n      \"right\": {\n        "
-        "\"node\": \"number_literal\",\n        \"root\": 1\n      },\n      "
-        "\"root\": {\n        \"node\": \"number_literal\",\n        \"root\": "
-        "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n  {\n "
-        "   \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": \"x\"\n  "
-        "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n      "
+        "\"node\": \"number_literal\",\n        \"root\": 1\n      },\n    "
+        "  "
+        "\"root\": {\n        \"node\": \"number_literal\",\n        "
+        "\"root\": "
+        "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n  "
+        "{\n "
+        "   \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": "
+        "\"x\"\n  "
+        "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n  "
+        "    "
         "\"node\": \"number_literal\",\n      \"root\": 5\n    },\n    "
-        "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n      "
-        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
+        "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n    "
+        "  "
+        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
+        "\"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n     "
+        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n "
+        "    "
         " \"!=\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 0\n    },\n    \"root\": [\n     "
+        "\"number_literal\",\n      \"root\": 0\n    },\n    \"root\": [\n "
+        "    "
         " \"^\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n     "
+        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n "
+        "    "
         " \"<\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 10\n    },\n    \"root\": [\n    "
+        "\"number_literal\",\n      \"root\": 10\n    },\n    \"root\": "
+        "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
     auto temp = Table(obj);
     RValue::Value null = { std::monostate(), type::Type_["null"] };
@@ -224,32 +375,52 @@ TEST_CASE("ir/table.cc: Table::from_unary_expression")
     using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
-        "[{\n                  \"node\" : \"post_inc_dec_expression\",\n       "
+        "[{\n                  \"node\" : \"post_inc_dec_expression\",\n   "
+        "    "
         "           \"right\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
-        "},\n                  \"root\" : [\"++\"]\n                }, {\n     "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
+        "   "
+        "},\n                  \"root\" : [\"++\"]\n                }, {\n "
+        "    "
         "             \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
-        "},\n                  \"node\" : \"pre_inc_dec_expression\",\n        "
-        "          \"root\" : [\"++\"]\n                }, {\n                 "
-        " \"left\" : {\n                    \"node\" : \"lvalue\",\n           "
-        "         \"root\" : \"x\"\n                  },\n                  "
-        "\"node\" : \"address_of_expression\",\n                  \"root\" : "
-        "[\"&\"]\n                }, {\n                  \"left\" : {\n       "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
+        "   "
+        "},\n                  \"node\" : \"pre_inc_dec_expression\",\n    "
+        "    "
+        "          \"root\" : [\"++\"]\n                }, {\n             "
+        "    "
+        " \"left\" : {\n                    \"node\" : \"lvalue\",\n       "
+        "    "
+        "         \"root\" : \"x\"\n                  },\n                 "
+        " "
+        "\"node\" : \"address_of_expression\",\n                  \"root\" "
+        ": "
+        "[\"&\"]\n                }, {\n                  \"left\" : {\n   "
+        "    "
         "             \"node\" : \"number_literal\",\n                    "
         "\"root\" : 5\n                  },\n                  \"node\" : "
-        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n         "
+        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n     "
+        "    "
         "       }, {\n                  \"left\" : {\n                    "
-        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n        "
-        "          },\n                  \"node\" : \"indirect_lvalue\",\n     "
-        "             \"root\" : [\"*\"]\n                }, {\n               "
+        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n    "
+        "    "
+        "          },\n                  \"node\" : \"indirect_lvalue\",\n "
+        "    "
+        "             \"root\" : [\"*\"]\n                }, {\n           "
+        "    "
         "     \"left\" : {\n                      \"node\" : "
-        "\"number_literal\",\n                      \"root\" : 5\n             "
-        "       },\n                    \"node\" : \"unary_expression\",\n     "
-        "               \"root\" : [\"-\"]\n                  },\n             "
-        "   {\n                  \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
-        "},\n                  \"node\" : \"unary_expression\",\n              "
+        "\"number_literal\",\n                      \"root\" : 5\n         "
+        "    "
+        "       },\n                    \"node\" : \"unary_expression\",\n "
+        "    "
+        "               \"root\" : [\"-\"]\n                  },\n         "
+        "    "
+        "   {\n                  \"left\" : {\n                    "
+        "\"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
+        "   "
+        "},\n                  \"node\" : \"unary_expression\",\n          "
+        "    "
         "    \"root\" : [\"!\"]\n                }]");
     auto temp = Table(obj);
 
@@ -359,13 +530,19 @@ TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
     using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
-        "[\n               {\n                \"left\" : {\n                  "
-        "\"node\" : \"number_literal\",\n                  \"root\" : 50\n     "
-        "           },\n                \"node\" : \"vector_lvalue\",\n        "
+        "[\n               {\n                \"left\" : {\n               "
+        "   "
+        "\"node\" : \"number_literal\",\n                  \"root\" : 50\n "
+        "    "
+        "           },\n                \"node\" : \"vector_lvalue\",\n    "
+        "    "
         "        \"root\" : \"x\"\n              }, {\n                "
-        "\"left\" : {\n                  \"node\" : \"lvalue\",\n              "
-        "    \"root\" : \"y\"\n                },\n                \"node\" : "
-        "\"indirect_lvalue\",\n                \"root\" : [\"*\"]\n            "
+        "\"left\" : {\n                  \"node\" : \"lvalue\",\n          "
+        "    "
+        "    \"root\" : \"y\"\n                },\n                "
+        "\"node\" : "
+        "\"indirect_lvalue\",\n                \"root\" : [\"*\"]\n        "
+        "    "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
         "\"root\" : \"z\"\n              }]");
     auto temp = Table(obj);
@@ -397,7 +574,8 @@ TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"x\"\n                },\n "
+        "\"lvalue\",\n                  \"root\" : \"x\"\n                "
+        "},\n "
         "               \"node\" : \"indirect_lvalue\",\n                "
         "\"root\" : [\"*\"]\n              }");
 
@@ -414,8 +592,10 @@ TEST_CASE("ir/tble.cc: Table::from_vector_idenfitier")
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
-        "\"number_literal\",\n                  \"root\" : 50\n                "
-        "},\n                \"node\" : \"vector_lvalue\",\n                "
+        "\"number_literal\",\n                  \"root\" : 50\n            "
+        "    "
+        "},\n                \"node\" : \"vector_lvalue\",\n               "
+        " "
         "\"root\" : \"x\"\n              }");
 
     auto temp = Table(obj["test"]);

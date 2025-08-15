@@ -79,7 +79,7 @@ class Table
     inline bool is_symbol(Node& node)
     {
         auto lvalue = node["root"].ToString();
-        return symbols_.get_symbol_defined(lvalue) ||
+        return symbols_.get_symbol_defined(lvalue) or
                globals_.get_symbol_defined(lvalue);
     }
 

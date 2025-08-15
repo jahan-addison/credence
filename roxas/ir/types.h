@@ -78,7 +78,7 @@ struct RValue
 
     using Relation = std::pair<Operator, std::vector<_RValue>>;
 
-    using Function = std::pair<std::string, _RValue>;
+    using Function = std::pair<std::string, std::vector<_RValue>>;
 
     using Type = std::variant<std::monostate,
                               _RValue,
