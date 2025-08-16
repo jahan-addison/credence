@@ -167,7 +167,7 @@ inline std::ostream& operator<<(std::ostream& os, Operator const& op)
             break;
         case Operator::U_ADDR_OF:
             os << "&";
-
+            break;
         case Operator::U_MINUS:
             os << "-";
             break;
