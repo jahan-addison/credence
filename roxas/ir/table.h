@@ -26,10 +26,9 @@
 
 namespace roxas {
 namespace ir {
-
 using namespace roxas::type;
-
 /* clang-format off */
+
 /**
  * @brief
  *
@@ -45,14 +44,21 @@ class Table
     using Node = json::JSON;
 
   public:
-    explicit Table(json::JSON const& symbols,
-                   Symbol_Table<> const& globals = {})
-        : internal_symbols_(symbols)
+    explicit Table(json::JSON const& internal_symbols,
+                   Symbol_Table<> const& symbols = {})
+        : internal_symbols_(internal_symbols)
+        , symbols_(symbols)
+    {
+    }
+    explicit Table(json::JSON const& internal_symbols,
+                   Symbol_Table<> const& symbols,
+                   Symbol_Table<> const& globals)
+        : internal_symbols_(internal_symbols)
+        , symbols_(symbols)
         , globals_(globals)
     {
     }
     ~Table() = default;
-
   public:
     inline RValue from_rvalue(Node& node) {
       return from_rvalue_expression(node);
@@ -98,8 +104,8 @@ class Table
                                                       "unary_expression" };
   ROXAS_PRIVATE_UNLESS_TESTED:
     json::JSON internal_symbols_;
-    Symbol_Table<> globals_{};
     Symbol_Table<> symbols_{};
+    Symbol_Table<> globals_{};
 };
 } // namespace ir
 } // namespace roxas

@@ -1,0 +1,3 @@
+main() {
+  putchar(x);
+}

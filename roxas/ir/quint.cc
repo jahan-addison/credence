@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 #include <assert.h>  // for assert
+#include <iostream>  // for cout
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
+#include <memory>    // for unique_ptr
 #include <roxas/ir/quint.h>
-#include <roxas/json.h>   // for JSON
-#include <roxas/symbol.h> // for Symbol_Table
-#include <roxas/types.h>  // for Byte, Type_
-#include <utility>        // for pair
-#include <variant>        // for variant
+#include <roxas/ir/table.h>  // for Table
+#include <roxas/json.h>      // for JSON
+#include <roxas/operators.h> // for operator_to_string, Operato
+#include <roxas/symbol.h>    // for Symbol_Table
+#include <roxas/types.h>     // for RValue, Byte, Type_
+#include <roxas/util.h>      // for overload
+#include <utility>           // for pair, make_pair
+#include <variant>           // for get, monostate, visit, variant
 
 namespace roxas {
 
@@ -28,6 +33,7 @@ namespace ir {
 
 namespace quint {
 
+using namespace type;
 using namespace matchit;
 
 /**
@@ -64,49 +70,85 @@ void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
     }
 }
 
-/**
- * @brief Parse an expression node in recursive descent
- *
- * @param node
- */
-
-Instructions build_from_rvalue_statement([[maybe_unused]] Node& node)
+std::vector<std::string> build_from_rvalue(RValue::Type& rvalue)
 {
+    std::vector<std::string> items{};
+    std::visit(util::overload{
+                   [&](std::monostate) {},
+                   [&](RValue::_RValue&) {},
+                   [&](RValue::Value&) {},
+                   [&](RValue::LValue&) {},
+                   [&](RValue::Unary&) {},
+                   [&](RValue::Relation&) {},
+                   [&](RValue::Function&) {},
+                   [&](RValue::Symbol& s) {
+                       items.push_back(s.first.first);
+                       items.push_back(operator_to_string(Operator::R_EQUAL));
+                       auto assignee = build_from_rvalue(s.second->value);
+                       items.insert(
+                           items.end(), assignee.begin(), assignee.end());
+                   }
+
+               },
+               rvalue);
+    return items;
+}
+
+Node* unravel_nested_node_array(Node* node)
+{
+    if (node->JSONType() == json::JSON::Class::Array) {
+        for (auto& child_node : node->ArrayRange()) {
+            if (child_node.JSONType() == json::JSON::Class::Array) {
+                if (child_node.ArrayRange().get()->at(0).JSONType() ==
+                    json::JSON::Class::Array) {
+                    return unravel_nested_node_array(&child_node);
+                } else {
+                    return &child_node;
+                }
+            }
+        }
+    }
+    return node;
+}
+
+Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
+                                         Node& node,
+                                         Node& details)
+{
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("rvalue") == 0);
+    assert(node.hasKey("left"));
+    auto statement = node["left"];
     Instructions instructions{};
-    //     if (node.JSONType() == json::JSON::Class::Array) {
-    //         for (auto& child_node : node.ArrayRange()) {
-    //             from_expression(child_node);
-    //         }
-    //     }
-    //     /* clang-format off */
-    //     match(node["node"].ToString()) (
-    //         /**************/
-    //         /* Statements */
-    //         /**************/
-    //         pattern | "statement" = [&] {
-    //             auto statement_type = node["root"].ToString();
-    //             match (statement_type) (
-    //                 pattern | "auto" = [&] {
-    //                     util::log(util::Logging::INFO, "parsing auto
-    //                     statement"); from_auto_statement(node);
-    //                 }
-    //             );
-    //         },
-    //         /**************/
-    //         /* Expressions */
-    //         /**************/
-    //         pattern | "assignment_expression" = [&] {
-    //             util::log(util::Logging::INFO, "parsing assignment
-    //             expression"); from_assignment_expression(node);
-    //         }
-    //     );
-    //     // /* clang-format on */
-    //     if (node.hasKey("left")) {
-    //         from_expression(node["left"]);
-    //     }
-    //     if (node.hasKey("right")) {
-    //         from_expression(node["right"]);
-    //     }
+    Table table{ details, symbols };
+    auto unraveled_statements = unravel_nested_node_array(&statement);
+    for (auto& expressions : unraveled_statements->ArrayRange()) {
+        match(expressions["node"].ToString())(
+            pattern | "function_expression" =
+                [&] {
+                    auto rvalue = table.from_rvalue(expressions);
+                    auto* function = &std::get<RValue::_RValue>(rvalue.value);
+                    auto* expression =
+                        &std::get<RValue::Function>(function->get()->value);
+                    auto name = expression->first;
+                    for (auto& parameters : expression->second) {
+                        auto* param =
+                            &std::get<RValue::LValue>(parameters->value);
+                        instructions.push_back(std::make_tuple(
+                            Instruction::PUSH, param->first, "", ""));
+                    }
+                    instructions.push_back(
+                        std::make_tuple(Instruction::CALL, name, "", ""));
+                },
+
+            pattern | "relation_expression" =
+                [&] { std::cout << "test" << std::endl; },
+            pattern |
+                "indirect_lvalue" = [&] { std::cout << "test" << std::endl; },
+            pattern | "assignment_expression" =
+                [&] { std::cout << "test" << std::endl; },
+            pattern | _ = [&] { std::cout << "test" << std::endl; });
+    }
     return instructions;
 }
 

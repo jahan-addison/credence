@@ -270,7 +270,7 @@ RValue Table::from_assignment_expression(Node& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
     if (!is_symbol(left_child_node)) {
-        error("lvalue of assignment not declared with 'auto' or 'extern'",
+        error("identifier of assignment not declared with 'auto' or 'extern'",
               left_child_node["root"].ToString());
     }
 
@@ -354,7 +354,7 @@ RValue::Value Table::from_indirect_identifier(Node& node)
     assert(node["node"].ToString().compare("indirect_lvalue") == 0);
     assert(node.hasKey("left"));
     if (!is_symbol(node["left"])) {
-        error("pointer not declared with 'auto' or 'extern'",
+        error("indirect identifier not declared with 'auto' or 'extern'",
               node["root"].ToString());
     }
     return symbols_.get_symbol_by_name(node["left"]["root"].ToString());

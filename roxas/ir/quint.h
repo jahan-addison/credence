@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 #pragma once
+#include <map>            // for map
 #include <ostream>        // for basic_ostream, operator<<
-#include <ostream>        // for ostream
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
-#include <roxas/types.h>  // for Type_, Value_Type
-#include <string>         // for basic_string, string
-#include <tuple>          // for tuple
-#include <utility>        // for pair
-#include <variant>        // for monostate
-#include <vector>         // for vector
+#include <roxas/types.h>  // for Value_Type, RValue, Type_
+#include <sstream>
+#include <string>  // for basic_string, string
+#include <tuple>   // for tuple
+#include <utility> // for pair
+#include <variant> // for monostate
+#include <vector>  // for vector
 
 namespace roxas {
 
@@ -50,17 +51,20 @@ enum class Instruction
     NOOP
 };
 using Operand = type::Value_Type;
-using Quadruple = std::tuple<Instruction, Operand, Operand, Operand>;
+using Quadruple =
+    std::tuple<Instruction, std::string, std::string, std::string>;
 
-static Operand NULL_DATA_TYPE = { std::monostate(), type::Type_["null"] };
+static type::Value_Type NULL_DATA_TYPE = { std::monostate(),
+                                           type::Type_["null"] };
 
-// Label in front
-using Quintuple = std::pair<std::string, Quadruple>;
-
-using Instructions = std::vector<Quintuple>;
+using Instructions = std::vector<Quadruple>;
 
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);
-Instructions build_from_rvalue_statement(Node& node);
+Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
+                                         Node& node,
+                                         Node& details);
+Node unravel_nested_node_array(Node& node);
+std::vector<std::string> build_from_rvalue(type::RValue::Type& rvalue);
 
 /**
  * @brief Instruction_Operator enum type << operator overload
@@ -84,19 +88,19 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
             os << "";
             break;
         case Instruction::RETURN:
-            os << "Ret";
+            os << "RET";
             break;
         case Instruction::PUSH:
-            os << "Push";
+            os << "PUSH";
             break;
         case Instruction::POP:
-            os << "Pop";
+            os << "POP";
             break;
         case Instruction::CALL:
-            os << "Call";
+            os << "CALL";
             break;
         case Instruction::GOTO:
-            os << "Goto";
+            os << "GOTO";
             break;
         case Instruction::EOL:
             os << ";";
@@ -106,6 +110,13 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
             break;
     }
     return os;
+}
+
+inline std::string instruction_to_string(Instruction op)
+{
+    std::ostringstream os;
+    os << op;
+    return os.str();
 }
 
 } // namespace quint

@@ -1,4 +1,6 @@
+#include <array>
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CA...
+#include <format>            // For std::format
 #include <map>               // for map
 #include <roxas/ir/quint.h>  // for build_from_auto_statement
 #include <roxas/json.h>      // for JSON
@@ -8,52 +10,38 @@
 #include <utility>           // for pair, make_pair
 #include <variant>           // for monostate
 
-struct Fixture
+TEST_CASE("ir/quint.cc: build_from_rvalue_statement")
 {
-    json::JSON lvalue_ast_node_json;
-    json::JSON assignment_symbol_table;
+    using namespace roxas;
+    using namespace roxas::ir::quint;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "{\n  \"left\": [\n    [\n      {\n        \"left\": {\n          "
+        "\"node\": \"lvalue\",\n          \"root\": \"putchar\"\n        },\n  "
+        "      \"node\": \"function_expression\",\n        \"right\": [\n      "
+        "    {\n            \"node\": \"lvalue\",\n            \"root\": "
+        "\"x\"\n          }\n        ],\n        \"root\": \"putchar\"\n      "
+        "}\n    ]\n  ],\n  \"node\": \"statement\",\n  \"root\": "
+        "\"rvalue\"\n}");
 
-    Fixture()
-    {
-        assignment_symbol_table = json::JSON::Load(
-            "{\n  \"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n "
-            "   "
-            "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
-            "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    "
-            "\"column\" "
-            ": 3,\n    \"end_column\" : 4,\n    \"end_pos\" : 13,\n    "
-            "\"line\" : "
-            "2,\n    \"start_pos\" : 12,\n    \"type\" : \"number_literal\"\n  "
-            "}\n}");
-        lvalue_ast_node_json = json::JSON::Load(
-            " {\n        \"left\" : [{\n            \"left\" : [{\n            "
-            "    "
-            "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n        "
-            "    "
-            "  }, {\n                \"node\" : \"lvalue\",\n                "
-            "\"root\" : \"y\"\n              }, {\n                \"node\" : "
-            "\"lvalue\",\n                \"root\" :\"z\"\n              }],\n "
-            "   "
-            "        \"node\" : \"statement\",\n            \"root\" : "
-            "\"auto\"\n  "
-            "        }, {\n            \"left\" : [[{\n                  "
-            "\"left\" "
-            ": {\n                    \"node\" : \"lvalue\",\n                 "
-            "   "
-            "\"root\" : \"x\"\n                  },\n                  "
-            "\"node\" : "
-            "\"assignment_expression\",\n                  \"right\" : {\n     "
-            "    "
-            "           \"node\" : \"number_literal\",\n                    "
-            "\"root\" : 5\n                  },\n                  \"root\" : "
-            "[\"=\", null]\n                }]],\n            \"node\" : "
-            "\"statement\",\n            \"root\" : \"rvalue\"\n          }]\n "
-            "}\n ");
+    roxas::Symbol_Table<> symbols{};
+    std::array<std::string, 2> tests = { "PUSH x", "CALL putchar" };
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    symbols.table_.emplace("x", null);
+    Instructions test = build_from_rvalue_statement(symbols, obj["test"], obj);
+
+    CHECK(test.size() == 2);
+    int index = 0;
+    for (auto& instruction : test) {
+        CHECK(tests[index] ==
+              std::format("{} {}",
+                          instruction_to_string(std::get<0>(instruction)),
+                          std::get<1>(instruction)));
+        index++;
     }
-    ~Fixture() = default;
-};
+}
 
-TEST_CASE_FIXTURE(Fixture, "ir/quint.cc: build_from_auto_statement")
+TEST_CASE("ir/quint.cc: build_from_auto_statement")
 {
     using namespace roxas;
     using namespace roxas::ir::quint;
