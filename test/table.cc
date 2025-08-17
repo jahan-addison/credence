@@ -154,7 +154,7 @@ TEST_CASE("ir/table.cc: Table::rvalue_expression")
 
     // check all
     for (auto& rvalue : obj["test"].ArrayRange()) {
-        CHECK_NOTHROW(temp.from_rvalue_expression(rvalue));
+        CHECK_NOTHROW(temp.from_rvalue(rvalue));
     }
 }
 
@@ -213,11 +213,12 @@ TEST_CASE("ir/table.cc: Table::evaluated_expression")
 
     auto expressions = obj["test"].ArrayRange().get();
     auto test1 = temp.from_evaluated_expression(expressions->at(0));
-    auto expr1 = get<RValue::_RValue>(test1.value);
-    CHECK(get<RValue::Relation>(get<RValue::_RValue>(expr1->value)->value)
-              .first == Operator::B_MUL);
+    auto expr1 = get<RValue::RValue_Pointer>(test1.value);
+    CHECK(
+        get<RValue::Relation>(get<RValue::RValue_Pointer>(expr1->value)->value)
+            .first == Operator::B_MUL);
     auto test2 = temp.from_evaluated_expression(expressions->at(1));
-    auto expr2 = get<RValue::_RValue>(test2.value);
+    auto expr2 = get<RValue::RValue_Pointer>(test2.value);
     CHECK(get<RValue::LValue>(expr2->value).first == "x");
 }
 
@@ -277,7 +278,7 @@ TEST_CASE("ir/table.cc: Table::from_relation_expression")
         "  \"<=\"\n    ]\n  }\n]");
     auto temp = Table(obj);
     RValue::Value null = { std::monostate(), type::Type_["null"] };
-    std::vector<RValue::_RValue> arguments{};
+    std::vector<RValue::RValue_Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
 
     auto relation_expressions = obj["test"].ArrayRange().get();

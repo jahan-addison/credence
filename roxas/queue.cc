@@ -14,45 +14,51 @@
  * limitations under the License.
  */
 
-#include <cstddef> // for size_t
-#include <map>     // for map
-#include <memory>  // for make_shared, shared_ptr
-#include <ostream> // for basic_ostream, operator<<
-#include <roxas/ir/util.h>
-#include <roxas/operators.h> // for get_precedence, is_left_associa...
-#include <roxas/types.h>     // for Type_, RValue, Value_Type, Byte
-#include <roxas/util.h>      // for overload
-#include <sstream>           // for basic_ostringstream, ostringstream
-#include <stack>             // for stack
-#include <string>            // for basic_string, char_traits, allo...
-#include <utility>           // for pair
-#include <variant>           // for variant, get, monostate, visit
+#include <cstddef>           // for size_t
+#include <memory>            // for make_shared, shared_ptr
+#include <roxas/operators.h> // for get_precedence, is_left_associative
+#include <roxas/queue.h>
+#include <roxas/types.h> // for RValue
+#include <roxas/util.h>  // for overload
+#include <stack>         // for stack
+#include <string>        // for basic_string
+#include <variant>       // for variant, monostate, visit
 
 namespace roxas {
 
-namespace ir {
-
 namespace detail {
 
-RValue_Operator_Queue* _rvalue_to_operator_queue(
-    type::RValue::Type_Pointer _rvalue,
-    RValue_Operator_Queue* rvalues_queue)
+/**
+ * @brief RValue pointer to mutual recursive queue of operators and values
+ *
+ * @param RValue_Pointer
+ * @param rvalues_queue
+ * @return RValue_Evaluation_Queue*
+ */
+RValue_Evaluation_Queue* _rvalue_pointer_to_queue(
+    type::RValue::Type_Pointer RValue_Pointer,
+    RValue_Evaluation_Queue* rvalues_queue)
 {
     using namespace type;
     std::stack<Operator> operator_stack{};
     std::visit(
         util::overload{
             [&](std::monostate) {},
-            [&](type::RValue::_RValue& s) {
+            [&](type::RValue::RValue_Pointer& s) {
                 auto value = std::make_shared<type::RValue::Type>(s->value);
-                auto _rvalues = _rvalue_to_operator_queue(value, rvalues_queue);
-                for (std::size_t i = 0; i < _rvalues->size(); i++) {
-                    rvalues_queue->push_back(_rvalues->front());
-                    _rvalues->pop_back();
+                auto RValue_Pointers =
+                    _rvalue_pointer_to_queue(value, rvalues_queue);
+                for (std::size_t i = 0; i < RValue_Pointers->size(); i++) {
+                    rvalues_queue->push_back(RValue_Pointers->front());
+                    RValue_Pointers->pop_back();
                 }
             },
-            [&](type::RValue::Value&) { rvalues_queue->push_back(_rvalue); },
-            [&](type::RValue::LValue&) { rvalues_queue->push_back(_rvalue); },
+            [&](type::RValue::Value&) {
+                rvalues_queue->push_back(RValue_Pointer);
+            },
+            [&](type::RValue::LValue&) {
+                rvalues_queue->push_back(RValue_Pointer);
+            },
             [&](type::RValue::Unary& s) {
                 auto op1 = s.first;
                 operator_stack.push(s.first);
@@ -78,11 +84,11 @@ RValue_Operator_Queue* _rvalue_to_operator_queue(
                 for (auto& operand : s.second) {
                     auto value =
                         std::make_shared<type::RValue::Type>(operand->value);
-                    auto _rvalues =
-                        _rvalue_to_operator_queue(value, rvalues_queue);
-                    for (std::size_t i = 0; i < _rvalues->size(); i++) {
-                        rvalues_queue->push_back(_rvalues->front());
-                        _rvalues->pop_back();
+                    auto RValue_Pointers =
+                        _rvalue_pointer_to_queue(value, rvalues_queue);
+                    for (std::size_t i = 0; i < RValue_Pointers->size(); i++) {
+                        rvalues_queue->push_back(RValue_Pointers->front());
+                        RValue_Pointers->pop_back();
                     }
                 }
                 while (!operator_stack.empty()) {
@@ -105,11 +111,11 @@ RValue_Operator_Queue* _rvalue_to_operator_queue(
                     operator_stack.push(Operator::U_PUSH);
                     auto param =
                         std::make_shared<type::RValue::Type>(parameter->value);
-                    auto _rvalues =
-                        _rvalue_to_operator_queue(param, rvalues_queue);
-                    for (std::size_t i = 0; i < _rvalues->size(); i++) {
-                        rvalues_queue->push_back(_rvalues->front());
-                        _rvalues->pop_back();
+                    auto RValue_Pointers =
+                        _rvalue_pointer_to_queue(param, rvalues_queue);
+                    for (std::size_t i = 0; i < RValue_Pointers->size(); i++) {
+                        rvalues_queue->push_back(RValue_Pointers->front());
+                        RValue_Pointers->pop_back();
                     }
                 }
                 while (!operator_stack.empty()) {
@@ -124,7 +130,7 @@ RValue_Operator_Queue* _rvalue_to_operator_queue(
                         break;
                     }
                 }
-                rvalues_queue->push_back(_rvalue);
+                rvalues_queue->push_back(RValue_Pointer);
             },
             [&](type::RValue::Symbol&) {
                 auto op1 = Operator::B_ASSIGN;
@@ -141,84 +147,32 @@ RValue_Operator_Queue* _rvalue_to_operator_queue(
                         break;
                     }
                 }
-                rvalues_queue->push_back(_rvalue);
+                rvalues_queue->push_back(RValue_Pointer);
             } },
-        *_rvalue);
+        *RValue_Pointer);
     return rvalues_queue;
 }
 
 } // namespace detail
 
-RValue_Operator_Queue* rvalues_to_operator_queue(
+/**
+ * @brief List of rvalues to mutual recursive queue of operators and values
+ *
+ * @param rvalues
+ * @param rvalues_queue
+ * @return RValue_Evaluation_Queue*
+ */
+RValue_Evaluation_Queue* rvalues_to_queue(
     std::vector<type::RValue::Type_Pointer>& rvalues,
-    RValue_Operator_Queue* rvalues_queue)
+    RValue_Evaluation_Queue* rvalues_queue)
 {
     using namespace type;
     std::stack<Operator> operator_stack{};
     for (type::RValue::Type_Pointer& rvalue : rvalues) {
-        detail::_rvalue_to_operator_queue(rvalue, rvalues_queue);
+        roxas::detail::_rvalue_pointer_to_queue(rvalue, rvalues_queue);
     }
 
     return rvalues_queue;
 }
-
-std::string dump_value_type(type::Value_Type const& type,
-                            std::string_view separator)
-{
-    using namespace type;
-    std::ostringstream os;
-    os << "(";
-    std::visit(util::overload{
-                   [&](int i) {
-                       os << i << separator << Type_["int"].first << separator
-                          << Type_["int"].second;
-                   },
-                   [&](long i) {
-                       os << i << separator << Type_["long"].first << separator
-                          << Type_["long"].second;
-                   },
-                   [&](float i) {
-                       os << i << separator << Type_["float"].first << separator
-                          << Type_["float"].second;
-                   },
-                   [&](double i) {
-                       os << i << separator << Type_["double"].first
-                          << separator << Type_["double"].second;
-                   },
-                   [&](bool i) {
-                       os << std::boolalpha << i << separator
-                          << Type_["bool"].first << separator
-                          << Type_["bool"].second;
-                   },
-                   [&]([[maybe_unused]] std::monostate i) {
-                       os << "null" << separator << Type_["null"].first
-                          << separator << Type_["null"].second;
-                   },
-                   [&](type::Byte i) {
-                       os << i << separator << Type_["byte"].first << separator
-                          << type.second.second;
-                   },
-                   [&](char i) {
-                       os << i << Type_["char"].first << separator
-                          << Type_["char"].second;
-                   },
-                   [&]([[maybe_unused]] std::string const& s) {
-                       if (s == "__WORD_") {
-                           // pointer
-                           os << "__WORD_" << separator << Type_["word"].first
-                              << separator << Type_["word"].second;
-                       } else {
-                           os << std::get<std::string>(type.first) << separator
-                              << "string" << separator
-                              << std::get<std::string>(type.first).size();
-                       }
-                   },
-               },
-               type.first);
-    os << ")";
-    return os.str();
-}
-
-} // namespace ir
 
 } // namespace roxas

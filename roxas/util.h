@@ -17,6 +17,7 @@
 #pragma once
 #include <filesystem> // for path
 #include <roxas/json.h>
+#include <roxas/types.h>
 #include <sstream>     // for basic_stringstream, basic_ostream, stringstream
 #include <string>      // for allocator, char_traits, string
 #include <string_view> // for operator<<, string_view
@@ -36,6 +37,9 @@ namespace roxas {
 namespace util {
 
 json::JSON* unravel_nested_node_array(json::JSON* node);
+
+std::string dump_value_type(type::RValue::Value,
+                            std::string_view separator = ":");
 
 enum class Logging
 {

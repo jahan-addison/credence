@@ -79,6 +79,9 @@ enum class Associativity
     RIGHT_TO_LEFT
 };
 
+// B operator precedence is more or less the same as C. Where
+// there were differences i made small changes for consistency
+
 static std::map<Operator, std::pair<Associativity, unsigned int>>
     OPERATOR_PRECEDENCE = {
         // Left-to-right

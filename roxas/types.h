@@ -58,28 +58,28 @@ using Value_Type = std::pair<Value, Type_Size>;
 // Recursive RValue expression type
 struct RValue;
 namespace detail {
-using _RValue_PTR = std::shared_ptr<RValue>;
+using RValue_Pointer_PTR = std::shared_ptr<RValue>;
 } // namespace detail
 
 struct RValue
 {
-    using _RValue = detail::_RValue_PTR;
+    using RValue_Pointer = detail::RValue_Pointer_PTR;
 
     using Value = Value_Type;
 
     using LValue = std::pair<std::string, Value>;
 
-    using Symbol = std::pair<LValue, _RValue>;
+    using Symbol = std::pair<LValue, RValue_Pointer>;
 
-    using Unary = std::pair<Operator, _RValue>;
+    using Unary = std::pair<Operator, RValue_Pointer>;
 
-    using Relation = std::pair<Operator, std::vector<_RValue>>;
+    using Relation = std::pair<Operator, std::vector<RValue_Pointer>>;
 
     // name, arguments
-    using Function = std::pair<std::string, std::vector<_RValue>>;
+    using Function = std::pair<std::string, std::vector<RValue_Pointer>>;
 
     using Type = std::variant<std::monostate,
-                              _RValue,
+                              RValue_Pointer,
                               Symbol,
                               Unary,
                               Relation,

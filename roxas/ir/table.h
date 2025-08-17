@@ -60,10 +60,10 @@ class Table
     }
     ~Table() = default;
   public:
-    inline RValue from_rvalue(Node& node) {
-      return from_rvalue_expression(node);
+    inline RValue from_rvalue_expression(Node& node) {
+      return from_rvalue(node);
     }
-    RValue from_rvalue_expression(Node& node);
+    RValue from_rvalue(Node& node);
 
   ROXAS_PRIVATE_UNLESS_TESTED:
     RValue from_evaluated_expression(Node& node);

@@ -68,7 +68,7 @@ void Table::error(std::string_view message, std::string_view symbol_name)
  * @param node
  * @return RValue
  */
-RValue Table::from_rvalue_expression(Node& node)
+RValue Table::from_rvalue(Node& node)
 {
     RValue rvalue = RValue{};
     bool is_unary =
@@ -121,11 +121,10 @@ RValue Table::from_function_expression(Node& node)
     RValue rvalue{};
 
     assert(node["node"].ToString().compare("function_expression") == 0);
-    std::vector<RValue::_RValue> parameters{};
+    std::vector<RValue::RValue_Pointer> parameters{};
 
     for (auto& param : node["right"].ArrayRange()) {
-        parameters.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(param)));
+        parameters.push_back(std::make_shared<RValue>(from_rvalue(param)));
     }
     rvalue.value =
         std::make_pair(node["left"]["root"].ToString(), std::move(parameters));
@@ -142,8 +141,7 @@ RValue Table::from_evaluated_expression(Node& node)
 {
     RValue rvalue{};
     assert(node["node"].ToString().compare("evaluated_expression") == 0);
-    rvalue.value =
-        std::make_shared<RValue>(from_rvalue_expression(node["root"]));
+    rvalue.value = std::make_shared<RValue>(from_rvalue(node["root"]));
     return rvalue;
 }
 
@@ -158,27 +156,24 @@ RValue Table::from_relation_expression(Node& node)
     RValue rvalue{};
 
     assert(node["node"].ToString().compare("relation_expression") == 0);
-    std::vector<RValue::_RValue> blocks{};
+    std::vector<RValue::RValue_Pointer> blocks{};
     if (node.hasKey("right") and
         node["right"]["node"].ToString() == "ternary_expression") {
         auto ternary = node["right"];
         auto op = node["root"].ArrayRange().get()->at(0).ToString();
+        blocks.push_back(std::make_shared<RValue>(from_rvalue(node["left"])));
         blocks.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(node["left"])));
+            std::make_shared<RValue>(from_rvalue(ternary["root"])));
         blocks.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(ternary["root"])));
+            std::make_shared<RValue>(from_rvalue(ternary["left"])));
         blocks.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(ternary["left"])));
-        blocks.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(ternary["right"])));
+            std::make_shared<RValue>(from_rvalue(ternary["right"])));
         rvalue.value =
             std::make_pair(BINARY_OPERATORS.at(op), std::move(blocks));
     } else {
         auto op = node["root"].ArrayRange().get()->at(0).ToString();
-        blocks.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(node["left"])));
-        blocks.push_back(
-            std::make_shared<RValue>(from_rvalue_expression(node["right"])));
+        blocks.push_back(std::make_shared<RValue>(from_rvalue(node["left"])));
+        blocks.push_back(std::make_shared<RValue>(from_rvalue(node["right"])));
         rvalue.value =
             std::make_pair(BINARY_OPERATORS.at(op), std::move(blocks));
     }
@@ -204,28 +199,28 @@ RValue Table::from_unary_expression(Node& node)
         pattern | "pre_inc_dec_expression" =
             [&] {
                 if (node["root"].ArrayRange().get()->at(0).ToString() == "++") {
-                    auto rhs = std::make_shared<RValue>(
-                        from_rvalue_expression(node["left"]));
+                    auto rhs =
+                        std::make_shared<RValue>(from_rvalue(node["left"]));
                     rvalue.value = std::make_pair(Operator::PRE_INC, rhs);
 
                 } else if (node["root"].ArrayRange().get()->at(0).ToString() ==
                            "--") {
-                    auto rhs = std::make_shared<RValue>(
-                        from_rvalue_expression(node["left"]));
+                    auto rhs =
+                        std::make_shared<RValue>(from_rvalue(node["left"]));
                     rvalue.value = std::make_pair(Operator::PRE_DEC, rhs);
                 }
             },
         pattern | "post_inc_dec_expression" =
             [&] {
                 if (node["root"].ArrayRange().get()->at(0).ToString() == "++") {
-                    auto rhs = std::make_shared<RValue>(
-                        from_rvalue_expression(node["right"]));
+                    auto rhs =
+                        std::make_shared<RValue>(from_rvalue(node["right"]));
                     rvalue.value = std::make_pair(Operator::POST_INC, rhs);
 
                 } else if (node["root"].ArrayRange().get()->at(0).ToString() ==
                            "--") {
-                    auto rhs = std::make_shared<RValue>(
-                        from_rvalue_expression(node["right"]));
+                    auto rhs =
+                        std::make_shared<RValue>(from_rvalue(node["right"]));
                     rvalue.value =
                         std::make_pair(Operator::POST_DEC, std::move(rhs));
                 }
@@ -234,16 +229,14 @@ RValue Table::from_unary_expression(Node& node)
             [&] {
                 auto op = node["root"].ArrayRange().get()->at(0).ToString();
                 assert(op.compare("&") == 0);
-                auto rhs = std::make_shared<RValue>(
-                    from_rvalue_expression(node["left"]));
+                auto rhs = std::make_shared<RValue>(from_rvalue(node["left"]));
                 rvalue.value = std::make_pair(Operator::U_ADDR_OF, rhs);
             },
         // otherwise:
         pattern | _ =
             [&] {
                 auto op = node["root"].ArrayRange().get()->at(0).ToString();
-                auto rhs = std::make_shared<RValue>(
-                    from_rvalue_expression(node["left"]));
+                auto rhs = std::make_shared<RValue>(from_rvalue(node["left"]));
                 rvalue.value = std::make_pair(other_unary.at(op), rhs);
             });
     return rvalue;
@@ -270,7 +263,7 @@ RValue Table::from_assignment_expression(Node& node)
     }
 
     auto lhs = from_lvalue_expression(left_child_node);
-    auto rhs = from_rvalue_expression(right_child_node);
+    auto rhs = from_rvalue(right_child_node);
     RValue rvalue = RValue{};
     rvalue.value = std::make_pair(lhs, std::make_shared<RValue>(rhs));
 

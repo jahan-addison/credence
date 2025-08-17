@@ -16,17 +16,16 @@
 #include <assert.h>  // for assert
 #include <iostream>  // for cout
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
-#include <memory>    // for unique_ptr
+#include <memory>    // for shared_ptr
 #include <roxas/ir/quint.h>
 #include <roxas/ir/table.h>  // for Table
 #include <roxas/json.h>      // for JSON
-#include <roxas/operators.h> // for operator_to_string, Operato
+#include <roxas/operators.h> // for operator_to_string, Operator
 #include <roxas/symbol.h>    // for Symbol_Table
 #include <roxas/types.h>     // for RValue, Byte, Type_
-#include <roxas/util.h>      // for overload
-#include <stack>
-#include <utility> // for pair, make_pair
-#include <variant> // for get, monostate, visit, variant
+#include <roxas/util.h>      // for unravel_nested_node_array, overload
+#include <utility>           // for pair
+#include <variant>           // for get, monostate, visit, variant
 
 namespace roxas {
 
@@ -71,27 +70,27 @@ void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
     }
 }
 
-std::vector<std::string> build_from_rvalue(RValue::Type& rvalue)
+std::vector<std::string> build_from_rvalue_expression(RValue::Type& rvalue)
 {
     std::vector<std::string> items{};
-    std::visit(util::overload{
-                   [&](std::monostate) {},
-                   [&](RValue::_RValue&) {},
-                   [&](RValue::Value&) {},
-                   [&](RValue::LValue&) {},
-                   [&](RValue::Unary&) {},
-                   [&](RValue::Relation&) {},
-                   [&](RValue::Function&) {},
-                   [&](RValue::Symbol& s) {
-                       items.push_back(s.first.first);
-                       items.push_back(operator_to_string(Operator::R_EQUAL));
-                       auto assignee = build_from_rvalue(s.second->value);
-                       items.insert(
-                           items.end(), assignee.begin(), assignee.end());
-                   }
+    std::visit(
+        util::overload{
+            [&](std::monostate) {},
+            [&](RValue::RValue_Pointer&) {},
+            [&](RValue::Value&) {},
+            [&](RValue::LValue&) {},
+            [&](RValue::Unary&) {},
+            [&](RValue::Relation&) {},
+            [&](RValue::Function&) {},
+            [&](RValue::Symbol& s) {
+                items.push_back(s.first.first);
+                items.push_back(operator_to_string(Operator::R_EQUAL));
+                auto assignee = build_from_rvalue_expression(s.second->value);
+                items.insert(items.end(), assignee.begin(), assignee.end());
+            }
 
-               },
-               rvalue);
+        },
+        rvalue);
     return items;
 }
 
@@ -110,8 +109,9 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
         match(expressions["node"].ToString())(
             pattern | "function_expression" =
                 [&] {
-                    auto rvalue = table.from_rvalue(expressions);
-                    auto* function = &std::get<RValue::_RValue>(rvalue.value);
+                    auto rvalue = table.from_rvalue_expression(expressions);
+                    auto* function =
+                        &std::get<RValue::RValue_Pointer>(rvalue.value);
                     auto* expression =
                         &std::get<RValue::Function>(function->get()->value);
                     auto name = expression->first;
@@ -127,15 +127,16 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
 
             pattern | "relation_expression" =
                 [&] {
-                    // auto rvalue = table.from_rvalue(expressions);
+                    // auto rvalue = table.from_rvalue_expression(expressions);
                     // auto* relation =
-                    // &std::get<RValue::_RValue>(rvalue.value); auto*
+                    // &std::get<RValue::RValue_Pointer>(rvalue.value); auto*
                     // expression =
                     //     &std::get<RValue::Relation>(relation->get()->value);
                     // if (expression->second.size() == 2) {
-                    //     auto lhs = build_from_rvalue(expression->second);
+                    //     auto lhs =
+                    //     build_from_rvalue_expression(expression->second);
                     //     auto rhs =
-                    //     build_from_rvalue(expression->second.at(1));
+                    //     build_from_rvalue_expression(expression->second.at(1));
                     // }
                 },
             pattern |

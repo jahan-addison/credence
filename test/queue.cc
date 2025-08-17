@@ -3,16 +3,16 @@
 #include <memory>            // for make_shared
 #include <ostream>           // for basic_ostream, operator<<
 #include <roxas/ir/table.h>  // for Table
-#include <roxas/ir/util.h>   // for dump_value_type, rvalues_to_ope...
 #include <roxas/json.h>      // for JSON
 #include <roxas/operators.h> // for operator_to_string
+#include <roxas/queue.h>     // for Table
 #include <roxas/types.h>     // for RValue
 #include <roxas/util.h>      // for overload, unravel_nested_node_a...
 #include <string>            // for basic_string, char_traits
 #include <variant>           // for visit, monostate
 #include <vector>            // for vector
 
-TEST_CASE("ir/util.cc: rvalues_to_operator_queue")
+TEST_CASE("ir/queue.cc: rvalues_to_queue")
 {
     using namespace roxas;
     using namespace roxas::type;
@@ -57,32 +57,32 @@ TEST_CASE("ir/util.cc: rvalues_to_operator_queue")
             table.from_rvalue(expression).value);
         rvalues.push_back(value);
     }
-    ir::RValue_Operator_Queue list{};
-    ir::rvalues_to_operator_queue(rvalues, &list);
+    RValue_Evaluation_Queue list{};
+    rvalues_to_queue(rvalues, &list);
     for (auto& item : list) {
         std::visit(util::overload{
                        [&](type::Operator op) {
                            std::cout << type::operator_to_string(op) << " ";
                        },
                        [&](type::RValue::Type_Pointer& s) {
-                           std::visit(
-                               util::overload{ [&](std::monostate) {},
-                                               [&](RValue::_RValue&) {},
-                                               [&](RValue::Value& s) {
-                                                   std::cout
-                                                       << ir::dump_value_type(s)
-                                                       << " ";
-                                               },
-                                               [&](RValue::LValue&) {},
-                                               [&](RValue::Unary&) {},
-                                               [&](RValue::Relation&) {},
-                                               [&](RValue::Function& s) {
-                                                   std::cout << s.first << " ";
-                                               },
-                                               [&](RValue::Symbol&) {
+                           std::visit(util::overload{
+                                          [&](std::monostate) {},
+                                          [&](RValue::RValue_Pointer&) {},
+                                          [&](RValue::Value& s) {
+                                              std::cout
+                                                  << util::dump_value_type(s)
+                                                  << " ";
+                                          },
+                                          [&](RValue::LValue&) {},
+                                          [&](RValue::Unary&) {},
+                                          [&](RValue::Relation&) {},
+                                          [&](RValue::Function& s) {
+                                              std::cout << s.first << " ";
+                                          },
+                                          [&](RValue::Symbol&) {
 
-                                               } },
-                               *s);
+                                          } },
+                                      *s);
                        }
 
                    },

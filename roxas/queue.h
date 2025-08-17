@@ -17,25 +17,17 @@
 
 #include <list>              // for list
 #include <roxas/operators.h> // for Operator
-#include <roxas/types.h>     // for RValue, Value_Type
-#include <string>            // for string
-#include <string_view>       // for basic_string_view, string_view
+#include <roxas/types.h>     // for RValue
 #include <variant>           // for variant
 #include <vector>            // for vector
 
 namespace roxas {
 
-namespace ir {
-
-using RValue_Operator_Queue =
+using RValue_Evaluation_Queue =
     std::list<std::variant<type::Operator, type::RValue::Type_Pointer>>;
 
-RValue_Operator_Queue* rvalues_to_operator_queue(
+RValue_Evaluation_Queue* rvalues_to_queue(
     std::vector<type::RValue::Type_Pointer>& rvalues,
-    RValue_Operator_Queue* postfix_rvalues);
-std::string dump_value_type(type::Value_Type const& type,
-                            std::string_view separator = ":");
-
-} // namespace ir
+    RValue_Evaluation_Queue* rvalues_queue);
 
 } // namespace roxas

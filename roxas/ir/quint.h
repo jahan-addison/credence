@@ -19,12 +19,11 @@
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
 #include <roxas/types.h>  // for Value_Type, RValue, Type_
-#include <sstream>
-#include <string>  // for basic_string, string
-#include <tuple>   // for tuple
-#include <utility> // for pair
-#include <variant> // for monostate
-#include <vector>  // for vector
+#include <sstream>        // for basic_ostringstream, ostream
+#include <string>         // for basic_string, allocator, char_t...
+#include <tuple>          // for tuple
+#include <variant>        // for monostate
+#include <vector>         // for vector
 
 namespace roxas {
 
@@ -64,7 +63,8 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details);
 Node unravel_nested_node_array(Node& node);
-std::vector<std::string> build_from_rvalue(type::RValue::Type& rvalue);
+std::vector<std::string> build_from_rvalue_expression(
+    type::RValue::Type& rvalue);
 
 /**
  * @brief Instruction_Operator enum type << operator overload
