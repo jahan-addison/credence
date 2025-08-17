@@ -20,6 +20,9 @@
 #include <sstream>
 
 namespace roxas {
+
+namespace type {
+
 /**
  * @brief Operators
  *
@@ -29,6 +32,7 @@ enum class Operator
     // relational operators
     R_EQUAL,
     R_NEQUAL,
+    U_NOT,
     R_LT,
     R_GT,
     R_LE,
@@ -51,25 +55,85 @@ enum class Operator
 
     // bit ops
     RSHIFT,
+    AND,
+    OR,
     XOR,
     LSHIFT,
-    U_NOT,
     U_ONES_COMPLEMENT,
 
     U_MINUS,
+    B_TERNARY,
+    B_ASSIGN,
 
     // pointer operators
     U_ADDR_OF,
-    U_INDIRECTION
+    U_INDIRECTION,
+    U_CALL,
+    U_PUSH,
+    U_SUBSCRIPT
 };
 
-static std::map<std::string, Operator> const BINARY_OPERATORS = {
-    { "|", Operator::R_OR },
+enum class Associativity
+{
+    LEFT_TO_RIGHT,
+    RIGHT_TO_LEFT
+};
 
-    { "&", Operator::R_AND },      { "==", Operator::R_EQUAL },
-    { "!=", Operator::R_NEQUAL },  { "<", Operator::R_LT },
-    { "<=", Operator::R_LE },      { ">", Operator::R_GT },
-    { ">=", Operator::R_GE },
+static std::map<Operator, std::pair<Associativity, unsigned int>>
+    OPERATOR_PRECEDENCE = {
+        // Left-to-right
+        { Operator::POST_INC, { Associativity::LEFT_TO_RIGHT, 1 } },
+        { Operator::POST_DEC, { Associativity::LEFT_TO_RIGHT, 1 } },
+        { Operator::U_CALL, { Associativity::LEFT_TO_RIGHT, 1 } },
+        { Operator::U_PUSH, { Associativity::LEFT_TO_RIGHT, 1 } },
+        { Operator::U_SUBSCRIPT, { Associativity::LEFT_TO_RIGHT, 1 } },
+        // Right-to-left
+        { Operator::PRE_INC, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::PRE_DEC, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::U_MINUS, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::U_NOT, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::U_ADDR_OF, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::U_INDIRECTION, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::U_ONES_COMPLEMENT, { Associativity::RIGHT_TO_LEFT, 2 } },
+        // Left-to-right
+        { Operator::B_MUL, { Associativity::LEFT_TO_RIGHT, 3 } },
+        { Operator::B_DIV, { Associativity::LEFT_TO_RIGHT, 3 } },
+        { Operator::B_MOD, { Associativity::LEFT_TO_RIGHT, 3 } },
+        // Left-to-right
+        { Operator::B_ADD, { Associativity::LEFT_TO_RIGHT, 4 } },
+        { Operator::B_SUBTRACT, { Associativity::LEFT_TO_RIGHT, 4 } },
+        // Left-to-right
+        { Operator::LSHIFT, { Associativity::LEFT_TO_RIGHT, 5 } },
+        { Operator::RSHIFT, { Associativity::LEFT_TO_RIGHT, 5 } },
+        // Left-to-right
+        { Operator::R_LT, { Associativity::LEFT_TO_RIGHT, 6 } },
+        { Operator::R_LE, { Associativity::LEFT_TO_RIGHT, 6 } },
+        { Operator::R_GT, { Associativity::LEFT_TO_RIGHT, 6 } },
+        { Operator::R_GE, { Associativity::LEFT_TO_RIGHT, 6 } },
+        // Left-to-right
+        { Operator::R_EQUAL, { Associativity::LEFT_TO_RIGHT, 7 } },
+        { Operator::R_NEQUAL, { Associativity::LEFT_TO_RIGHT, 7 } },
+        // Left-to-right
+        { Operator::AND, { Associativity::LEFT_TO_RIGHT, 8 } },
+        // Left-to-right
+        { Operator::XOR, { Associativity::LEFT_TO_RIGHT, 9 } },
+        // Left-to-right
+        { Operator::OR, { Associativity::LEFT_TO_RIGHT, 10 } },
+        // Left-to-right
+        { Operator::R_AND, { Associativity::LEFT_TO_RIGHT, 11 } },
+        // Left-to-right
+        { Operator::R_OR, { Associativity::LEFT_TO_RIGHT, 12 } },
+
+        { Operator::B_TERNARY, { Associativity::RIGHT_TO_LEFT, 13 } },
+        { Operator::B_ASSIGN, { Associativity::RIGHT_TO_LEFT, 14 } }
+    };
+
+static std::map<std::string, Operator> const BINARY_OPERATORS = {
+    { "||", Operator::R_OR },      { "&", Operator::AND },
+    { "|", Operator::OR },         { "&&", Operator::R_AND },
+    { "==", Operator::R_EQUAL },   { "!=", Operator::R_NEQUAL },
+    { "<", Operator::R_LT },       { "<=", Operator::R_LE },
+    { ">", Operator::R_GT },       { ">=", Operator::R_GE },
 
     { "^", Operator::XOR },        { "<<", Operator::LSHIFT },
     { ">>", Operator::RSHIFT },
@@ -79,13 +143,16 @@ static std::map<std::string, Operator> const BINARY_OPERATORS = {
     { "/", Operator::B_DIV }
 };
 
-/**
- * @brief operator enum type << operator overload
- *
- * @param os
- * @param op
- * @return std::ostream&
- */
+inline bool is_left_associative(Operator op)
+{
+    return OPERATOR_PRECEDENCE.at(op).first == Associativity::LEFT_TO_RIGHT;
+}
+
+inline unsigned int get_precedence(Operator op)
+{
+    return OPERATOR_PRECEDENCE.at(op).second;
+}
+
 inline std::ostream& operator<<(std::ostream& os, Operator const& op)
 {
     switch (op) {
@@ -109,10 +176,10 @@ inline std::ostream& operator<<(std::ostream& os, Operator const& op)
             os << ">=";
             break;
         case Operator::R_OR:
-            os << "|";
+            os << "||";
             break;
         case Operator::R_AND:
-            os << "&";
+            os << "&&";
             break;
 
         // math binary operators
@@ -147,6 +214,12 @@ inline std::ostream& operator<<(std::ostream& os, Operator const& op)
         case Operator::RSHIFT:
             os << ">>";
             break;
+        case Operator::OR:
+            os << "|";
+            break;
+        case Operator::AND:
+            os << "&";
+            break;
         case Operator::LSHIFT:
             os << "<<";
             break;
@@ -172,6 +245,20 @@ inline std::ostream& operator<<(std::ostream& os, Operator const& op)
             os << "-";
             break;
 
+        // relational operators
+        case Operator::U_CALL:
+            os << "CALL";
+            break;
+        case Operator::U_PUSH:
+            os << "PUSH";
+            break;
+        case Operator::B_ASSIGN:
+            os << "=";
+            break;
+        case Operator::B_TERNARY:
+            os << "?:";
+            break;
+
         default:
             os << "null";
             break;
@@ -185,5 +272,7 @@ inline std::string operator_to_string(Operator op)
     os << op;
     return os.str();
 }
+
+} // namespace type
 
 } // namespace roxas

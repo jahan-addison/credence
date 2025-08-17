@@ -24,8 +24,9 @@
 #include <roxas/symbol.h>    // for Symbol_Table
 #include <roxas/types.h>     // for RValue, Byte, Type_
 #include <roxas/util.h>      // for overload
-#include <utility>           // for pair, make_pair
-#include <variant>           // for get, monostate, visit, variant
+#include <stack>
+#include <utility> // for pair, make_pair
+#include <variant> // for get, monostate, visit, variant
 
 namespace roxas {
 
@@ -94,23 +95,6 @@ std::vector<std::string> build_from_rvalue(RValue::Type& rvalue)
     return items;
 }
 
-Node* unravel_nested_node_array(Node* node)
-{
-    if (node->JSONType() == json::JSON::Class::Array) {
-        for (auto& child_node : node->ArrayRange()) {
-            if (child_node.JSONType() == json::JSON::Class::Array) {
-                if (child_node.ArrayRange().get()->at(0).JSONType() ==
-                    json::JSON::Class::Array) {
-                    return unravel_nested_node_array(&child_node);
-                } else {
-                    return &child_node;
-                }
-            }
-        }
-    }
-    return node;
-}
-
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details)
@@ -121,7 +105,7 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
     auto statement = node["left"];
     Instructions instructions{};
     Table table{ details, symbols };
-    auto unraveled_statements = unravel_nested_node_array(&statement);
+    auto unraveled_statements = util::unravel_nested_node_array(&statement);
     for (auto& expressions : unraveled_statements->ArrayRange()) {
         match(expressions["node"].ToString())(
             pattern | "function_expression" =
@@ -142,7 +126,18 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                 },
 
             pattern | "relation_expression" =
-                [&] { std::cout << "test" << std::endl; },
+                [&] {
+                    // auto rvalue = table.from_rvalue(expressions);
+                    // auto* relation =
+                    // &std::get<RValue::_RValue>(rvalue.value); auto*
+                    // expression =
+                    //     &std::get<RValue::Relation>(relation->get()->value);
+                    // if (expression->second.size() == 2) {
+                    //     auto lhs = build_from_rvalue(expression->second);
+                    //     auto rhs =
+                    //     build_from_rvalue(expression->second.at(1));
+                    // }
+                },
             pattern |
                 "indirect_lvalue" = [&] { std::cout << "test" << std::endl; },
             pattern | "assignment_expression" =

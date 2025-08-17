@@ -1,7 +1,7 @@
 #include <deque>             // for deque
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 #include <map>               // for map
-#include <memory>            // for unique_ptr
+#include <memory>            // for shared_ptr
 #include <roxas/ir/table.h>  // for Table
 #include <roxas/json.h>      // for JSON
 #include <roxas/symbol.h>    // for Symbol_Table
@@ -180,7 +180,7 @@ TEST_CASE("ir/table.cc: Table::function_expression")
     temp.symbols_.table_.emplace("z", null);
 
     auto test1 = temp.from_function_expression(obj["test"]);
-    auto function = std::move(get<RValue::Function>(test1.value));
+    auto function = get<RValue::Function>(test1.value);
     // parameters
     CHECK(get<RValue::LValue>(function.second[0]->value).first == "x");
     CHECK(get<RValue::LValue>(function.second[1]->value).first == "y");
@@ -213,11 +213,11 @@ TEST_CASE("ir/table.cc: Table::evaluated_expression")
 
     auto expressions = obj["test"].ArrayRange().get();
     auto test1 = temp.from_evaluated_expression(expressions->at(0));
-    auto expr1 = std::move(get<RValue::_RValue>(test1.value));
+    auto expr1 = get<RValue::_RValue>(test1.value);
     CHECK(get<RValue::Relation>(get<RValue::_RValue>(expr1->value)->value)
               .first == Operator::B_MUL);
     auto test2 = temp.from_evaluated_expression(expressions->at(1));
-    auto expr2 = std::move(get<RValue::_RValue>(test2.value));
+    auto expr2 = get<RValue::_RValue>(test2.value);
     CHECK(get<RValue::LValue>(expr2->value).first == "x");
 }
 
@@ -287,7 +287,7 @@ TEST_CASE("ir/table.cc: Table::from_relation_expression")
 
     auto test1 = temp.from_relation_expression(relation_expressions->at(0));
     CHECK(std::get<RValue::Relation>(test1.value).first == Operator::B_MUL);
-    arguments = std::move(std::get<RValue::Relation>(test1.value).second);
+    arguments = std::get<RValue::Relation>(test1.value).second;
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
     CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
           10);
@@ -396,42 +396,42 @@ TEST_CASE("ir/table.cc: Table::from_unary_expression")
     temp.symbols_.table_.emplace("x", null);
 
     auto unary_expressions = obj["test"].ArrayRange().get();
-    std::unique_ptr<RValue> lvalue, constant;
+    std::shared_ptr<RValue> lvalue, constant;
 
     auto test1 = temp.from_unary_expression(unary_expressions->at(0));
-    lvalue = std::move(std::get<RValue::Unary>(test1.value).second);
+    lvalue = std::get<RValue::Unary>(test1.value).second;
     CHECK(std::get<RValue::Unary>(test1.value).first == Operator::POST_INC);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
     auto test2 = temp.from_unary_expression(unary_expressions->at(1));
-    lvalue = std::move(std::get<RValue::Unary>(test2.value).second);
+    lvalue = std::get<RValue::Unary>(test2.value).second;
     CHECK(std::get<RValue::Unary>(test2.value).first == Operator::PRE_INC);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
     auto test3 = temp.from_unary_expression(unary_expressions->at(2));
-    lvalue = std::move(std::get<RValue::Unary>(test3.value).second);
+    lvalue = std::get<RValue::Unary>(test3.value).second;
     CHECK(std::get<RValue::Unary>(test3.value).first == Operator::U_ADDR_OF);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
     auto test4 = temp.from_unary_expression(unary_expressions->at(3));
-    constant = std::move(std::get<RValue::Unary>(test4.value).second);
+    constant = std::get<RValue::Unary>(test4.value).second;
     CHECK(std::get<RValue::Unary>(test4.value).first ==
           Operator::U_ONES_COMPLEMENT);
     CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
 
     auto test5 = temp.from_unary_expression(unary_expressions->at(4));
-    lvalue = std::move(std::get<RValue::Unary>(test5.value).second);
+    lvalue = std::get<RValue::Unary>(test5.value).second;
     CHECK(std::get<RValue::Unary>(test5.value).first ==
           Operator::U_INDIRECTION);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
     auto test6 = temp.from_unary_expression(unary_expressions->at(5));
-    constant = std::move(std::get<RValue::Unary>(test6.value).second);
+    constant = std::get<RValue::Unary>(test6.value).second;
     CHECK(std::get<RValue::Unary>(test6.value).first == Operator::U_MINUS);
     CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
 
     auto test7 = temp.from_unary_expression(unary_expressions->at(6));
-    lvalue = std::move(std::get<RValue::Unary>(test7.value).second);
+    lvalue = std::get<RValue::Unary>(test7.value).second;
     CHECK(std::get<RValue::Unary>(test7.value).first == Operator::U_NOT);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 }

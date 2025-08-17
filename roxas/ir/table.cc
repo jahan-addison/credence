@@ -20,7 +20,7 @@
 #include <format>    // for format, format_string
 #include <map>       // for allocator, map
 #include <matchit.h> // for pattern, PatternHelper, PatternPipable
-#include <memory>    // for unique_ptr, make_unique
+#include <memory>    // for shared_ptr, make_shared
 #include <roxas/ir/table.h>
 #include <roxas/json.h>      // for JSON
 #include <roxas/operators.h> // for Operator
@@ -89,26 +89,26 @@ RValue Table::from_rvalue_expression(Node& node)
         pattern | "function_expression" =
             [&] {
                 rvalue.value =
-                    std::make_unique<RValue>(from_function_expression(node));
+                    std::make_shared<RValue>(from_function_expression(node));
             },
 
         pattern | "relation_expression" =
             [&] {
                 rvalue.value =
-                    std::make_unique<RValue>(from_relation_expression(node));
+                    std::make_shared<RValue>(from_relation_expression(node));
             },
         pattern | "indirect_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
         pattern | "assignment_expression" =
             [&] {
                 rvalue.value =
-                    std::make_unique<RValue>(from_assignment_expression(node));
+                    std::make_shared<RValue>(from_assignment_expression(node));
             },
         pattern | _ =
             [&] {
                 if (is_unary) {
                     rvalue.value =
-                        std::make_unique<RValue>(from_unary_expression(node));
+                        std::make_shared<RValue>(from_unary_expression(node));
                 } else {
                     rvalue.value = std::monostate();
                 }
@@ -125,7 +125,7 @@ RValue Table::from_function_expression(Node& node)
 
     for (auto& param : node["right"].ArrayRange()) {
         parameters.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(param)));
+            std::make_shared<RValue>(from_rvalue_expression(param)));
     }
     rvalue.value =
         std::make_pair(node["left"]["root"].ToString(), std::move(parameters));
@@ -143,7 +143,7 @@ RValue Table::from_evaluated_expression(Node& node)
     RValue rvalue{};
     assert(node["node"].ToString().compare("evaluated_expression") == 0);
     rvalue.value =
-        std::make_unique<RValue>(from_rvalue_expression(node["root"]));
+        std::make_shared<RValue>(from_rvalue_expression(node["root"]));
     return rvalue;
 }
 
@@ -164,21 +164,21 @@ RValue Table::from_relation_expression(Node& node)
         auto ternary = node["right"];
         auto op = node["root"].ArrayRange().get()->at(0).ToString();
         blocks.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(node["left"])));
+            std::make_shared<RValue>(from_rvalue_expression(node["left"])));
         blocks.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(ternary["root"])));
+            std::make_shared<RValue>(from_rvalue_expression(ternary["root"])));
         blocks.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(ternary["left"])));
+            std::make_shared<RValue>(from_rvalue_expression(ternary["left"])));
         blocks.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(ternary["right"])));
+            std::make_shared<RValue>(from_rvalue_expression(ternary["right"])));
         rvalue.value =
             std::make_pair(BINARY_OPERATORS.at(op), std::move(blocks));
     } else {
         auto op = node["root"].ArrayRange().get()->at(0).ToString();
         blocks.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(node["left"])));
+            std::make_shared<RValue>(from_rvalue_expression(node["left"])));
         blocks.push_back(
-            std::make_unique<RValue>(from_rvalue_expression(node["right"])));
+            std::make_shared<RValue>(from_rvalue_expression(node["right"])));
         rvalue.value =
             std::make_pair(BINARY_OPERATORS.at(op), std::move(blocks));
     }
@@ -204,52 +204,47 @@ RValue Table::from_unary_expression(Node& node)
         pattern | "pre_inc_dec_expression" =
             [&] {
                 if (node["root"].ArrayRange().get()->at(0).ToString() == "++") {
-                    auto rhs = from_rvalue_expression(node["left"]);
-                    rvalue.value = std::make_pair(
-                        Operator::PRE_INC,
-                        std::make_unique<RValue>(std::move(rhs)));
+                    auto rhs = std::make_shared<RValue>(
+                        from_rvalue_expression(node["left"]));
+                    rvalue.value = std::make_pair(Operator::PRE_INC, rhs);
 
                 } else if (node["root"].ArrayRange().get()->at(0).ToString() ==
                            "--") {
-                    auto rhs = from_rvalue_expression(node["left"]);
-                    rvalue.value = std::make_pair(
-                        Operator::PRE_DEC,
-                        std::make_unique<RValue>(std::move(rhs)));
+                    auto rhs = std::make_shared<RValue>(
+                        from_rvalue_expression(node["left"]));
+                    rvalue.value = std::make_pair(Operator::PRE_DEC, rhs);
                 }
             },
         pattern | "post_inc_dec_expression" =
             [&] {
                 if (node["root"].ArrayRange().get()->at(0).ToString() == "++") {
-                    auto rhs = from_rvalue_expression(node["right"]);
-                    rvalue.value = std::make_pair(
-                        Operator::POST_INC,
-                        std::make_unique<RValue>(std::move(rhs)));
+                    auto rhs = std::make_shared<RValue>(
+                        from_rvalue_expression(node["right"]));
+                    rvalue.value = std::make_pair(Operator::POST_INC, rhs);
 
                 } else if (node["root"].ArrayRange().get()->at(0).ToString() ==
                            "--") {
-                    auto rhs = from_rvalue_expression(node["right"]);
-                    rvalue.value = std::make_pair(
-                        Operator::POST_DEC,
-                        std::make_unique<RValue>(std::move(rhs)));
+                    auto rhs = std::make_shared<RValue>(
+                        from_rvalue_expression(node["right"]));
+                    rvalue.value =
+                        std::make_pair(Operator::POST_DEC, std::move(rhs));
                 }
             },
         pattern | "address_of_expression" =
             [&] {
                 auto op = node["root"].ArrayRange().get()->at(0).ToString();
                 assert(op.compare("&") == 0);
-                auto rhs = from_rvalue_expression(node["left"]);
-                rvalue.value =
-                    std::make_pair(Operator::U_ADDR_OF,
-                                   std::make_unique<RValue>(std::move(rhs)));
+                auto rhs = std::make_shared<RValue>(
+                    from_rvalue_expression(node["left"]));
+                rvalue.value = std::make_pair(Operator::U_ADDR_OF, rhs);
             },
         // otherwise:
         pattern | _ =
             [&] {
                 auto op = node["root"].ArrayRange().get()->at(0).ToString();
-                auto rhs = from_rvalue_expression(node["left"]);
-                rvalue.value =
-                    std::make_pair(other_unary.at(op),
-                                   std::make_unique<RValue>(std::move(rhs)));
+                auto rhs = std::make_shared<RValue>(
+                    from_rvalue_expression(node["left"]));
+                rvalue.value = std::make_pair(other_unary.at(op), rhs);
             });
     return rvalue;
 }
@@ -277,8 +272,7 @@ RValue Table::from_assignment_expression(Node& node)
     auto lhs = from_lvalue_expression(left_child_node);
     auto rhs = from_rvalue_expression(right_child_node);
     RValue rvalue = RValue{};
-    rvalue.value =
-        std::make_pair(lhs, std::make_unique<RValue>(std::move(rhs)));
+    rvalue.value = std::make_pair(lhs, std::make_shared<RValue>(rhs));
 
     return rvalue;
 }

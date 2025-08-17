@@ -9,7 +9,7 @@
 
 
 * The frontend (Lexer, Parser) and first-pass is built with an [LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython
-* The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm, and z80.
+* The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm64, and z80.
 
 _**status**: in progress_
 
@@ -37,6 +37,13 @@ Usage:
 ```bash
 ./roxas --ast-loader=json -d my_ast.json
 ./roxas -h
+```
+---
+
+Test suite:
+
+```bash
+make test
 ```
 
 ### Installation
@@ -77,12 +84,6 @@ ninja
 * `SimpleJSON` - Simple JSON parser
 * `cxxopts` - Lightweight commandline option parser
 * `matchit` - C++17 pattern matching
-
-### Resources
-
-* [Simple and Efficient Construction of Static Single
-Assignment Form](https://c9x.me/compile/bib/braun13cc.pdf)
-* [Engineering a compiler](https://shop.elsevier.com/books/engineering-a-compiler/cooper/978-0-12-815412-0)
 
 ### License
 

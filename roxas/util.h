@@ -15,7 +15,8 @@
  */
 
 #pragma once
-#include <filesystem>  // for path
+#include <filesystem> // for path
+#include <roxas/json.h>
 #include <sstream>     // for basic_stringstream, basic_ostream, stringstream
 #include <string>      // for allocator, char_traits, string
 #include <string_view> // for operator<<, string_view
@@ -34,6 +35,8 @@ namespace roxas {
 
 namespace util {
 
+json::JSON* unravel_nested_node_array(json::JSON* node);
+
 enum class Logging
 {
     INFO,
@@ -41,14 +44,6 @@ enum class Logging
     ERROR
 };
 
-/**
- * @brief Recursively converts tuple elements
- *  to string if << operator is defined
- *
- * @tparam Types
- * @param t
- * @return std::string
- */
 template<typename... Types>
 std::string tuple_to_string(std::tuple<Types...> const& t,
                             std::string_view separator = ", ")

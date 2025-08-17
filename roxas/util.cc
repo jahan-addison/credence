@@ -19,12 +19,31 @@
 #include <fstream>  // for basic_ifstream
 #include <iomanip>  // for operator<<, put_time
 #include <iostream> // for cout
+#include <roxas/json.h>
 #include <roxas/util.h>
 struct tm;
 
 namespace roxas {
 
 namespace util {
+
+json::JSON* unravel_nested_node_array(json::JSON* node)
+{
+    if (node->JSONType() == json::JSON::Class::Array) {
+        for (auto& child_node : node->ArrayRange()) {
+            if (child_node.JSONType() == json::JSON::Class::Array) {
+                if (child_node.ArrayRange().get()->at(0).JSONType() ==
+                        json::JSON::Class::Array and
+                    child_node.ArrayRange().get()->size() == 1) {
+                    return unravel_nested_node_array(&child_node);
+                } else {
+                    return &child_node;
+                }
+            }
+        }
+    }
+    return node;
+}
 
 /**
  * @brief read source file
