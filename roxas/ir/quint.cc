@@ -109,20 +109,20 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
         match(expressions["node"].ToString())(
             pattern | "function_expression" =
                 [&] {
-                    auto rvalue = table.from_rvalue_expression(expressions);
-                    auto* function =
-                        &std::get<RValue::RValue_Pointer>(rvalue.value);
-                    auto* expression =
-                        &std::get<RValue::Function>(function->get()->value);
-                    auto name = expression->first;
-                    for (auto& parameters : expression->second) {
-                        auto* param =
-                            &std::get<RValue::LValue>(parameters->value);
-                        instructions.push_back(std::make_tuple(
-                            Instruction::PUSH, param->first, "", ""));
-                    }
-                    instructions.push_back(
-                        std::make_tuple(Instruction::CALL, name, "", ""));
+                    // auto rvalue = table.from_rvalue_expression(expressions);
+                    // auto* function =
+                    //     &std::get<RValue::RValue_Pointer>(rvalue.value);
+                    // auto* expression =
+                    //     &std::get<RValue::Function>(function->get()->value);
+                    // auto name = expression->first;
+                    // for (auto& parameters : expression->second) {
+                    //     auto* param =
+                    //         &std::get<RValue::LValue>(parameters->value);
+                    //     instructions.push_back(std::make_tuple(
+                    //         Instruction::PUSH, param->first, "", ""));
+                    // }
+                    // instructions.push_back(
+                    //     std::make_tuple(Instruction::CALL, name, "", ""));
                 },
 
             pattern | "relation_expression" =

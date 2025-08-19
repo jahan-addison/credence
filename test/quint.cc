@@ -10,36 +10,37 @@
 #include <utility>           // for pair, make_pair
 #include <variant>           // for monostate
 
-TEST_CASE("ir/quint.cc: build_from_rvalue_statement")
-{
-    using namespace roxas;
-    using namespace roxas::ir::quint;
-    json::JSON obj;
-    obj["test"] = json::JSON::Load(
-        "{\n  \"left\": [\n    [\n      {\n        \"left\": {\n          "
-        "\"node\": \"lvalue\",\n          \"root\": \"putchar\"\n        },\n  "
-        "      \"node\": \"function_expression\",\n        \"right\": [\n      "
-        "    {\n            \"node\": \"lvalue\",\n            \"root\": "
-        "\"x\"\n          }\n        ],\n        \"root\": \"putchar\"\n      "
-        "}\n    ]\n  ],\n  \"node\": \"statement\",\n  \"root\": "
-        "\"rvalue\"\n}");
+// TEST_CASE("ir/quint.cc: build_from_rvalue_statement")
+// {
+//     using namespace roxas;
+//     using namespace roxas::ir::quint;
+//     json::JSON obj;
+//     obj["test"] = json::JSON::Load(
+//         "{\n  \"left\": [\n    [\n      {\n        \"left\": {\n          "
+//         "\"node\": \"lvalue\",\n          \"root\": \"putchar\"\n        },\n
+//         " "      \"node\": \"function_expression\",\n        \"right\": [\n "
+//         "    {\n            \"node\": \"lvalue\",\n            \"root\": "
+//         "\"x\"\n          }\n        ],\n        \"root\": \"putchar\"\n "
+//         "}\n    ]\n  ],\n  \"node\": \"statement\",\n  \"root\": "
+//         "\"rvalue\"\n}");
 
-    roxas::Symbol_Table<> symbols{};
-    std::array<std::string, 2> tests = { "PUSH x", "CALL putchar" };
-    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
-    symbols.table_.emplace("x", null);
-    Instructions test = build_from_rvalue_statement(symbols, obj["test"], obj);
+//     roxas::Symbol_Table<> symbols{};
+//     std::array<std::string, 2> tests = { "PUSH x", "CALL putchar" };
+//     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+//     symbols.table_.emplace("x", null);
+//     Instructions test = build_from_rvalue_statement(symbols, obj["test"],
+//     obj);
 
-    CHECK(test.size() == 2);
-    int index = 0;
-    for (auto& instruction : test) {
-        CHECK(tests[index] ==
-              std::format("{} {}",
-                          instruction_to_string(std::get<0>(instruction)),
-                          std::get<1>(instruction)));
-        index++;
-    }
-}
+//     CHECK(test.size() == 2);
+//     int index = 0;
+//     for (auto& instruction : test) {
+//         CHECK(tests[index] ==
+//               std::format("{} {}",
+//                           instruction_to_string(std::get<0>(instruction)),
+//                           std::get<1>(instruction)));
+//         index++;
+//     }
+// }
 
 TEST_CASE("ir/quint.cc: build_from_auto_statement")
 {

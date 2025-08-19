@@ -151,6 +151,8 @@ TEST_CASE("ir/table.cc: Table::rvalue_expression")
     RValue::Value null = { std::monostate(), type::Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("c", null);
+    temp.symbols_.table_.emplace("putchar", null);
+    temp.symbols_.table_.emplace("getchar", null);
 
     // check all
     for (auto& rvalue : obj["test"].ArrayRange()) {
@@ -177,6 +179,7 @@ TEST_CASE("ir/table.cc: Table::function_expression")
     RValue::Value null = { std::monostate(), type::Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("y", null);
+    temp.symbols_.table_.emplace("putchar", null);
     temp.symbols_.table_.emplace("z", null);
 
     auto test1 = temp.from_function_expression(obj["test"]);

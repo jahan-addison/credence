@@ -23,11 +23,10 @@
 
 namespace roxas {
 
-using RValue_Evaluation_Queue =
+using RValue_Queue =
     std::list<std::variant<type::Operator, type::RValue::Type_Pointer>>;
 
-RValue_Evaluation_Queue* rvalues_to_queue(
-    std::vector<type::RValue::Type_Pointer>& rvalues,
-    RValue_Evaluation_Queue* rvalues_queue);
+RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
+                               RValue_Queue* rvalues_queue);
 
 } // namespace roxas

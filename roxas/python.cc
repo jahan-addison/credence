@@ -44,7 +44,7 @@ PythonModuleLoader::PythonModuleLoader(std::string_view module_name)
 {
     std::ostringstream python_path;
     // Initialize the Python Interpreter
-    Py_Initialize();
+    Py_InitializeEx(0);
 
     PyRun_SimpleString("import sys");
     PyRun_SimpleString(python_path.str().c_str());
@@ -139,7 +139,7 @@ std::string PythonModuleLoader::call_method_on_module(
  */
 PythonModuleLoader::~PythonModuleLoader()
 {
-    Py_Finalize();
+    Py_FinalizeEx();
 }
 
 } // namespace roxas

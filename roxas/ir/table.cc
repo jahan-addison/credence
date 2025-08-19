@@ -126,8 +126,8 @@ RValue Table::from_function_expression(Node& node)
     for (auto& param : node["right"].ArrayRange()) {
         parameters.push_back(std::make_shared<RValue>(from_rvalue(param)));
     }
-    rvalue.value =
-        std::make_pair(node["left"]["root"].ToString(), std::move(parameters));
+    auto lhs = from_lvalue_expression(node["left"]);
+    rvalue.value = std::make_pair(lhs, std::move(parameters));
     return rvalue;
 }
 
@@ -154,7 +154,6 @@ RValue Table::from_evaluated_expression(Node& node)
 RValue Table::from_relation_expression(Node& node)
 {
     RValue rvalue{};
-
     assert(node["node"].ToString().compare("relation_expression") == 0);
     std::vector<RValue::RValue_Pointer> blocks{};
     if (node.hasKey("right") and
@@ -288,7 +287,7 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
             name = node["right"]["root"].ToString();
         else
             name = node["root"].ToString();
-        error("undefined value, did you forget to declare with "
+        error("undefined identifier, did you forget to declare with "
               "auto or extern?",
               name);
     }
