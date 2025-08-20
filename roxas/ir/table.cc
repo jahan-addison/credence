@@ -40,9 +40,6 @@ using namespace matchit;
 
 /**
  * @brief Throw program flow error
- *
- * @param message
- * @param object
  */
 void Table::error(std::string_view message, std::string_view symbol_name)
 {
@@ -64,9 +61,6 @@ void Table::error(std::string_view message, std::string_view symbol_name)
 
 /**
  * @brief Parse rvalues and temporaries into an algebraic type
- *
- * @param node
- * @return RValue
  */
 RValue Table::from_rvalue(Node& node)
 {
@@ -116,6 +110,9 @@ RValue Table::from_rvalue(Node& node)
     return rvalue;
 }
 
+/**
+ * @brief Build rvalue from function call expression
+ */
 RValue Table::from_function_expression(Node& node)
 {
     RValue rvalue{};
@@ -133,9 +130,6 @@ RValue Table::from_function_expression(Node& node)
 
 /**
  * @brief An rvalue or temporary wrapped in parenthesis, pre-evaluated
- *
- * @param node
- * @return RValue
  */
 RValue Table::from_evaluated_expression(Node& node)
 {
@@ -147,9 +141,6 @@ RValue Table::from_evaluated_expression(Node& node)
 
 /**
  * @brief Relation to sum type of operator and chain of rvalues
- *
- * @param node
- * @return RValue
  */
 RValue Table::from_relation_expression(Node& node)
 {
@@ -181,8 +172,6 @@ RValue Table::from_relation_expression(Node& node)
 
 /**
  * @brief Unary operator expression to algebraic pair
- * @param node
- * @return RValue
  */
 RValue Table::from_unary_expression(Node& node)
 {
@@ -243,10 +232,6 @@ RValue Table::from_unary_expression(Node& node)
 
 /**
  * @brief Parse assignment expression into pairs of left-hand-side and
- * right-hand-side
- *
- * @param node
- * @return std::pair<RValue, RValue>
  */
 RValue Table::from_assignment_expression(Node& node)
 {
@@ -271,9 +256,6 @@ RValue Table::from_assignment_expression(Node& node)
 
 /**
  * @brief Parse lvalue expression data types
- *
- * @param node
- * @return RValue::LValue
  */
 RValue::LValue Table::from_lvalue_expression(Node& node)
 {
@@ -316,9 +298,6 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
 
 /**
  * @brief Parse constant expression data types
- *
- * @param node
- * @return RValue
  */
 RValue::Value Table::from_constant_expression(Node& node)
 {
@@ -332,8 +311,6 @@ RValue::Value Table::from_constant_expression(Node& node)
 
 /**
  * @brief Parse lvalue to pointer data type
- * @param node
- * @return RValue
  */
 RValue::Value Table::from_indirect_identifier(Node& node)
 {
@@ -348,8 +325,6 @@ RValue::Value Table::from_indirect_identifier(Node& node)
 
 /**
  * @brief Parse fixed-size vector (array) lvalue
- *
- * @param node
  */
 RValue::Value Table::from_vector_idenfitier(Node& node)
 {
@@ -364,8 +339,6 @@ RValue::Value Table::from_vector_idenfitier(Node& node)
 
 /**
  * @brief Parse number literal node into symbols
- *
- * @param node
  */
 RValue::Value Table::from_number_literal(Node& node)
 {
@@ -376,8 +349,6 @@ RValue::Value Table::from_number_literal(Node& node)
 
 /**
  * @brief Parse string literal node into symbols
- *
- * @param node
  */
 RValue::Value Table::from_string_literal(Node& node)
 {
@@ -388,8 +359,6 @@ RValue::Value Table::from_string_literal(Node& node)
 
 /**
  * @brief Parse constant literal node into symbols
- *
- * @param node
  */
 RValue::Value Table::from_constant_literal(Node& node)
 {

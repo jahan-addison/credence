@@ -24,7 +24,7 @@
 #include <tuple>       // for apply
 #include <variant>     // for tuple
 
-// access specifier macros for Doctest
+// access specifier macros for Doctest unit tests
 #define ROXAS_PUBLIC public
 #if defined(DOCTEST_LIBRARY_INCLUDED)
 #define ROXAS_PRIVATE_UNLESS_TESTED public
@@ -83,9 +83,6 @@ namespace fs = std::filesystem;
 
 /**
  * @brief read a file from a fs::path
- *
- * @param path path to file
- * @return std::string
  */
 std::string read_file_from_path(fs::path path);
 

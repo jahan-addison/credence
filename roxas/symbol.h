@@ -63,9 +63,6 @@ class Symbol_Table
   public:
     /**
      * @brief Get a symbol by name in the symbol table
-     *
-     * @param name
-     * @return symbol_data
      */
     inline T get_symbol_by_name(std::string const& name)
     {
@@ -73,8 +70,6 @@ class Symbol_Table
     }
     /**
      * @brief Check if a symbol exists
-     *
-     * @param name
      */
     inline bool is_defined(std::string const& name) const
     {
@@ -82,9 +77,6 @@ class Symbol_Table
     }
     /**
      * @brief Get a symbol by name in the symbo table
-     *
-     * @param name
-     * @return symbol_data
      */
     inline void set_symbol_by_name(std::string const& name, T entry)
     {

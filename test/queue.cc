@@ -1,19 +1,19 @@
 #include <doctest/doctest.h> // for TestCase, TEST_CASE
-#include <iostream>          // for cout
-#include <matchit.h>
-#include <memory>  // for make_shared
-#include <ostream> // for basic_ostream, operator<<
-#include <ranges>
+#include <iostream>          // for ostringstream, cout
+#include <map>               // for map
+#include <memory>            // for allocator, shared_ptr, make_shared
 #include <roxas/ir/table.h>  // for Table
 #include <roxas/json.h>      // for JSON
-#include <roxas/operators.h> // for operator_to_string
-#include <roxas/queue.h>     // for Table
-#include <roxas/types.h>     // for RValue
-#include <roxas/util.h>      // for overload, unravel_nested_node_a...
-#include <sstream>
-#include <string>  // for basic_string, char_traits
-#include <variant> // for visit, monostate
-#include <vector>  // for vector
+#include <roxas/operators.h> // for operator<<, operator_to_string
+#include <roxas/queue.h>     // for rvalues_to_queue, RValue_Queue
+#include <roxas/symbol.h>    // for Symbol_Table
+#include <roxas/types.h>     // for RValue, Type_
+#include <roxas/util.h>      // for dump_value_type, overload
+#include <sstream>           // for basic_ostringstream
+#include <string>            // for basic_string, char_traits, string
+#include <utility>           // for pair
+#include <variant>           // for monostate, visit
+#include <vector>            // for vector
 
 std::string rvalue_to_string(roxas::type::RValue::Type& rvalue)
 {
@@ -40,12 +40,33 @@ std::string rvalue_to_string(roxas::type::RValue::Type& rvalue)
     return oss.str();
 }
 
+std::string queue_of_rvalues_to_string(roxas::RValue_Queue* rvalues_queue)
+{
+    using namespace roxas;
+    using namespace roxas::type;
+    auto oss = std::ostringstream();
+    for (auto& item : *rvalues_queue) {
+        std::visit(util::overload{ [&](type::Operator op) {
+                                      oss << type::operator_to_string(op)
+                                          << " ";
+                                  },
+                                   [&](type::RValue::Type_Pointer& s) {
+                                       oss << rvalue_to_string(*s);
+                                   }
+
+                   },
+                   item);
+    }
+    return oss.str();
+}
+
 TEST_CASE("ir/queue.cc: rvalues_to_queue")
 {
     using namespace roxas;
     using namespace roxas::type;
     json::JSON obj;
-    obj["simple"] = json::JSON::Load(
+
+    obj["complex"] = json::JSON::Load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"number_literal\",\n                    \"root\" : 5\n               "
         "   },\n                  \"node\" : \"relation_expression\",\n        "
@@ -53,21 +74,30 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           \"node\" : \"number_literal\",\n                      "
         "\"root\" : 5\n                    },\n                    \"node\" : "
         "\"relation_expression\",\n                    \"right\" : {\n         "
-        "             \"left\" : {\n                        \"node\" : "
-        "\"number_literal\",\n                        \"root\" : 4\n           "
-        "           },\n                      \"node\" : "
+        "             \"left\" : {\n                        \"left\" : {\n     "
+        "                     \"node\" : \"lvalue\",\n                         "
+        " \"root\" : \"exp\"\n                        },\n                     "
+        "   \"node\" : \"function_expression\",\n                        "
+        "\"right\" : [{\n                            \"node\" : "
+        "\"number_literal\",\n                            \"root\" : 2\n       "
+        "                   }, {\n                            \"node\" : "
+        "\"number_literal\",\n                            \"root\" : 5\n       "
+        "                   }],\n                        \"root\" : \"exp\"\n  "
+        "                    },\n                      \"node\" : "
         "\"relation_expression\",\n                      \"right\" : {\n       "
-        "                 \"left\" : {\n                          \"node\" : "
-        "\"number_literal\",\n                          \"root\" : 3\n         "
-        "               },\n                        \"node\" : "
-        "\"unary_expression\",\n                        \"root\" : [\"~\"]\n   "
-        "                   },\n                      \"root\" : [\"+\"]\n     "
-        "               },\n                    \"root\" : [\"-\"]\n           "
-        "       },\n                  \"root\" : [\"*\"]\n                }");
-
-    /* clang-format off */
-    obj["complex"] = json::JSON::Load("{\n                  \"left\" : {\n                    \"node\" : \"number_literal\",\n                    \"root\" : 5\n                  },\n                  \"node\" : \"relation_expression\",\n                  \"right\" : {\n                    \"left\" : {\n                      \"node\" : \"number_literal\",\n                      \"root\" : 5\n                    },\n                    \"node\" : \"relation_expression\",\n                    \"right\" : {\n                      \"left\" : {\n                        \"left\" : {\n                          \"node\" : \"lvalue\",\n                          \"root\" : \"exp\"\n                        },\n                        \"node\" : \"function_expression\",\n                        \"right\" : [{\n                            \"node\" : \"number_literal\",\n                            \"root\" : 2\n                          }, {\n                            \"node\" : \"number_literal\",\n                            \"root\" : 5\n                          }],\n                        \"root\" : \"exp\"\n                      },\n                      \"node\" : \"relation_expression\",\n                      \"right\" : {\n                        \"left\" : {\n                          \"left\" : {\n                            \"node\" : \"number_literal\",\n                            \"root\" : 4\n                          },\n                          \"node\" : \"unary_expression\",\n                          \"root\" : [\"~\"]\n                        },\n                        \"node\" : \"relation_expression\",\n                        \"right\" : {\n                          \"node\" : \"number_literal\",\n                          \"root\" : 2\n                        },\n                        \"root\" : [\"^\"]\n                      },\n                      \"root\" : [\"/\"]\n                    },\n                    \"root\" : [\"+\"]\n                  },\n                  \"root\" : [\"*\"]\n}");
-    /* clang-format on */
+        "                 \"left\" : {\n                          \"left\" : "
+        "{\n                            \"node\" : \"number_literal\",\n       "
+        "                     \"root\" : 4\n                          },\n     "
+        "                     \"node\" : \"unary_expression\",\n               "
+        "           \"root\" : [\"~\"]\n                        },\n           "
+        "             \"node\" : \"relation_expression\",\n                    "
+        "    \"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 2\n         "
+        "               },\n                        \"root\" : [\"^\"]\n       "
+        "               },\n                      \"root\" : [\"/\"]\n         "
+        "           },\n                    \"root\" : [\"+\"]\n               "
+        "   },\n                  \"root\" : [\"*\"]\n                }\n      "
+        "    ");
     obj["unary"] = json::JSON::Load(
         "{\n  \"left\": {\n    \"node\": \"number_literal\",\n    \"root\": "
         "5\n  },\n  \"node\": \"unary_expression\",\n  \"root\": [\n    "
@@ -134,23 +164,66 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     table.symbols_.table_.emplace("puts", null);
     table.symbols_.table_.emplace("y", null);
 
-    auto statement = obj["simple"];
-    std::cout << "JSON: " << statement.dump() << std::endl;
+    std::string complex_expected =
+        "(5:int:4) (5:int:4) exp (2:int:4) (5:int:4) PUSH PUSH CALL + * "
+        "(4:int:4) (2:int:4) ^ ~ / ";
+    std::string unary_expected = "(5:int:4) ~ ";
+    std::string equal_expected = "x (5:int:4) (5:int:4) + = ";
+    std::string unary_relation_expected = "(5:int:4) ~ (2:int:4) ^ ";
+    std::string ternary_expected =
+        "x (5:int:4) (4:int:4) (10:int:4) (1:int:4) ?: < = ";
+    std::string function_expected =
+        "puts (1:int:4) (2:int:4) (3:int:4) PUSH PUSH PUSH CALL ";
+
     std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(statement).value));
-    rvalues_to_queue(rvalues, &list);
-    for (auto& item : list) {
-        std::visit(util::overload{ [&](type::Operator op) {
-                                      std::cout << type::operator_to_string(op)
-                                                << " ";
-                                  },
-                                   [&](type::RValue::Type_Pointer& s) {
-                                       std::cout << rvalue_to_string(*s);
-                                   }
+    std::string test{};
 
-                   },
-                   item);
-    }
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["complex"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = queue_of_rvalues_to_string(&list);
+    CHECK(test == complex_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["unary"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = queue_of_rvalues_to_string(&list);
+    CHECK(test == unary_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["equal"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = queue_of_rvalues_to_string(&list);
+    CHECK(test == equal_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["unary_relation"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = queue_of_rvalues_to_string(&list);
+    CHECK(test == unary_relation_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["ternary"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = queue_of_rvalues_to_string(&list);
+    CHECK(test == ternary_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["function"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = queue_of_rvalues_to_string(&list);
+    CHECK(test == function_expected);
+    rvalues.clear();
+    list.clear();
 }

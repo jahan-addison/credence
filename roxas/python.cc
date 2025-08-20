@@ -36,8 +36,6 @@ namespace roxas {
 
 /**
  * @brief PythonModuleLoader constructor
- *
- * @param module_name the module name as a string
  */
 PythonModuleLoader::PythonModuleLoader(std::string_view module_name)
     : module_name_(module_name)
@@ -52,10 +50,6 @@ PythonModuleLoader::PythonModuleLoader(std::string_view module_name)
 
 /**
  * @brief Call a method on the python module and return the result
- *
- * @param method_name the method name
- * @param args initializer list of arguments to pass to the python method
- * @return std::string result of method call
  */
 std::string PythonModuleLoader::call_method_on_module(
     std::string_view method_name,

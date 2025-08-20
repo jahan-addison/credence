@@ -38,8 +38,6 @@ using namespace matchit;
 
 /**
  * @brief auto statement symbol construction
- *
- * @param node
  */
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
 {

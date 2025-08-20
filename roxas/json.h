@@ -14,6 +14,11 @@
  * limitations under the License.
  *
  */
+
+/**
+ * @brief Heavily-modified version of "SimpleJSON"
+ */
+
 #pragma once
 
 #include <algorithm>

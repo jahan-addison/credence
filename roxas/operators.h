@@ -87,12 +87,13 @@ static std::map<Operator, std::pair<Associativity, unsigned int>>
         // Left-to-right
         { Operator::POST_INC, { Associativity::LEFT_TO_RIGHT, 1 } },
         { Operator::POST_DEC, { Associativity::LEFT_TO_RIGHT, 1 } },
-        { Operator::U_CALL, { Associativity::LEFT_TO_RIGHT, 1 } },
-        { Operator::U_PUSH, { Associativity::LEFT_TO_RIGHT, 1 } },
         { Operator::U_SUBSCRIPT, { Associativity::LEFT_TO_RIGHT, 1 } },
+        { Operator::U_CALL, { Associativity::LEFT_TO_RIGHT, 1 } },
+
         // Right-to-left
         { Operator::PRE_INC, { Associativity::RIGHT_TO_LEFT, 2 } },
         { Operator::PRE_DEC, { Associativity::RIGHT_TO_LEFT, 2 } },
+        { Operator::U_PUSH, { Associativity::RIGHT_TO_LEFT, 2 } },
         { Operator::U_MINUS, { Associativity::RIGHT_TO_LEFT, 2 } },
         { Operator::U_NOT, { Associativity::RIGHT_TO_LEFT, 2 } },
         { Operator::U_ADDR_OF, { Associativity::RIGHT_TO_LEFT, 2 } },

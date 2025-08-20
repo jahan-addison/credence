@@ -35,9 +35,6 @@ namespace util {
 
 /**
  * @brief unwrap AST arrays with one child
- *
- * @param node
- * @return json::JSON*
  */
 json::JSON* unravel_nested_node_array(json::JSON* node)
 {
@@ -59,10 +56,6 @@ json::JSON* unravel_nested_node_array(json::JSON* node)
 
 /**
  * @brief RValue::Value tuple as a string
- *
- * @param type
- * @param separator
- * @return std::string
  */
 std::string dump_value_type(type::RValue::Value type,
                             std::string_view separator)
@@ -123,9 +116,6 @@ std::string dump_value_type(type::RValue::Value type,
 
 /**
  * @brief read source file
- *
- * @param path path to file
- * @return std::string
  */
 std::string read_file_from_path(fs::path path)
 {
@@ -140,9 +130,6 @@ std::string read_file_from_path(fs::path path)
 
 /**
  * @brief log function
- *
- * @param level Logging log level
- * @param message log message
  */
 void log(Logging level, std::string_view message)
 {
