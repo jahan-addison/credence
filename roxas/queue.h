@@ -21,6 +21,16 @@
 #include <variant>           // for variant
 #include <vector>            // for vector
 
+/**
+ * o  o  o  TOOT  TOOT  o  o O  O             O  O o  o  TOOT  TOOT  o  o  o
+ *                ,_____  ____    O         O    ____  _____.
+ *                |     \_|[]|_'__Y         Y__`_|[]|_/     |
+ *                |_______|__|_|__|}       {|__|_|__|_______|
+ *================oo--oo==oo--OOO\\=======//OOO--oo==oo--oo==================
+ *------------------------------------------------
+ *
+ */
+
 namespace roxas {
 
 using RValue_Queue =

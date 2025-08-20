@@ -14,15 +14,34 @@
  * limitations under the License.
  */
 
-#include <cstddef>           // for size_t
-#include <memory>            // for make_shared, shared_ptr
-#include <roxas/operators.h> // for get_precedence, is_left_associative
+// clang-format off
 #include <roxas/queue.h>
-#include <roxas/types.h> // for RValue
-#include <roxas/util.h>  // for overload
-#include <stack>         // for stack
-#include <string>        // for basic_string
-#include <variant>       // for variant, monostate, visit
+#include <roxas/operators.h>  // for Operator, get_precedence, is_left_assoc...
+#include <roxas/types.h>      // for RValue
+#include <roxas/util.h>       // for overload
+#include <algorithm>          // for copy, max
+#include <memory>             // for make_shared, shared_ptr, __shared_ptr_a...
+#include <stack>              // for stack
+#include <variant>            // for variant, visit, monostate
+// clang-format on
+
+/**************************************************************************
+ *
+ *                      (+++++++++++)
+ *                 (++++)
+ *              (+++)
+ *            (+++)
+ *           (++)
+ *           [~]
+ *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
+ *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
+ *      [|  %___________________           | |~~~~~~~~            |
+ *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
+ *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
+ *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
+ *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *------------------------------------------------
+ ***************************************************************************/
 
 namespace roxas {
 

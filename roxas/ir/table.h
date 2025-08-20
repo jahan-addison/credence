@@ -17,23 +17,21 @@
 #pragma once
 
 #include <array>          // for array
+#include <deque>          // for deque
+#include <map>            // for map
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
 #include <roxas/types.h>  // for RValue
 #include <roxas/util.h>   // for ROXAS_PRIVATE_UNLESS_TESTED
-#include <string>         // for basic_string, string
+#include <string>         // for allocator, basic_string, string
 #include <string_view>    // for string_view
 
 namespace roxas {
 namespace ir {
 using namespace roxas::type;
-/* clang-format off */
 
 /**
- * @brief
- *
- * Constructs a table of rvalues and temporaries as algebraic data types
- *
+ * @brief Constructs a table of rvalues and temporaries as algebraic data types
  */
 class Table
 {
@@ -42,7 +40,7 @@ class Table
     Table& operator=(Table const&) = delete;
 
     using Node = json::JSON;
-
+    /* clang-format off */
   public:
     explicit Table(json::JSON const& internal_symbols,
                    Symbol_Table<> const& symbols = {})

@@ -1,7 +1,8 @@
-#include <doctest/doctest.h> // for TestCase, TEST_CASE
-#include <iostream>          // for ostringstream, cout
+#include <algorithm>         // for max
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
+#include <list>              // for operator==, _List_iterator
 #include <map>               // for map
-#include <memory>            // for allocator, shared_ptr, make_shared
+#include <memory>            // for allocator, make_shared, __shared_ptr_ac...
 #include <roxas/ir/table.h>  // for Table
 #include <roxas/json.h>      // for JSON
 #include <roxas/operators.h> // for operator<<, operator_to_string
@@ -9,10 +10,10 @@
 #include <roxas/symbol.h>    // for Symbol_Table
 #include <roxas/types.h>     // for RValue, Type_
 #include <roxas/util.h>      // for dump_value_type, overload
-#include <sstream>           // for basic_ostringstream
-#include <string>            // for basic_string, char_traits, string
+#include <sstream>           // for basic_ostream, basic_ostringstream, ope...
+#include <string>            // for char_traits, operator<<, basic_string
 #include <utility>           // for pair
-#include <variant>           // for monostate, visit
+#include <variant>           // for visit, monostate, variant
 #include <vector>            // for vector
 
 std::string rvalue_to_string(roxas::type::RValue::Type& rvalue)

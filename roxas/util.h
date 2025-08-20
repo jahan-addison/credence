@@ -15,14 +15,17 @@
  */
 
 #pragma once
-#include <filesystem> // for path
-#include <roxas/json.h>
-#include <roxas/types.h>
-#include <sstream>     // for basic_stringstream, basic_ostream, stringstream
-#include <string>      // for allocator, char_traits, string
-#include <string_view> // for operator<<, string_view
-#include <tuple>       // for apply
-#include <variant>     // for tuple
+
+// clang-format off
+#include <roxas/types.h>  // for RValue
+#include <filesystem>     // for path
+#include <sstream>        // for basic_stringstream, basic_ostream, stringst...
+#include <string>         // for allocator, char_traits, string
+#include <string_view>    // for operator<<, string_view
+#include <tuple>          // for apply
+#include <variant>        // for tuple
+namespace json { class JSON; }
+// clang-format on
 
 // access specifier macros for Doctest unit tests
 #define ROXAS_PUBLIC public
