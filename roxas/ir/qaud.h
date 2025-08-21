@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <deque>          // for deque
 #include <map>            // for map
 #include <ostream>        // for basic_ostream, operator<<
 #include <roxas/json.h>   // for JSON
@@ -29,7 +30,7 @@ namespace roxas {
 
 namespace ir {
 
-namespace quint {
+namespace qaud {
 
 using Node = json::JSON;
 
@@ -56,7 +57,7 @@ using Quadruple =
 static type::Value_Type NULL_DATA_TYPE = { std::monostate(),
                                            type::Type_["null"] };
 
-using Instructions = std::vector<Quadruple>;
+using Instructions = std::deque<Quadruple>;
 
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
@@ -68,10 +69,6 @@ std::vector<std::string> build_from_rvalue_expression(
 
 /**
  * @brief Instruction_Operator enum type << operator overload
- *
- * @param os
- * @param op
- * @return std::ostream&
  */
 inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
 {
@@ -83,7 +80,10 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
             os << "EndFunc";
             break;
         case Instruction::LABEL:
+            break;
         case Instruction::VARIABLE:
+            os << "=";
+            break;
         case Instruction::NOOP:
             os << "";
             break;
@@ -119,7 +119,13 @@ inline std::string instruction_to_string(Instruction op)
     return os.str();
 }
 
-} // namespace quint
+inline void emit_quadruple(std::ostream& os, Quadruple qaud)
+{
+    os << std::get<1>(qaud) << " " << std::get<0>(qaud) << " "
+       << std::get<2>(qaud) << std::get<3>(qaud) << ";" << std::endl;
+}
+
+} // namespace qaud
 
 } // namespace ir
 

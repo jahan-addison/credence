@@ -18,6 +18,7 @@
 
 // clang-format off
 #include <roxas/types.h>  // for RValue
+#include <roxas/queue.h>  // for RValue
 #include <filesystem>     // for path
 #include <sstream>        // for basic_stringstream, basic_ostream, stringst...
 #include <string>         // for allocator, char_traits, string
@@ -43,6 +44,11 @@ json::JSON* unravel_nested_node_array(json::JSON* node);
 
 std::string dump_value_type(type::RValue::Value,
                             std::string_view separator = ":");
+
+std::string rvalue_to_string(type::RValue::Type const& rvalue,
+                             bool separate = true);
+
+std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue);
 
 enum class Logging
 {

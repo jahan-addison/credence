@@ -1,65 +1,18 @@
-#include <algorithm>         // for max
-#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
-#include <list>              // for operator==, _List_iterator
-#include <map>               // for map
-#include <memory>            // for allocator, make_shared, __shared_ptr_ac...
-#include <roxas/ir/table.h>  // for Table
-#include <roxas/json.h>      // for JSON
-#include <roxas/operators.h> // for operator<<, operator_to_string
-#include <roxas/queue.h>     // for rvalues_to_queue, RValue_Queue
-#include <roxas/symbol.h>    // for Symbol_Table
-#include <roxas/types.h>     // for RValue, Type_
-#include <roxas/util.h>      // for dump_value_type, overload
-#include <sstream>           // for basic_ostream, basic_ostringstream, ope...
-#include <string>            // for char_traits, operator<<, basic_string
-#include <utility>           // for pair
-#include <variant>           // for visit, monostate, variant
-#include <vector>            // for vector
-
-std::string rvalue_to_string(roxas::type::RValue::Type& rvalue)
-{
-    using namespace roxas::type;
-    auto oss = std::ostringstream();
-    std::visit(roxas::util::overload{
-                   [&](std::monostate) {},
-                   [&](RValue::RValue_Pointer&) {},
-                   [&](RValue::Value& s) {
-                       oss << roxas::util::dump_value_type(s) << " ";
-                   },
-                   [&](RValue::LValue& s) { oss << s.first << " "; },
-                   [&](RValue::Unary& s) {
-                       oss << s.first << rvalue_to_string(s.second->value);
-                   },
-                   [&](RValue::Relation& s) {
-                       for (auto& relation : s.second) {
-                           oss << rvalue_to_string(relation->value) << " ";
-                       }
-                   },
-                   [&](RValue::Function& s) { oss << s.first.first << " "; },
-                   [&](RValue::Symbol& s) { oss << s.first.first << " "; } },
-               rvalue);
-    return oss.str();
-}
-
-std::string queue_of_rvalues_to_string(roxas::RValue_Queue* rvalues_queue)
-{
-    using namespace roxas;
-    using namespace roxas::type;
-    auto oss = std::ostringstream();
-    for (auto& item : *rvalues_queue) {
-        std::visit(util::overload{ [&](type::Operator op) {
-                                      oss << type::operator_to_string(op)
-                                          << " ";
-                                  },
-                                   [&](type::RValue::Type_Pointer& s) {
-                                       oss << rvalue_to_string(*s);
-                                   }
-
-                   },
-                   item);
-    }
-    return oss.str();
-}
+// clang-format off
+#include <vector>             // for vector
+#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase, TEST_CASE
+#include <roxas/ir/table.h>   // for Table
+#include <roxas/json.h>       // for JSON
+#include <roxas/queue.h>      // for rvalues_to_queue, RValue_Queue
+#include <roxas/symbol.h>     // for Symbol_Table
+#include <roxas/types.h>      // for RValue, Type_
+#include <roxas/util.h>       // for queue_of_rvalues_to_string
+#include <map>                // for map
+#include <memory>             // for make_shared
+#include <string>             // for basic_string, string
+#include <utility>            // for pair
+#include <variant>            // for monostate
+// clang-format on
 
 TEST_CASE("ir/queue.cc: rvalues_to_queue")
 {
@@ -183,7 +136,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["complex"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == complex_expected);
     rvalues.clear();
     list.clear();
@@ -191,7 +144,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["unary"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == unary_expected);
     rvalues.clear();
     list.clear();
@@ -199,7 +152,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["equal"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == equal_expected);
     rvalues.clear();
     list.clear();
@@ -207,7 +160,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["unary_relation"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == unary_relation_expected);
     rvalues.clear();
     list.clear();
@@ -215,7 +168,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["ternary"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == ternary_expected);
     rvalues.clear();
     list.clear();
@@ -223,7 +176,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["function"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == function_expected);
     rvalues.clear();
     list.clear();

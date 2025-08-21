@@ -17,6 +17,8 @@
 // clang-format off
 #include <roxas/util.h>
 #include <roxas/json.h>   // for JSON
+#include <roxas/queue.h>  // for RValue_Queue
+#include <sstream>        // for basic_ostream, basic_ostringstream, ope...
 #include <roxas/types.h>  // for Type_, RValue, Byte
 #include <ctime>          // for localtime, time_t, tm
 #include <deque>          // for deque, operator==, _Deque_iterator
@@ -35,24 +37,55 @@ namespace roxas {
 namespace util {
 
 /**
- * @brief unwrap AST arrays with one child
+ * @brief Rvalue type to string of it unwrapped data
  */
-json::JSON* unravel_nested_node_array(json::JSON* node)
+std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
 {
-    if (node->JSONType() == json::JSON::Class::Array) {
-        for (auto& child_node : node->ArrayRange()) {
-            if (child_node.JSONType() == json::JSON::Class::Array) {
-                if (child_node.ArrayRange().get()->at(0).JSONType() ==
-                        json::JSON::Class::Array and
-                    child_node.ArrayRange().get()->size() == 1) {
-                    return unravel_nested_node_array(&child_node);
-                } else {
-                    return &child_node;
+    using namespace roxas::type;
+    auto oss = std::ostringstream();
+    auto space = separate ? " " : "";
+    std::visit(
+        util::overload{
+            [&](std::monostate) {},
+            [&](RValue::RValue_Pointer const&) {},
+            [&](RValue::Value const& s) {
+                oss << util::dump_value_type(s) << space;
+            },
+            [&](RValue::LValue const& s) { oss << s.first << space; },
+            [&](RValue::Unary const& s) {
+                oss << s.first << rvalue_to_string(s.second->value) << space;
+            },
+            [&](RValue::Relation const& s) {
+                for (auto& relation : s.second) {
+                    oss << rvalue_to_string(relation->value) << space;
                 }
-            }
-        }
+            },
+            [&](RValue::Function const& s) { oss << s.first.first << space; },
+            [&](RValue::Symbol const& s) { oss << s.first.first << space; } },
+        rvalue);
+    return oss.str();
+}
+
+/**
+ * @brief Queue to string of operators and operands in reverse-polish notaiton
+ */
+std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue)
+{
+    using namespace type;
+    auto oss = std::ostringstream();
+    for (auto& item : *rvalues_queue) {
+        std::visit(util::overload{ [&](type::Operator op) {
+                                      oss << type::operator_to_string(op)
+                                          << " ";
+                                  },
+                                   [&](type::RValue::Type_Pointer& s) {
+                                       oss << rvalue_to_string(*s);
+                                   }
+
+                   },
+                   item);
     }
-    return node;
+    return oss.str();
 }
 
 /**

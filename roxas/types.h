@@ -92,6 +92,12 @@ struct RValue
     Type value;
 };
 
+inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
+    RValue::Type rvalue_type)
+{
+    return std::make_shared<type::RValue::Type>(rvalue_type);
+}
+
 } // namespace type
 
 } // namespace roxas
