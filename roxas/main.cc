@@ -53,7 +53,7 @@ int main(int argc, const char* argv[])
 
         if (result.count("help")) {
             std::cout << options.help() << std::endl;
-            return 0;
+            exit(0);
         }
 
         json::JSON ast;
@@ -69,12 +69,17 @@ int main(int argc, const char* argv[])
             if (result["debug"].count()) {
                 auto symbol_table = python_module.call_method_on_module(
                     "get_source_program_symbol_table_as_json", { source });
+                if (symbol_table.empty())
+                    exit(1);
                 std::cout << "*** Symbol Table:" << std::endl
                           << json::JSON::Load(symbol_table) << std::endl;
             }
 
             auto ast_as_json = python_module.call_method_on_module(
                 "get_source_program_ast_as_json", { source });
+
+            if (ast_as_json.empty())
+                exit(1);
 
             ast["root"] = json::JSON::Load(ast_as_json);
 
@@ -88,7 +93,7 @@ int main(int argc, const char* argv[])
             std::cout << ast["root"] << std::endl;
         }
     } catch (std::runtime_error& e) {
-        std::cerr << "Runtime Exception :: " << e.what() << std::endl;
+        std::cerr << "Roxas Exception :: " << e.what() << std::endl;
         exit(1);
     }
     return 0;

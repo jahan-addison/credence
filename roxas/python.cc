@@ -61,34 +61,34 @@ std::string PythonModuleLoader::call_method_on_module(
     // Load the module object
     pModule = PyImport_ImportModule(module_name_.data());
 
-    if (pModule == NULL) {
-        throw std::runtime_error("memory error: failed to allocate pModule");
+    if (!pModule) {
+        PyErr_Print();
+        Py_DECREF(pModule);
     }
 
     // pDict is a borrowed reference
     pDict = PyModule_GetDict(pModule);
 
-    if (pDict == NULL) {
-        Py_DECREF(pModule);
-        throw std::runtime_error("memory error: failed to allocate pDict");
+    if (!pDict) {
+        Py_DECREF(pDict);
+        PyErr_Print();
     }
 
     vModule = PyDict_GetItemString(pDict, "__name__");
 
-    if (vModule == NULL) {
+    if (!vModule) {
         Py_DECREF(pModule);
         Py_DECREF(pDict);
-        throw std::runtime_error(
-            "memory error: failed to allocate module name");
+        PyErr_Print();
     }
 
     // pFunc is also a borrowed reference
     pFunc = PyDict_GetItemString(pDict, method_name.data());
 
-    if (pFunc == NULL) {
+    if (!pFunc) {
         Py_DECREF(pModule);
         Py_DECREF(pDict);
-        throw std::runtime_error("memory error: failed to allocate pFunc");
+        PyErr_Print();
     }
 
     if (PyCallable_Check(pFunc)) {
@@ -112,14 +112,13 @@ std::string PythonModuleLoader::call_method_on_module(
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
             Py_DECREF(pValue);
         } else {
-            throw std::runtime_error("memory error: failed to allocate pValue");
+            PyErr_Print();
         }
         if (pArgs != NULL) {
             Py_DECREF(pArgs);
         }
     } else {
-        throw std::runtime_error(
-            "error: pFunc not callable object in python interface");
+        PyErr_Print();
     }
     Py_DECREF(pModule);
     Py_DECREF(pDict);
