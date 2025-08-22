@@ -17,18 +17,18 @@
 // clang-format off
 #include <roxas/ir/qaud.h>
 #include <assert.h>           // for assert
-#include <matchit.h>          // for pattern, PatternHelper, PatternPipable
+#include <matchit.h>          // for pattern, match, PatternHelper, PatternP...
 #include <roxas/ir/table.h>   // for Table
 #include <roxas/json.h>       // for JSON
 #include <roxas/operators.h>  // for Operator, operator_to_string
 #include <roxas/queue.h>      // for RValue_Queue, rvalues_to_queue
 #include <roxas/symbol.h>     // for Symbol_Table
 #include <roxas/types.h>      // for RValue, rvalue_type_pointer_from_rvalue
-#include <roxas/util.h>       // for rvalue_to_string, overload, queue_of_rv...
-#include <deque>              // for deque
-#include <format>             // for format
-#include <iostream>           // for cout
-#include <memory>             // for shared_ptr, make_shared
+#include <roxas/util.h>       // for rvalue_to_string, overload
+#include <deque>              // for deque, operator==, _Deque_iterator
+#include <format>             // for format, format_string
+#include <list>               // for operator==, _List_iterator
+#include <memory>             // for __shared_ptr_access, shared_ptr
 #include <stack>              // for stack
 #include <stdexcept>          // for runtime_error
 #include <utility>            // for pair, make_pair
@@ -45,10 +45,12 @@ using namespace type;
 
 namespace detail {
 
+using LValue_Instruction = std::pair<std::string, Instructions>;
+
 inline void instruction_error(type::Operator op)
 {
     throw std::runtime_error(
-        std::format("syntax error: invalid stack for operator \"{}\"",
+        std::format("runtime error: invalid stack for operator \"{}\"",
                     type::operator_to_string(op)));
 }
 
@@ -66,7 +68,7 @@ inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
     return make_quadruple(Instruction::VARIABLE, lhs, temp);
 }
 
-std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
+LValue_Instruction instruction_temporary_from_rvalue_operand(
     RValue::Type_Pointer& operand,
     int* temporary_size)
 {
@@ -123,6 +125,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                     temp_name = std::get<1>(relation);
 
                 } else if (s.second.size() == 4) {
+                    // ternary
                 }
             },
             [&](RValue::Function&) {},
@@ -132,10 +135,59 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
     return std::make_pair(temp_name, instructions);
 }
 
-Instructions rvalue_queue_to_instructions(RValue_Queue* queue)
+void binary_operands_to_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
+    Operator op,
+    int* temporary)
+{
+    if (operand_stack.size() < 2)
+        instruction_error(op);
+    if (temporary_stack.size() >= 2) {
+        auto lhs = temporary_stack.top();
+        temporary_stack.pop();
+        auto rhs = temporary_stack.top();
+        temporary_stack.pop();
+        temporary_stack.push(
+            std::format("{} {} {}", lhs, operator_to_string(op), rhs));
+    } else if (temporary_stack.size() == 1) {
+        auto operand1 = operand_stack.top();
+        operand_stack.pop();
+        auto lhs = temporary_stack.top();
+        temporary_stack.pop();
+        auto rhs =
+            instruction_temporary_from_rvalue_operand(operand1, temporary);
+        instructions.insert(
+            instructions.end(), rhs.second.begin(), rhs.second.end());
+        auto temp_lhs = make_temporary(temporary, lhs);
+        instructions.push_back(temp_lhs);
+        temporary_stack.push(std::format("{} {} {}",
+                                         rhs.first,
+                                         operator_to_string(op),
+                                         std::get<1>(temp_lhs)));
+
+    } else {
+        auto operand1 = operand_stack.top();
+        operand_stack.pop();
+        auto operand2 = operand_stack.top();
+        operand_stack.pop();
+        auto rhs =
+            instruction_temporary_from_rvalue_operand(operand1, temporary);
+        auto lhs =
+            instruction_temporary_from_rvalue_operand(operand2, temporary);
+        instructions.insert(
+            instructions.end(), rhs.second.begin(), rhs.second.end());
+        instructions.insert(
+            instructions.end(), lhs.second.begin(), lhs.second.end());
+        temporary_stack.push(std::format(
+            "{} {} {}", lhs.first, operator_to_string(op), rhs.first));
+    }
+}
+
+Instructions rvalue_queue_to_instructions(RValue_Queue* queue, int* temporary)
 {
     Instructions instructions{};
-    int temporary{ 0 };
     std::stack<std::string> temporary_stack{};
     std::stack<type::RValue::Type_Pointer> operand_stack{};
     for (auto& item : *queue) {
@@ -144,58 +196,100 @@ Instructions rvalue_queue_to_instructions(RValue_Queue* queue)
                 [&](type::Operator op) {
                     switch (op) {
                         // relational operators
-                        case Operator::R_EQUAL: // two operands
-                        {
-                            if (operand_stack.size() < 2)
-                                instruction_error(op);
-                            auto operand1 = operand_stack.top();
-                            operand_stack.pop();
-                            auto operand2 = operand_stack.top();
-                            operand_stack.pop();
-                            auto lhs =
-                                instruction_temporary_from_rvalue_operand(
-                                    operand1, &temporary);
-                            auto rhs =
-                                instruction_temporary_from_rvalue_operand(
-                                    operand2, &temporary);
-                            // add lhs and rhs temporaries
-                            instructions.insert(instructions.end(),
-                                                lhs.second.begin(),
-                                                lhs.second.end());
-                            instructions.insert(instructions.end(),
-                                                rhs.second.begin(),
-                                                rhs.second.end());
-                            temporary_stack.push(std::format(
-                                "{} {} {}",
-                                lhs.first,
-                                operator_to_string(Operator::R_EQUAL),
-                                rhs.first));
-                        } break;
+                        case Operator::R_EQUAL:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
+
+                            break;
                         case Operator::R_NEQUAL:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::R_LT:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::R_GT:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::R_LE:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::R_GE:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::R_OR:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
+
                             break;
                         case Operator::R_AND:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
 
                         // math binary operators
                         case Operator::B_SUBTRACT:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::B_ADD:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::B_MOD:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::B_MUL:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
                         case Operator::B_DIV:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
                             break;
 
                         // unary increment/decrement
@@ -248,7 +342,7 @@ Instructions rvalue_queue_to_instructions(RValue_Queue* queue)
                                 operand_stack.pop();
                                 auto lhs =
                                     instruction_temporary_from_rvalue_operand(
-                                        lvalue, &temporary);
+                                        lvalue, temporary);
                                 instructions.insert(instructions.end(),
                                                     lhs.second.begin(),
                                                     lhs.second.end());
@@ -261,10 +355,10 @@ Instructions rvalue_queue_to_instructions(RValue_Queue* queue)
                                 operand_stack.pop();
                                 auto lhs =
                                     instruction_temporary_from_rvalue_operand(
-                                        operand2, &temporary);
+                                        operand2, temporary);
                                 auto rhs =
                                     instruction_temporary_from_rvalue_operand(
-                                        operand1, &temporary);
+                                        operand1, temporary);
                                 instructions.insert(instructions.end(),
                                                     lhs.second.begin(),
                                                     lhs.second.end());
@@ -330,11 +424,14 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
 {
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("rvalue") == 0);
+    int temporary{ 0 };
+    Instructions instructions{};
     assert(node.hasKey("left"));
     std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
     auto statement = node["left"];
     Table table{ details, symbols };
+    // for each line:
     for (auto& expression : statement.ArrayRange()) {
         if (expression.JSONType() == json::JSON::Class::Array) {
             for (auto& rvalue : expression.ArrayRange()) {
@@ -345,9 +442,13 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
             rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
                 table.from_rvalue(expression).value));
         }
+        rvalues_to_queue(rvalues, &list);
+        auto line = detail::rvalue_queue_to_instructions(&list, &temporary);
+        instructions.insert(instructions.end(), line.begin(), line.end());
+        rvalues.clear();
+        list.clear();
     }
-    rvalues_to_queue(rvalues, &list);
-    return detail::rvalue_queue_to_instructions(&list);
+    return instructions;
 }
 
 } // namespace qaud

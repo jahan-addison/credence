@@ -1,15 +1,18 @@
-#include <array>
-#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CA...
-#include <format>            // For std::format
-#include <map>               // for map
-#include <roxas/ir/qaud.h>   // for build_from_auto_statement
-#include <roxas/json.h>      // for JSON
-#include <roxas/symbol.h>    // for Symbol_Table
-#include <roxas/types.h>     // for Value_Type, Type_, Byte
-#include <roxas/util.h>
-#include <string>  // for basic_string
-#include <utility> // for pair, make_pair
-#include <variant> // for monostate
+// clang-format off
+#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase, TEST_CASE
+#include <roxas/ir/qaud.h>    // for build_from_auto_statement, build_from_r...
+#include <roxas/json.h>       // for JSON
+#include <roxas/symbol.h>     // for Symbol_Table
+#include <roxas/types.h>      // for Type_, Value_Type, Byte, RValue
+#include <array>              // for array
+#include <deque>              // for operator==, _Deque_iterator
+#include <iostream>           // for cout
+#include <map>                // for map
+#include <string>             // for allocator, operator<=>, operator==, bas...
+#include <tuple>              // for tuple
+#include <utility>            // for pair, make_pair, operator==
+#include <variant>            // for operator==, monostate
+// clang-format on
 
 TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
 {
@@ -69,6 +72,59 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "},\n                  \"root\" : [\"=\", null]\n                "
         "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
         "\"rvalue\"\n          }");
+    obj["nested_binary"] = json::JSON::Load(
+        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 3\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"y\"\n                 "
+        "   },\n                    \"node\" : \"relation_expression\",\n      "
+        "              \"right\" : {\n                      \"left\" : {\n     "
+        "                   \"node\" : \"number_literal\",\n                   "
+        "     \"root\" : 3\n                      },\n                      "
+        "\"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"left\" : {\n                          "
+        "\"node\" : \"lvalue\",\n                          \"root\" : \"y\"\n  "
+        "                      },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 2\n                        },\n                   "
+        "     \"root\" : [\">\"]\n                      },\n                   "
+        "   \"root\" : [\"&&\"]\n                    },\n                    "
+        "\"root\" : [\"==\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }");
+    obj["nested_or"] = json::JSON::Load(
+        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 3\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 1\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"left\" : {\n "
+        "                       \"node\" : \"number_literal\",\n               "
+        "         \"root\" : 2\n                      },\n                     "
+        " \"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"node\" : \"number_literal\",\n         "
+        "               \"root\" : 3\n                      },\n               "
+        "       \"root\" : [\"||\"]\n                    },\n                  "
+        "  \"root\" : [\"||\"]\n                  },\n                  "
+        "\"root\" : [\"=\", null]\n                }]],\n            \"node\" "
+        ": \"statement\",\n            \"root\" : \"rvalue\"\n          }");
     roxas::Symbol_Table<> symbols{};
     std::array<std::string, 2> tests = { "PUSH x", "CALL putchar" };
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
@@ -78,7 +134,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
     symbols.table_.emplace("puts", null);
     symbols.table_.emplace("y", null);
     auto instructions =
-        build_from_rvalue_statement(symbols, obj["rvalue_statement"], obj);
+        build_from_rvalue_statement(symbols, obj["nested_or"], obj);
     for (auto const& inst : instructions) {
         emit_quadruple(std::cout, inst);
     }

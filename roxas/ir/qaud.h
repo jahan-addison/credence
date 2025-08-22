@@ -16,16 +16,15 @@
 #pragma once
 #include <deque>          // for deque
 #include <map>            // for map
-#include <ostream>        // for basic_ostream, operator<<
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
 #include <roxas/types.h>  // for Value_Type, RValue, Type_
-#include <sstream>        // for basic_ostringstream, ostream
-#include <string>         // for basic_string, allocator, char_t...
-#include <tuple>          // for tuple
+#include <sstream>        // for operator<<, basic_ostream, basic_ostringst...
+#include <string>         // for allocator, char_traits, operator<<, string
+#include <tuple>          // for get, tuple
+#include <utility>        // for pair
 #include <variant>        // for monostate
 #include <vector>         // for vector
-
 namespace roxas {
 
 namespace ir {
