@@ -49,7 +49,7 @@ void Table::error(std::string_view message, std::string_view symbol_name)
     auto symbol = symbol_name.data();
     if (internal_symbols_.hasKey(symbol)) {
         throw std::runtime_error(
-            std::format("Parsing error :: \"{}\" {}\n\t"
+            std::format("Runtime error :: \"{}\" {}\n\t"
                         "on line {} in column {} :: {}",
                         symbol,
                         message,
@@ -58,7 +58,7 @@ void Table::error(std::string_view message, std::string_view symbol_name)
                         internal_symbols_[symbol]["end_column"].ToInt()));
     } else {
         throw std::runtime_error(
-            std::format("Parsing error :: \"{}\" {}", symbol, message));
+            std::format("Runtime error :: \"{}\" {}", symbol, message));
     }
 }
 
@@ -263,6 +263,7 @@ RValue Table::from_assignment_expression(Node& node)
 RValue::LValue Table::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
+
     if (!symbols_.is_defined(node["root"].ToString()) and
         !symbols_.is_defined(node["left"]["root"].ToString())) {
         std::string name{};
@@ -272,9 +273,16 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
             name = node["right"]["root"].ToString();
         else
             name = node["root"].ToString();
-        error("undefined identifier, did you forget to declare with "
-              "auto or extern?",
-              name);
+        // hoist function definitions from the internal symbol table to a word
+        if (internal_symbols_.hasKey(name) &&
+            internal_symbols_.at(name)["type"].ToString() !=
+                "function_definition")
+            error("identifier not defined, did you forget to declare with "
+                  "auto or extern, or meant to call a function?",
+                  name);
+        else
+            symbols_.set_symbol_by_name(name,
+                                        { "__WORD__", type::Type_["word"] });
     }
     RValue::LValue lvalue{};
     match(node["node"].ToString())(

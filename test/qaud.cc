@@ -14,6 +14,115 @@
 #include <variant>            // for operator==, monostate
 // clang-format on
 
+TEST_CASE("ir/qaud.cc: build_from_function_definition")
+{
+    using namespace roxas;
+    using namespace roxas::ir;
+    json::JSON obj;
+    auto internal_symbols = json::JSON::Load(
+        "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
+        "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
+        "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
+        "\"end_column\" : 4,\n    \"end_pos\" : 52,\n    \"line\" : 6,\n    "
+        "\"start_pos\" : 49,\n    \"type\" : \"function_definition\"\n  },\n  "
+        "\"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n    "
+        "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
+        "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    \"column\" "
+        ": 8,\n    \"end_column\" : 9,\n    \"end_pos\" : 20,\n    \"line\" : "
+        "2,\n    \"start_pos\" : 19,\n    \"type\" : \"lvalue\"\n  },\n  \"y\" "
+        ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
+        "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
+        "\"lvalue\"\n  }\n}");
+    obj["test"] = json::JSON::Load(
+        "{\n      \"left\" : [null],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"x\"\n              }],\n    "
+        "        \"node\" : \"statement\",\n            \"root\" : \"auto\"\n  "
+        "        }, {\n            \"left\" : [[{\n                  \"left\" "
+        ": {\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 5\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"left\" : {\n "
+        "                       \"node\" : \"number_literal\",\n               "
+        "         \"root\" : 5\n                      },\n                     "
+        " \"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"left\" : {\n                          "
+        "\"node\" : \"lvalue\",\n                          \"root\" : "
+        "\"exp\"\n                        },\n                        \"node\" "
+        ": \"function_expression\",\n                        \"right\" : [{\n  "
+        "                          \"node\" : \"number_literal\",\n            "
+        "                \"root\" : 2\n                          }, {\n        "
+        "                    \"node\" : \"number_literal\",\n                  "
+        "          \"root\" : 5\n                          }],\n               "
+        "         \"root\" : \"exp\"\n                      },\n               "
+        "       \"root\" : [\"+\"]\n                    },\n                   "
+        " \"root\" : [\"*\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
+        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
+        "},\n      \"root\" : \"main\"\n    }");
+
+    roxas::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    test_instructions =
+        build_from_function_definition(symbols, obj["test"], internal_symbols);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected = R"qaud(__main:
+ BeginFunc ;
+PUSH (5:int:4);
+PUSH (2:int:4);
+CALL exp;
+POP 16;
+_t1 = RET;
+_t2 = (5:int:4) + _t1;
+x = (5:int:4) * _t2;
+ EndFunc ;
+)qaud";
+    std::cout << os_test.str();
+    CHECK(os_test.str() == expected);
+}
+
+TEST_CASE("ir/qaud.cc: build_from_block_statement")
+{
+    using namespace roxas;
+    using namespace roxas::ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "{\n        \"left\" : [{\n            \"left\" : [{\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"auto\"\n          }, {\n            \"left\" : [[{\n                "
+        "  \"left\" : {\n                    \"node\" : \"lvalue\",\n          "
+        "          \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 5\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 2\n             "
+        "       },\n                    \"root\" : [\"||\"]\n                  "
+        "},\n                  \"root\" : [\"=\", null]\n                "
+        "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      }");
+
+    roxas::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    test_instructions = build_from_block_statement(symbols, obj["test"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    CHECK(os_test.str() == "x = (5:int:4) || (2:int:4);\n");
+}
+
 TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
 {
     using namespace roxas;
@@ -52,26 +161,6 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
         ": [\"*\"]\n                }]],\n            \"node\" : "
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }");
-    obj["rvalue_statement"] = json::JSON::Load(
-        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
-        "             \"node\" : \"lvalue\",\n                    \"root\" : "
-        "\"y\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n         "
-        "           \"node\" : \"number_literal\",\n                    "
-        "\"root\" : 3\n                  },\n                  \"root\" : "
-        "[\"=\", null]\n                }], [{\n                  \"left\" : "
-        "{\n                    \"node\" : \"lvalue\",\n                    "
-        "\"root\" : \"x\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n         "
-        "           \"left\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"y\"\n                 "
-        "   },\n                    \"node\" : \"relation_expression\",\n      "
-        "              \"right\" : {\n                      \"node\" : "
-        "\"number_literal\",\n                      \"root\" : 3\n             "
-        "       },\n                    \"root\" : [\"==\"]\n                  "
-        "},\n                  \"root\" : [\"=\", null]\n                "
-        "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
-        "\"rvalue\"\n          }");
     obj["nested_binary"] = json::JSON::Load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
@@ -211,52 +300,10 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "[\"+\"]\n                  },\n                  \"root\" : [\"=\", "
         "null]\n                }]],\n            \"node\" : \"statement\",\n  "
         "          \"root\" : \"rvalue\"\n          }");
-    obj["or_call_unary"] = json::JSON::Load(
-        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
-        "             \"node\" : \"lvalue\",\n                    \"root\" : "
-        "\"y\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n         "
-        "           \"node\" : \"number_literal\",\n                    "
-        "\"root\" : 3\n                  },\n                  \"root\" : "
-        "[\"=\", null]\n                }], [{\n                  \"left\" : "
-        "{\n                    \"node\" : \"lvalue\",\n                    "
-        "\"root\" : \"putchar\"\n                  },\n                  "
-        "\"node\" : \"function_expression\",\n                  \"right\" : "
-        "[{\n                      \"node\" : \"number_literal\",\n            "
-        "          \"root\" : 5\n                    }],\n                  "
-        "\"root\" : \"putchar\"\n                }], [{\n                  "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
-        "        \"root\" : \"x\"\n                  },\n                  "
-        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
-        "{\n                    \"left\" : {\n                      \"node\" : "
-        "\"number_literal\",\n                      \"root\" : 1\n             "
-        "       },\n                    \"node\" : \"relation_expression\",\n  "
-        "                  \"right\" : {\n                      \"left\" : {\n "
-        "                       \"node\" : \"number_literal\",\n               "
-        "         \"root\" : 1\n                      },\n                     "
-        " \"node\" : \"relation_expression\",\n                      \"right\" "
-        ": {\n                        \"left\" : {\n                          "
-        "\"left\" : {\n                            \"node\" : \"lvalue\",\n    "
-        "                        \"root\" : \"getchar\"\n                      "
-        "    },\n                          \"node\" : "
-        "\"function_expression\",\n                          \"right\" : [{\n  "
-        "                            \"node\" : \"number_literal\",\n          "
-        "                    \"root\" : 1\n                            }],\n   "
-        "                       \"root\" : \"getchar\"\n                       "
-        " },\n                        \"node\" : \"relation_expression\",\n    "
-        "                    \"right\" : {\n                          \"left\" "
-        ": {\n                            \"node\" : \"number_literal\",\n     "
-        "                       \"root\" : 3\n                          },\n   "
-        "                       \"node\" : \"unary_expression\",\n             "
-        "             \"root\" : [\"~\"]\n                        },\n         "
-        "               \"root\" : [\"||\"]\n                      },\n        "
-        "              \"root\" : [\"||\"]\n                    },\n           "
-        "         \"root\" : [\"+\"]\n                  },\n                  "
-        "\"root\" : [\"=\", null]\n                }]],\n            \"node\" "
-        ": \"statement\",\n            \"root\" : \"rvalue\"\n}");
+
     roxas::Symbol_Table<> symbols{};
-    std::array<std::string, 2> tests = { "PUSH x", "CALL putchar" };
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    Instructions test_instructions{};
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("putchar", null);
     symbols.table_.emplace("getchar", null);
@@ -264,11 +311,89 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
     symbols.table_.emplace("exp", null);
     symbols.table_.emplace("puts", null);
     symbols.table_.emplace("y", null);
-    auto instructions =
-        build_from_rvalue_statement(symbols, obj["or_call_unary"], obj);
-    for (auto const& inst : instructions) {
-        emit_quadruple(std::cout, inst);
+    // clang-format off
+        std::ostringstream os_test;
+    std::string expected_1 = R"qaud(PUSH (5:int:4);
+PUSH (2:int:4);
+CALL exp;
+POP 16;
+_t1 = RET;
+_t2 = (5:int:4) + _t1;
+_t3 = (5:int:4) * _t2;
+_t4 = (2:int:4) ^ _t3;
+_t5 = ~ (4:int:4);
+_t6 = _t4 / _t5;
+)qaud";
+    test_instructions = build_from_rvalue_statement(symbols, obj["test"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
     }
+    CHECK(expected_1 == os_test.str());
+    os_test.str("");
+    os_test.clear();
+    test_instructions.clear();
+    test_instructions = build_from_rvalue_statement(symbols, obj["nested_binary"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected_2 = R"qaud(y = (3:int:4);
+_t1 = y > (2:int:4);
+_t2 = (3:int:4) && _t1;
+x = y == _t2;
+)qaud";
+    CHECK(expected_2 == os_test.str());
+    os_test.str("");
+    os_test.clear();
+    test_instructions.clear();
+    test_instructions = build_from_rvalue_statement(symbols, obj["nested_or"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected_3 = R"qaud(y = (3:int:4);
+_t1 = (2:int:4) || (3:int:4);
+x = (1:int:4) || _t1;
+)qaud";
+    CHECK(expected_3 == os_test.str());
+    os_test.str("");
+    os_test.clear();
+    test_instructions.clear();
+    test_instructions = build_from_rvalue_statement(symbols, obj["complex_or"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected_4 = R"qaud(y = (3:int:4);
+_t1 = (3:int:4) + (3:int:4);
+_t2 = (2:int:4) || _t1;
+_t3 = (2:int:4) + _t2;
+_t4 = (1:int:4) || _t3;
+x = (1:int:4) + _t4;
+)qaud";
+    CHECK(expected_4 == os_test.str());
+    os_test.str("");
+    os_test.clear();
+    test_instructions.clear();
+    test_instructions = build_from_rvalue_statement(symbols, obj["or_with_call"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected_5 = R"qaud(y = (3:int:4);
+PUSH (5:int:4);
+CALL putchar;
+POP 8;
+PUSH (1:int:4);
+CALL getchar;
+POP 8;
+_t1 = RET;
+_t2 = (1:int:4) || _t1;
+_t3 = (1:int:4) + _t2;
+_t4 = (3:int:4) + _t3;
+x = (3:int:4) || _t4;
+)qaud";
+    CHECK(expected_5 == os_test.str());
+    os_test.str("");
+    os_test.clear();
+    test_instructions.clear();
+    // clang-format on
 }
 
 TEST_CASE("ir/qaud.cc: build_from_auto_statement")

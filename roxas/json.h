@@ -398,7 +398,10 @@ class JSON
 
     JSON& at(const string& key) { return operator[](key); }
 
-    const JSON& at(const string& key) const { return Internal.Map->at(key); }
+    const JSON& at(const string& key) const
+    {
+        return Internal.Map->operator[](key);
+    }
 
     JSON& at(unsigned index) { return operator[](index); }
 

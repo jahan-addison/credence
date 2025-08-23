@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 #pragma once
-#include <array>
-#include <deque> // for deque
-#include <map>   // for map
-#include <ranges>
+#include <algorithm>      // for __find, find
+#include <array>          // for array
+#include <deque>          // for deque
+#include <map>            // for map
+#include <ostream>        // for basic_ostream, operator<<, endl
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
 #include <roxas/types.h>  // for Value_Type, RValue, Type_
-#include <sstream>        // for operator<<, basic_ostream, basic_ostringst...
-#include <string>         // for allocator, char_traits, operator<<, string
+#include <sstream>        // for basic_ostringstream, ostream
+#include <string>         // for basic_string, char_traits, allo...
 #include <tuple>          // for get, tuple
-#include <utility>        // for pair
 #include <variant>        // for monostate
 #include <vector>         // for vector
 namespace roxas {
@@ -56,6 +56,23 @@ static type::Value_Type NULL_DATA_TYPE = { std::monostate(),
 
 using Instructions = std::deque<Quadruple>;
 
+inline Quadruple make_quadruple(Instruction op,
+                                std::string const& s1,
+                                std::string const& s2,
+                                std::string const& s3 = "")
+{
+    return std::make_tuple(op, s1, s2, s3);
+}
+
+Instructions build_from_definitions(Symbol_Table<>& symbols,
+                                    Node& node,
+                                    Node& details);
+Instructions build_from_function_definition(Symbol_Table<>& symbols,
+                                            Node& node,
+                                            Node& details);
+Instructions build_from_block_statement(Symbol_Table<>& symbols,
+                                        Node& node,
+                                        Node& details);
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
@@ -120,12 +137,16 @@ inline void emit_quadruple(std::ostream& os, Quadruple qaud)
 {
     Instruction op = std::get<Instruction>(qaud);
 
-    std::array<Instruction, 4> lhs_instruction = { Instruction::GOTO,
+    std::array<Instruction, 5> lhs_instruction = { Instruction::GOTO,
                                                    Instruction::PUSH,
+                                                   Instruction::LABEL,
                                                    Instruction::POP,
                                                    Instruction::CALL };
     if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
-        os << op << " " << std::get<1>(qaud) << ";" << std::endl;
+        if (op == Instruction::LABEL)
+            os << std::get<1>(qaud) << ":" << std::endl;
+        else
+            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
     } else {
         os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
            << std::get<3>(qaud) << ";" << std::endl;
