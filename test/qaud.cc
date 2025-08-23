@@ -17,7 +17,7 @@
 TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
 {
     using namespace roxas;
-    using namespace roxas::ir::qaud;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
@@ -125,16 +125,147 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "  \"root\" : [\"||\"]\n                  },\n                  "
         "\"root\" : [\"=\", null]\n                }]],\n            \"node\" "
         ": \"statement\",\n            \"root\" : \"rvalue\"\n          }");
+    obj["complex_or"] = json::JSON::Load(
+        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 3\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 1\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"left\" : {\n "
+        "                       \"node\" : \"number_literal\",\n               "
+        "         \"root\" : 1\n                      },\n                     "
+        " \"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"left\" : {\n                          "
+        "\"node\" : \"number_literal\",\n                          \"root\" : "
+        "2\n                        },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"left\" : {\n                            "
+        "\"node\" : \"number_literal\",\n                            \"root\" "
+        ": 2\n                          },\n                          \"node\" "
+        ": \"relation_expression\",\n                          \"right\" : {\n "
+        "                           \"left\" : {\n                             "
+        " \"node\" : \"number_literal\",\n                              "
+        "\"root\" : 3\n                            },\n                        "
+        "    \"node\" : \"relation_expression\",\n                            "
+        "\"right\" : {\n                              \"node\" : "
+        "\"number_literal\",\n                              \"root\" : 3\n     "
+        "                       },\n                            \"root\" : "
+        "[\"+\"]\n                          },\n                          "
+        "\"root\" : [\"||\"]\n                        },\n                     "
+        "   \"root\" : [\"+\"]\n                      },\n                     "
+        " \"root\" : [\"||\"]\n                    },\n                    "
+        "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n}");
+    obj["or_with_call"] = json::JSON::Load(
+        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 3\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"putchar\"\n                  },\n                  "
+        "\"node\" : \"function_expression\",\n                  \"right\" : "
+        "[{\n                      \"node\" : \"number_literal\",\n            "
+        "          \"root\" : 5\n                    }],\n                  "
+        "\"root\" : \"putchar\"\n                }], [{\n                  "
+        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
+        "        \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 1\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"left\" : {\n "
+        "                       \"node\" : \"number_literal\",\n               "
+        "         \"root\" : 1\n                      },\n                     "
+        " \"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"left\" : {\n                          "
+        "\"left\" : {\n                            \"node\" : \"lvalue\",\n    "
+        "                        \"root\" : \"getchar\"\n                      "
+        "    },\n                          \"node\" : "
+        "\"function_expression\",\n                          \"right\" : [{\n  "
+        "                            \"node\" : \"number_literal\",\n          "
+        "                    \"root\" : 1\n                            }],\n   "
+        "                       \"root\" : \"getchar\"\n                       "
+        " },\n                        \"node\" : \"relation_expression\",\n    "
+        "                    \"right\" : {\n                          \"left\" "
+        ": {\n                            \"node\" : \"number_literal\",\n     "
+        "                       \"root\" : 3\n                          },\n   "
+        "                       \"node\" : \"relation_expression\",\n          "
+        "                \"right\" : {\n                            \"node\" : "
+        "\"number_literal\",\n                            \"root\" : 3\n       "
+        "                   },\n                          \"root\" : [\"+\"]\n "
+        "                       },\n                        \"root\" : "
+        "[\"||\"]\n                      },\n                      \"root\" : "
+        "[\"||\"]\n                    },\n                    \"root\" : "
+        "[\"+\"]\n                  },\n                  \"root\" : [\"=\", "
+        "null]\n                }]],\n            \"node\" : \"statement\",\n  "
+        "          \"root\" : \"rvalue\"\n          }");
+    obj["or_call_unary"] = json::JSON::Load(
+        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 3\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"putchar\"\n                  },\n                  "
+        "\"node\" : \"function_expression\",\n                  \"right\" : "
+        "[{\n                      \"node\" : \"number_literal\",\n            "
+        "          \"root\" : 5\n                    }],\n                  "
+        "\"root\" : \"putchar\"\n                }], [{\n                  "
+        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
+        "        \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 1\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"left\" : {\n "
+        "                       \"node\" : \"number_literal\",\n               "
+        "         \"root\" : 1\n                      },\n                     "
+        " \"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"left\" : {\n                          "
+        "\"left\" : {\n                            \"node\" : \"lvalue\",\n    "
+        "                        \"root\" : \"getchar\"\n                      "
+        "    },\n                          \"node\" : "
+        "\"function_expression\",\n                          \"right\" : [{\n  "
+        "                            \"node\" : \"number_literal\",\n          "
+        "                    \"root\" : 1\n                            }],\n   "
+        "                       \"root\" : \"getchar\"\n                       "
+        " },\n                        \"node\" : \"relation_expression\",\n    "
+        "                    \"right\" : {\n                          \"left\" "
+        ": {\n                            \"node\" : \"number_literal\",\n     "
+        "                       \"root\" : 3\n                          },\n   "
+        "                       \"node\" : \"unary_expression\",\n             "
+        "             \"root\" : [\"~\"]\n                        },\n         "
+        "               \"root\" : [\"||\"]\n                      },\n        "
+        "              \"root\" : [\"||\"]\n                    },\n           "
+        "         \"root\" : [\"+\"]\n                  },\n                  "
+        "\"root\" : [\"=\", null]\n                }]],\n            \"node\" "
+        ": \"statement\",\n            \"root\" : \"rvalue\"\n}");
     roxas::Symbol_Table<> symbols{};
     std::array<std::string, 2> tests = { "PUSH x", "CALL putchar" };
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("x", null);
+    symbols.table_.emplace("putchar", null);
+    symbols.table_.emplace("getchar", null);
     symbols.table_.emplace("double", null);
     symbols.table_.emplace("exp", null);
     symbols.table_.emplace("puts", null);
     symbols.table_.emplace("y", null);
     auto instructions =
-        build_from_rvalue_statement(symbols, obj["nested_or"], obj);
+        build_from_rvalue_statement(symbols, obj["or_call_unary"], obj);
     for (auto const& inst : instructions) {
         emit_quadruple(std::cout, inst);
     }
@@ -143,7 +274,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
 TEST_CASE("ir/qaud.cc: build_from_auto_statement")
 {
     using namespace roxas;
-    using namespace roxas::ir::qaud;
+    using namespace roxas::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n  \"left\" : [{\n      \"left\" : {\n        \"node\" : "

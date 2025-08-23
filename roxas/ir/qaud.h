@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 #pragma once
-#include <deque>          // for deque
-#include <map>            // for map
+#include <array>
+#include <deque> // for deque
+#include <map>   // for map
+#include <ranges>
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
 #include <roxas/types.h>  // for Value_Type, RValue, Type_
@@ -29,11 +31,7 @@ namespace roxas {
 
 namespace ir {
 
-namespace qaud {
-
 using Node = json::JSON;
-
-// https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/13/Slides13.pdf
 
 enum class Instruction
 {
@@ -120,11 +118,19 @@ inline std::string instruction_to_string(Instruction op)
 
 inline void emit_quadruple(std::ostream& os, Quadruple qaud)
 {
-    os << std::get<1>(qaud) << " " << std::get<0>(qaud) << " "
-       << std::get<2>(qaud) << std::get<3>(qaud) << ";" << std::endl;
-}
+    Instruction op = std::get<Instruction>(qaud);
 
-} // namespace qaud
+    std::array<Instruction, 4> lhs_instruction = { Instruction::GOTO,
+                                                   Instruction::PUSH,
+                                                   Instruction::POP,
+                                                   Instruction::CALL };
+    if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
+        os << op << " " << std::get<1>(qaud) << ";" << std::endl;
+    } else {
+        os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
+           << std::get<3>(qaud) << ";" << std::endl;
+    }
+}
 
 } // namespace ir
 
