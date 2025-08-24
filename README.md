@@ -21,10 +21,8 @@ Roxas :: Axel... What's this?
 Usage:
   Roxas [OPTION...] positional parameters
 
-  -a, --ast-loader arg   AST Loader (default: python) [json, python]
-                         (default: python)
-  -t, --target arg       Target (default: ir) [ast, ir, arm64, x86_64, z80]
-                         (default: ir)
+  -a, --ast-loader arg   AST Loader [json, python] (default: python)
+  -t, --target arg       Target [ast, ir, arm64, x86_64, z80] (default: ir)
   -d, --debug            Enable debugging
   -h, --help             Print usage
       --source-code arg  B Source file

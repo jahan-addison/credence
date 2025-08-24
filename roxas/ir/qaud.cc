@@ -72,8 +72,7 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
     Instructions instructions{};
     assert(node["node"].ToString().compare("function_definition") == 0);
     Symbol_Table<> block_level{};
-    auto name =
-        node["root"].ToString() == "main" ? "__main" : node["root"].ToString();
+    auto name = node["root"].ToString();
     auto parameters = node["left"];
     auto block = node["right"];
 
@@ -103,7 +102,8 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
                     });
         }
     }
-    instructions.push_back(make_quadruple(Instruction::LABEL, name, ""));
+    instructions.push_back(make_quadruple(
+        Instruction::LABEL, std::format("__{}", node["root"].ToString()), ""));
     instructions.push_back(make_quadruple(Instruction::FUNC_START, "", ""));
     auto block_instructions =
         build_from_block_statement(block_level, block, details);
@@ -140,6 +140,14 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
                     instructions.insert(instructions.end(),
                                         rvalue_instructions.begin(),
                                         rvalue_instructions.end());
+                },
+            pattern | "return" =
+                [&] {
+                    auto return_instructions = build_from_return_statement(
+                        symbols, statement, details);
+                    instructions.insert(instructions.end(),
+                                        return_instructions.begin(),
+                                        return_instructions.end());
                 }
 
         );
@@ -147,6 +155,46 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
     return instructions;
 }
 
+/**
+ * @brief Construct a set of qaud instructions from a block statement
+ */
+Instructions build_from_return_statement(Symbol_Table<>& symbols,
+                                         Node& node,
+                                         Node& details)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("return") == 0);
+    Instructions instructions{};
+    int temporary{ 0 };
+    std::vector<type::RValue::Type_Pointer> rvalues{};
+    RValue_Queue list{};
+    assert(node.hasKey("left"));
+    auto return_statement = node["left"];
+    Table table{ details, symbols };
+    for (auto& expression : return_statement.ArrayRange()) {
+        if (expression.JSONType() == json::JSON::Class::Array) {
+            for (auto& rvalue : expression.ArrayRange()) {
+
+                rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
+                    table.from_rvalue(rvalue).value));
+            }
+        } else {
+            rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
+                table.from_rvalue(expression).value));
+        }
+    }
+    rvalues_to_queue(rvalues, &list);
+    auto return_instructions = rvalue_queue_to_instructions(&list, &temporary);
+
+    instructions.insert(instructions.end(),
+                        return_instructions.begin(),
+                        return_instructions.end());
+
+    instructions.push_back(make_quadruple(Instruction::LEAVE, "", ""));
+
+    return instructions;
+}
 /**
  * @brief Symbol construction from auto declaration statements
  */

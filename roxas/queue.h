@@ -39,4 +39,7 @@ using RValue_Queue =
 RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
                                RValue_Queue* rvalues_queue);
 
+RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
+                               RValue_Queue* rvalues_queue);
+
 } // namespace roxas

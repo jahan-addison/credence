@@ -25,7 +25,6 @@
 #include <roxas/python.h>
 #include <sstream>         // for basic_ostringstream, ostringstream
 #include <stddef.h>        // for NULL
-#include <stdexcept>       // for runtime_error
 #include <tupleobject.h>   // for PyTuple_SetItem, PyTuple_New
 #include <unicodeobject.h> // for PyUnicode_FromString
 

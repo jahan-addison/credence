@@ -82,7 +82,57 @@ _t2 = (5:int:4) + _t1;
 x = (5:int:4) * _t2;
  EndFunc ;
 )qaud";
-    std::cout << os_test.str();
+    CHECK(os_test.str() == expected);
+}
+
+TEST_CASE("ir/qaud.cc: build_from_return_statement")
+{
+    using namespace roxas;
+    using namespace roxas::ir;
+    json::JSON obj;
+    auto internal_symbols = json::JSON::Load(
+        "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
+        "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
+        "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
+        "\"end_column\" : 4,\n    \"end_pos\" : 52,\n    \"line\" : 6,\n    "
+        "\"start_pos\" : 49,\n    \"type\" : \"function_definition\"\n  },\n  "
+        "\"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n    "
+        "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
+        "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    \"column\" "
+        ": 8,\n    \"end_column\" : 9,\n    \"end_pos\" : 20,\n    \"line\" : "
+        "2,\n    \"start_pos\" : 19,\n    \"type\" : \"lvalue\"\n  },\n  \"y\" "
+        ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
+        "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
+        "\"lvalue\"\n  }\n}");
+    obj["test"] = json::JSON::Load(
+        "{\n            \"left\" : [{\n                \"left\" : {\n          "
+        "        \"node\" : \"lvalue\",\n                  \"root\" : \"x\"\n  "
+        "              },\n                \"node\" : "
+        "\"relation_expression\",\n                \"right\" : {\n             "
+        "     \"left\" : {\n                    \"node\" : \"lvalue\",\n       "
+        "             \"root\" : \"y\"\n                  },\n                 "
+        " \"node\" : \"relation_expression\",\n                  \"right\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"y\"\n                  },\n                  \"root\" : "
+        "[\"*\"]\n                },\n                \"root\" : [\"*\"]\n     "
+        "         }],\n            \"node\" : \"statement\",\n            "
+        "\"root\" : \"return\"\n          }");
+
+    roxas::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    symbols.table_.emplace("x", null);
+    symbols.table_.emplace("y", null);
+    test_instructions =
+        build_from_return_statement(symbols, obj["test"], internal_symbols);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected = R"qaud(_t1 = y * y;
+_t2 = x * _t1;
+ LEAVE ;
+)qaud";
     CHECK(os_test.str() == expected);
 }
 

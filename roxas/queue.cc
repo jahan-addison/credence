@@ -190,4 +190,17 @@ RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
     return rvalues_queue;
 }
 
+/**
+ * @brief RValue to queue of operators and operands
+ */
+RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
+                               RValue_Queue* rvalues_queue)
+{
+    using namespace type;
+    std::stack<Operator> operator_stack{};
+    roxas::detail::_rvalue_pointer_to_queue(
+        rvalue, rvalues_queue, operator_stack);
+    return rvalues_queue;
+}
+
 } // namespace roxas

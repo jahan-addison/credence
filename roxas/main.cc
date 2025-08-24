@@ -17,101 +17,111 @@
 #include <cpptrace/basic.hpp>        // for stacktrace
 #include <cpptrace/from_current.hpp> // for from_current_exception
 #include <cxxopts.hpp>               // for value, Options, OptionAdder
+#include <deque>                     // for operator==, _Deque_iterator
 #include <filesystem>                // for path
-#include <iostream>                  // for cout, cerr
-#include <matchit.h>                 // for pattern, match, PatternHelper
-#include <memory>                    // for shared_ptr
-#include <ostream>                   // for basic_ostream, operator<<, endl
+#include <iostream>                  // for basic_ostream, endl, operator<<
+#include <matchit.h>                 // for match, pattern, PatternHelper
+#include <memory>                    // for allocator, shared_ptr, __shared...
 #include <roxas/ir/qaud.h>           // for build_from_definitions, emit_qu...
 #include <roxas/json.h>              // for JSON, operator<<
 #include <roxas/python.h>            // for Python_Module_Loader
 #include <roxas/symbol.h>            // for Symbol_Table
 #include <roxas/util.h>              // for read_file_from_path, ROXAS_CATCH
 #include <stdexcept>                 // for runtime_error
-#include <string>                    // for basic_string, char_traits, string
-#include <string_view>               // for basic_string_view
+#include <stdlib.h>                  // for exit
+#include <string>                    // for char_traits, operator==, string
+#include <tuple>                     // for tuple
 
 int main(int argc, const char* argv[])
 {
 
     using namespace matchit;
-    ROXAS_TRY
-    {
-        cxxopts::Options options("Roxas", "Roxas :: Axel... What's this?");
-        options.show_positional_help();
-        options.add_options()(
-            "a,ast-loader",
-            "AST Loader (default: python) [json, python]",
-            cxxopts::value<std::string>()->default_value("python"))(
-            "t,target",
-            "Target (default: ir) [ast, ir, arm64, x86_64, z80]",
-            cxxopts::value<std::string>()->default_value("ir"))(
-            "d,debug",
-            "Enable debugging",
-            cxxopts::value<bool>()->default_value("false"))("h,help",
-                                                            "Print usage")(
-            "source-code", "B Source file", cxxopts::value<std::string>());
-        options.parse_positional({ "source-code" });
+    cpptrace::try_catch(
+        [&] {
+            cxxopts::Options options("Roxas", "Roxas :: Axel... What's this?");
+            options.show_positional_help();
+            options.add_options()(
+                "a,ast-loader",
+                "AST Loader [json, python]",
+                cxxopts::value<std::string>()->default_value("python"))(
+                "t,target",
+                "Target [ast, ir, arm64, x86_64, z80]",
+                cxxopts::value<std::string>()->default_value("ir"))(
+                "d,debug",
+                "Enable debugging",
+                cxxopts::value<bool>()->default_value("false"))("h,help",
+                                                                "Print usage")(
+                "source-code", "B Source file", cxxopts::value<std::string>());
+            options.parse_positional({ "source-code" });
 
-        auto result = options.parse(argc, argv);
+            auto result = options.parse(argc, argv);
 
-        if (result.count("help")) {
-            std::cout << options.help() << std::endl;
-            exit(0);
-        }
-
-        json::JSON ast;
-        json::JSON hoisted;
-
-        auto type = result["ast-loader"].as<std::string>();
-        auto source = roxas::util::read_file_from_path(
-            result["source-code"].as<std::string>());
-
-        if (type == "python") {
-            auto python_module = roxas::Python_Module_Loader("xion.parser");
-            auto hoisted_symbols = python_module.call_method_on_module(
-                "get_source_program_symbol_table_as_json", { source });
-            hoisted = json::JSON::Load(hoisted_symbols);
-            if (result["debug"].count()) {
-                std::cout << "*** Symbol Table:" << std::endl
-                          << hoisted.ToString() << std::endl;
+            if (result.count("help")) {
+                std::cout << options.help() << std::endl;
+                exit(0);
             }
 
-            auto ast_as_json = python_module.call_method_on_module(
-                "get_source_program_ast_as_json", { source });
+            json::JSON ast;
+            json::JSON hoisted;
 
-            if (ast_as_json.empty())
-                throw std::runtime_error("symbol table construction failed");
+            auto type = result["ast-loader"].as<std::string>();
+            auto source = roxas::util::read_file_from_path(
+                result["source-code"].as<std::string>());
 
-            ast["root"] = json::JSON::Load(ast_as_json);
+            if (type == "python") {
+                auto python_module = roxas::Python_Module_Loader("xion.parser");
+                auto hoisted_symbols = python_module.call_method_on_module(
+                    "get_source_program_symbol_table_as_json", { source });
+                hoisted = json::JSON::Load(hoisted_symbols);
+                if (result["debug"].count()) {
+                    std::cout << "*** Symbol Table:" << std::endl
+                              << hoisted.ToString() << std::endl;
+                }
 
-        } else if (type == "json") {
-            ast["root"] = json::JSON::Load(source);
-        } else {
-            std::cerr << "Error :: No source file provided" << std::endl;
-        }
+                auto ast_as_json = python_module.call_method_on_module(
+                    "get_source_program_ast_as_json", { source });
 
-        match(result["target"].as<std::string>())(
-            pattern | "ir" =
-                [&]() {
-                    roxas::Symbol_Table<> symbols{};
-                    auto ir_instructions = roxas::ir::build_from_definitions(
-                        symbols, ast["root"], hoisted);
-                    for (auto const& inst : ir_instructions) {
-                        emit_quadruple(std::cout, inst);
-                    }
-                },
-            pattern | "ast" =
-                [&]() {
-                    if (!ast.IsNull()) {
-                        std::cout << ast["root"] << std::endl;
-                    }
-                });
-    }
-    ROXAS_CATCH(...)
-    {
-        std::cerr << "Roxas Exception :: " << std::endl;
-        cpptrace::from_current_exception().print();
-    }
+                if (ast_as_json.empty())
+                    throw std::runtime_error(
+                        "symbol table construction failed");
+
+                ast["root"] = json::JSON::Load(ast_as_json);
+
+            } else if (type == "json") {
+                ast["root"] = json::JSON::Load(source);
+            } else {
+                std::cerr << "Error :: No source file provided" << std::endl;
+            }
+
+            match(result["target"].as<std::string>())(
+                pattern | "ir" =
+                    [&]() {
+                        roxas::Symbol_Table<> symbols{};
+                        auto ir_instructions =
+                            roxas::ir::build_from_definitions(
+                                symbols, ast["root"], hoisted);
+                        for (auto const& inst : ir_instructions) {
+                            emit_quadruple(std::cout, inst);
+                        }
+                    },
+                pattern | "ast" =
+                    [&]() {
+                        if (!ast.IsNull()) {
+                            std::cout << ast["root"] << std::endl;
+                        }
+                    });
+        },
+        [&](const std::runtime_error& e) {
+            std::cerr << "Roxas Exception :: " << e.what() << std::endl;
+        },
+        [&](const std::exception& e) {
+            std::cerr << "Exception: " << e.what() << std::endl;
+            cpptrace::from_current_exception().print();
+        },
+        [&]() { // catch (...)
+            std::cerr << "Unknown exception occurred: " << std::endl;
+            cpptrace::from_current_exception().print();
+        });
+
     return 0;
 }

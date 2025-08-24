@@ -15,23 +15,25 @@
  */
 
 // clang-format off
-#include <vector>             // for vector
 #include <roxas/ir/util.h>
-#include <roxas/ir/qaud.h>    // for Instruction, Instructions, instruction_...
+#include <roxas/ir/qaud.h>    // for make_quadruple, Instruction, Instructions
 #include <roxas/operators.h>  // for Operator, operator_to_string
 #include <roxas/queue.h>      // for RValue_Queue
 #include <roxas/types.h>      // for RValue, rvalue_type_pointer_from_rvalue
 #include <roxas/util.h>       // for rvalue_to_string, overload
+#include <algorithm>          // for copy, max
 #include <deque>              // for deque
-#include <format>             // for format
+#include <format>             // for format, format_string
+#include <list>               // for operator==, _List_iterator
 #include <map>                // for map
-#include <memory>             // for shared_ptr
+#include <memory>             // for allocator, __shared_ptr_access, shared_ptr
 #include <stack>              // for stack
 #include <stdexcept>          // for runtime_error
-#include <string>             // for basic_string, string, to_string
-#include <tuple>              // for tuple, get, make_tuple
+#include <string>             // for string, to_string, operator<=>, basic_s...
+#include <tuple>              // for tuple, get
 #include <utility>            // for pair, make_pair
-#include <variant>            // for visit, monostate
+#include <variant>            // for visit, monostate, variant
+#include <vector>             // for vector
 // clang-format on
 
 namespace roxas {
@@ -213,18 +215,27 @@ void binary_operands_to_temporary_stack(
     } else if (temporary_stack.size() == 1) {
         auto operand1 = operand_stack.top();
         operand_stack.pop();
-        auto lhs = temporary_stack.top();
+        auto rhs = temporary_stack.top();
         temporary_stack.pop();
-        auto rhs =
+        auto lhs =
             instruction_temporary_from_rvalue_operand(operand1, temporary);
         instructions.insert(
-            instructions.end(), rhs.second.begin(), rhs.second.end());
-        auto temp_lhs = make_temporary(temporary, lhs);
-        instructions.push_back(temp_lhs);
+            instructions.end(), lhs.second.begin(), lhs.second.end());
+        auto temp_rhs = make_temporary(temporary, rhs);
+        instructions.push_back(temp_rhs);
         temporary_stack.push(std::format("{} {} {}",
-                                         rhs.first,
+                                         lhs.first,
                                          operator_to_string(op),
-                                         std::get<1>(temp_lhs)));
+                                         std::get<1>(temp_rhs)));
+        // an lvalue at the end of a call stack
+        if (operand1->index() == 6 and operand_stack.size() == 0) {
+            auto temp_lhs = make_temporary(temporary,
+                                           std::format("{} {} {}",
+                                                       lhs.first,
+                                                       operator_to_string(op),
+                                                       std::get<1>(temp_rhs)));
+            instructions.push_back(temp_lhs);
+        }
 
     } else {
         if (operand_stack.size() < 2)

@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 #pragma once
-#include <algorithm>      // for __find, find
+#include <algorithm>      // for copy, max
 #include <array>          // for array
 #include <deque>          // for deque
+#include <functional>     // for identity
 #include <map>            // for map
-#include <ostream>        // for basic_ostream, operator<<, endl
+#include <ranges>         // for __find_fn, find
 #include <roxas/json.h>   // for JSON
 #include <roxas/symbol.h> // for Symbol_Table
 #include <roxas/types.h>  // for Value_Type, RValue, Type_
-#include <sstream>        // for basic_ostringstream, ostream
-#include <string>         // for basic_string, char_traits, allo...
-#include <tuple>          // for get, tuple
+#include <sstream>        // for basic_ostream, operator<<, basic_ostringst...
+#include <string>         // for allocator, char_traits, operator<<, string
+#include <tuple>          // for get, make_tuple, tuple
+#include <utility>        // for pair
 #include <variant>        // for monostate
 #include <vector>         // for vector
 namespace roxas {
@@ -44,6 +46,7 @@ enum class Instruction
     CALL,
     VARIABLE,
     RETURN,
+    LEAVE,
     EOL,
     NOOP
 };
@@ -70,6 +73,9 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
 Instructions build_from_function_definition(Symbol_Table<>& symbols,
                                             Node& node,
                                             Node& details);
+Instructions build_from_return_statement(Symbol_Table<>& symbols,
+                                         Node& node,
+                                         Node& details);
 Instructions build_from_block_statement(Symbol_Table<>& symbols,
                                         Node& node,
                                         Node& details);
@@ -103,6 +109,9 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
             break;
         case Instruction::RETURN:
             os << "RET";
+            break;
+        case Instruction::LEAVE:
+            os << "LEAVE";
             break;
         case Instruction::PUSH:
             os << "PUSH";
