@@ -145,8 +145,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
 }
 
 /**
- * @brief Evaluate operand and temporary stack on unary operators to
- * instructions
+ * @brief Unary operators  and temporary stack to instructions
  */
 void unary_operand_to_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,
@@ -187,8 +186,7 @@ void unary_operand_to_temporary_stack(
 }
 
 /**
- * @brief Evaluate operand and temporary stack on binary operators to
- * instructions
+ * @brief binary operands and temporary stack to instructions
  */
 void binary_operands_to_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,

@@ -14,40 +14,40 @@
  * limitations under the License.
  */
 
-#include <cxxopts.hpp>    // for value, OptionAdder, Options, ParseResult
-#include <filesystem>     // for path
-#include <iostream>       // for basic_ostream, operator<<, endl, cout, cerr
-#include <memory>         // for allocator, shared_ptr, __shared_ptr_access
-#include <roxas/json.h>   // for JSON, operator<<
-#include <roxas/python.h> // for PythonModuleLoader
-#include <roxas/util.h>   // for read_file_from_path
-#include <stdexcept>      // for runtime_error
-#include <stdlib.h>       // for exit
-#include <string>         // for char_traits, basic_string, string, operator==
-#include <vector>         // for vector
+#include <cxxopts.hpp>     // for value, Options, ParseResult
+#include <filesystem>      // for path
+#include <iostream>        // for cout, cerr
+#include <matchit.h>       // for pattern, match, PatternHelper
+#include <memory>          // for shared_ptr
+#include <ostream>         // for basic_ostream, operator<<, endl
+#include <roxas/ir/qaud.h> // for build_from_definitions, emit_qu...
+#include <roxas/json.h>    // for JSON, operator<<
+#include <roxas/python.h>  // for PythonModuleLoader
+#include <roxas/symbol.h>  // for Symbol_Table
+#include <roxas/util.h>    // for read_file_from_path
+#include <stdexcept>       // for runtime_error
+#include <string>          // for basic_string, char_traits, string
+#include <string_view>     // for basic_string_view
 
 int main(int argc, const char* argv[])
 {
+    using namespace matchit;
     try {
         cxxopts::Options options("Roxas", "Roxas :: Axel... What's this?");
         options.show_positional_help();
         options.add_options()(
             "a,ast-loader",
-            "AST Loader (json or python)",
+            "AST Loader (default: python) [json, python]",
             cxxopts::value<std::string>()->default_value("python"))(
+            "t,target",
+            "Target (default: ir) [ast, ir, arm64, x86_64, z80]",
+            cxxopts::value<std::string>()->default_value("ir"))(
             "d,debug",
             "Enable debugging",
             cxxopts::value<bool>()->default_value("false"))("h,help",
                                                             "Print usage")(
-            "source-code", "B Source file", cxxopts::value<std::string>())(
-            "python-module",
-            "Compiler frontend python module name",
-            cxxopts::value<std::string>()->default_value("xion.parser"))(
-            "additional",
-            "additional arguments for the python loader",
-            cxxopts::value<std::vector<std::string>>());
-        options.parse_positional(
-            { "source-code", "python-module", "additional" });
+            "source-code", "B Source file", cxxopts::value<std::string>());
+        options.parse_positional({ "source-code" });
 
         auto result = options.parse(argc, argv);
 
@@ -57,29 +57,27 @@ int main(int argc, const char* argv[])
         }
 
         json::JSON ast;
+        json::JSON hoisted;
 
         auto type = result["ast-loader"].as<std::string>();
         auto source = roxas::util::read_file_from_path(
             result["source-code"].as<std::string>());
 
         if (type == "python") {
-            auto module_name = result["python-module"].as<std::string>();
-            auto python_module = roxas::PythonModuleLoader(module_name);
-
+            auto python_module = roxas::PythonModuleLoader("xion.parser");
             if (result["debug"].count()) {
-                auto symbol_table = python_module.call_method_on_module(
+                auto hoisted_symbols = python_module.call_method_on_module(
                     "get_source_program_symbol_table_as_json", { source });
-                if (symbol_table.empty())
-                    exit(1);
+                hoisted = json::JSON::Load(hoisted_symbols);
                 std::cout << "*** Symbol Table:" << std::endl
-                          << json::JSON::Load(symbol_table) << std::endl;
+                          << hoisted.ToString() << std::endl;
             }
 
             auto ast_as_json = python_module.call_method_on_module(
                 "get_source_program_ast_as_json", { source });
 
             if (ast_as_json.empty())
-                exit(1);
+                throw std::runtime_error("symbol table construction failed");
 
             ast["root"] = json::JSON::Load(ast_as_json);
 
@@ -89,9 +87,22 @@ int main(int argc, const char* argv[])
             std::cerr << "Error :: No source file provided" << std::endl;
         }
 
-        if (!ast.IsNull()) {
-            std::cout << ast["root"] << std::endl;
-        }
+        match(result["target"].as<std::string>())(
+            pattern | "ir" =
+                [&]() {
+                    roxas::Symbol_Table<> symbols{};
+                    auto ir_instructions = roxas::ir::build_from_definitions(
+                        symbols, ast["root"], hoisted);
+                    for (auto const& inst : ir_instructions) {
+                        emit_quadruple(std::cout, inst);
+                    }
+                },
+            pattern | "ast" =
+                [&]() {
+                    if (!ast.IsNull()) {
+                        std::cout << ast["root"] << std::endl;
+                    }
+                });
     } catch (std::runtime_error& e) {
         std::cerr << "Roxas Exception :: " << e.what() << std::endl;
         exit(1);

@@ -42,7 +42,7 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
                                     Node& details)
 {
     using namespace matchit;
-    assert(node["root"].ToString().compare("program") == 0);
+    assert(node["root"].ToString().compare("definitions") == 0);
     Instructions instructions{};
     auto definitions = node["left"];
     for (auto& definition : definitions.ArrayRange()) {
