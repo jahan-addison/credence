@@ -24,6 +24,9 @@
 #include <string>         // for allocator, char_traits, string
 #include <string_view>    // for operator<<, string_view
 #include <tuple>          // for apply
+#if defined(DEBUG)
+#include <cpptrace/from_current.hpp>
+#endif
 #include <variant>        // for tuple
 namespace json { class JSON; }
 // clang-format on
@@ -34,6 +37,14 @@ namespace json { class JSON; }
 #define ROXAS_PRIVATE_UNLESS_TESTED public
 #else
 #define ROXAS_PRIVATE_UNLESS_TESTED private
+#endif
+
+#if defined(DEBUG)
+#define ROXAS_TRY CPPTRACE_TRY
+#define ROXAS_CATCH CPPTRACE_CATCH
+#else
+#define ROXAS_TRY try
+#define ROXAS_CATCH catch
 #endif
 
 namespace roxas {

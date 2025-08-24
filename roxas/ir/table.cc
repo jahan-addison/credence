@@ -18,6 +18,7 @@
 #include <roxas/ir/table.h>
 #include <matchit.h>          // for pattern, PatternHelper, PatternPipable
 #include <roxas/json.h>       // for JSON
+#include <cpptrace/cpptrace.hpp> // IWYU pragma: keep
 #include <roxas/operators.h>  // for Operator, BINARY_OPERATORS
 #include <roxas/symbol.h>     // for Symbol_Table
 #include <roxas/types.h>      // for RValue, Type_
@@ -273,16 +274,17 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
             name = node["right"]["root"].ToString();
         else
             name = node["root"].ToString();
-        // hoist function definitions from the internal symbol table to a word
-        if (internal_symbols_.hasKey(name) &&
-            internal_symbols_.at(name)["type"].ToString() !=
+        // hoist function definitions from the first pass to the memory table
+        if (internal_symbols_.hasKey(name)) {
+            if (internal_symbols_.at(name)["type"].ToString() !=
                 "function_definition")
-            error("identifier not defined, did you forget to declare with "
-                  "auto or extern, or meant to call a function?",
-                  name);
-        else
-            symbols_.set_symbol_by_name(name,
-                                        { "__WORD__", type::Type_["word"] });
+                error("identifier not defined, did you forget to declare with "
+                      "auto or extern, or meant to call a function?",
+                      name);
+            else
+                symbols_.set_symbol_by_name(
+                    name, { "__WORD__", type::Type_["word"] });
+        }
     }
     RValue::LValue lvalue{};
     match(node["node"].ToString())(

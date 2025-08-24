@@ -78,6 +78,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                     type::rvalue_type_pointer_from_rvalue(s->value);
                 auto rvalue_pointer = instruction_temporary_from_rvalue_operand(
                     unwrap_type, temporary_size);
+
                 instructions.insert(instructions.end(),
                                     rvalue_pointer.second.begin(),
                                     rvalue_pointer.second.end());
@@ -87,6 +88,10 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                 temp_name = util::rvalue_to_string(*operand, false);
             },
             [&](RValue::LValue&) {
+                // auto lvalue = make_temporary(
+                //     temporary_size, util::rvalue_to_string(*operand, false));
+                // instructions.push_back(lvalue);
+                // temp_name = std::get<1>(lvalue);
                 temp_name = util::rvalue_to_string(*operand, false);
             },
             [&](RValue::Unary& s) {
@@ -195,6 +200,7 @@ void binary_operands_to_temporary_stack(
     Operator op,
     int* temporary)
 {
+
     if (temporary_stack.size() >= 2) {
         auto rhs = temporary_stack.top();
         temporary_stack.pop();

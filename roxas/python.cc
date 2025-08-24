@@ -34,10 +34,18 @@
 
 namespace roxas {
 
+namespace detail {
+inline void Python_Loader_Error()
+{
+    PyErr_Print();
+    throw;
+}
+} // namespace detail
+
 /**
- * @brief PythonModuleLoader constructor
+ * @brief Python_Module_Loader constructor
  */
-PythonModuleLoader::PythonModuleLoader(std::string_view module_name)
+Python_Module_Loader::Python_Module_Loader(std::string_view module_name)
     : module_name_(module_name)
 {
     std::ostringstream python_path;
@@ -51,7 +59,7 @@ PythonModuleLoader::PythonModuleLoader(std::string_view module_name)
 /**
  * @brief Call a method on the python module and return the result
  */
-std::string PythonModuleLoader::call_method_on_module(
+std::string Python_Module_Loader::call_method_on_module(
     std::string_view method_name,
     std::initializer_list<std::string> args)
 {
@@ -62,8 +70,8 @@ std::string PythonModuleLoader::call_method_on_module(
     pModule = PyImport_ImportModule(module_name_.data());
 
     if (!pModule) {
-        PyErr_Print();
         Py_DECREF(pModule);
+        detail::Python_Loader_Error();
     }
 
     // pDict is a borrowed reference
@@ -71,7 +79,7 @@ std::string PythonModuleLoader::call_method_on_module(
 
     if (!pDict) {
         Py_DECREF(pDict);
-        PyErr_Print();
+        detail::Python_Loader_Error();
     }
 
     vModule = PyDict_GetItemString(pDict, "__name__");
@@ -79,7 +87,7 @@ std::string PythonModuleLoader::call_method_on_module(
     if (!vModule) {
         Py_DECREF(pModule);
         Py_DECREF(pDict);
-        PyErr_Print();
+        detail::Python_Loader_Error();
     }
 
     // pFunc is also a borrowed reference
@@ -88,7 +96,7 @@ std::string PythonModuleLoader::call_method_on_module(
     if (!pFunc) {
         Py_DECREF(pModule);
         Py_DECREF(pDict);
-        PyErr_Print();
+        detail::Python_Loader_Error();
     }
 
     if (PyCallable_Check(pFunc)) {
@@ -112,25 +120,23 @@ std::string PythonModuleLoader::call_method_on_module(
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
             Py_DECREF(pValue);
         } else {
-            PyErr_Print();
+            detail::Python_Loader_Error();
         }
         if (pArgs != NULL) {
             Py_DECREF(pArgs);
         }
     } else {
-        PyErr_Print();
+        detail::Python_Loader_Error();
     }
     Py_DECREF(pModule);
     Py_DECREF(pDict);
-    Py_DECREF(pFunc);
-    Py_DECREF(vModule);
     return ret;
 }
 
 /**
  * @brief clean up
  */
-PythonModuleLoader::~PythonModuleLoader()
+Python_Module_Loader::~Python_Module_Loader()
 {
     Py_FinalizeEx();
 }

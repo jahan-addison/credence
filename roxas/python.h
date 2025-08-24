@@ -28,13 +28,13 @@ namespace roxas {
  * Module loader via libpython.
  *
  */
-class PythonModuleLoader
+class Python_Module_Loader
 {
   public:
-    PythonModuleLoader(PythonModuleLoader const&) = delete;
-    PythonModuleLoader(std::string_view module_name);
+    Python_Module_Loader(Python_Module_Loader const&) = delete;
+    Python_Module_Loader(std::string_view module_name);
 
-    ~PythonModuleLoader();
+    ~Python_Module_Loader();
 
   public:
     std::string call_method_on_module(std::string_view method_name,

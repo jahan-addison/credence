@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16...3.29)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,12 +12,12 @@ project(
 include(GNUInstallDirs)
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus /utf-8 /D_CRT_SECURE_NO_DEPRECATE /W4 /WX")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus /utf-8 /DEBUG /D_CRT_SECURE_NO_DEPRECATE /W4 /WX")
 else()
     if(CMAKE_BUILD_TYPE EQUAL Debug)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -DDEBUG")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -Werror -Wpedantic -DDEBUG")
     else()
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -DDEBUG")
     endif()
 endif()
 
@@ -76,8 +76,6 @@ CPMAddPackage(
   OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
 )
 
-include(FetchContent)
-
 FetchContent_Declare(
     matchit
     GIT_REPOSITORY https://github.com/BowenFu/matchit.cpp.git
@@ -94,6 +92,22 @@ endif()
 
 include_directories(${matchit_SOURCE_DIR}/include)
 
+FetchContent_Declare(
+  cpptrace
+  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+  GIT_TAG        v1.0.4 # <HASH or TAG>
+)
+
+FetchContent_GetProperties(cpptrace)
+if(NOT cpptrace_POPULATED)
+    FetchContent_Populate(cpptrace)
+    add_subdirectory(${cpptrace_SOURCE_DIR} ${cpptrace_BINARY_DIR}
+                    EXCLUDE_FROM_ALL)
+endif()
+
+include_directories(${cpptrace_SOURCE_DIR}/include)
+
+
 # --- Executables ----
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
@@ -109,7 +123,7 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
-target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit cpptrace::cpptrace)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit cpptrace::cpptrace)
 
 include(cmake/doctest.cmake)

@@ -16,10 +16,14 @@
 
 #pragma once
 
+#if defined(DEBUG)
+#include <cpptrace/cpptrace.hpp>
+#endif
 #include <format>
 #include <map>
 #include <roxas/types.h>
 #include <roxas/util.h>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 
@@ -66,7 +70,18 @@ class Symbol_Table
      */
     inline T get_symbol_by_name(std::string const& name)
     {
+#if defined(DEBUG)
+        try {
+            return table_.at(name);
+        } catch (std::out_of_range& e) {
+            util::log(util::Logging::ERROR,
+                      std::format("key '{}' not found in symbol table", name));
+            cpptrace::generate_trace().print();
+            std::abort();
+        }
+#else
         return table_.at(name);
+#endif
     }
     /**
      * @brief Check if a symbol exists

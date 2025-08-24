@@ -64,10 +64,9 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
 /**
  * @brief Construct a set of qaud instructions from a function definition
  */
-Instructions build_from_function_definition(
-    [[maybe_unused]] Symbol_Table<>& symbols,
-    Node& node,
-    Node& details)
+Instructions build_from_function_definition(Symbol_Table<>& symbols,
+                                            Node& node,
+                                            Node& details)
 {
     using namespace matchit;
     Instructions instructions{};
@@ -77,6 +76,9 @@ Instructions build_from_function_definition(
         node["root"].ToString() == "main" ? "__main" : node["root"].ToString();
     auto parameters = node["left"];
     auto block = node["right"];
+
+    symbols.set_symbol_by_name(name, { "__WORD__", type::Type_["word"] });
+
     if (parameters.JSONType() == json::JSON::Class::Array and
         !parameters.ArrayRange().get()->at(0).IsNull()) {
         for (auto& ident : parameters.ArrayRange()) {
@@ -207,10 +209,12 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
         }
         rvalues_to_queue(rvalues, &list);
         auto line = rvalue_queue_to_instructions(&list, &temporary);
+
         instructions.insert(instructions.end(), line.begin(), line.end());
         rvalues.clear();
         list.clear();
     }
+
     return instructions;
 }
 

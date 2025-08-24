@@ -5,5 +5,5 @@ main() {
 
 exp(x,y) {
   auto x,y;
-  x * y;
+  x = x * y;
 }

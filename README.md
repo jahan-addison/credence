@@ -83,6 +83,7 @@ ninja
 
 * `SimpleJSON` - Simple JSON parser
 * `cxxopts` - Lightweight commandline option parser
+* `cpptrace` - Stack traces, until C++23
 * `matchit` - C++17 pattern matching
 
 ### License

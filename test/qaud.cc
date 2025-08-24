@@ -1,18 +1,15 @@
-// clang-format off
-#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase, TEST_CASE
-#include <roxas/ir/qaud.h>    // for build_from_auto_statement, build_from_r...
-#include <roxas/json.h>       // for JSON
-#include <roxas/symbol.h>     // for Symbol_Table
-#include <roxas/types.h>      // for Type_, Value_Type, Byte, RValue
-#include <array>              // for array
-#include <deque>              // for operator==, _Deque_iterator
-#include <iostream>           // for cout
-#include <map>                // for map
-#include <string>             // for allocator, operator<=>, operator==, bas...
-#include <tuple>              // for tuple
-#include <utility>            // for pair, make_pair, operator==
-#include <variant>            // for operator==, monostate
-// clang-format on
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
+#include <iostream>          // for ostringstream, cout
+#include <map>               // for map
+#include <ostream>           // for basic_ostream, operator<<
+#include <roxas/ir/qaud.h>   // for emit_quadruple, build_from_rval...
+#include <roxas/json.h>      // for JSON
+#include <roxas/symbol.h>    // for Symbol_Table
+#include <roxas/types.h>     // for Type_, Value_Type, Byte, RValue
+#include <sstream>           // for basic_ostringstream
+#include <string>            // for basic_string, allocator, char_t...
+#include <utility>           // for pair, make_pair
+#include <variant>           // for monostate
 
 TEST_CASE("ir/qaud.cc: build_from_function_definition")
 {

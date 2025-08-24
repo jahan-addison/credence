@@ -14,25 +14,29 @@
  * limitations under the License.
  */
 
-#include <cxxopts.hpp>     // for value, Options, ParseResult
-#include <filesystem>      // for path
-#include <iostream>        // for cout, cerr
-#include <matchit.h>       // for pattern, match, PatternHelper
-#include <memory>          // for shared_ptr
-#include <ostream>         // for basic_ostream, operator<<, endl
-#include <roxas/ir/qaud.h> // for build_from_definitions, emit_qu...
-#include <roxas/json.h>    // for JSON, operator<<
-#include <roxas/python.h>  // for PythonModuleLoader
-#include <roxas/symbol.h>  // for Symbol_Table
-#include <roxas/util.h>    // for read_file_from_path
-#include <stdexcept>       // for runtime_error
-#include <string>          // for basic_string, char_traits, string
-#include <string_view>     // for basic_string_view
+#include <cpptrace/basic.hpp>        // for stacktrace
+#include <cpptrace/from_current.hpp> // for from_current_exception
+#include <cxxopts.hpp>               // for value, Options, OptionAdder
+#include <filesystem>                // for path
+#include <iostream>                  // for cout, cerr
+#include <matchit.h>                 // for pattern, match, PatternHelper
+#include <memory>                    // for shared_ptr
+#include <ostream>                   // for basic_ostream, operator<<, endl
+#include <roxas/ir/qaud.h>           // for build_from_definitions, emit_qu...
+#include <roxas/json.h>              // for JSON, operator<<
+#include <roxas/python.h>            // for Python_Module_Loader
+#include <roxas/symbol.h>            // for Symbol_Table
+#include <roxas/util.h>              // for read_file_from_path, ROXAS_CATCH
+#include <stdexcept>                 // for runtime_error
+#include <string>                    // for basic_string, char_traits, string
+#include <string_view>               // for basic_string_view
 
 int main(int argc, const char* argv[])
 {
+
     using namespace matchit;
-    try {
+    ROXAS_TRY
+    {
         cxxopts::Options options("Roxas", "Roxas :: Axel... What's this?");
         options.show_positional_help();
         options.add_options()(
@@ -64,11 +68,11 @@ int main(int argc, const char* argv[])
             result["source-code"].as<std::string>());
 
         if (type == "python") {
-            auto python_module = roxas::PythonModuleLoader("xion.parser");
+            auto python_module = roxas::Python_Module_Loader("xion.parser");
+            auto hoisted_symbols = python_module.call_method_on_module(
+                "get_source_program_symbol_table_as_json", { source });
+            hoisted = json::JSON::Load(hoisted_symbols);
             if (result["debug"].count()) {
-                auto hoisted_symbols = python_module.call_method_on_module(
-                    "get_source_program_symbol_table_as_json", { source });
-                hoisted = json::JSON::Load(hoisted_symbols);
                 std::cout << "*** Symbol Table:" << std::endl
                           << hoisted.ToString() << std::endl;
             }
@@ -103,9 +107,11 @@ int main(int argc, const char* argv[])
                         std::cout << ast["root"] << std::endl;
                     }
                 });
-    } catch (std::runtime_error& e) {
-        std::cerr << "Roxas Exception :: " << e.what() << std::endl;
-        exit(1);
+    }
+    ROXAS_CATCH(...)
+    {
+        std::cerr << "Roxas Exception :: " << std::endl;
+        cpptrace::from_current_exception().print();
     }
     return 0;
 }
