@@ -162,6 +162,15 @@ inline void emit_quadruple(std::ostream& os, Quadruple qaud)
     }
 }
 
+inline std::string quadruple_to_string(Quadruple qaud)
+{
+    std::ostringstream os;
+    os << std::setw(2) << std::get<1>(qaud) << std::get<0>(qaud)
+       << std::get<2>(qaud) << std::get<3>(qaud);
+
+    return os.str();
+}
+
 } // namespace ir
 
 } // namespace roxas

@@ -89,6 +89,11 @@ RValue Table::from_rvalue(Node& node)
                 rvalue.value =
                     std::make_shared<RValue>(from_function_expression(node));
             },
+        pattern | "evaluated_expression" =
+            [&] {
+                rvalue.value =
+                    std::make_shared<RValue>(from_evaluated_expression(node));
+            },
 
         pattern | "relation_expression" =
             [&] {

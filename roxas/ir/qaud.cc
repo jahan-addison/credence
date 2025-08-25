@@ -19,7 +19,7 @@
 #include <assert.h>          // for assert
 #include <matchit.h>         // for pattern, PatternHelper, PatternPipable
 #include <roxas/ir/table.h>  // for Table
-#include <roxas/ir/util.h>   // for rvalue_queue_to_instructions
+#include <roxas/ir/temp.h>   // for rvalue_queue_to_linear_ir_instructions
 #include <roxas/json.h>      // for JSON
 #include <roxas/queue.h>     // for rvalues_to_queue, RValue_Queue
 #include <roxas/symbol.h>    // for Symbol_Table
@@ -185,7 +185,8 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
         }
     }
     rvalues_to_queue(rvalues, &list);
-    auto return_instructions = rvalue_queue_to_instructions(&list, &temporary);
+    auto return_instructions =
+        rvalue_queue_to_linear_ir_instructions(&list, &temporary);
 
     instructions.insert(instructions.end(),
                         return_instructions.begin(),
@@ -256,7 +257,7 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                 table.from_rvalue(expression).value));
         }
         rvalues_to_queue(rvalues, &list);
-        auto line = rvalue_queue_to_instructions(&list, &temporary);
+        auto line = rvalue_queue_to_linear_ir_instructions(&list, &temporary);
 
         instructions.insert(instructions.end(), line.begin(), line.end());
         rvalues.clear();
