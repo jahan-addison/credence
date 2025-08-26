@@ -108,7 +108,59 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           \"node\" : \"number_literal\",\n                      "
         "\"root\" : 3\n                    }],\n                  \"root\" : "
         "\"puts\"\n                },\n");
-    ;
+    obj["evaluated"] = json::JSON::Load(
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"evaluated_expression\",\n                      "
+        "\"root\" : {\n                        \"left\" : {\n                  "
+        "        \"node\" : \"number_literal\",\n                          "
+        "\"root\" : 5\n                        },\n                        "
+        "\"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"root\" : [\"*\"]\n       "
+        "               }\n                    },\n                    "
+        "\"node\" : \"relation_expression\",\n                    \"right\" : "
+        "{\n                      \"node\" : \"evaluated_expression\",\n       "
+        "               \"root\" : {\n                        \"left\" : {\n   "
+        "                       \"node\" : \"number_literal\",\n               "
+        "           \"root\" : 6\n                        },\n                 "
+        "       \"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 6\n         "
+        "               },\n                        \"root\" : [\"*\"]\n       "
+        "               }\n                    },\n                    "
+        "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }");
+
+    obj["evaluated_2"] = json::JSON::Load(
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"y\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"evaluated_expression\",\n                      "
+        "\"root\" : {\n                        \"left\" : {\n                  "
+        "        \"node\" : \"number_literal\",\n                          "
+        "\"root\" : 5\n                        },\n                        "
+        "\"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 6\n         "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"node\" : \"relation_expression\",\n                    \"right\" : "
+        "{\n                      \"node\" : \"evaluated_expression\",\n       "
+        "               \"root\" : {\n                        \"left\" : {\n   "
+        "                       \"node\" : \"number_literal\",\n               "
+        "           \"root\" : 5\n                        },\n                 "
+        "       \"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 6\n         "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }");
 
     ir::Table table{ obj };
     RValue::Value null = { std::monostate(), roxas::type::Type_["null"] };
@@ -128,6 +180,10 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "x (5:int:4) (4:int:4) (10:int:4) (1:int:4) ?: < = ";
     std::string function_expected =
         "puts (1:int:4) (2:int:4) (3:int:4) PUSH PUSH PUSH CALL ";
+    std::string evaluated_expected =
+        "x (5:int:4) (5:int:4) * (6:int:4) (6:int:4) * + = ";
+    std::string evaluated_expected_2 =
+        "y (5:int:4) (6:int:4) + (5:int:4) (6:int:4) + * = ";
 
     std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
@@ -178,6 +234,22 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == function_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["evaluated"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = util::queue_of_rvalues_to_string(&list);
+    CHECK(test == evaluated_expected);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["evaluated_2"]).value));
+    rvalues_to_queue(rvalues, &list);
+    test = util::queue_of_rvalues_to_string(&list);
+    CHECK(test == evaluated_expected_2);
     rvalues.clear();
     list.clear();
 }

@@ -46,12 +46,13 @@ using namespace type;
  * @brief
  * Unary operators and temporary stack to instructions
  *
- * A "temporary" is a scope-level temporary identifier from a rvalue
+ * A "temporary" is a scope-level temporary identifier from an rvalue
  * operand:
  *
  *   Consider the expression `x || ~5`
- *  In order to express this in a set of 3 or 4 expressions, we create the
- * temporaries:
+ *
+ *  In order to express this in a 3- or 4-tuple, we create the
+ *  temporaries:
  *
  * clang-format off
  *
@@ -59,11 +60,15 @@ using namespace type;
  *  _t3 = x || _t2
  *
  * clang-format on
- * The unary operand temporary is "_t3", which we return.
+ *
+ * The final unary temporary is "_t3", which we return.
  *
  * If there is a stack of temporaries from a previous operand, we pop them
  * and use the newest temporary's idenfitier for the instruction name of the
  * top of the temporary stack.
+ *
+ * I.e., the sub expression "~ 5" was pushed on to a temporary stack, with
+ * identifier _t2. We popped it off and used it in our final temporary.
  */
 void unary_operand_to_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,
