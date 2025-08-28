@@ -137,7 +137,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
 
     obj["evaluated_2"] = json::JSON::Load(
         "{\n                  \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"y\"\n                  "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
         "         \"right\" : {\n                    \"left\" : {\n            "
         "          \"node\" : \"evaluated_expression\",\n                      "
@@ -154,6 +154,32 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "               \"root\" : {\n                        \"left\" : {\n   "
         "                       \"node\" : \"number_literal\",\n               "
         "           \"root\" : 5\n                        },\n                 "
+        "       \"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 6\n         "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }");
+    obj["evaluated_3"] = json::JSON::Load(
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"evaluated_expression\",\n                      "
+        "\"root\" : {\n                        \"left\" : {\n                  "
+        "        \"node\" : \"number_literal\",\n                          "
+        "\"root\" : 5\n                        },\n                        "
+        "\"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"node\" : \"relation_expression\",\n                    \"right\" : "
+        "{\n                      \"node\" : \"evaluated_expression\",\n       "
+        "               \"root\" : {\n                        \"left\" : {\n   "
+        "                       \"node\" : \"number_literal\",\n               "
+        "           \"root\" : 6\n                        },\n                 "
         "       \"node\" : \"relation_expression\",\n                        "
         "\"right\" : {\n                          \"node\" : "
         "\"number_literal\",\n                          \"root\" : 6\n         "
@@ -183,7 +209,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     std::string evaluated_expected =
         "x (5:int:4) (5:int:4) * (6:int:4) (6:int:4) * + = ";
     std::string evaluated_expected_2 =
-        "y (5:int:4) (6:int:4) + (5:int:4) (6:int:4) + * = ";
+        "x (5:int:4) (6:int:4) + (5:int:4) (6:int:4) + * = ";
 
     std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
@@ -250,6 +276,13 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == evaluated_expected_2);
+    rvalues.clear();
+    list.clear();
+
+    rvalues.push_back(std::make_shared<type::RValue::Type>(
+        table.from_rvalue(obj["evaluated_3"]).value));
+    rvalues_to_queue(rvalues, &list);
+    std::cout << util::queue_of_rvalues_to_string(&list) << std::endl;
     rvalues.clear();
     list.clear();
 }

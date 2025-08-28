@@ -38,6 +38,25 @@ inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
     return make_quadruple(Instruction::VARIABLE, lhs, temp);
 }
 
+std::pair<std::string, std::size_t> insert_create_temp_from_operand(
+    type::RValue::Type_Pointer operand,
+    Instructions& instructions,
+    int* temporary);
+
+void binary_operands_balanced_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
+    type::Operator op,
+    int* temporary);
+
+void binary_operands_unbalanced_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
+    type::Operator op,
+    int* temporary);
+
 std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
     type::RValue::Type_Pointer& operand,
     int* temporary_size);

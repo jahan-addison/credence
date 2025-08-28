@@ -124,6 +124,7 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("y", null);
+    std::cout << "test: " << obj["test"].dump() << std::endl;
     test_instructions =
         build_from_return_statement(symbols, obj["test"], internal_symbols);
     for (auto const& inst : test_instructions) {
@@ -476,4 +477,64 @@ TEST_CASE("ir/qaud.cc: build_from_auto_statement")
     CHECK(symbols.table_["x"] == byte_value);
     CHECK(symbols.table_["y"] == word_value);
     CHECK(symbols.table_["z"] == empty_value);
+}
+
+TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
+{
+    using namespace roxas;
+    using namespace roxas::ir;
+    json::JSON obj;
+    auto internal_symbols = json::JSON::Load(
+        "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
+        "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
+        "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
+        "\"end_column\" : 4,\n    \"end_pos\" : 52,\n    \"line\" : 6,\n    "
+        "\"start_pos\" : 49,\n    \"type\" : \"function_definition\"\n  },\n  "
+        "\"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n    "
+        "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
+        "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    \"column\" "
+        ": 8,\n    \"end_column\" : 9,\n    \"end_pos\" : 20,\n    \"line\" : "
+        "2,\n    \"start_pos\" : 19,\n    \"type\" : \"lvalue\"\n  },\n  \"y\" "
+        ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
+        "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
+        "\"lvalue\"\n  }\n}");
+    obj["test"] = json::JSON::Load(
+        "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 5\n                        },\n                   "
+        "     \"root\" : [\"+\"]\n                      }\n                    "
+        "},\n                    \"node\" : \"relation_expression\",\n         "
+        "           \"right\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 6\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 6\n                        },\n                   "
+        "     \"root\" : [\"+\"]\n                      }\n                    "
+        "},\n                    \"root\" : [\"*\"]\n                  },\n    "
+        "              \"root\" : [\"=\", null]\n                }]],\n        "
+        "    \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n    "
+        "      }");
+
+    roxas::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    symbols.table_.emplace("x", null);
+    test_instructions =
+        build_from_rvalue_statement(symbols, obj["test"], internal_symbols);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(std::cout, inst);
+    }
 }
