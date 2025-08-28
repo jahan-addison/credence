@@ -54,6 +54,12 @@ void binary_operands_unbalanced_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,
     std::stack<std::string>& temporary_stack,
     Instructions& instructions,
+    int* temporary);
+
+void binary_operands_unbalanced_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
     type::Operator op,
     int* temporary);
 
