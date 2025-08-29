@@ -15,20 +15,21 @@
  */
 
 // clang-format off
-#include <roxas/ir/qaud.h>
+#include <credence/ir/qaud.h>
 #include <assert.h>          // for assert
-#include <matchit.h>         // for pattern, PatternHelper, PatternPipable
-#include <roxas/ir/table.h>  // for Table
-#include <roxas/ir/temp.h>   // for rvalue_queue_to_linear_ir_instructions
-#include <roxas/json.h>      // for JSON
-#include <roxas/queue.h>     // for rvalues_to_queue, RValue_Queue
-#include <roxas/symbol.h>    // for Symbol_Table
-#include <roxas/types.h>     // for rvalue_type_pointer_from_rvalue, RValue
+#include <matchit.h>         // for pattern, match, PatternHelper, PatternPi...
+#include <credence/ir/table.h>  // for Table
+#include <credence/ir/temp.h>   // for rvalue_queue_to_linear_ir_instructions
+#include <credence/json.h>      // for JSON
+#include <credence/queue.h>     // for rvalues_to_queue, RValue_Queue
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for rvalue_type_pointer_from_rvalue, RValue
+#include <format>            // for format
 #include <utility>           // for pair
 #include <variant>           // for variant
 // clang-format on
 
-namespace roxas {
+namespace credence {
 
 namespace ir {
 
@@ -192,7 +193,13 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
                         return_instructions.begin(),
                         return_instructions.end());
 
-    instructions.push_back(make_quadruple(Instruction::LEAVE, "", ""));
+    if (!list.empty() and instructions.empty()) {
+        auto last_rvalue = std::get<type::RValue::Type_Pointer>(list.back());
+        instructions.push_back(make_quadruple(
+            Instruction::RETURN, util::rvalue_to_string(*last_rvalue), ""));
+    } else {
+        instructions.push_back(make_quadruple(Instruction::RETURN, "", ""));
+    }
 
     return instructions;
 }
@@ -269,4 +276,4 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
 
 } // namespace ir
 
-} // namespace roxas
+} // namespace credence

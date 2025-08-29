@@ -16,19 +16,19 @@
 
 #pragma once
 
-#include <array>          // for array
-#include <deque>          // for deque
-#include <map>            // for map
-#include <roxas/json.h>   // for JSON
-#include <roxas/symbol.h> // for Symbol_Table
-#include <roxas/types.h>  // for RValue
-#include <roxas/util.h>   // for ROXAS_PRIVATE_UNLESS_TESTED
-#include <string>         // for allocator, basic_string, string
-#include <string_view>    // for string_view
+#include <array>             // for array
+#include <credence/json.h>   // for JSON
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for RValue
+#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <deque>             // for deque
+#include <map>               // for map
+#include <string>            // for allocator, basic_string, string
+#include <string_view>       // for string_view
 
-namespace roxas {
+namespace credence {
 namespace ir {
-using namespace roxas::type;
+using namespace credence::type;
 
 /**
  * @brief Constructs a table of rvalues and temporaries as algebraic data types
@@ -63,17 +63,17 @@ class Table
     }
     RValue from_rvalue(Node& node);
 
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue from_evaluated_expression(Node& node);
     RValue from_function_expression(Node& node);
 
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue from_relation_expression(Node& node);
 
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue from_unary_expression(Node& node);
 
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue::LValue from_lvalue_expression(Node& node);
     RValue::Value from_indirect_identifier(Node& node);
     RValue::Value from_vector_idenfitier(Node& node);
@@ -85,10 +85,10 @@ class Table
                globals_.is_defined(lvalue);
     }
 
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue from_assignment_expression(Node& node);
 
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue::Value from_constant_expression(Node& node);
     RValue::Value from_number_literal(Node& node);
     RValue::Value from_string_literal(Node& node);
@@ -100,10 +100,10 @@ class Table
                                                       "post_inc_dec_expression",
                                                       "address_of_expression",
                                                       "unary_expression" };
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     json::JSON internal_symbols_;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };
 } // namespace ir
-} // namespace roxas
+} // namespace credence

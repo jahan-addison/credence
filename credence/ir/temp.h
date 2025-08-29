@@ -16,22 +16,25 @@
 
 #pragma once
 
-#include <format>          // for format
-#include <roxas/ir/qaud.h> // for Instructions, make_quadruple, Instruction
-#include <roxas/queue.h>   // for RValue_Queue
-#include <roxas/types.h>   // for RValue
-#include <string>          // for string
-#include <utility>         // for pair
+#include <credence/ir/qaud.h> // for Instructions, make_quadruple, Instruction
+#include <credence/queue.h>   // for RValue_Queue
+#include <credence/types.h>   // for RValue
+#include <cstddef>            // for size_t
+#include <format>             // for format
+#include <stack>              // for stack
+#include <string>             // for string
+#include <utility>            // for pair
 
-namespace roxas {
+namespace credence {
+
+namespace type {
+enum class Operator;
+}
 
 namespace ir {
 
 namespace detail {
 
-/**
- * @brief Construct a quadruple that holds a linear instruction IR
- */
 inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
 {
     auto lhs = std::format("_t{}", ++(*temporary_size), temp);
@@ -56,22 +59,15 @@ void binary_operands_unbalanced_temporary_stack(
     Instructions& instructions,
     int* temporary);
 
-void binary_operands_unbalanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
-    type::Operator op,
-    int* temporary);
-
 std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
     type::RValue::Type_Pointer& operand,
     int* temporary_size);
 
-} // namespace
+} // namespace detail
 
 Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
                                                     int* temporary);
 
 } // namespace ir
 
-} // namespace roxas
+} // namespace credence

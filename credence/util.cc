@@ -22,10 +22,10 @@
 #include <list>              // for operator==, _List_iterator
 #include <map>               // for map
 #include <memory>            // for __shared_ptr_access, shared_ptr
-#include <roxas/operators.h> // for operator<<, operator_to_string, Operato...
-#include <roxas/queue.h>     // for RValue_Queue
-#include <roxas/types.h>     // for Type_, RValue, Byte
-#include <roxas/util.h>
+#include <credence/operators.h> // for operator<<, operator_to_string, Operato...
+#include <credence/queue.h>     // for RValue_Queue
+#include <credence/types.h>     // for Type_, RValue, Byte
+#include <credence/util.h>
 #include <sstream>           // for basic_ostream, basic_ostringstream, ope...
 #include <string>            // for char_traits, allocator, operator<<, basic_s...
 #include <utility>           // for pair
@@ -33,7 +33,7 @@
 #include <vector>            // for vector
 // clang-format on
 
-namespace roxas {
+namespace credence {
 
 namespace util {
 
@@ -42,7 +42,7 @@ namespace util {
  */
 std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
 {
-    using namespace roxas::type;
+    using namespace credence::type;
     auto oss = std::ostringstream();
     auto space = separate ? " " : "";
     std::visit(
@@ -124,7 +124,7 @@ std::string dump_value_type(type::RValue::Value type,
                        os << "null" << separator << Type_["null"].first
                           << separator << Type_["null"].second;
                    },
-                   [&](roxas::type::Byte i) {
+                   [&](credence::type::Byte i) {
                        os << i << separator << Type_["byte"].first << separator
                           << type.second.second;
                    },
@@ -192,4 +192,4 @@ void log(Logging level, std::string_view message)
 
 } // namespace util
 
-} // namespace roxas
+} // namespace credence

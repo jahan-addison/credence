@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 #pragma once
+#include <credence/operators.h>
 #include <list>
 #include <map>
-#include <memory> // For std::unique_ptr
-#include <roxas/operators.h>
+#include <memory>  // For std::unique_ptr
 #include <sstream> // for basic_ostringstream, ostringstream
 #include <string>
 #include <variant>
 #include <vector>
 
-namespace roxas {
+namespace credence {
 
 namespace type {
 
@@ -100,4 +100,4 @@ inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
 
 } // namespace type
 
-} // namespace roxas
+} // namespace credence

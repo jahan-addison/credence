@@ -1,10 +1,12 @@
+// clang-format off
 #include <array>             // for array
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
+#include <credence/symbol.h> // for Symbol_Table
 #include <map>               // for map
-#include <roxas/symbol.h>    // for Symbol_Table
 #include <string>            // for basic_string, string
+// clang-format on
 
-using namespace roxas;
+using namespace credence;
 
 TEST_CASE("symbol.cc: Symbol_table::get_symbol_by_name")
 {

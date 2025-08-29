@@ -20,7 +20,7 @@
 #include <string>
 #include <string_view>
 
-namespace roxas {
+namespace credence {
 
 /**
  * @brief
@@ -45,4 +45,4 @@ class Python_Module_Loader
     std::string_view module_name_;
 };
 
-} // namespace roxas
+} // namespace credence

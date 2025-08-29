@@ -17,37 +17,38 @@
 #pragma once
 
 // clang-format off
-#include <roxas/queue.h>                     // for RValue_Queue
-#include <roxas/types.h>                     // for RValue
 #if defined(DEBUG)
 #include <cpptrace/from_current.hpp>
 #endif
+#include <ostream>                           // for operator<<
+#include <credence/queue.h>                  // for RValue_Queue
+#include <credence/types.h>                  // for RValue
+#include <cpptrace/from_current_macros.hpp>  // for CPPTRACE_TRY
 #include <filesystem>                        // for path
-#include <sstream>                           // for basic_stringstream, basi...
-#include <string>                            // for allocator, char_traits
-#include <string_view>                       // for operator<<, string_view
-#include <tuple>                             // for apply
-#include <variant>                           // for tuple
+#include <sstream>                           // for basic_stringstream, stri...
+#include <string>                            // for char_traits, string, all...
+#include <string_view>                       // for basic_string_view, strin...
+#include <tuple>                             // for apply, tuple
 namespace json { class JSON; }  // lines 31-31
 // clang-format on
 
 // access specifier macros for Doctest unit tests
-#define ROXAS_PUBLIC public
-#if defined(DOCTEST_LIBRARY_INCLUDED)
-#define ROXAS_PRIVATE_UNLESS_TESTED public
+#define CREDENCE_PUBLIC public
+#ifdef DOCTEST_LIBRARY_INCLUDED
+#define CREDENCE_PRIVATE_UNLESS_TESTED public
 #else
-#define ROXAS_PRIVATE_UNLESS_TESTED private
+#define CREDENCE_PRIVATE_UNLESS_TESTED private
 #endif
 
 #if defined(DEBUG)
-#define ROXAS_TRY CPPTRACE_TRY
-#define ROXAS_CATCH CPPTRACE_CATCH
+#define CREDENCE_TRY CPPTRACE_TRY
+#define CREDENCE_CATCH CPPTRACE_CATCH
 #else
-#define ROXAS_TRY try
-#define ROXAS_CATCH catch
+#define CREDENCE_TRY try
+#define CREDENCE_CATCH catch
 #endif
 
-namespace roxas {
+namespace credence {
 
 namespace util {
 
@@ -108,4 +109,4 @@ std::string read_file_from_path(fs::path path);
 
 } // namespace util
 
-} // namespace roxas
+} // namespace credence

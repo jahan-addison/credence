@@ -1,12 +1,12 @@
 // clang-format off
 #include <vector>             // for vector
 #include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase, TEST_CASE
-#include <roxas/ir/table.h>   // for Table
-#include <roxas/json.h>       // for JSON
-#include <roxas/queue.h>      // for rvalues_to_queue, RValue_Queue
-#include <roxas/symbol.h>     // for Symbol_Table
-#include <roxas/types.h>      // for RValue, Type_
-#include <roxas/util.h>       // for queue_of_rvalues_to_string
+#include <credence/ir/table.h>   // for Table
+#include <credence/json.h>       // for JSON
+#include <credence/queue.h>      // for rvalues_to_queue, RValue_Queue
+#include <credence/symbol.h>     // for Symbol_Table
+#include <credence/types.h>      // for RValue, Type_
+#include <credence/util.h>       // for queue_of_rvalues_to_string
 #include <map>                // for map
 #include <memory>             // for make_shared
 #include <string>             // for basic_string, string
@@ -16,8 +16,8 @@
 
 TEST_CASE("ir/queue.cc: rvalues_to_queue")
 {
-    using namespace roxas;
-    using namespace roxas::type;
+    using namespace credence;
+    using namespace credence::type;
     json::JSON obj;
 
     obj["complex"] = json::JSON::Load(
@@ -189,7 +189,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         ": [\"=\", null]\n                }");
 
     ir::Table table{ obj };
-    RValue::Value null = { std::monostate(), roxas::type::Type_["null"] };
+    RValue::Value null = { std::monostate(), credence::type::Type_["null"] };
     table.symbols_.table_.emplace("x", null);
     table.symbols_.table_.emplace("double", null);
     table.symbols_.table_.emplace("exp", null);
@@ -282,7 +282,6 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         table.from_rvalue(obj["evaluated_3"]).value));
     rvalues_to_queue(rvalues, &list);
-    std::cout << util::queue_of_rvalues_to_string(&list) << std::endl;
     rvalues.clear();
     list.clear();
 }

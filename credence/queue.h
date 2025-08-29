@@ -15,11 +15,11 @@
  */
 #pragma once
 
-#include <list>              // for list
-#include <roxas/operators.h> // for Operator
-#include <roxas/types.h>     // for RValue
-#include <variant>           // for variant
-#include <vector>            // for vector
+#include <credence/operators.h> // for Operator
+#include <credence/types.h>     // for RValue
+#include <list>                 // for list
+#include <variant>              // for variant
+#include <vector>               // for vector
 
 /**
  * o  o  o  TOOT  TOOT  o  o O  O             O  O o  o  TOOT  TOOT  o  o  o
@@ -31,7 +31,7 @@
  *
  */
 
-namespace roxas {
+namespace credence {
 
 using RValue_Queue =
     std::list<std::variant<type::Operator, type::RValue::Type_Pointer>>;
@@ -42,4 +42,4 @@ RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
 RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
                                RValue_Queue* rvalues_queue);
 
-} // namespace roxas
+} // namespace credence

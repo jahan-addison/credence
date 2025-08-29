@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 #pragma once
-#include <algorithm>      // for copy, max
-#include <array>          // for array
-#include <deque>          // for deque
-#include <functional>     // for identity
-#include <map>            // for map
-#include <ranges>         // for __find_fn, find
-#include <roxas/json.h>   // for JSON
-#include <roxas/symbol.h> // for Symbol_Table
-#include <roxas/types.h>  // for Value_Type, RValue, Type_
-#include <sstream>        // for basic_ostream, operator<<, basic_ostringst...
-#include <string>         // for allocator, char_traits, operator<<, string
-#include <tuple>          // for get, make_tuple, tuple
-#include <utility>        // for pair
-#include <variant>        // for monostate
-#include <vector>         // for vector
-namespace roxas {
+#include <algorithm>         // for __find, find
+#include <array>             // for array
+#include <credence/json.h>   // for JSON
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for Value_Type, RValue, Type_
+#include <deque>             // for deque
+#include <iomanip>           // for operator<<, setw
+#include <map>               // for map
+#include <ostream>           // for basic_ostream, operator<<, endl
+#include <sstream>           // for basic_ostringstream, ostream
+#include <string>            // for basic_string, char_traits, allo...
+#include <tuple>             // for get, make_tuple, tuple
+#include <variant>           // for monostate
+#include <vector>            // for vector
+
+namespace credence {
 
 namespace ir {
 
@@ -157,8 +157,11 @@ inline void emit_quadruple(std::ostream& os, Quadruple qaud)
         else
             os << op << " " << std::get<1>(qaud) << ";" << std::endl;
     } else {
-        os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
-           << std::get<3>(qaud) << ";" << std::endl;
+        if (op == Instruction::RETURN)
+            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
+        else
+            os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
+               << std::get<3>(qaud) << ";" << std::endl;
     }
 }
 
@@ -173,4 +176,4 @@ inline std::string quadruple_to_string(Quadruple qaud)
 
 } // namespace ir
 
-} // namespace roxas
+} // namespace credence

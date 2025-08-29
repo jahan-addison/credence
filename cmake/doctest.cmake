@@ -1,5 +1,5 @@
 option(ENABLE_TEST_COVERAGE "Enable test coverage" OFF)
-option(TEST_INSTALLED_VERSION "Test the version found by find_package" OFF)
+option(TEST_INSTALLED_VERSION "Test the version found by find_package" ON)
 
 list(REMOVE_ITEM sources "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/main.cc")
 

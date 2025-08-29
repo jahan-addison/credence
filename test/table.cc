@@ -1,17 +1,19 @@
-#include <deque>             // for deque
-#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
-#include <map>               // for map
-#include <memory>            // for shared_ptr
-#include <roxas/ir/table.h>  // for Table
-#include <roxas/json.h>      // for JSON
-#include <roxas/symbol.h>    // for Symbol_Table
-#include <roxas/types.h>     // for Value_Type, RValue, Type_, Byte
-#include <string>            // for basic_string, string
-#include <tuple>             // for get, tie
-#include <utility>           // for pair, make_pair, get
-#include <variant>           // for get, monostate
+// clang-format off
+#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase
+// clang-format on
+#include <credence/ir/table.h> // for Table
+#include <credence/json.h>     // for JSON
+#include <credence/symbol.h>   // for Symbol_Table
+#include <credence/types.h>    // for Value_Type, RValue, Type_, Byte
+#include <deque>               // for deque
+#include <map>                 // for map
+#include <memory>              // for shared_ptr
+#include <string>              // for basic_string, string
+#include <tuple>               // for get, tie
+#include <utility>             // for pair, make_pair, get
+#include <variant>             // for get, monostate
 
-using namespace roxas;
+using namespace credence;
 
 struct Fixture
 {
@@ -91,7 +93,7 @@ struct Fixture
 TEST_CASE("ir/table.cc: Table::rvalue_expression")
 {
     json::JSON obj;
-    using namespace roxas::ir;
+    using namespace credence::ir;
     using std::get;
     obj["test"] = json::JSON::Load(
         "[{\n                  \"node\" : \"constant_literal\",\n              "
@@ -162,7 +164,7 @@ TEST_CASE("ir/table.cc: Table::rvalue_expression")
 
 TEST_CASE("ir/table.cc: Table::function_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     using std::get;
     obj["test"] = json::JSON::Load(
@@ -192,7 +194,7 @@ TEST_CASE("ir/table.cc: Table::function_expression")
 
 TEST_CASE("ir/table.cc: Table::evaluated_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     using std::get;
     obj["test"] = json::JSON::Load(
@@ -227,7 +229,7 @@ TEST_CASE("ir/table.cc: Table::evaluated_expression")
 
 TEST_CASE("ir/table.cc: Table::from_relation_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      "
@@ -343,7 +345,7 @@ TEST_CASE("ir/table.cc: Table::from_relation_expression")
 
 TEST_CASE("ir/table.cc: Table::from_unary_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "[{\n                  \"node\" : \"post_inc_dec_expression\",\n   "
@@ -442,7 +444,7 @@ TEST_CASE("ir/table.cc: Table::from_unary_expression")
 
 TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_assignment_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = json::JSON::Load(
@@ -477,7 +479,7 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_assignment_expression")
 
 TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::is_symbol")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = json::JSON::Load("{\"node\":  \"lvalue\","
@@ -498,7 +500,7 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::is_symbol")
 
 TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "[\n               {\n                \"left\" : {\n               "
@@ -541,7 +543,7 @@ TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
 
 TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
@@ -559,7 +561,7 @@ TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
 }
 TEST_CASE("ir/tble.cc: Table::from_vector_idenfitier")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
@@ -578,7 +580,7 @@ TEST_CASE("ir/tble.cc: Table::from_vector_idenfitier")
 
 TEST_CASE("ir/table.cc: Table::from_constant_expression")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
@@ -594,7 +596,7 @@ TEST_CASE("ir/table.cc: Table::from_constant_expression")
 
 TEST_CASE("ir/table.cc: Table::from_number_literal")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
@@ -610,7 +612,7 @@ TEST_CASE("ir/table.cc: Table::from_number_literal")
 
 TEST_CASE("ir/table.cc: Table::from_string_literal")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"string_literal\","
                                    "\"root\": \"test string\""
@@ -626,7 +628,7 @@ TEST_CASE("ir/table.cc: Table::from_string_literal")
 
 TEST_CASE("ir/table.cc: Table::from_constant_literal")
 {
-    using namespace roxas::ir;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"constant_literal\","
                                    "\"root\": \"x\""

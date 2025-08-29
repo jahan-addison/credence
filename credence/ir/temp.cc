@@ -14,45 +14,317 @@
  * limitations under the License.
  */
 
-// clang-format off
-#include <roxas/ir/temp.h>
-#include <vector>             // for vector
-#include <roxas/ir/qaud.h>    // for make_quadruple, Instruction, Instructions
-#include <roxas/operators.h>  // for Operator, operator_to_string
-#include <roxas/queue.h>      // for RValue_Queue
-#include <roxas/types.h>      // for RValue, rvalue_type_pointer_from_rvalue
-#include <roxas/util.h>       // for rvalue_to_string, overload
-#include <deque>              // for deque
-#include <matchit.h>
-#include <format>             // for format
-#include <map>                // for map
-#include <memory>             // for shared_ptr
-#include <stack>              // for stack
-#include <stdexcept>          // for runtime_error
-#include <string>             // for basic_string, string, to_string
-#include <tuple>              // for tuple, get
-#include <utility>            // for pair, make_pair
-#include <variant>            // for visit, monostate, variant
-// clang-format on
+#include <credence/ir/qaud.h> // for make_quadruple, Instructions, Instruction
+#include <credence/ir/temp.h>
+#include <credence/operators.h> // for Operator, operator_to_string
+#include <credence/queue.h>     // for RValue_Queue
+#include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
+#include <credence/util.h>      // for rvalue_to_string, overload
+#include <deque>                // for deque
+#include <format>               // for format
+#include <map>                  // for map
+#include <matchit.h>            // for Wildcard, Ds, _, Meet, pattern, ds, match
+#include <memory>               // for shared_ptr
+#include <stack>                // for stack
+#include <string>               // for basic_string, string, to_string
+#include <tuple>                // for tuple, get, make_tuple
+#include <utility>              // for pair, make_pair, cmp_equal
+#include <variant>              // for visit, monostate, variant
+#include <vector>               // for vector
 
-namespace roxas {
+/****************************************************************************
+ *  A set of functions that aid construction of 3- or 4- tuple temporaries
+ *  and linear instructions from an rvalue stack. The rvalue stack should
+ *  be ordered by operator precedence, thus constituting an IR that closely
+ *  resembles a generic platform assembly language.
+ *
+ *  Example:
+ *
+ *  main() {
+ *    auto x;
+ *    x = (5 + 5) * (6 + 6);
+ *  }
+ *
+ *  Becomes:
+ *
+ *  __main:
+ *   BeginFunc ;
+ *.   _t1 = (5:int:4) + (5:int:4);
+ *.   _t2 = (6:int:4) + (6:int:4);
+ *.   _t3 = _t1 * _t2;
+ *.   x = _t3;
+ *   EndFunc ;
+ *
+ ****************************************************************************/
+
+namespace credence {
 
 namespace ir {
 
+using namespace type;
+
 namespace detail {
 
-using namespace type;
+/**
+ * @brief
+ * Pop exactly 1 operand and 1 temporary
+ * from each stack into instruction tuple
+ */
+void binary_operands_balanced_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
+    type::Operator op,
+    int* temporary)
+{
+    auto operand1 = operand_stack.top();
+    auto rhs = temporary_stack.top();
+
+    if (operand_stack.size() > 1) {
+        operand_stack.pop();
+    }
+    temporary_stack.pop();
+
+    auto lhs = instruction_temporary_from_rvalue_operand(operand1, temporary);
+    instructions.insert(
+        instructions.end(), lhs.second.begin(), lhs.second.end());
+    auto temp_rhs = make_temporary(temporary, rhs);
+    instructions.push_back(temp_rhs);
+    temporary_stack.push(std::format(
+        "{} {} {}", lhs.first, operator_to_string(op), std::get<1>(temp_rhs)));
+    // an lvalue at the end of a call stack
+    if (operand1->index() == 6 and operand_stack.size() == 0) {
+        auto temp_lhs = make_temporary(temporary,
+                                       std::format("{} {} {}",
+                                                   lhs.first,
+                                                   operator_to_string(op),
+                                                   std::get<1>(temp_rhs)));
+        instructions.push_back(temp_lhs);
+    }
+}
+
+/**
+ * @brief Create and insert instructions from an rvalue operand
+ *  See RValue in `types.h' for details.
+ */
+std::pair<std::string, std::size_t> insert_create_temp_from_operand(
+    type::RValue::Type_Pointer operand,
+    Instructions& instructions,
+    int* temporary)
+{
+    auto inst_temp =
+        instruction_temporary_from_rvalue_operand(operand, temporary);
+    if (inst_temp.second.size() > 0) {
+        instructions.insert(instructions.end(),
+                            inst_temp.second.begin(),
+                            inst_temp.second.end());
+        return std::make_pair(inst_temp.first, inst_temp.second.size());
+    } else {
+        return std::make_pair(util::rvalue_to_string(*operand, false), 0);
+    }
+}
+
+/**
+ * @brief
+ * There is only one operand on the stack, and no temporaries,
+ * so use the lvalue from the last instruction for the LHS.
+ */
+void binary_operands_unbalanced_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
+    type::Operator op,
+    int* temporary)
+{
+    using namespace matchit;
+    auto rhs_lvalue = util::rvalue_to_string(*operand_stack.top(), false);
+    auto operand = operand_stack.top();
+
+    if (instructions.empty())
+        return;
+
+    auto last = instructions[instructions.size() - 1];
+
+    match(static_cast<int>(instructions.size()))(
+        pattern | (_ > 1) =
+            [&] {
+                auto last_by_one = instructions[instructions.size() - 2];
+                auto operand_temp =
+                    make_temporary(temporary,
+                                   std::format("{} {} {}",
+                                               std::get<1>(last_by_one),
+                                               operator_to_string(op),
+                                               std::get<1>(last)));
+                instructions.push_back(operand_temp);
+                temporary_stack.push(std::get<1>(operand_temp));
+            },
+        pattern | 1 =
+            [&] {
+                auto operand_temp =
+                    make_temporary(temporary,
+                                   std::format("{} {} {}",
+                                               rhs_lvalue,
+                                               operator_to_string(op),
+                                               std::get<1>(last)));
+                instructions.push_back(operand_temp);
+                temporary_stack.push(std::get<1>(operand_temp));
+            }
+
+    );
+}
+
+/**
+ * @brief
+ * Construct a temporary lvalue from a recursive rvalue
+ *  See RValue in `types.h' for details.
+ */
+std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
+    RValue::Type_Pointer& operand,
+    int* temporary_size)
+{
+    Instructions instructions{};
+    std::string temp_name{};
+    std::visit(
+        util::overload{
+            [&](std::monostate) {},
+            [&](RValue::RValue_Pointer& s) {
+                auto unwrap_type =
+                    type::rvalue_type_pointer_from_rvalue(s->value);
+                auto rvalue_pointer = instruction_temporary_from_rvalue_operand(
+                    unwrap_type, temporary_size);
+
+                instructions.insert(instructions.end(),
+                                    rvalue_pointer.second.begin(),
+                                    rvalue_pointer.second.end());
+                temp_name = rvalue_pointer.first;
+            },
+            [&](RValue::Value&) {
+                temp_name = util::rvalue_to_string(*operand, false);
+            },
+            [&](RValue::LValue&) {
+                temp_name = util::rvalue_to_string(*operand, false);
+            },
+            [&](RValue::Unary& s) {
+                auto op = s.first;
+                auto unwrap_rhs_type =
+                    type::rvalue_type_pointer_from_rvalue(s.second->value);
+                auto rhs = instruction_temporary_from_rvalue_operand(
+                    unwrap_rhs_type, temporary_size);
+                instructions.insert(
+                    instructions.end(), rhs.second.begin(), rhs.second.end());
+                auto temp = make_temporary(temporary_size, rhs.first);
+
+                auto unary = make_temporary(temporary_size,
+                                            std::format("{} {}",
+                                                        operator_to_string(op),
+                                                        std::get<1>(temp)));
+                instructions.push_back(unary);
+                temp_name = std::get<1>(unary);
+            },
+            [&](RValue::Relation& s) {
+                auto op = s.first;
+                if (s.second.size() == 2) {
+                    auto unwrap_lhs_type =
+                        type::rvalue_type_pointer_from_rvalue(
+                            s.second.at(0)->value);
+                    auto unwrap_rhs_type =
+                        type::rvalue_type_pointer_from_rvalue(
+                            s.second.at(1)->value);
+                    auto lhs = instruction_temporary_from_rvalue_operand(
+                        unwrap_lhs_type, temporary_size);
+                    auto rhs = instruction_temporary_from_rvalue_operand(
+                        unwrap_rhs_type, temporary_size);
+                    auto relation =
+                        make_temporary(temporary_size,
+                                       std::format("{} {} {}",
+                                                   lhs.first,
+                                                   operator_to_string(op),
+                                                   rhs.first));
+
+                    instructions.push_back(relation);
+                    temp_name = std::get<1>(relation);
+
+                } else if (s.second.size() == 4) {
+                    // ternary
+                }
+            },
+            [&](RValue::Function& s) {
+                temp_name = util::rvalue_to_string(s.first, false);
+            },
+            [&](RValue::Symbol& s) {
+                temp_name = util::rvalue_to_string(s.first, false);
+            } },
+        *operand);
+
+    return std::make_pair(temp_name, instructions);
+}
+
+/**
+ * @brief Construct temporary instructions from assignment operator
+ */
+void assignment_operands_to_temporary_stack(
+    std::stack<type::RValue::Type_Pointer>& operand_stack,
+    std::stack<std::string>& temporary_stack,
+    Instructions& instructions,
+    int* temporary)
+{
+    using namespace matchit;
+    auto oss = static_cast<int>(operand_stack.size());
+    auto tss = static_cast<int>(temporary_stack.size());
+    match(oss, tss)(
+        pattern | ds(_ >= 1, _ >= 1) =
+            [&] {
+                auto rhs = temporary_stack.top();
+                temporary_stack.pop();
+                auto lvalue = operand_stack.top();
+                operand_stack.pop();
+                auto lhs = instruction_temporary_from_rvalue_operand(lvalue,
+                                                                     temporary);
+                instructions.insert(
+                    instructions.end(), lhs.second.begin(), lhs.second.end());
+                instructions.push_back(
+                    make_quadruple(Instruction::VARIABLE, lhs.first, rhs));
+            },
+        pattern | ds(_ == 1, _ == 0) =
+            [&] {
+                auto lhs_rvalue =
+                    util::rvalue_to_string(*operand_stack.top(), false);
+                operand_stack.pop();
+                if (instructions.size() > 1) {
+                    auto last = instructions[instructions.size() - 1];
+                    instructions.push_back(make_quadruple(
+                        Instruction::VARIABLE, lhs_rvalue, std::get<1>(last)));
+                }
+            },
+        pattern | ds(_ >= 2, _ == 0) =
+            [&] {
+                auto operand1 = operand_stack.top();
+                operand_stack.pop();
+                auto operand2 = operand_stack.top();
+                operand_stack.pop();
+
+                auto lhs = instruction_temporary_from_rvalue_operand(operand2,
+                                                                     temporary);
+                auto rhs = instruction_temporary_from_rvalue_operand(operand1,
+                                                                     temporary);
+
+                instructions.insert(
+                    instructions.end(), lhs.second.begin(), lhs.second.end());
+                instructions.insert(
+                    instructions.end(), rhs.second.begin(), rhs.second.end());
+                instructions.push_back(make_quadruple(
+                    Instruction::VARIABLE, lhs.first, rhs.first));
+            });
+}
+
+} // namespace detail
 
 /**
  * @brief
  * Unary operators and temporary stack to instructions
  *
- * A "temporary" is a scope-level temporary identifier from an rvalue
- * operand.
- *
- *  In order to express this in a 3- or 4-tuple, we create temporaries:
- *
  * clang-format off
+ *
  *  _t1 = glt(6) || glt(2)
  *  _t2 = ~ 5
  *  _t3 = _t1 || _t2
@@ -60,7 +332,7 @@ using namespace type;
  *
  * clang-format on
  *
- * The final temporary is "_t3", which we set our symbol.
+ * The final temporary is "_t3", which we set to our x operand.
  *
  * If there is a stack of temporaries from a previous operand, we pop them
  * and use the newest temporary's idenfitier for the instruction name of the
@@ -76,6 +348,7 @@ void unary_operand_to_temporary_stack(
     Operator op,
     int* temporary)
 {
+    using namespace detail;
     using namespace matchit;
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
@@ -146,11 +419,9 @@ void unary_operand_to_temporary_stack(
  * @brief
  * Binary operators and temporary stack to instructions
  *
- * A "temporary" is a scope-level temporary identifier from a rvalue
- * operand:
+ * Consider the expression `(x > 1 || x < 1)`
  *
- *   Consider the expression `(x > 1 || x < 1)`
- *  In order to express this in a set of 3 or 4 expressions, we create the
+ * In order to express this in a set of 3 or 4 expressions, we create the
  * temporaries:
  *
  * clang-format off
@@ -160,11 +431,12 @@ void unary_operand_to_temporary_stack(
  *  _t3 = _t1 || _t2
  *
  * clang-format on
- * The binary  operand temporary is "_t3", which we return.
+ *
+ * The binary temporary is "_t3", which we return.
  *
  * We must also keep note of evaluated expressions, i.e wrapped in parenthesis:
  *
- *  `(5 + 5) * (6 * 6)`
+ * `(5 + 5) * (6 * 6)`
  *
  * Becomes:
  *
@@ -177,7 +449,7 @@ void unary_operand_to_temporary_stack(
  * clang-format on
  *
  * If there is a stack of temporaries from a sub-expression in an operand,
- * we pop them and use the latest temporary's idenfitier for the instruction
+ * we pop them and use the last temporary's idenfitier for the instruction
  * name of the top of the temporary stack.
  *
  * I.e., the sub-expressions `x > 1` and `x < 1` were popped of the
@@ -191,6 +463,7 @@ void binary_operands_to_temporary_stack(
     Operator op,
     int* temporary)
 {
+    using namespace detail;
     using namespace matchit;
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
@@ -252,14 +525,21 @@ void binary_operands_to_temporary_stack(
 
                             if (lhs_name.second == 0 and
                                 rhs_name.second == 0 and tss == 0) {
-                                auto temp_inst = make_temporary(
+                                // if the lhs is an lvalue, use the
+                                // temporary from the last instruction
+                                auto operand_temp = make_temporary(
                                     temporary,
                                     std::format("{} {} {}",
                                                 lhs_name.first,
                                                 operator_to_string(op),
                                                 rhs_name.first));
-                                instructions.push_back(temp_inst);
-                                // temporary_stack.push(std::get<1>(temp_inst));
+                                type::RValue::LValue temp_lvalue =
+                                    std::make_pair(std::get<1>(operand_temp),
+                                                   NULL_DATA_TYPE);
+                                operand_stack.push(
+                                    rvalue_type_pointer_from_rvalue(
+                                        temp_lvalue));
+                                instructions.push_back(operand_temp);
 
                             } else {
                                 temporary_stack.push(
@@ -274,176 +554,6 @@ void binary_operands_to_temporary_stack(
             });
 }
 
-void binary_operands_unbalanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
-    type::Operator op,
-    int* temporary)
-{
-    auto rhs_lvalue = util::rvalue_to_string(*operand_stack.top(), false);
-    auto operand = operand_stack.top();
-    if (instructions.size() > 1) {
-        auto last_by_one = instructions[instructions.size() - 2];
-        auto last = instructions[instructions.size() - 1];
-        auto operand_temp = make_temporary(temporary,
-                                           std::format("{} {} {}",
-                                                       std::get<1>(last_by_one),
-                                                       operator_to_string(op),
-                                                       std::get<1>(last)));
-        instructions.push_back(operand_temp);
-        temporary_stack.push(std::get<1>(operand_temp));
-    }
-}
-
-void binary_operands_balanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
-    type::Operator op,
-    int* temporary)
-{
-    auto operand1 = operand_stack.top();
-    auto rhs = temporary_stack.top();
-    if (operand_stack.size() > 1) {
-        operand_stack.pop();
-    }
-
-    temporary_stack.pop();
-
-    auto lhs = instruction_temporary_from_rvalue_operand(operand1, temporary);
-    instructions.insert(
-        instructions.end(), lhs.second.begin(), lhs.second.end());
-    auto temp_rhs = make_temporary(temporary, rhs);
-    instructions.push_back(temp_rhs);
-    temporary_stack.push(std::format(
-        "{} {} {}", lhs.first, operator_to_string(op), std::get<1>(temp_rhs)));
-    // an lvalue at the end of a call stack
-    if (operand1->index() == 6 and operand_stack.size() == 0) {
-        auto temp_lhs = make_temporary(temporary,
-                                       std::format("{} {} {}",
-                                                   lhs.first,
-                                                   operator_to_string(op),
-                                                   std::get<1>(temp_rhs)));
-        instructions.push_back(temp_lhs);
-    }
-}
-
-std::pair<std::string, std::size_t> insert_create_temp_from_operand(
-    type::RValue::Type_Pointer operand,
-    Instructions& instructions,
-    int* temporary)
-{
-    auto inst_temp =
-        instruction_temporary_from_rvalue_operand(operand, temporary);
-    if (inst_temp.second.size() > 0) {
-        instructions.insert(instructions.end(),
-                            inst_temp.second.begin(),
-                            inst_temp.second.end());
-        return std::make_tuple(inst_temp.first, inst_temp.second.size());
-    } else {
-        return std::make_tuple(util::rvalue_to_string(*operand, false), 0);
-    }
-}
-
-/**
- * @brief
- * Construct a temporary lvalue from a mutual recursive
- * rvalue for use in linear intermediate representation.
- *
- * A "temporary" is a scope-level temporary identifier from an rvalue
- * operand.
- *
- */
-
-std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
-    RValue::Type_Pointer& operand,
-    int* temporary_size)
-{
-    Instructions instructions{};
-    std::string temp_name{};
-    std::visit(
-        util::overload{
-            [&](std::monostate) {},
-            [&](RValue::RValue_Pointer& s) {
-                auto unwrap_type =
-                    type::rvalue_type_pointer_from_rvalue(s->value);
-                auto rvalue_pointer = instruction_temporary_from_rvalue_operand(
-                    unwrap_type, temporary_size);
-
-                instructions.insert(instructions.end(),
-                                    rvalue_pointer.second.begin(),
-                                    rvalue_pointer.second.end());
-                temp_name = rvalue_pointer.first;
-            },
-            [&](RValue::Value&) {
-                temp_name = util::rvalue_to_string(*operand, false);
-            },
-            [&](RValue::LValue&) {
-                // auto lvalue = make_temporary(
-                //     temporary_size, util::rvalue_to_string(*operand,
-                //     false));
-                // instructions.push_back(lvalue);
-                // temp_name = std::get<1>(lvalue);
-                temp_name = util::rvalue_to_string(*operand, false);
-            },
-            [&](RValue::Unary& s) {
-                auto op = s.first;
-                auto unwrap_rhs_type =
-                    type::rvalue_type_pointer_from_rvalue(s.second->value);
-                auto rhs = instruction_temporary_from_rvalue_operand(
-                    unwrap_rhs_type, temporary_size);
-                instructions.insert(
-                    instructions.end(), rhs.second.begin(), rhs.second.end());
-                auto temp = make_temporary(temporary_size, rhs.first);
-
-                auto unary = make_temporary(temporary_size,
-                                            std::format("{} {}",
-                                                        operator_to_string(op),
-                                                        std::get<1>(temp)));
-                instructions.push_back(unary);
-                temp_name = std::get<1>(unary);
-            },
-            [&](RValue::Relation& s) {
-                auto op = s.first;
-                if (s.second.size() == 2) {
-                    auto unwrap_lhs_type =
-                        type::rvalue_type_pointer_from_rvalue(
-                            s.second.at(0)->value);
-                    auto unwrap_rhs_type =
-                        type::rvalue_type_pointer_from_rvalue(
-                            s.second.at(1)->value);
-                    auto lhs = instruction_temporary_from_rvalue_operand(
-                        unwrap_lhs_type, temporary_size);
-                    auto rhs = instruction_temporary_from_rvalue_operand(
-                        unwrap_rhs_type, temporary_size);
-                    auto relation =
-                        make_temporary(temporary_size,
-                                       std::format("{} {} {}",
-                                                   lhs.first,
-                                                   operator_to_string(op),
-                                                   rhs.first));
-
-                    instructions.push_back(relation);
-                    temp_name = std::get<1>(relation);
-
-                } else if (s.second.size() == 4) {
-                    // ternary
-                }
-            },
-            [&](RValue::Function& s) {
-                temp_name = util::rvalue_to_string(s.first, false);
-            },
-            [&](RValue::Symbol& s) {
-                temp_name = util::rvalue_to_string(s.first, false);
-            } },
-        *operand);
-
-    return std::make_pair(temp_name, instructions);
-}
-
-} // namespace detail
-
 /**
  * @brief
  * Construct a set of linear instructions in qaudruple form based on an rvalue
@@ -457,7 +567,8 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
 Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
                                                     int* temporary)
 {
-    using namespace roxas::ir::detail;
+    using namespace detail;
+    using namespace matchit;
     Instructions instructions{};
     if (queue->empty()) {
         return instructions;
@@ -758,67 +869,19 @@ Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
                             }
                             param_on_stack++;
                         } break;
-                        case Operator::B_ASSIGN: {
-                            if (temporary_stack.size() >= 1) {
-                                auto rhs = temporary_stack.top();
-                                temporary_stack.pop();
-                                auto lvalue = operand_stack.top();
-                                operand_stack.pop();
-                                auto lhs =
-                                    instruction_temporary_from_rvalue_operand(
-                                        lvalue, temporary);
-                                instructions.insert(instructions.end(),
-                                                    lhs.second.begin(),
-                                                    lhs.second.end());
-                                instructions.push_back(make_quadruple(
-                                    Instruction::VARIABLE, lhs.first, rhs));
-                            } else {
-                                if (operand_stack.size() == 1) {
-                                    auto lhs_rvalue = util::rvalue_to_string(
-                                        *operand_stack.top(), false);
-                                    operand_stack.pop();
-                                    if (instructions.size() > 1) {
-                                        auto last =
-                                            instructions[instructions.size() -
-                                                         1];
-                                        instructions.push_back(make_quadruple(
-                                            Instruction::VARIABLE,
-                                            lhs_rvalue,
-                                            std::get<1>(last)));
-                                    }
-                                }
-                                if (operand_stack.size() < 2)
-                                    return;
-                                auto operand1 = operand_stack.top();
-                                operand_stack.pop();
-                                auto operand2 = operand_stack.top();
-                                operand_stack.pop();
+                        case Operator::B_ASSIGN:
+                            assignment_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                temporary);
 
-                                auto lhs =
-                                    instruction_temporary_from_rvalue_operand(
-                                        operand2, temporary);
-                                auto rhs =
-                                    instruction_temporary_from_rvalue_operand(
-                                        operand1, temporary);
-                                instructions.insert(instructions.end(),
-                                                    lhs.second.begin(),
-                                                    lhs.second.end());
-                                instructions.insert(instructions.end(),
-                                                    rhs.second.begin(),
-                                                    rhs.second.end());
-                                instructions.push_back(
-                                    make_quadruple(Instruction::VARIABLE,
-                                                   lhs.first,
-                                                   rhs.first));
-                            }
-                        } break;
+                            break;
                         case Operator::B_TERNARY:
                             break;
                     }
                 },
-                [&](type::RValue::Type_Pointer& s) { operand_stack.push(s); }
-
-            },
+                [&](type::RValue::Type_Pointer& s) { operand_stack.push(s); } },
             item);
     }
     return instructions;
@@ -826,4 +889,4 @@ Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
 
 } // namespace ir
 
-} // namespace roxas
+} // namespace credence

@@ -19,15 +19,15 @@
 #if defined(DEBUG)
 #include <cpptrace/cpptrace.hpp>
 #endif
+#include <credence/types.h>
+#include <credence/util.h>
 #include <format>
 #include <map>
-#include <roxas/types.h>
-#include <roxas/util.h>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 
-namespace roxas {
+namespace credence {
 /*
  *.
  *   ------------------------
@@ -47,7 +47,7 @@ class Symbol_Table
      *
      * Name
      *     \
-     *
+     *     |
      *   ------------------------------------------------------
      *   | Type | Size | Line Declare | Line Usage |  Address |
      *   ------------------------------------------------------
@@ -99,9 +99,9 @@ class Symbol_Table
     }
 
     /* clang-format off */
-  ROXAS_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     std::map<std::string, T> table_{};
     /* clang-format on*/
 };
 
-} // namespace roxas
+} // namespace credence

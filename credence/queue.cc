@@ -15,10 +15,10 @@
  */
 
 // clang-format off
-#include <roxas/queue.h>
-#include <roxas/operators.h>  // for Operator, get_precedence, is_left_assoc...
-#include <roxas/types.h>      // for RValue
-#include <roxas/util.h>       // for overload
+#include <credence/queue.h>
+#include <credence/operators.h>  // for Operator, get_precedence, is_left_assoc...
+#include <credence/types.h>      // for RValue
+#include <credence/util.h>       // for overload
 #include <algorithm>          // for copy, max
 #include <memory>             // for make_shared, shared_ptr, __shared_ptr_a...
 #include <stack>              // for stack
@@ -43,7 +43,7 @@
  *------------------------------------------------
  ***************************************************************************/
 
-namespace roxas {
+namespace credence {
 
 namespace detail {
 
@@ -183,7 +183,7 @@ RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
     using namespace type;
     std::stack<Operator> operator_stack{};
     for (type::RValue::Type_Pointer& rvalue : rvalues) {
-        roxas::detail::_rvalue_pointer_to_queue(
+        credence::detail::_rvalue_pointer_to_queue(
             rvalue, rvalues_queue, operator_stack);
     }
 
@@ -198,9 +198,9 @@ RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
 {
     using namespace type;
     std::stack<Operator> operator_stack{};
-    roxas::detail::_rvalue_pointer_to_queue(
+    credence::detail::_rvalue_pointer_to_queue(
         rvalue, rvalues_queue, operator_stack);
     return rvalues_queue;
 }
 
-} // namespace roxas
+} // namespace credence

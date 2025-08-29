@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-#include <Python.h>       // for PyObject_CallObject
-#include <boolobject.h>   // for Py_False, Py_True
-#include <dictobject.h>   // for PyDict_GetItemString
-#include <import.h>       // for PyImport_ImportModule
-#include <moduleobject.h> // for PyModule_GetDict
-#include <object.h>       // for Py_DECREF, PyCallable_Check
-#include <pylifecycle.h>  // for Py_Finalize, Py_Initialize
-#include <pytypedefs.h>   // for PyObject
-#include <roxas/python.h>
+#include <Python.h>     // for PyObject_CallObject
+#include <boolobject.h> // for Py_False, Py_True
+#include <credence/python.h>
+#include <dictobject.h>    // for PyDict_GetItemString
+#include <import.h>        // for PyImport_ImportModule
+#include <moduleobject.h>  // for PyModule_GetDict
+#include <object.h>        // for Py_DECREF, PyCallable_Check
+#include <pylifecycle.h>   // for Py_Finalize, Py_Initialize
+#include <pytypedefs.h>    // for PyObject
 #include <sstream>         // for basic_ostringstream, ostringstream
 #include <stddef.h>        // for NULL
 #include <tupleobject.h>   // for PyTuple_SetItem, PyTuple_New
@@ -31,7 +31,7 @@
 #include "pythonrun.h"     // for PyRun_SimpleString
 #include "unicodeobject.h" // for PyUnicode_AsUTF8
 
-namespace roxas {
+namespace credence {
 
 namespace detail {
 inline void Python_Loader_Error()
@@ -140,4 +140,4 @@ Python_Module_Loader::~Python_Module_Loader()
     Py_FinalizeEx();
 }
 
-} // namespace roxas
+} // namespace credence

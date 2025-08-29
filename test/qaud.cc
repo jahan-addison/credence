@@ -1,20 +1,22 @@
-#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
-#include <iostream>          // for ostringstream, cout
-#include <map>               // for map
-#include <ostream>           // for basic_ostream, operator<<
-#include <roxas/ir/qaud.h>   // for emit_quadruple, build_from_rval...
-#include <roxas/json.h>      // for JSON
-#include <roxas/symbol.h>    // for Symbol_Table
-#include <roxas/types.h>     // for Type_, Value_Type, Byte, RValue
-#include <sstream>           // for basic_ostringstream
-#include <string>            // for basic_string, allocator, char_t...
-#include <utility>           // for pair, make_pair
-#include <variant>           // for monostate
+// clang-format off
+#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase
+// clang-format on
+#include <credence/ir/qaud.h> // for emit_quadruple, build_from_rval...
+#include <credence/json.h>    // for JSON
+#include <credence/symbol.h>  // for Symbol_Table
+#include <credence/types.h>   // for Type_, Value_Type, Byte, RValue
+#include <iostream>           // for ostringstream, cout
+#include <map>                // for map
+#include <ostream>            // for basic_ostream, operator<<
+#include <sstream>            // for basic_ostringstream
+#include <string>             // for basic_string, allocator, char_t...
+#include <utility>            // for pair, make_pair
+#include <variant>            // for monostate
 
 TEST_CASE("ir/qaud.cc: build_from_function_definition")
 {
-    using namespace roxas;
-    using namespace roxas::ir;
+    using namespace credence;
+    using namespace credence::ir;
     json::JSON obj;
     auto internal_symbols = json::JSON::Load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
@@ -63,7 +65,7 @@ TEST_CASE("ir/qaud.cc: build_from_function_definition")
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
         "},\n      \"root\" : \"main\"\n    }");
 
-    roxas::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
     test_instructions =
@@ -87,8 +89,8 @@ x = (5:int:4) * _t2;
 
 TEST_CASE("ir/qaud.cc: build_from_return_statement")
 {
-    using namespace roxas;
-    using namespace roxas::ir;
+    using namespace credence;
+    using namespace credence::ir;
     json::JSON obj;
     auto internal_symbols = json::JSON::Load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
@@ -118,13 +120,12 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
         "         }],\n            \"node\" : \"statement\",\n            "
         "\"root\" : \"return\"\n          }");
 
-    roxas::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("y", null);
-    std::cout << "test: " << obj["test"].dump() << std::endl;
     test_instructions =
         build_from_return_statement(symbols, obj["test"], internal_symbols);
     for (auto const& inst : test_instructions) {
@@ -132,15 +133,15 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
     }
     std::string expected = R"qaud(_t1 = y * y;
 _t2 = x * _t1;
- LEAVE ;
+RET ;
 )qaud";
     CHECK(os_test.str() == expected);
 }
 
 TEST_CASE("ir/qaud.cc: build_from_block_statement")
 {
-    using namespace roxas;
-    using namespace roxas::ir;
+    using namespace credence;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
@@ -161,20 +162,20 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
         "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
         "\"root\" : \"block\"\n      }");
 
-    roxas::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
     test_instructions = build_from_block_statement(symbols, obj["test"], obj);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
-    CHECK(os_test.str() == "x = (5:int:4) || (2:int:4);\n");
+    CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
 }
 
 TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
 {
-    using namespace roxas;
-    using namespace roxas::ir;
+    using namespace credence;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
@@ -221,23 +222,28 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "\"root\" : \"x\"\n                  },\n                  \"node\" : "
         "\"assignment_expression\",\n                  \"right\" : {\n         "
         "           \"left\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"y\"\n                 "
-        "   },\n                    \"node\" : \"relation_expression\",\n      "
-        "              \"right\" : {\n                      \"left\" : {\n     "
-        "                   \"node\" : \"number_literal\",\n                   "
-        "     \"root\" : 3\n                      },\n                      "
-        "\"node\" : \"relation_expression\",\n                      \"right\" "
-        ": {\n                        \"left\" : {\n                          "
-        "\"node\" : \"lvalue\",\n                          \"root\" : \"y\"\n  "
-        "                      },\n                        \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"lvalue\",\n                          \"root\" : \"y\"\n             "
+        "           },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 3\n                        },\n                   "
+        "     \"root\" : [\"==\"]\n                      }\n                   "
+        " },\n                    \"node\" : \"relation_expression\",\n        "
+        "            \"right\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"lvalue\",\n                          \"root\" : \"y\"\n             "
+        "           },\n                        \"node\" : "
         "\"relation_expression\",\n                        \"right\" : {\n     "
         "                     \"node\" : \"number_literal\",\n                 "
         "         \"root\" : 2\n                        },\n                   "
-        "     \"root\" : [\">\"]\n                      },\n                   "
-        "   \"root\" : [\"&&\"]\n                    },\n                    "
-        "\"root\" : [\"==\"]\n                  },\n                  \"root\" "
-        ": [\"=\", null]\n                }]],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          }");
+        "     \"root\" : [\">\"]\n                      }\n                    "
+        "},\n                    \"root\" : [\"&&\"]\n                  },\n   "
+        "               \"root\" : [\"=\", null]\n                }]],\n       "
+        "     \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n   "
+        "       }");
     obj["nested_or"] = json::JSON::Load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
@@ -349,7 +355,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "null]\n                }]],\n            \"node\" : \"statement\",\n  "
         "          \"root\" : \"rvalue\"\n          }");
 
-    roxas::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> symbols{};
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     Instructions test_instructions{};
     symbols.table_.emplace("x", null);
@@ -385,9 +391,10 @@ _t6 = _t4 / _t5;
         emit_quadruple(os_test, inst);
     }
     std::string expected_2 = R"qaud(y = (3:int:4);
-_t1 = y > (2:int:4);
-_t2 = (3:int:4) && _t1;
-x = y == _t2;
+_t1 = y == (3:int:4);
+_t2 = y > (2:int:4);
+_t3 = _t1 && _t2;
+x = _t3;
 )qaud";
     CHECK(expected_2 == os_test.str());
     os_test.str("");
@@ -399,7 +406,8 @@ x = y == _t2;
     }
     std::string expected_3 = R"qaud(y = (3:int:4);
 _t1 = (2:int:4) || (3:int:4);
-x = (1:int:4) || _t1;
+_t2 = (1:int:4) || _t1;
+x = _t2;
 )qaud";
     CHECK(expected_3 == os_test.str());
     os_test.str("");
@@ -414,7 +422,8 @@ _t1 = (3:int:4) + (3:int:4);
 _t2 = (2:int:4) || _t1;
 _t3 = (2:int:4) + _t2;
 _t4 = (1:int:4) || _t3;
-x = (1:int:4) + _t4;
+_t5 = (1:int:4) + _t4;
+x = _t5;
 )qaud";
     CHECK(expected_4 == os_test.str());
     os_test.str("");
@@ -446,8 +455,8 @@ x = (3:int:4) || _t4;
 
 TEST_CASE("ir/qaud.cc: build_from_auto_statement")
 {
-    using namespace roxas;
-    using namespace roxas::ir;
+    using namespace credence;
+    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n  \"left\" : [{\n      \"left\" : {\n        \"node\" : "
@@ -459,7 +468,7 @@ TEST_CASE("ir/qaud.cc: build_from_auto_statement")
         "\"root\" : \"z\"\n    }],\n  \"node\" : \"statement\",\n  \"root\" : "
         "\"auto\"\n}");
 
-    roxas::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> symbols{};
     build_from_auto_statement(symbols, obj["test"]);
     CHECK(symbols.table_.size() == 3);
 
@@ -481,8 +490,8 @@ TEST_CASE("ir/qaud.cc: build_from_auto_statement")
 
 TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
 {
-    using namespace roxas;
-    using namespace roxas::ir;
+    using namespace credence;
+    using namespace credence::ir;
     json::JSON obj;
     auto internal_symbols = json::JSON::Load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
@@ -527,14 +536,20 @@ TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
         "    \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n    "
         "      }");
 
-    roxas::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("x", null);
     test_instructions =
         build_from_rvalue_statement(symbols, obj["test"], internal_symbols);
+    std::string expected = R"qaud(_t1 = (5:int:4) + (5:int:4);
+_t2 = (6:int:4) + (6:int:4);
+_t3 = _t1 * _t2;
+x = _t3;
+)qaud";
     for (auto const& inst : test_instructions) {
-        emit_quadruple(std::cout, inst);
+        emit_quadruple(os_test, inst);
     }
+    CHECK(os_test.str() == expected);
 }

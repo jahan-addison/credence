@@ -1,4 +1,6 @@
-<img src="docs/images/roxas-compiler-logo.png" width="800px" alt="sunil sapkota twitter" > </img>
+<center>
+  <img src="docs/images/credence-compiler-logo.png" width="600px" alt="credence"> </img>
+</center>
 
 > B Language Compiler in C++
 
@@ -17,9 +19,9 @@ _**status**: in progress_
 ### Usage
 
 ```
-Roxas :: Axel... What's this?
+Credence :: B Language Compiler
 Usage:
-  Roxas [OPTION...] positional parameters
+  Credence [OPTION...] positional parameters
 
   -a, --ast-loader arg   AST Loader [json, python] (default: python)
   -t, --target arg       Target [ast, ir, arm64, x86_64, z80] (default: ir)
@@ -29,12 +31,11 @@ Usage:
 ```
 
 ```bash
-./roxas my_b_program.b
+./credence my_b_program.b
 ```
 
 ```bash
-./roxas --ast-loader=json -d my_ast.json
-./roxas -h
+./credence --help
 ```
 ---
 
@@ -51,27 +52,27 @@ make test
 ```bash
 brew update
 brew install coreutils include-what-you-use llvm@18 cmake python3 poetry
-git clone git@github.com:jahan-addison/roxas.git
-cd roxas
+git clone git@github.com:jahan-addison/credence.git
+cd credence
 bash ./scripts/install.sh
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 make
-./roxas
+./credence
 ```
 
 #### Windows (mingw/msys)
 
 ```bash
 pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
-git clone git@github.com:jahan-addison/roxas.git
-cd roxas
+git clone git@github.com:jahan-addison/credence.git
+cd credence
 bash ./scripts/install.sh
 cd build
 # Note: iwyu and sanitizers may not work in mingw
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ninja
-./roxas
+./credence
 
 ```
 
@@ -87,6 +88,3 @@ ninja
 ### License
 
 Apache 2 License.
-
-
-![img2](docs/images/roxas-3.png)

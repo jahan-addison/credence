@@ -44,7 +44,7 @@ jobs:
       run: cmake --build build -j4
 
     - name: run
-      run: ./build/roxas -h
+      run: ./build/credence -h
 
     - name: test
       run: ./build/test_suite

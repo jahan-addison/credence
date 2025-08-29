@@ -19,7 +19,7 @@
 #include <ostream> // for ostream
 #include <sstream>
 
-namespace roxas {
+namespace credence {
 
 namespace type {
 
@@ -279,4 +279,4 @@ inline std::string operator_to_string(Operator op)
 
 } // namespace type
 
-} // namespace roxas
+} // namespace credence
