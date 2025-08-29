@@ -1,6 +1,6 @@
-<center>
-  <img src="docs/images/credence-compiler-logo.png" width="600px" alt="credence"> </img>
-</center>
+<div align="center">
+  <img src="docs/images/credence-compiler-logo.png" width="800px" alt="credence"> </img>
+</div>
 
 > B Language Compiler in C++
 
