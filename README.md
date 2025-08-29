@@ -13,10 +13,10 @@
 * The frontend (Lexer, Parser) and first-pass is built with an [LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython
 * The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm64, and z80.
 
-_**status**: in progress_
+_**Status**: in progress_
 
 
-### Usage
+## Usage
 
 ```
 Credence :: B Language Compiler
@@ -45,9 +45,9 @@ Test suite:
 make test
 ```
 
-### Installation
+## Installation
 
-#### MacOS
+### MacOS
 
 ```bash
 brew update
@@ -61,7 +61,7 @@ make
 ./credence
 ```
 
-#### Windows (mingw/msys)
+### Windows (mingw/msys)
 
 ```bash
 pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
@@ -76,7 +76,7 @@ ninja
 
 ```
 
-### Dependencies
+## Dependencies
 
 **Note: These are installed automatically via CPM and cmake.**
 
@@ -85,6 +85,6 @@ ninja
 * `cpptrace` - Stack traces, until C++23
 * `matchit` - C++17 pattern matching
 
-### License
+# License
 
 Apache 2 License.
