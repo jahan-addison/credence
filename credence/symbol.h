@@ -16,9 +16,6 @@
 
 #pragma once
 
-#if defined(DEBUG)
-#include <cpptrace/cpptrace.hpp>
-#endif
 #include <credence/types.h>
 #include <credence/util.h>
 #include <format>
@@ -26,81 +23,79 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <utility>
 
 namespace credence {
-/*
- *.
+/**
+ * @brief Symbol table template class
+ *
+ * Constructs a symbol table from a template data structure
+ *
+ * An example table may be a map to `std::array<std::string, 5>':
+ *
+ * Name
+ *     \
+ *     |
+ *   ------------------------------------------------------
+ *   | Type | Size | Line Declare | Line Usage |  Address |
+ *   ------------------------------------------------------
+ * ...
+ *  Default:
+ *
  *   ------------------------
  *   | Value | Type | Size |
  *   ------------------------
  */
-
-template<typename T = type::Value_Type>
+template<typename T = type::Value_Type, typename Pointer = type::Value_Pointer>
 class Symbol_Table
 {
-    /**
-     * @brief Symbol table template class
-     *
-     * Constructs a symbol table from a template data structure
-     *
-     * An example table may be a map to `std::array<std::string, 5>':
-     *
-     * Name
-     *     \
-     *     |
-     *   ------------------------------------------------------
-     *   | Type | Size | Line Declare | Line Usage |  Address |
-     *   ------------------------------------------------------
-     * ...
-     * ...
-     */
   public:
     Symbol_Table& operator=(Symbol_Table const&) = delete;
 
-    /**
-     * @brief Construct a new Symbol_Table object
-     *
-     */
     Symbol_Table() = default;
     ~Symbol_Table() = default;
 
   public:
-    /**
-     * @brief Get a symbol by name in the symbol table
-     */
-    inline T get_symbol_by_name(std::string const& name)
-    {
-#if defined(DEBUG)
-        try {
-            return table_.at(name);
-        } catch (std::out_of_range& e) {
-            util::log(util::Logging::ERROR,
-                      std::format("key '{}' not found in symbol table", name));
-            cpptrace::generate_trace().print();
-            std::abort();
-        }
-#else
-        return table_.at(name);
-#endif
-    }
-    /**
-     * @brief Check if a symbol exists
-     */
-    inline bool is_defined(std::string const& name) const
-    {
-        return table_.contains(name);
-    }
-    /**
-     * @brief Get a symbol by name in the symbo table
-     */
     inline void set_symbol_by_name(std::string const& name, T entry)
     {
         table_.insert_or_assign(name, std::move(entry));
     }
 
+    inline void set_symbol_by_name(std::string const& name, Pointer entry)
+    {
+        addr_.insert_or_assign(name, std::move(entry));
+    }
+
+    inline void set_symbol_by_name(std::string const& name,
+                                   Symbol_Table<> symbol)
+    {
+        table_.insert_or_assign(name, symbol.get_symbol_by_name(name));
+    }
+
+    inline T get_symbol_by_name(std::string const& name)
+    {
+        return table_.at(name);
+    }
+
+    inline Pointer get_pointer_by_name(std::string const& name)
+    {
+        return addr_.at(name);
+    }
+
+    inline bool is_defined(std::string const& name) const
+    {
+        return table_.contains(name) or addr_.contains(name);
+    }
+
+    inline bool is_pointer(std::string const& name) const
+    {
+        return addr_.contains(name);
+    }
+
     /* clang-format off */
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::map<std::string, T> table_{};
+    std::map<std::string, Pointer> addr_{};
     /* clang-format on*/
 };
 

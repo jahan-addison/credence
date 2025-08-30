@@ -68,11 +68,16 @@ inline Quadruple make_quadruple(Instruction op,
 }
 
 Instructions build_from_definitions(Symbol_Table<>& symbols,
+                                    Symbol_Table<>& globals,
                                     Node& node,
                                     Node& details);
 Instructions build_from_function_definition(Symbol_Table<>& symbols,
+                                            Symbol_Table<>& globals,
                                             Node& node,
                                             Node& details);
+void build_from_vector_definition(Symbol_Table<>& symbols,
+                                  Node& node,
+                                  Node& details);
 Instructions build_from_label_statement(Symbol_Table<>& symbols,
                                         Node& node,
                                         Node& details);
@@ -83,9 +88,13 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details);
 Instructions build_from_block_statement(Symbol_Table<>& symbols,
+                                        Symbol_Table<>& globals,
                                         Node& node,
                                         Node& details);
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);
+void build_from_extrn_statement(Symbol_Table<>& symbols,
+                                Symbol_Table<>& globals,
+                                Node& node);
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details);

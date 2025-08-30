@@ -198,6 +198,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                                     rvalue_pointer.second.end());
                 temp_name = rvalue_pointer.first;
             },
+            [&](RValue::Value_Pointer&) {},
             [&](RValue::Value&) {
                 temp_name = util::rvalue_to_string(*operand, false);
             },

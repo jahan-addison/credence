@@ -27,6 +27,12 @@ namespace credence {
 
 namespace type {
 
+// Recursive expression types
+struct RValue;
+namespace detail {
+using RValue_Pointer_PTR = std::shared_ptr<RValue>;
+} // namespace detail
+
 using Byte = unsigned char;
 
 using Value = std::variant<std::monostate,
@@ -54,16 +60,12 @@ static std::map<std::string, Type_Size> Type_ = {
 };
 
 using Value_Type = std::pair<Value, Type_Size>;
-
-// Recursive RValue expression type
-struct RValue;
-namespace detail {
-using RValue_Pointer_PTR = std::shared_ptr<RValue>;
-} // namespace detail
+using Value_Pointer = std::vector<Value_Type>;
 
 struct RValue
 {
     using RValue_Pointer = detail::RValue_Pointer_PTR;
+    using Value_Pointer = type::Value_Pointer;
 
     using Value = Value_Type;
 
@@ -80,6 +82,7 @@ struct RValue
 
     using Type = std::variant<std::monostate,
                               RValue_Pointer,
+                              Value_Pointer,
                               Symbol,
                               Unary,
                               Relation,

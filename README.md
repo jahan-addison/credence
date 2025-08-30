@@ -31,10 +31,6 @@ Usage:
 ```
 
 ```bash
-./credence my_b_program.b
-```
-
-```bash
 ./credence --help
 ```
 ---
@@ -44,6 +40,19 @@ Test suite:
 ```bash
 make test
 ```
+
+## Language
+
+There are a few implementation differences between the compiler and B specification, namely:
+
+* Support for C++ style comments (i.e. `//`)
+* Switch statement condition must always be enclosed with `(` and `)`
+* Uses C operator precedence
+* Constant literals must be exactly 1 byte
+* Logical and/or operators behave more like C (i.e. `||` and `&&`)
+* Bitwise and/or operators behave more like C (i.e. `|` and `&`)
+
+---
 
 ## Installation
 

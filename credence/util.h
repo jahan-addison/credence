@@ -69,6 +69,8 @@ enum class Logging
     ERROR
 };
 
+std::string unescape_string(std::string const& escaped_str);
+
 template<typename... Types>
 std::string tuple_to_string(std::tuple<Types...> const& t,
                             std::string_view separator = ", ")
@@ -83,12 +85,6 @@ std::string tuple_to_string(std::tuple<Types...> const& t,
     return ss.str();
 }
 
-/**
- * @brief log function
- *
- * @param level LogLevel log level
- * @param message log message
- */
 void log(Logging level, std::string_view message);
 
 // The overload pattern

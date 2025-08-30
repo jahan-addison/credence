@@ -99,9 +99,10 @@ int main(int argc, const char* argv[])
                 pattern | "ir" =
                     [&]() {
                         credence::Symbol_Table<> symbols{};
+                        credence::Symbol_Table<> globals{};
                         auto ir_instructions =
                             credence::ir::build_from_definitions(
-                                symbols, ast["root"], hoisted);
+                                symbols, globals, ast["root"], hoisted);
                         for (auto const& inst : ir_instructions) {
                             emit_quadruple(std::cout, inst);
                         }

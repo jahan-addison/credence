@@ -359,7 +359,6 @@ RValue::Value Table::from_vector_idenfitier(Node& node)
  */
 RValue::Value Table::from_number_literal(Node& node)
 {
-    // use stack
     assert(node["node"].ToString().compare("number_literal") == 0);
     return { static_cast<int>(node["root"].ToInt()), Type_["int"] };
 }
@@ -370,8 +369,10 @@ RValue::Value Table::from_number_literal(Node& node)
 RValue::Value Table::from_string_literal(Node& node)
 {
     assert(node["node"].ToString().compare("string_literal") == 0);
-    auto value = node["root"].ToString();
-    return { node["root"].ToString(), { "string", value.size() } };
+    auto string_literal = util::unescape_string(node["root"].ToString());
+    return { string_literal.substr(1, string_literal.size() - 2),
+             { "string",
+               string_literal.substr(1, string_literal.size() - 2).size() } };
 }
 
 /**

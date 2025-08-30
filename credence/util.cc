@@ -52,6 +52,11 @@ std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
             [&](RValue::Value const& s) {
                 oss << util::dump_value_type(s) << space;
             },
+            [&](RValue::Value_Pointer const& s) {
+                for (auto const& value : s) {
+                    oss << util::dump_value_type(value) << space;
+                }
+            },
             [&](RValue::LValue const& s) { oss << s.first << space; },
             [&](RValue::Unary const& s) {
                 oss << s.first << rvalue_to_string(s.second->value) << space;
@@ -65,6 +70,46 @@ std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
             [&](RValue::Symbol const& s) { oss << s.first.first << space; } },
         rvalue);
     return oss.str();
+}
+
+std::string unescape_string(std::string const& escaped_str)
+{
+    std::string unescaped_str;
+    for (size_t i = 0; i < escaped_str.length(); ++i) {
+        if (escaped_str[i] == '\\') {
+            if (i + 1 < escaped_str.length()) {
+                char next_char = escaped_str[i + 1];
+                switch (next_char) {
+                    case 'n':
+                        unescaped_str += '\n';
+                        break;
+                    case 't':
+                        unescaped_str += '\t';
+                        break;
+                    case '\\':
+                        unescaped_str += '\\';
+                        break;
+                    case '"':
+                        unescaped_str += '"';
+                        break;
+                    // Add more cases for other escape sequences like \r, \f,
+                    // \b, \v, \a, etc. For Unicode escape sequences like
+                    // \uXXXX, more complex parsing is needed.
+                    default:
+                        unescaped_str += escaped_str[i]; // If not a recognized
+                                                         // escape, keep as is
+                        unescaped_str += next_char;
+                        break;
+                }
+                i++; // Skip the escaped character
+            } else {
+                unescaped_str += escaped_str[i]; // Backslash at end of string
+            }
+        } else {
+            unescaped_str += escaped_str[i];
+        }
+    }
+    return unescaped_str;
 }
 
 /**

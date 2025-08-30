@@ -39,6 +39,7 @@ using namespace type;
  * @brief Construct a set of qaud instructions from a set of definitions
  */
 Instructions build_from_definitions(Symbol_Table<>& symbols,
+                                    Symbol_Table<>& globals,
                                     Node& node,
                                     Node& details)
 {
@@ -46,12 +47,16 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
     assert(node["root"].ToString().compare("definitions") == 0);
     Instructions instructions{};
     auto definitions = node["left"];
+    // vector definitions first
+    for (auto& definition : definitions.ArrayRange())
+        if (definition["node"].ToString() == "vector_definition")
+            build_from_vector_definition(globals, definition, details);
     for (auto& definition : definitions.ArrayRange()) {
         match(definition["node"].ToString())(
             // clang-format off
             pattern | "function_definition" = [&] {
                 auto function_instructions =
-                    build_from_function_definition(symbols, definition, details);
+                    build_from_function_definition(symbols, globals, definition, details);
                 instructions.insert(instructions.end(),
                                     function_instructions.begin(),
                                     function_instructions.end());
@@ -66,6 +71,7 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
  * @brief Construct a set of qaud instructions from a function definition
  */
 Instructions build_from_function_definition(Symbol_Table<>& symbols,
+                                            Symbol_Table<>& globals,
                                             Node& node,
                                             Node& details)
 {
@@ -107,7 +113,7 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
         Instruction::LABEL, std::format("__{}", node["root"].ToString()), ""));
     instructions.push_back(make_quadruple(Instruction::FUNC_START, "", ""));
     auto block_instructions =
-        build_from_block_statement(block_level, block, details);
+        build_from_block_statement(block_level, globals, block, details);
     instructions.insert(instructions.end(),
                         block_instructions.begin(),
                         block_instructions.end());
@@ -115,10 +121,43 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
     return instructions;
 }
 
+void build_from_vector_definition(Symbol_Table<>& symbols,
+                                  Node& node,
+                                  Node& details)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("vector_definition") == 0);
+    assert(node.hasKey("left"));
+    auto name = node["root"].ToString();
+    auto left_child_node = node["left"];
+    auto right_child_node = node["right"];
+    Table table{ details, symbols };
+    if (right_child_node.ArrayRange().get()->empty()) {
+        auto rvalue = table.from_rvalue(left_child_node);
+        auto datatype = std::get<type::RValue::Value>(rvalue.value);
+        symbols.set_symbol_by_name(name, datatype);
+    } else {
+        if (std::cmp_not_equal(left_child_node["root"].ToInt(),
+                               right_child_node.ArrayRange().get()->size())) {
+            throw std::runtime_error("Error: invalid vector definition, "
+                                     "size of vector and rvalue "
+                                     "entries do not match");
+        }
+        std::vector<RValue::Value> values_at{};
+        for (auto& child_node : right_child_node.ArrayRange()) {
+            auto rvalue = table.from_rvalue(child_node);
+            auto datatype = std::get<type::RValue::Value>(rvalue.value);
+            values_at.push_back(datatype);
+        }
+        symbols.set_symbol_by_name(name, values_at);
+    }
+}
+
 /**
  * @brief Construct a set of qaud instructions from a block statement
  */
 Instructions build_from_block_statement(Symbol_Table<>& symbols,
+                                        Symbol_Table<>& globals,
                                         Node& node,
                                         Node& details)
 {
@@ -134,6 +173,10 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
         match(statement_type)(
             pattern |
                 "auto" = [&] { build_from_auto_statement(symbols, statement); },
+            pattern | "extrn" =
+                [&] {
+                    build_from_extrn_statement(symbols, globals, statement);
+                },
             pattern | "rvalue" =
                 [&] {
                     auto rvalue_instructions = build_from_rvalue_statement(
@@ -263,6 +306,27 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
 
     return instructions;
 }
+
+void build_from_extrn_statement(Symbol_Table<>& symbols,
+                                Symbol_Table<>& globals,
+                                Node& node)
+{
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("extrn") == 0);
+    assert(node.hasKey("left"));
+    auto left_child_node = node["left"];
+    for (auto& ident : left_child_node.ArrayRange()) {
+        auto name = ident["root"].ToString();
+        if (globals.is_defined(name)) {
+            symbols.set_symbol_by_name(name, globals);
+        } else {
+            throw std::runtime_error(std::format(
+                "Error: global symbol \"{}\" not defined for extrn statement",
+                name));
+        }
+    }
+}
+
 /**
  * @brief Symbol construction from auto declaration statements
  */

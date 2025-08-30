@@ -68,8 +68,8 @@ TEST_CASE("ir/qaud.cc: build_from_function_definition")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
-    test_instructions =
-        build_from_function_definition(symbols, obj["test"], internal_symbols);
+    test_instructions = build_from_function_definition(
+        symbols, symbols, obj["test"], internal_symbols);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -85,6 +85,120 @@ x = (5:int:4) * _t2;
  EndFunc ;
 )qaud";
     CHECK(os_test.str() == expected);
+}
+
+TEST_CASE("ir/qaud.cc: build_from_block_statement")
+{
+    using namespace credence;
+    using namespace credence::ir;
+    json::JSON obj;
+    obj["test"] = json::JSON::Load(
+        "{\n        \"left\" : [{\n            \"left\" : [{\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"auto\"\n          }, {\n            \"left\" : [[{\n                "
+        "  \"left\" : {\n                    \"node\" : \"lvalue\",\n          "
+        "          \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 5\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 2\n             "
+        "       },\n                    \"root\" : [\"||\"]\n                  "
+        "},\n                  \"root\" : [\"=\", null]\n                "
+        "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      }");
+
+    credence::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    test_instructions =
+        build_from_block_statement(symbols, symbols, obj["test"], obj);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
+}
+
+TEST_CASE("ir/qaud.cc: build_from_extrn_statement")
+{
+    using namespace credence;
+    using namespace credence::ir;
+    json::JSON obj;
+
+    obj["test"] = json::JSON::Load(
+        "{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"a\"\n              }, {\n   "
+        "             \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"b\"\n              }, {\n                \"node\" : \"lvalue\",\n   "
+        "             \"root\" : \"c\"\n              }],\n            "
+        "\"node\" : \"statement\",\n            \"root\" : \"extrn\"\n         "
+        " }");
+
+    credence::Symbol_Table<> symbols{};
+    credence::Symbol_Table<> globals{};
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    CHECK_THROWS(build_from_extrn_statement(symbols, globals, obj["test"]));
+    globals.table_.emplace("a", null);
+    globals.table_.emplace("b", null);
+    globals.table_.emplace("c", null);
+    CHECK_NOTHROW(build_from_extrn_statement(symbols, globals, obj["test"]));
+    CHECK_EQ(symbols.is_defined("a"), true);
+    CHECK_EQ(symbols.is_defined("b"), true);
+    CHECK_EQ(symbols.is_defined("c"), true);
+}
+
+TEST_CASE("ir/qaud.cc: build_from_vector_definition")
+{
+    using namespace credence;
+    using namespace credence::ir;
+    json::JSON obj;
+    obj["symbols"] = json::JSON::Load(
+        "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
+        "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"main\": "
+        "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
+        "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}, \"a\": {\"type\": "
+        "\"vector_definition\", \"line\": 11, \"start_pos\": 93, \"column\": "
+        "1, \"end_pos\": 94, \"end_column\": 2}, \"b\": {\"type\": "
+        "\"vector_definition\", \"line\": 12, \"start_pos\": 103, \"column\": "
+        "1, \"end_pos\": 104, \"end_column\": 2}, \"add\": {\"type\": "
+        "\"function_definition\", \"line\": 6, \"start_pos\": 39, \"column\": "
+        "1, \"end_pos\": 42, \"end_column\": 4}, \"c\": {\"type\": "
+        "\"vector_definition\", \"line\": 13, \"start_pos\": 113, \"column\": "
+        "1, \"end_pos\": 114, \"end_column\": 2}, \"mess\": {\"type\": "
+        "\"vector_definition\", \"line\": 15, \"start_pos\": 124, \"column\": "
+        "1, \"end_pos\": 128, \"end_column\": 5}}");
+
+    obj["test"] = json::JSON::Load(
+        "[{\n      \"left\" : {\n        \"node\" : \"string_literal\",\n      "
+        "  \"root\" : \"\\\"orld\\\"\"\n      },\n      \"node\" : "
+        "\"vector_definition\",\n      \"right\" : [],\n      \"root\" : "
+        "\"c\"\n    }, {\n      \"left\" : {\n        \"node\" : "
+        "\"number_literal\",\n        \"root\" : 2\n      },\n      \"node\" : "
+        "\"vector_definition\",\n      \"right\" : [{\n          \"node\" : "
+        "\"string_literal\",\n          \"root\" : \"\\\"too bad\\\"\"\n       "
+        " }, {\n          \"node\" : \"string_literal\",\n          \"root\" : "
+        "\"\\\"tough luck\\\"\"\n        }]\n    }]");
+
+    credence::Symbol_Table<> symbols{};
+    auto* vectors = obj["test"].ArrayRange().get();
+    build_from_vector_definition(symbols, vectors->at(0), obj["symbols"]);
+    CHECK(symbols.is_defined(vectors->at(0)["root"].ToString()) == true);
+    auto symbol = symbols.get_symbol_by_name(vectors->at(0)["root"].ToString());
+    auto [value, type] = symbol;
+    CHECK(std::get<std::string>(value) == "orld");
+    CHECK(type.first == "string");
+    CHECK(type.second == sizeof(char) * 4);
+    build_from_vector_definition(symbols, vectors->at(1), obj["symbols"]);
+    CHECK(symbols.is_defined(vectors->at(1)["root"].ToString()) == true);
+    CHECK(symbols.is_pointer(vectors->at(1)["root"].ToString()) == true);
+    auto vector_of_strings =
+        symbols.get_pointer_by_name(vectors->at(1)["root"].ToString());
+    CHECK(vector_of_strings.size() == 2);
+    CHECK(std::get<std::string>(vector_of_strings.at(0).first) == "too bad");
+    CHECK(std::get<std::string>(vector_of_strings.at(1).first) == "tough luck");
 }
 
 TEST_CASE("ir/qaud.cc: build_from_return_statement")
@@ -165,7 +279,8 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
-    test_instructions = build_from_block_statement(symbols, obj["test"], obj);
+    test_instructions =
+        build_from_block_statement(symbols, symbols, obj["test"], obj);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -229,8 +344,8 @@ TEST_CASE("ir/qaud.cc: label and goto")
     std::ostringstream os_test;
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("add", null);
-    test_instructions =
-        build_from_block_statement(symbols, obj["test"], obj["symbols"]);
+    test_instructions = build_from_block_statement(
+        symbols, symbols, obj["test"], obj["symbols"]);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }

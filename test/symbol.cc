@@ -30,7 +30,8 @@ TEST_CASE("symbol.cc: Symbol_table::set_symbol_by_name")
     temp.set_symbol_by_name("test", 10);
     CHECK(temp.table_["test"] == 10);
     auto temp2 = Symbol_Table<std::array<std::string, 2>>{};
-    temp2.set_symbol_by_name("test", { "hello", "world" });
+    std::array<std::string, 2> test = { "hello", "world" };
+    temp2.set_symbol_by_name("test", test);
     CHECK(temp2.table_["test"][0] == "hello");
     CHECK(temp2.table_["test"][1] == "world");
 }

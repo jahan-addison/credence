@@ -82,7 +82,7 @@ inline void _balance_queue(RValue_Queue* rvalues_queue,
 }
 
 /**
- * @brief Mutual recursive queue construction via operators and rvalues
+ * @brief Queue construction via operators and rvalues ordered by precedence
  */
 RValue_Queue* _rvalue_pointer_to_queue(
     type::RValue::Type_Pointer rvalue_pointer,
@@ -96,6 +96,9 @@ RValue_Queue* _rvalue_pointer_to_queue(
             [&](type::RValue::RValue_Pointer& s) {
                 auto value = std::make_shared<type::RValue::Type>(s->value);
                 _rvalue_pointer_to_queue(value, rvalues_queue, operator_stack);
+            },
+            [&](type::RValue::Value_Pointer&) {
+                rvalues_queue->push_back(rvalue_pointer);
             },
             [&](type::RValue::Value&) {
                 rvalues_queue->push_back(rvalue_pointer);

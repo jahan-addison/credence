@@ -60,36 +60,6 @@ struct Fixture
     ~Fixture() = default;
 };
 
-// TEST_CASE_FIXTURE(Fixture, "ir/table.cc:
-// Table::parse_node")
-// {
-//     using namespace ir;
-//     json::JSON obj;
-//     obj["symbols"] = assignment_symbol_table;
-
-//     obj["test"] = json::JSON::Load(
-//         " {\n        \"left\" : [{\n            \"left\" : [{\n "
-//         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n " "  },
-//         {\n                \"node\" : \"lvalue\",\n                "
-//         "\"root\" : \"y\"\n              }, {\n                \"node\" : "
-//         "\"lvalue\",\n                \"root\" :\"z\"\n              }],\n "
-//         "        \"node\" : \"statement\",\n            \"root\" : \"auto\"\n
-//         " "        }, {\n            \"left\" : [[{\n \"left\" "
-//         ": {\n                    \"node\" : \"lvalue\",\n "
-//         "\"root\" : \"x\"\n                  },\n                  \"node\" :
-//         "
-//         "\"assignment_expression\",\n                  \"right\" : {\n " "
-//         \"node\" : \"number_literal\",\n                    "
-//         "\"root\" : 5\n                  },\n                  \"root\" : "
-//         "[\"=\", null]\n                }]],\n            \"node\" : "
-//         "\"statement\",\n            \"root\" : \"rvalue\"\n          }]\n "
-//         "}\n ");
-
-//     auto temp = Table(obj["symbols"]);
-//     temp.parse_node(obj["test"]);
-//     Quintuple test = { Operator::EQUAL, "x", "5:int:4", "", "" };
-// }
-
 TEST_CASE("ir/table.cc: Table::rvalue_expression")
 {
     json::JSON obj;
@@ -155,7 +125,6 @@ TEST_CASE("ir/table.cc: Table::rvalue_expression")
     temp.symbols_.table_.emplace("c", null);
     temp.symbols_.table_.emplace("putchar", null);
     temp.symbols_.table_.emplace("getchar", null);
-
     // check all
     for (auto& rvalue : obj["test"].ArrayRange()) {
         CHECK_NOTHROW(temp.from_rvalue(rvalue));
@@ -614,16 +583,16 @@ TEST_CASE("ir/table.cc: Table::from_string_literal")
 {
     using namespace credence::ir;
     json::JSON obj;
-    obj["test"] = json::JSON::Load("{\"node\":  \"string_literal\","
-                                   "\"root\": \"test string\""
-                                   "}");
+    obj["test"] = json::JSON::Load(
+        "{\n                  \"node\" : \"string_literal\",\n                 "
+        " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
     auto temp = Table(obj);
     auto data = temp.from_string_literal(obj["test"]);
     auto [value, type] = data;
-    CHECK(std::get<std::string>(value) == "test string");
+    CHECK(std::get<std::string>(value) == "hello world");
     CHECK(type.first == "string");
-    CHECK(type.second == sizeof(char) * 11);
+    CHECK(type.second == std::string{ "hello world" }.size());
 }
 
 TEST_CASE("ir/table.cc: Table::from_constant_literal")
