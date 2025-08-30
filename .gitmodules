@@ -1,5 +1,3 @@
-
-[submodule "external/credence"]
-	path = external/credence
-	url = git@github.com:jahan-addison/credence.git
-    branch = master
+[submodule "external/chakram"]
+	path = external/chakram
+	url = git@github.com:jahan-addison/chakram.git

@@ -71,7 +71,7 @@ int main(int argc, const char* argv[])
 
             if (type == "python") {
                 auto python_module =
-                    credence::Python_Module_Loader("xion.parser");
+                    credence::Python_Module_Loader("chakram.parser");
                 auto hoisted_symbols = python_module.call_method_on_module(
                     "get_source_program_symbol_table_as_json", { source });
                 hoisted = json::JSON::Load(hoisted_symbols);
