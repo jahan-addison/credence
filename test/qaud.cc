@@ -172,6 +172,80 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
     CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
 }
 
+TEST_CASE("ir/qaud.cc: label and goto")
+{
+    using namespace credence;
+    using namespace credence::ir;
+    json::JSON obj;
+    obj["symbols"] = json::JSON::Load(
+        "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
+        "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"y\": {\"type\": "
+        "\"lvalue\", \"line\": 2, \"start_pos\": 18, \"column\": 10, "
+        "\"end_pos\": 19, \"end_column\": 11}, \"ADD\": {\"type\": \"label\", "
+        "\"line\": 3, \"start_pos\": 21, \"column\": 1, \"end_pos\": 25, "
+        "\"end_column\": 5}, \"add\": {\"type\": \"function_definition\", "
+        "\"line\": 9, \"start_pos\": 67, \"column\": 1, \"end_pos\": 70, "
+        "\"end_column\": 4}, \"main\": {\"type\": \"function_definition\", "
+        "\"line\": 1, \"start_pos\": 0, \"column\": 1, \"end_pos\": 4, "
+        "\"end_column\": 5}, \"a\": {\"type\": \"lvalue\", \"line\": 9, "
+        "\"start_pos\": 71, \"column\": 5, \"end_pos\": 72, \"end_column\": "
+        "6}, \"b\": {\"type\": \"lvalue\", \"line\": 9, \"start_pos\": 73, "
+        "\"column\": 7, \"end_pos\": 74, \"end_column\": 8}}");
+
+    obj["test"] = json::JSON::Load(
+        "{\n        \"left\" : [{\n            \"left\" : [{\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  }, {\n                \"node\" : \"lvalue\",\n                "
+        "\"root\" : \"y\"\n              }],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"auto\"\n          }, {\n     "
+        "       \"left\" : [\"ADD\"],\n            \"node\" : \"statement\",\n "
+        "           \"root\" : \"label\"\n          }, {\n            \"left\" "
+        ": [[{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"add\"\n                    },\n                    \"node\" : "
+        "\"function_expression\",\n                    \"right\" : [{\n        "
+        "                \"node\" : \"number_literal\",\n                      "
+        "  \"root\" : 2\n                      }, {\n                        "
+        "\"node\" : \"number_literal\",\n                        \"root\" : "
+        "5\n                      }],\n                    \"root\" : "
+        "\"add\"\n                  },\n                  \"root\" : [\"=\", "
+        "null]\n                }], [{\n                  \"left\" : {\n       "
+        "             \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 10\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }, {\n   "
+        "         \"left\" : [\"ADD\"],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"goto\"\n          }],\n      "
+        "  \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
+
+    credence::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    symbols.table_.emplace("add", null);
+    test_instructions =
+        build_from_block_statement(symbols, obj["test"], obj["symbols"]);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected = R"qaud(_L_ADD:
+PUSH (5:int:4);
+PUSH (2:int:4);
+CALL add;
+POP 16;
+x = RET;
+y = (10:int:4);
+GOTO ADD;
+)qaud";
+    CHECK(os_test.str() == expected);
+}
+
 TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
 {
     using namespace credence;

@@ -142,6 +142,22 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
                                         rvalue_instructions.begin(),
                                         rvalue_instructions.end());
                 },
+            pattern | "label" =
+                [&] {
+                    auto label_instructions =
+                        build_from_label_statement(symbols, statement, details);
+                    instructions.insert(instructions.end(),
+                                        label_instructions.begin(),
+                                        label_instructions.end());
+                },
+            pattern | "goto" =
+                [&] {
+                    auto goto_statement =
+                        build_from_goto_statement(symbols, statement, details);
+                    instructions.insert(instructions.end(),
+                                        goto_statement.begin(),
+                                        goto_statement.end());
+                },
             pattern | "return" =
                 [&] {
                     auto return_instructions = build_from_return_statement(
@@ -153,6 +169,50 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
 
         );
     }
+    return instructions;
+}
+
+/**
+ * @brief Construct a set of qaud instructions from a label statement
+ */
+Instructions build_from_label_statement(Symbol_Table<>& symbols,
+                                        Node& node,
+                                        Node& details)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("label") == 0);
+    assert(node.hasKey("left"));
+    Instructions instructions{};
+    auto statement = node["left"];
+    Table table{ details, symbols };
+    auto label = statement.ArrayRange().begin()->ToString();
+    instructions.push_back(
+        make_quadruple(Instruction::LABEL, std::format("_L_{}", label), ""));
+    return instructions;
+}
+
+/**
+ * @brief Construct a set of qaud instructions from a goto statement
+ */
+Instructions build_from_goto_statement(Symbol_Table<>& symbols,
+                                       Node& node,
+                                       Node& details)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("goto") == 0);
+    assert(node.hasKey("left"));
+    Instructions instructions{};
+    Table table{ details, symbols };
+    auto statement = node["left"];
+    auto label = statement.ArrayRange().begin()->ToString();
+    if (!table.is_defined(label)) {
+        throw std::runtime_error(
+            std::format("Error: label \"{}\" does not exist", label));
+    }
+
+    instructions.push_back(make_quadruple(Instruction::GOTO, label, ""));
     return instructions;
 }
 
@@ -272,6 +332,32 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
     }
 
     return instructions;
+}
+
+/**
+ * @brief Emit a qaudruple tuple to an std::ostream
+ */
+void emit_quadruple(std::ostream& os, Quadruple qaud)
+{
+    Instruction op = std::get<Instruction>(qaud);
+
+    std::array<Instruction, 5> lhs_instruction = { Instruction::GOTO,
+                                                   Instruction::PUSH,
+                                                   Instruction::LABEL,
+                                                   Instruction::POP,
+                                                   Instruction::CALL };
+    if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
+        if (op == Instruction::LABEL)
+            os << std::get<1>(qaud) << ":" << std::endl;
+        else
+            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
+    } else {
+        if (op == Instruction::RETURN)
+            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
+        else
+            os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
+               << std::get<3>(qaud) << ";" << std::endl;
+    }
 }
 
 } // namespace ir

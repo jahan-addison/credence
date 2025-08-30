@@ -77,7 +77,7 @@ int main(int argc, const char* argv[])
                 hoisted = json::JSON::Load(hoisted_symbols);
                 if (result["debug"].count()) {
                     std::cout << "*** Symbol Table:" << std::endl
-                              << hoisted.ToString() << std::endl;
+                              << hoisted_symbols << std::endl;
                 }
 
                 auto ast_as_json = python_module.call_method_on_module(

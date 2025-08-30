@@ -63,6 +63,18 @@ class Table
     }
     RValue from_rvalue(Node& node);
 
+  public:
+    inline bool is_symbol(Node& node)
+    {
+        auto lvalue = node["root"].ToString();
+        return symbols_.is_defined(lvalue) or
+               globals_.is_defined(lvalue);
+    }
+
+    inline bool is_defined(std::string const& label) {
+      return internal_symbols_.hasKey(label);
+    }
+
   CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue from_evaluated_expression(Node& node);
     RValue from_function_expression(Node& node);
@@ -77,13 +89,6 @@ class Table
     RValue::LValue from_lvalue_expression(Node& node);
     RValue::Value from_indirect_identifier(Node& node);
     RValue::Value from_vector_idenfitier(Node& node);
-
-    inline bool is_symbol(Node& node)
-    {
-        auto lvalue = node["root"].ToString();
-        return symbols_.is_defined(lvalue) or
-               globals_.is_defined(lvalue);
-    }
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue from_assignment_expression(Node& node);

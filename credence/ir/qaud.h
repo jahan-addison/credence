@@ -73,6 +73,12 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
 Instructions build_from_function_definition(Symbol_Table<>& symbols,
                                             Node& node,
                                             Node& details);
+Instructions build_from_label_statement(Symbol_Table<>& symbols,
+                                        Node& node,
+                                        Node& details);
+Instructions build_from_goto_statement(Symbol_Table<>& symbols,
+                                       Node& node,
+                                       Node& details);
 Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details);
@@ -142,28 +148,7 @@ inline std::string instruction_to_string(Instruction op)
     return os.str();
 }
 
-inline void emit_quadruple(std::ostream& os, Quadruple qaud)
-{
-    Instruction op = std::get<Instruction>(qaud);
-
-    std::array<Instruction, 5> lhs_instruction = { Instruction::GOTO,
-                                                   Instruction::PUSH,
-                                                   Instruction::LABEL,
-                                                   Instruction::POP,
-                                                   Instruction::CALL };
-    if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
-        if (op == Instruction::LABEL)
-            os << std::get<1>(qaud) << ":" << std::endl;
-        else
-            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
-    } else {
-        if (op == Instruction::RETURN)
-            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
-        else
-            os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
-               << std::get<3>(qaud) << ";" << std::endl;
-    }
-}
+void emit_quadruple(std::ostream& os, Quadruple qaud);
 
 inline std::string quadruple_to_string(Quadruple qaud)
 {
