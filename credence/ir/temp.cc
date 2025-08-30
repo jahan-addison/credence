@@ -452,9 +452,9 @@ void unary_operand_to_temporary_stack(
  * we pop them and use the last temporary's idenfitier for the instruction
  * name of the top of the temporary stack.
  *
- * I.e., the sub-expressions `x > 1` and `x < 1` were popped of the
- * temporary stack, which were assigned _t1 and _t2, and assigned _t3 the
- * final binary expression.
+ * I.e., the sub-expressions `x > 1` and `x < 1` were popped off the
+ * temporary stack, which were assigned _t1 and _t2, and used in _t3
+ * for the final binary expression.
  */
 void binary_operands_to_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,

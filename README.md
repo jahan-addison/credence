@@ -10,7 +10,7 @@
 ---
 
 
-* The frontend (Lexer, Parser) and first-pass is built with an [LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/xion/tree/master), that interfaces with C++ via libpython
+* The frontend (Lexer, Parser) first-pass is built with an [LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/chakram/tree/master), that interfaces with C++ via libpython
 * The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm64, and z80.
 
 _**Status**: in progress_

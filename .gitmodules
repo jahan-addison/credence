@@ -1,5 +1,5 @@
 
-[submodule "external/xion"]
-	path = external/xion
-	url = git@github.com:jahan-addison/xion.git
+[submodule "external/credence"]
+	path = external/credence
+	url = git@github.com:jahan-addison/credence.git
     branch = master
