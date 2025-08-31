@@ -188,13 +188,13 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
 
-    RValue_Parser table{ obj };
+    RValue_Parser parser{ obj };
     RValue::Value null = { std::monostate(), credence::type::Type_["null"] };
-    table.symbols_.table_.emplace("x", null);
-    table.symbols_.table_.emplace("double", null);
-    table.symbols_.table_.emplace("exp", null);
-    table.symbols_.table_.emplace("puts", null);
-    table.symbols_.table_.emplace("y", null);
+    parser.symbols_.table_.emplace("x", null);
+    parser.symbols_.table_.emplace("double", null);
+    parser.symbols_.table_.emplace("exp", null);
+    parser.symbols_.table_.emplace("puts", null);
+    parser.symbols_.table_.emplace("y", null);
 
     std::string complex_expected =
         "(5:int:4) (5:int:4) exp (2:int:4) (5:int:4) PUSH PUSH CALL + * "
@@ -216,7 +216,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     std::string test{};
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["complex"]).value));
+        parser.from_rvalue(obj["complex"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == complex_expected);
@@ -224,7 +224,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["unary"]).value));
+        parser.from_rvalue(obj["unary"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == unary_expected);
@@ -232,7 +232,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["equal"]).value));
+        parser.from_rvalue(obj["equal"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == equal_expected);
@@ -240,7 +240,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["unary_relation"]).value));
+        parser.from_rvalue(obj["unary_relation"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == unary_relation_expected);
@@ -248,7 +248,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["ternary"]).value));
+        parser.from_rvalue(obj["ternary"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == ternary_expected);
@@ -256,7 +256,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["function"]).value));
+        parser.from_rvalue(obj["function"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == function_expected);
@@ -264,7 +264,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["evaluated"]).value));
+        parser.from_rvalue(obj["evaluated"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == evaluated_expected);
@@ -272,7 +272,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["evaluated_2"]).value));
+        parser.from_rvalue(obj["evaluated_2"]).value));
     rvalues_to_queue(rvalues, &list);
     test = util::queue_of_rvalues_to_string(&list);
     CHECK(test == evaluated_expected_2);
@@ -280,7 +280,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list.clear();
 
     rvalues.push_back(std::make_shared<type::RValue::Type>(
-        table.from_rvalue(obj["evaluated_3"]).value));
+        parser.from_rvalue(obj["evaluated_3"]).value));
     rvalues_to_queue(rvalues, &list);
     rvalues.clear();
     list.clear();

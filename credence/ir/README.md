@@ -1,4 +1,4 @@
-# Intermediate Representations
+# Intermediate Representation
 
 The currently available IR is a linear 4-tuple ive named a "Qaudruple". it is a generic platform-agnostic set of instructions that closely matches a target machine language.
 

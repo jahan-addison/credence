@@ -131,9 +131,9 @@ void build_from_vector_definition(Symbol_Table<>& symbols,
     auto name = node["root"].ToString();
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
     if (right_child_node.ArrayRange().get()->empty()) {
-        auto rvalue = table.from_rvalue(left_child_node);
+        auto rvalue = parser.from_rvalue(left_child_node);
         auto datatype = std::get<type::RValue::Value>(rvalue.value);
         symbols.set_symbol_by_name(name, datatype);
     } else {
@@ -145,7 +145,7 @@ void build_from_vector_definition(Symbol_Table<>& symbols,
         }
         std::vector<RValue::Value> values_at{};
         for (auto& child_node : right_child_node.ArrayRange()) {
-            auto rvalue = table.from_rvalue(child_node);
+            auto rvalue = parser.from_rvalue(child_node);
             auto datatype = std::get<type::RValue::Value>(rvalue.value);
             values_at.push_back(datatype);
         }
@@ -169,7 +169,7 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
     int temporary{ 0 };
     assert(node.hasKey("left"));
     auto statements = node["left"];
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
     for (auto& statement : statements.ArrayRange()) {
         auto statement_type = statement["root"].ToString();
         match(statement_type)(
@@ -270,17 +270,15 @@ std::pair<Instructions, Instructions> build_from_if_statement(
     using namespace matchit;
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("if") == 0);
-    assert(node.hasKey("left"));
-    assert(node.hasKey("right"));
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
     RValue_Queue list{};
     auto predicate = node["left"];
     auto* blocks = node["right"].ArrayRange().get();
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
 
     auto predicate_rvalue = type::rvalue_type_pointer_from_rvalue(
-        table.from_rvalue(predicate).value);
+        parser.from_rvalue(predicate).value);
     rvalues_to_queue(predicate_rvalue, &list);
     auto if_instructions =
         rvalue_queue_to_linear_ir_instructions(&list, temporary);
@@ -338,7 +336,7 @@ Instructions build_from_label_statement(Symbol_Table<>& symbols,
     assert(node.hasKey("left"));
     Instructions instructions{};
     auto statement = node["left"];
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
     auto label = statement.ArrayRange().begin()->ToString();
     instructions.push_back(
         make_quadruple(Instruction::LABEL, std::format("_L_{}", label), ""));
@@ -357,10 +355,10 @@ Instructions build_from_goto_statement(Symbol_Table<>& symbols,
     assert(node["root"].ToString().compare("goto") == 0);
     assert(node.hasKey("left"));
     Instructions instructions{};
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
     auto statement = node["left"];
     auto label = statement.ArrayRange().begin()->ToString();
-    if (!table.is_defined(label)) {
+    if (!parser.is_defined(label)) {
         throw std::runtime_error(
             std::format("Error: label \"{}\" does not exist", label));
     }
@@ -385,17 +383,17 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
     RValue_Queue list{};
     assert(node.hasKey("left"));
     auto return_statement = node["left"];
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
     for (auto& expression : return_statement.ArrayRange()) {
         if (expression.JSONType() == json::JSON::Class::Array) {
             for (auto& rvalue : expression.ArrayRange()) {
 
                 rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                    table.from_rvalue(rvalue).value));
+                    parser.from_rvalue(rvalue).value));
             }
         } else {
             rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                table.from_rvalue(expression).value));
+                parser.from_rvalue(expression).value));
         }
     }
     rvalues_to_queue(rvalues, &list);
@@ -485,17 +483,17 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
     std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
     auto statement = node["left"];
-    RValue_Parser table{ details, symbols };
+    RValue_Parser parser{ details, symbols };
     // for each line:
     for (auto& expression : statement.ArrayRange()) {
         if (expression.JSONType() == json::JSON::Class::Array) {
             for (auto& rvalue : expression.ArrayRange()) {
                 rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                    table.from_rvalue(rvalue).value));
+                    parser.from_rvalue(rvalue).value));
             }
         } else {
             rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                table.from_rvalue(expression).value));
+                parser.from_rvalue(expression).value));
         }
         rvalues_to_queue(rvalues, &list);
         auto line = rvalue_queue_to_linear_ir_instructions(&list, temporary);
