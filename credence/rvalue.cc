@@ -14,37 +14,35 @@
  * limitations under the License.
  */
 
-// clang-format off
-#include <credence/ir/table.h>
-#include <vector>                // for vector
-#include <credence/json.h>       // for JSON
-#include <credence/operators.h>  // for Operator, BINARY_OPERATORS
-#include <credence/symbol.h>     // for Symbol_Table
-#include <credence/types.h>      // for RValue, Type_
-#include <matchit.h>             // for pattern, PatternHelper, PatternPipable
-#include <algorithm>             // for __any_of, any_of
-#include <cassert>               // for assert
+#include <algorithm> // for __any_of, any_of
+#include <cassert>   // for assert
 #include <cpptrace/cpptrace.hpp>
-#include <deque>                 // for deque
-#include <format>                // for format
-#include <map>                   // for map
-#include <memory>                // for make_shared, shared_ptr
-#include <stdexcept>             // for runtime_error
-#include <string>                // for basic_string, operator==, char_traits
-#include <utility>               // for make_pair, pair, move
-#include <variant>               // for monostate, variant
-// clang-format on
+#include <credence/json.h>      // for JSON
+#include <credence/operators.h> // for Operator, BINARY_OPERATORS
+#include <credence/rvalue.h>
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for RValue, Type_
+#include <deque>             // for deque
+#include <format>            // for format
+#include <map>               // for map
+#include <matchit.h>         // for pattern, PatternHelper, PatternPipable
+#include <memory>            // for make_shared, shared_ptr
+#include <stdexcept>         // for runtime_error
+#include <string>            // for basic_string, operator==, char_traits
+#include <utility>           // for make_pair, pair, move
+#include <variant>           // for monostate, variant
+#include <vector>            // for vector
 
 namespace credence {
 
-namespace ir {
 using namespace credence::type;
 using namespace matchit;
 
 /**
  * @brief Throw program flow error
  */
-void Table::error(std::string_view message, std::string_view symbol_name)
+void RValue_Parser::error(std::string_view message,
+                          std::string_view symbol_name)
 {
     auto symbol = symbol_name.data();
     if (internal_symbols_.hasKey(symbol)) {
@@ -63,9 +61,9 @@ void Table::error(std::string_view message, std::string_view symbol_name)
 }
 
 /**
- * @brief Parse rvalues and temporaries into an algebraic type
+ * @brief Parse rvalue ast node into RValue struct type pointer
  */
-RValue Table::from_rvalue(Node& node)
+RValue RValue_Parser::from_rvalue(Node& node)
 {
     RValue rvalue = RValue{};
     bool is_unary =
@@ -121,7 +119,7 @@ RValue Table::from_rvalue(Node& node)
 /**
  * @brief Build rvalue from function call expression
  */
-RValue Table::from_function_expression(Node& node)
+RValue RValue_Parser::from_function_expression(Node& node)
 {
     RValue rvalue{};
 
@@ -137,9 +135,9 @@ RValue Table::from_function_expression(Node& node)
 }
 
 /**
- * @brief An rvalue or temporary wrapped in parenthesis, pre-evaluated
+ * @brief An rvalue wrapped in parenthesis, pre-evaluated
  */
-RValue Table::from_evaluated_expression(Node& node)
+RValue RValue_Parser::from_evaluated_expression(Node& node)
 {
     RValue rvalue{};
     assert(node["node"].ToString().compare("evaluated_expression") == 0);
@@ -150,7 +148,7 @@ RValue Table::from_evaluated_expression(Node& node)
 /**
  * @brief Relation to sum type of operator and chain of rvalues
  */
-RValue Table::from_relation_expression(Node& node)
+RValue RValue_Parser::from_relation_expression(Node& node)
 {
     RValue rvalue{};
     assert(node["node"].ToString().compare("relation_expression") == 0);
@@ -181,7 +179,7 @@ RValue Table::from_relation_expression(Node& node)
 /**
  * @brief Unary operator expression to algebraic pair
  */
-RValue Table::from_unary_expression(Node& node)
+RValue RValue_Parser::from_unary_expression(Node& node)
 {
     std::map<std::string, Operator> const other_unary = {
         { "!", Operator::U_NOT },
@@ -239,9 +237,9 @@ RValue Table::from_unary_expression(Node& node)
 }
 
 /**
- * @brief Parse assignment expression into pairs of left-hand-side and
+ * @brief Parse assignment expression into pairs of LHS and RHS
  */
-RValue Table::from_assignment_expression(Node& node)
+RValue RValue_Parser::from_assignment_expression(Node& node)
 {
     assert(node["node"].ToString().compare("assignment_expression") == 0);
     assert(node.hasKey("left"));
@@ -265,7 +263,7 @@ RValue Table::from_assignment_expression(Node& node)
 /**
  * @brief Parse lvalue expression data types
  */
-RValue::LValue Table::from_lvalue_expression(Node& node)
+RValue::LValue RValue_Parser::from_lvalue_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
 
@@ -316,7 +314,7 @@ RValue::LValue Table::from_lvalue_expression(Node& node)
 /**
  * @brief Parse constant expression data types
  */
-RValue::Value Table::from_constant_expression(Node& node)
+RValue::Value RValue_Parser::from_constant_expression(Node& node)
 {
     auto constant_type = node["node"].ToString();
     return match(constant_type)(
@@ -329,7 +327,7 @@ RValue::Value Table::from_constant_expression(Node& node)
 /**
  * @brief Parse lvalue to pointer data type
  */
-RValue::Value Table::from_indirect_identifier(Node& node)
+RValue::Value RValue_Parser::from_indirect_identifier(Node& node)
 {
     assert(node["node"].ToString().compare("indirect_lvalue") == 0);
     assert(node.hasKey("left"));
@@ -343,7 +341,7 @@ RValue::Value Table::from_indirect_identifier(Node& node)
 /**
  * @brief Parse fixed-size vector (array) lvalue
  */
-RValue::Value Table::from_vector_idenfitier(Node& node)
+RValue::Value RValue_Parser::from_vector_idenfitier(Node& node)
 {
     assert(node["node"].ToString().compare("vector_lvalue") == 0);
 
@@ -357,7 +355,7 @@ RValue::Value Table::from_vector_idenfitier(Node& node)
 /**
  * @brief Parse number literal node into symbols
  */
-RValue::Value Table::from_number_literal(Node& node)
+RValue::Value RValue_Parser::from_number_literal(Node& node)
 {
     assert(node["node"].ToString().compare("number_literal") == 0);
     return { static_cast<int>(node["root"].ToInt()), Type_["int"] };
@@ -366,7 +364,7 @@ RValue::Value Table::from_number_literal(Node& node)
 /**
  * @brief Parse string literal node into symbols
  */
-RValue::Value Table::from_string_literal(Node& node)
+RValue::Value RValue_Parser::from_string_literal(Node& node)
 {
     assert(node["node"].ToString().compare("string_literal") == 0);
     auto string_literal = util::unescape_string(node["root"].ToString());
@@ -378,12 +376,10 @@ RValue::Value Table::from_string_literal(Node& node)
 /**
  * @brief Parse constant literal node into symbols
  */
-RValue::Value Table::from_constant_literal(Node& node)
+RValue::Value RValue_Parser::from_constant_literal(Node& node)
 {
     assert(node["node"].ToString().compare("constant_literal") == 0);
     return { static_cast<char>(node["root"].ToString()[0]), Type_["char"] };
 }
-
-} // namespace ir
 
 } // namespace credence

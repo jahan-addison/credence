@@ -1,17 +1,17 @@
 // clang-format off
 #include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase
 // clang-format on
-#include <credence/ir/table.h> // for Table
-#include <credence/json.h>     // for JSON
-#include <credence/symbol.h>   // for Symbol_Table
-#include <credence/types.h>    // for Value_Type, RValue, Type_, Byte
-#include <deque>               // for deque
-#include <map>                 // for map
-#include <memory>              // for shared_ptr
-#include <string>              // for basic_string, string
-#include <tuple>               // for get, tie
-#include <utility>             // for pair, make_pair, get
-#include <variant>             // for get, monostate
+#include <credence/json.h>   // for JSON
+#include <credence/rvalue.h> // for RValue_Parser
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for Value_Type, RValue, Type_, Byte
+#include <deque>             // for deque
+#include <map>               // for map
+#include <memory>            // for shared_ptr
+#include <string>            // for basic_string, string
+#include <tuple>             // for get, tie
+#include <utility>           // for pair, make_pair, get
+#include <variant>           // for get, monostate
 
 using namespace credence;
 
@@ -60,10 +60,9 @@ struct Fixture
     ~Fixture() = default;
 };
 
-TEST_CASE("ir/table.cc: Table::rvalue_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
 {
     json::JSON obj;
-    using namespace credence::ir;
     using std::get;
     obj["test"] = json::JSON::Load(
         "[{\n                  \"node\" : \"constant_literal\",\n              "
@@ -119,7 +118,7 @@ TEST_CASE("ir/table.cc: Table::rvalue_expression")
         "         \"node\" : \"number_literal\",\n                    \"root\" "
         ": 10\n                  },\n                  \"root\" : [\"^\"]\n    "
         "            }]");
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     RValue::Value null = { std::monostate(), type::Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("c", null);
@@ -131,9 +130,8 @@ TEST_CASE("ir/table.cc: Table::rvalue_expression")
     }
 }
 
-TEST_CASE("ir/table.cc: Table::function_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     using std::get;
     obj["test"] = json::JSON::Load(
@@ -146,7 +144,7 @@ TEST_CASE("ir/table.cc: Table::function_expression")
         "       \"root\" : \"y\"\n                    }, {\n                   "
         "   \"node\" : \"lvalue\",\n                      \"root\" : \"z\"\n   "
         "                 }]\n}\n                    ");
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     RValue::Value null = { std::monostate(), type::Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("y", null);
@@ -161,9 +159,8 @@ TEST_CASE("ir/table.cc: Table::function_expression")
     CHECK(get<RValue::LValue>(function.second[2]->value).first == "z");
 }
 
-TEST_CASE("ir/table.cc: Table::evaluated_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     using std::get;
     obj["test"] = json::JSON::Load(
@@ -181,7 +178,7 @@ TEST_CASE("ir/table.cc: Table::evaluated_expression")
         "   },\n                    \"node\" : \"indirect_lvalue\",\n          "
         "          \"root\" : [\"*\"]\n                  }\n                "
         "}]");
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     RValue::Value null = { std::monostate(), type::Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
 
@@ -196,9 +193,8 @@ TEST_CASE("ir/table.cc: Table::evaluated_expression")
     CHECK(get<RValue::LValue>(expr2->value).first == "x");
 }
 
-TEST_CASE("ir/table.cc: Table::from_relation_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      "
@@ -250,7 +246,7 @@ TEST_CASE("ir/table.cc: Table::from_relation_expression")
         "\"number_literal\",\n      \"root\": 10\n    },\n    \"root\": "
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     RValue::Value null = { std::monostate(), type::Type_["null"] };
     std::vector<RValue::RValue_Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
@@ -312,9 +308,8 @@ TEST_CASE("ir/table.cc: Table::from_relation_expression")
           10);
 }
 
-TEST_CASE("ir/table.cc: Table::from_unary_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "[{\n                  \"node\" : \"post_inc_dec_expression\",\n   "
@@ -364,7 +359,7 @@ TEST_CASE("ir/table.cc: Table::from_unary_expression")
         "},\n                  \"node\" : \"unary_expression\",\n          "
         "    "
         "    \"root\" : [\"!\"]\n                }]");
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
 
     RValue::Value null = { std::monostate(), type::Type_["null"] };
 
@@ -411,9 +406,9 @@ TEST_CASE("ir/table.cc: Table::from_unary_expression")
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 }
 
-TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_assignment_expression")
+TEST_CASE_FIXTURE(Fixture,
+                  "rvalue.cc: RValue_Parser::from_assignment_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = json::JSON::Load(
@@ -427,7 +422,7 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_assignment_expression")
         "    "
         "   },\n                  \"root\" : [\"=\", null]\n               "
         " }");
-    auto temp = Table(obj["symbols"]);
+    auto temp = RValue_Parser(obj["symbols"]);
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
 
@@ -446,19 +441,18 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::from_assignment_expression")
     CHECK(std::get<type::Value_Type>((*rhs)->value) == assigned_type);
 }
 
-TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::is_symbol")
+TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = json::JSON::Load("{\"node\":  \"lvalue\","
                                    "\"root\": \"x\""
                                    "}");
-    auto temp = Table(obj["test"]);
+    auto temp = RValue_Parser(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
 
-    auto temp2 = Table(obj["symbols"]);
+    auto temp2 = RValue_Parser(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
     type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
@@ -467,9 +461,8 @@ TEST_CASE_FIXTURE(Fixture, "ir/table.cc: Table::is_symbol")
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }
 
-TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "[\n               {\n                \"left\" : {\n               "
@@ -487,7 +480,7 @@ TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
         "    "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
         "\"root\" : \"z\"\n              }]");
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     type::RValue::Value empty_value =
         std::make_pair('0', std::make_pair("byte", 50));
     auto* lvalues = obj["test"].ArrayRange().get();
@@ -510,9 +503,8 @@ TEST_CASE("ir/table.cc: Table::from_lvalue_expression")
     CHECK(test3.second == empty_value);
 }
 
-TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
+TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
@@ -521,16 +513,15 @@ TEST_CASE("ir/table.cc: Table::from_indirect_identifier")
         "               \"node\" : \"indirect_lvalue\",\n                "
         "\"root\" : [\"*\"]\n              }");
 
-    auto temp = Table(obj["test"]);
+    auto temp = RValue_Parser(obj["test"]);
     CHECK_THROWS(temp.from_indirect_identifier(obj["test"]));
     type::RValue::Value value = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = value;
     auto test = temp.from_indirect_identifier(obj["test"]);
     CHECK(test == value);
 }
-TEST_CASE("ir/tble.cc: Table::from_vector_idenfitier")
+TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                \"left\" : {\n                  \"node\" : "
@@ -540,22 +531,21 @@ TEST_CASE("ir/tble.cc: Table::from_vector_idenfitier")
         " "
         "\"root\" : \"x\"\n              }");
 
-    auto temp = Table(obj["test"]);
+    auto temp = RValue_Parser(obj["test"]);
     CHECK_THROWS(temp.from_vector_idenfitier(obj["test"]));
     type::Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = test;
     CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
 }
 
-TEST_CASE("ir/table.cc: Table::from_constant_expression")
+TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
                                    "}");
 
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     auto data = temp.from_constant_expression(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
@@ -563,15 +553,14 @@ TEST_CASE("ir/table.cc: Table::from_constant_expression")
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("ir/table.cc: Table::from_number_literal")
+TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
                                    "}");
 
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     auto data = temp.from_number_literal(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
@@ -579,15 +568,14 @@ TEST_CASE("ir/table.cc: Table::from_number_literal")
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("ir/table.cc: Table::from_string_literal")
+TEST_CASE("rvalue.cc: RValue_Parser::from_string_literal")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load(
         "{\n                  \"node\" : \"string_literal\",\n                 "
         " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     auto data = temp.from_string_literal(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<std::string>(value) == "hello world");
@@ -595,15 +583,14 @@ TEST_CASE("ir/table.cc: Table::from_string_literal")
     CHECK(type.second == std::string{ "hello world" }.size());
 }
 
-TEST_CASE("ir/table.cc: Table::from_constant_literal")
+TEST_CASE("rvalue.cc: RValue_Parser::from_constant_literal")
 {
-    using namespace credence::ir;
     json::JSON obj;
     obj["test"] = json::JSON::Load("{\"node\":  \"constant_literal\","
                                    "\"root\": \"x\""
                                    "}");
 
-    auto temp = Table(obj);
+    auto temp = RValue_Parser(obj);
     auto data = temp.from_constant_literal(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<char>(value) == 'x');

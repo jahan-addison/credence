@@ -1,7 +1,7 @@
 // clang-format off
 #include <vector>             // for vector
 #include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase, TEST_CASE
-#include <credence/ir/table.h>   // for Table
+#include <credence/rvalue.h>   // for RValue_Parser
 #include <credence/json.h>       // for JSON
 #include <credence/queue.h>      // for rvalues_to_queue, RValue_Queue
 #include <credence/symbol.h>     // for Symbol_Table
@@ -188,7 +188,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
 
-    ir::Table table{ obj };
+    RValue_Parser table{ obj };
     RValue::Value null = { std::monostate(), credence::type::Type_["null"] };
     table.symbols_.table_.emplace("x", null);
     table.symbols_.table_.emplace("double", null);

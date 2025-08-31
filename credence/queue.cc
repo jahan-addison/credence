@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-// clang-format off
+#include <algorithm>            // for copy, max
+#include <credence/operators.h> // for Operator, get_precedence, is_left_assoc...
 #include <credence/queue.h>
-#include <credence/operators.h>  // for Operator, get_precedence, is_left_assoc...
-#include <credence/types.h>      // for RValue
-#include <credence/util.h>       // for overload
-#include <algorithm>          // for copy, max
-#include <memory>             // for make_shared, shared_ptr, __shared_ptr_a...
-#include <stack>              // for stack
-#include <variant>            // for variant, visit, monostate
-// clang-format on
+#include <credence/types.h> // for RValue
+#include <credence/util.h>  // for overload
+#include <memory>           // for make_shared, shared_ptr, __shared_ptr_a...
+#include <stack>            // for stack
+#include <variant>          // for variant, visit, monostate
 
 /**************************************************************************
  *

@@ -27,28 +27,30 @@
 #include <string_view>       // for string_view
 
 namespace credence {
-namespace ir {
+
 using namespace credence::type;
 
 /**
- * @brief Constructs a table of rvalues and temporaries as algebraic data types
+ * @brief LL(1) Parser of expression ast nodes to RValue data structures.
+ *
+ * See types.h for details.
  */
-class Table
+class RValue_Parser
 {
   public:
-    Table(Table const&) = delete;
-    Table& operator=(Table const&) = delete;
+    RValue_Parser(RValue_Parser const&) = delete;
+    RValue_Parser& operator=(RValue_Parser const&) = delete;
 
     using Node = json::JSON;
     /* clang-format off */
   public:
-    explicit Table(json::JSON const& internal_symbols,
+    explicit RValue_Parser(json::JSON const& internal_symbols,
                    Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
-    explicit Table(json::JSON const& internal_symbols,
+    explicit RValue_Parser(json::JSON const& internal_symbols,
                    Symbol_Table<> const& symbols,
                    Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
@@ -56,7 +58,7 @@ class Table
         , globals_(globals)
     {
     }
-    ~Table() = default;
+    ~RValue_Parser() = default;
   public:
     inline RValue from_rvalue_expression(Node& node) {
       return from_rvalue(node);
@@ -110,5 +112,5 @@ class Table
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };
-} // namespace ir
+
 } // namespace credence
