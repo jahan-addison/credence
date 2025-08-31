@@ -237,11 +237,12 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
+    int temporary{ 0 };
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("y", null);
-    test_instructions =
-        build_from_return_statement(symbols, obj["test"], internal_symbols);
+    test_instructions = build_from_return_statement(
+        symbols, obj["test"], internal_symbols, &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -285,6 +286,105 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
         emit_quadruple(os_test, inst);
     }
     CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
+}
+
+TEST_CASE("ir/qaud.cc: if and else branching")
+{
+    using namespace credence;
+    using namespace credence::ir;
+    json::JSON obj;
+    obj["symbols"] = json::JSON::Load(
+        "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
+        "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"main\": "
+        "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
+        "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}}");
+
+    obj["test"] = json::JSON::Load(
+        "{\n        \"left\" : [{\n            \"left\" : [{\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"auto\"\n          }, {\n            \"left\" : [[{\n                "
+        "  \"left\" : {\n                    \"node\" : \"lvalue\",\n          "
+        "          \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 5\n                        },\n                   "
+        "     \"root\" : [\"+\"]\n                      }\n                    "
+        "},\n                    \"node\" : \"relation_expression\",\n         "
+        "           \"right\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 3\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 3\n                        },\n                   "
+        "     \"root\" : [\"+\"]\n                      }\n                    "
+        "},\n                    \"root\" : [\"*\"]\n                  },\n    "
+        "              \"root\" : [\"=\", null]\n                }]],\n        "
+        "    \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n    "
+        "      }, {\n            \"left\" : {\n              \"left\" : {\n    "
+        "            \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"x\"\n              },\n              \"node\" : "
+        "\"relation_expression\",\n              \"right\" : {\n               "
+        " \"node\" : \"number_literal\",\n                \"root\" : 5\n       "
+        "       },\n              \"root\" : [\"<=\"]\n            },\n        "
+        "    \"node\" : \"statement\",\n            \"right\" : [{\n           "
+        "     \"left\" : [{\n                    \"left\" : [[{\n              "
+        "            \"left\" : {\n                            \"node\" : "
+        "\"lvalue\",\n                            \"root\" : \"x\"\n           "
+        "               },\n                          \"node\" : "
+        "\"assignment_expression\",\n                          \"right\" : {\n "
+        "                           \"node\" : \"number_literal\",\n           "
+        "                 \"root\" : 1\n                          },\n         "
+        "                 \"root\" : [\"=\", null]\n                        "
+        "}]],\n                    \"node\" : \"statement\",\n                 "
+        "   \"root\" : \"rvalue\"\n                  }],\n                "
+        "\"node\" : \"statement\",\n                \"root\" : \"block\"\n     "
+        "         }, {\n                \"left\" : [{\n                    "
+        "\"left\" : [[{\n                          \"left\" : {\n              "
+        "              \"node\" : \"lvalue\",\n                            "
+        "\"root\" : \"x\"\n                          },\n                      "
+        "    \"node\" : \"assignment_expression\",\n                          "
+        "\"right\" : {\n                            \"node\" : "
+        "\"number_literal\",\n                            \"root\" : 8\n       "
+        "                   },\n                          \"root\" : [\"=\", "
+        "null]\n                        }]],\n                    \"node\" : "
+        "\"statement\",\n                    \"root\" : \"rvalue\"\n           "
+        "       }],\n                \"node\" : \"statement\",\n               "
+        " \"root\" : \"block\"\n              }],\n            \"root\" : "
+        "\"if\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      }");
+
+    credence::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    symbols.table_.emplace("add", null);
+    test_instructions = build_from_block_statement(
+        symbols, symbols, obj["test"], obj["symbols"]);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected = R"qaud(_t1 = (5:int:4) + (5:int:4);
+_t2 = (3:int:4) + (3:int:4);
+_t3 = _t1 * _t2;
+x = _t3;
+_t4 = x <= (5:int:4);
+IF _t4 GOTO _L5;
+GOTO _L6;
+_L5:
+x = (1:int:4);
+_L6:
+x = (8:int:4);
+)qaud";
+    CHECK(os_test.str() == expected);
 }
 
 TEST_CASE("ir/qaud.cc: label and goto")
@@ -547,6 +647,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
     credence::Symbol_Table<> symbols{};
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     Instructions test_instructions{};
+    int temporary{ 0 };
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("putchar", null);
     symbols.table_.emplace("getchar", null);
@@ -567,15 +668,16 @@ _t4 = (2:int:4) ^ _t3;
 _t5 = ~ (4:int:4);
 _t6 = _t4 / _t5;
 )qaud";
-    test_instructions = build_from_rvalue_statement(symbols, obj["test"], obj);
+    test_instructions = build_from_rvalue_statement(symbols, obj["test"], obj, &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
     CHECK(expected_1 == os_test.str());
     os_test.str("");
     os_test.clear();
+    temporary = 0;
     test_instructions.clear();
-    test_instructions = build_from_rvalue_statement(symbols, obj["nested_binary"], obj);
+    test_instructions = build_from_rvalue_statement(symbols, obj["nested_binary"], obj, &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -589,7 +691,8 @@ x = _t3;
     os_test.str("");
     os_test.clear();
     test_instructions.clear();
-    test_instructions = build_from_rvalue_statement(symbols, obj["nested_or"], obj);
+    temporary = 0;
+    test_instructions = build_from_rvalue_statement(symbols, obj["nested_or"], obj, &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -602,7 +705,8 @@ x = _t2;
     os_test.str("");
     os_test.clear();
     test_instructions.clear();
-    test_instructions = build_from_rvalue_statement(symbols, obj["complex_or"], obj);
+    temporary = 0;
+    test_instructions = build_from_rvalue_statement(symbols, obj["complex_or"], obj, &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -618,7 +722,8 @@ x = _t5;
     os_test.str("");
     os_test.clear();
     test_instructions.clear();
-    test_instructions = build_from_rvalue_statement(symbols, obj["or_with_call"], obj);
+    temporary = 0;
+    test_instructions = build_from_rvalue_statement(symbols, obj["or_with_call"], obj, &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
@@ -728,10 +833,11 @@ TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
+    int temporary{ 0 };
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("x", null);
-    test_instructions =
-        build_from_rvalue_statement(symbols, obj["test"], internal_symbols);
+    test_instructions = build_from_rvalue_statement(
+        symbols, obj["test"], internal_symbols, &temporary);
     std::string expected = R"qaud(_t1 = (5:int:4) + (5:int:4);
 _t2 = (6:int:4) + (6:int:4);
 _t3 = _t1 * _t2;

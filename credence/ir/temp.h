@@ -37,8 +37,14 @@ namespace detail {
 
 inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
 {
-    auto lhs = std::format("_t{}", ++(*temporary_size), temp);
+    auto lhs = std::format("_t{}", ++(*temporary_size));
     return make_quadruple(Instruction::VARIABLE, lhs, temp);
+}
+
+inline Quadruple make_temporary(int* temporary_size)
+{
+    auto rhs = std::format("_L{}", ++(*temporary_size));
+    return make_quadruple(Instruction::LABEL, rhs, "");
 }
 
 std::pair<std::string, std::size_t> insert_create_temp_from_operand(

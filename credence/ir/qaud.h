@@ -41,6 +41,7 @@ enum class Instruction
     FUNC_END,
     LABEL,
     GOTO,
+    IF,
     PUSH,
     POP,
     CALL,
@@ -78,6 +79,12 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
 void build_from_vector_definition(Symbol_Table<>& symbols,
                                   Node& node,
                                   Node& details);
+std::pair<Instructions, Instructions> build_from_if_statement(
+    Symbol_Table<>& symbols,
+    Symbol_Table<>& globals,
+    Node& node,
+    Node& details,
+    int* temporary);
 Instructions build_from_label_statement(Symbol_Table<>& symbols,
                                         Node& node,
                                         Node& details);
@@ -86,7 +93,8 @@ Instructions build_from_goto_statement(Symbol_Table<>& symbols,
                                        Node& details);
 Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          Node& node,
-                                         Node& details);
+                                         Node& details,
+                                         int* temporary);
 Instructions build_from_block_statement(Symbol_Table<>& symbols,
                                         Symbol_Table<>& globals,
                                         Node& node,
@@ -97,7 +105,8 @@ void build_from_extrn_statement(Symbol_Table<>& symbols,
                                 Node& node);
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
-                                         Node& details);
+                                         Node& details,
+                                         int* temporary);
 Node unravel_nested_node_array(Node& node);
 std::vector<std::string> build_from_rvalue_expression(
     type::RValue::Type& rvalue);
@@ -127,6 +136,9 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
             break;
         case Instruction::LEAVE:
             os << "LEAVE";
+            break;
+        case Instruction::IF:
+            os << "IF";
             break;
         case Instruction::PUSH:
             os << "PUSH";

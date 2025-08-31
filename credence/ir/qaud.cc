@@ -165,6 +165,8 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("block") == 0);
     Instructions instructions{};
+    Instructions branches{};
+    int temporary{ 0 };
     assert(node.hasKey("left"));
     auto statements = node["left"];
     Table table{ details, symbols };
@@ -177,10 +179,22 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
                 [&] {
                     build_from_extrn_statement(symbols, globals, statement);
                 },
+            pattern | "if" =
+                [&] {
+                    auto [jump_instructions, if_instructions] =
+                        build_from_if_statement(
+                            symbols, globals, statement, details, &temporary);
+                    instructions.insert(instructions.end(),
+                                        jump_instructions.begin(),
+                                        jump_instructions.end());
+                    branches.insert(branches.end(),
+                                    if_instructions.begin(),
+                                    if_instructions.end());
+                },
             pattern | "rvalue" =
                 [&] {
                     auto rvalue_instructions = build_from_rvalue_statement(
-                        symbols, statement, details);
+                        symbols, statement, details, &temporary);
                     instructions.insert(instructions.end(),
                                         rvalue_instructions.begin(),
                                         rvalue_instructions.end());
@@ -204,7 +218,7 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
             pattern | "return" =
                 [&] {
                     auto return_instructions = build_from_return_statement(
-                        symbols, statement, details);
+                        symbols, statement, details, &temporary);
                     instructions.insert(instructions.end(),
                                         return_instructions.begin(),
                                         return_instructions.end());
@@ -212,7 +226,103 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
 
         );
     }
+    instructions.insert(instructions.end(), branches.begin(), branches.end());
     return instructions;
+}
+
+/**
+ * @brief Construct an rvalue or block statement for a branch
+ */
+void insert_rvalue_or_block_branch_instructions(
+    Symbol_Table<>& symbols,
+    Symbol_Table<>& globals,
+    Node& block,
+    Node& details,
+    int* temporary,
+    Instructions& branch_instructions)
+{
+    if (block["root"].ToString() == "block") {
+        auto block_instructions =
+            build_from_block_statement(symbols, globals, block, details);
+
+        branch_instructions.insert(branch_instructions.end(),
+                                   block_instructions.begin(),
+                                   block_instructions.end());
+    } else {
+        auto rvalue_instructions =
+            build_from_rvalue_statement(symbols, block, details, temporary);
+        branch_instructions.insert(branch_instructions.end(),
+                                   rvalue_instructions.begin(),
+                                   rvalue_instructions.end());
+    }
+}
+
+/**
+ * @brief Construct a set of qaud instructions from an if statement
+ */
+std::pair<Instructions, Instructions> build_from_if_statement(
+    Symbol_Table<>& symbols,
+    Symbol_Table<>& globals,
+    Node& node,
+    Node& details,
+    int* temporary)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("if") == 0);
+    assert(node.hasKey("left"));
+    assert(node.hasKey("right"));
+    Instructions predicate_instructions{};
+    Instructions branch_instructions{};
+    RValue_Queue list{};
+    auto predicate = node["left"];
+    auto* blocks = node["right"].ArrayRange().get();
+    Table table{ details, symbols };
+
+    auto predicate_rvalue = type::rvalue_type_pointer_from_rvalue(
+        table.from_rvalue(predicate).value);
+    rvalues_to_queue(predicate_rvalue, &list);
+    auto if_instructions =
+        rvalue_queue_to_linear_ir_instructions(&list, temporary);
+
+    auto jump = detail::make_temporary(temporary);
+
+    predicate_instructions.insert(predicate_instructions.end(),
+                                  if_instructions.begin(),
+                                  if_instructions.end());
+
+    predicate_instructions.push_back(
+        make_quadruple(Instruction::IF,
+                       std::get<1>(if_instructions.back()),
+                       instruction_to_string(Instruction::GOTO),
+                       std::get<1>(jump)));
+
+    branch_instructions.push_back(jump);
+
+    if (blocks->at(0)["root"].ToString() == "block") {
+        insert_rvalue_or_block_branch_instructions(symbols,
+                                                   globals,
+                                                   blocks->at(0),
+                                                   details,
+                                                   temporary,
+                                                   branch_instructions);
+    }
+
+    // else statement
+    if (!blocks->at(1).IsNull()) {
+        auto else_label = detail::make_temporary(temporary);
+        predicate_instructions.push_back(
+            make_quadruple(Instruction::GOTO, std::get<1>(else_label), ""));
+        branch_instructions.push_back(else_label);
+        insert_rvalue_or_block_branch_instructions(symbols,
+                                                   globals,
+                                                   blocks->at(1),
+                                                   details,
+                                                   temporary,
+                                                   branch_instructions);
+    }
+
+    return std::make_pair(predicate_instructions, branch_instructions);
 }
 
 /**
@@ -264,13 +374,13 @@ Instructions build_from_goto_statement(Symbol_Table<>& symbols,
  */
 Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          Node& node,
-                                         Node& details)
+                                         Node& details,
+                                         int* temporary)
 {
     using namespace matchit;
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("return") == 0);
     Instructions instructions{};
-    int temporary{ 0 };
     std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
     assert(node.hasKey("left"));
@@ -290,7 +400,7 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
     }
     rvalues_to_queue(rvalues, &list);
     auto return_instructions =
-        rvalue_queue_to_linear_ir_instructions(&list, &temporary);
+        rvalue_queue_to_linear_ir_instructions(&list, temporary);
 
     instructions.insert(instructions.end(),
                         return_instructions.begin(),
@@ -365,11 +475,11 @@ void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
  */
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
-                                         Node& details)
+                                         Node& details,
+                                         int* temporary)
 {
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("rvalue") == 0);
-    int temporary{ 0 };
     Instructions instructions{};
     assert(node.hasKey("left"));
     std::vector<type::RValue::Type_Pointer> rvalues{};
@@ -388,7 +498,7 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                 table.from_rvalue(expression).value));
         }
         rvalues_to_queue(rvalues, &list);
-        auto line = rvalue_queue_to_linear_ir_instructions(&list, &temporary);
+        auto line = rvalue_queue_to_linear_ir_instructions(&list, temporary);
 
         instructions.insert(instructions.end(), line.begin(), line.end());
         rvalues.clear();
@@ -404,7 +514,7 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
 void emit_quadruple(std::ostream& os, Quadruple qaud)
 {
     Instruction op = std::get<Instruction>(qaud);
-
+    using namespace matchit;
     std::array<Instruction, 5> lhs_instruction = { Instruction::GOTO,
                                                    Instruction::PUSH,
                                                    Instruction::LABEL,
@@ -416,11 +526,25 @@ void emit_quadruple(std::ostream& os, Quadruple qaud)
         else
             os << op << " " << std::get<1>(qaud) << ";" << std::endl;
     } else {
-        if (op == Instruction::RETURN)
-            os << op << " " << std::get<1>(qaud) << ";" << std::endl;
-        else
-            os << std::get<1>(qaud) << " " << op << " " << std::get<2>(qaud)
-               << std::get<3>(qaud) << ";" << std::endl;
+        match(op)(
+            pattern | Instruction::RETURN =
+                [&] {
+                    os << op << " " << std::get<1>(qaud) << ";" << std::endl;
+                },
+            pattern | Instruction::IF =
+                [&] {
+                    os << op << " " << std::get<1>(qaud) << " "
+                       << std::get<2>(qaud) << " " << std::get<3>(qaud) << ";"
+                       << std::endl;
+                },
+            pattern | _ =
+                [&] {
+                    os << std::get<1>(qaud) << " " << op << " "
+                       << std::get<2>(qaud) << std::get<3>(qaud) << ";"
+                       << std::endl;
+                }
+
+        );
     }
 }
 
