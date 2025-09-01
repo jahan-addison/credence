@@ -27,10 +27,9 @@ namespace credence {
 
 namespace type {
 
-// Recursive expression types
 struct RValue;
 namespace detail {
-using RValue_Pointer_PTR = std::shared_ptr<RValue>;
+using RValue_Pointer_PTR = std::shared_ptr<type::RValue>;
 } // namespace detail
 
 using Byte = unsigned char;
@@ -90,7 +89,7 @@ struct RValue
                               LValue,
                               Value>;
 
-    using Type_Pointer = std::shared_ptr<type::RValue::Type>;
+    using Type_Pointer = std::shared_ptr<RValue::Type>;
 
     Type value;
 };
@@ -98,7 +97,7 @@ struct RValue
 inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
     RValue::Type rvalue_type)
 {
-    return std::make_shared<type::RValue::Type>(rvalue_type);
+    return std::make_shared<RValue::Type>(rvalue_type);
 }
 
 } // namespace type

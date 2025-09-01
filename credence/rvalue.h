@@ -28,85 +28,90 @@
 
 namespace credence {
 
-using namespace credence::type;
-
 /**
- * @brief LL(1) Parser of expression ast nodes to RValue data structures.
+ * @brief LL(1) top-down Parser of expression ast nodes to
+ * type::RValue data structures.
  *
  * See types.h for details.
  */
 class RValue_Parser
 {
+
   public:
     RValue_Parser(RValue_Parser const&) = delete;
     RValue_Parser& operator=(RValue_Parser const&) = delete;
 
-    using Node = json::JSON;
-    /* clang-format off */
   public:
     explicit RValue_Parser(json::JSON const& internal_symbols,
-                   Symbol_Table<> const& symbols = {})
+                           Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
     explicit RValue_Parser(json::JSON const& internal_symbols,
-                   Symbol_Table<> const& symbols,
-                   Symbol_Table<> const& globals)
+                           Symbol_Table<> const& symbols,
+                           Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
         , globals_(globals)
     {
     }
+
     ~RValue_Parser() = default;
+
   public:
-    inline RValue from_rvalue_expression(Node& node) {
-      return from_rvalue(node);
+    using Node = json::JSON;
+    type::RValue from_rvalue(Node& node);
+    inline type::RValue from_rvalue_expression(Node& node)
+    {
+        return from_rvalue(node);
     }
-    RValue from_rvalue(Node& node);
 
   public:
     inline bool is_symbol(Node& node)
     {
         auto lvalue = node["root"].ToString();
-        return symbols_.is_defined(lvalue) or
-               globals_.is_defined(lvalue);
+        return symbols_.is_defined(lvalue) or globals_.is_defined(lvalue);
     }
 
-    inline bool is_defined(std::string const& label) {
-      return internal_symbols_.hasKey(label);
+    inline bool is_defined(std::string const& label)
+    {
+        return internal_symbols_.hasKey(label);
     }
 
+    // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_evaluated_expression(Node& node);
-    RValue from_function_expression(Node& node);
+    type::RValue from_evaluated_expression(Node& node);
+    type::RValue from_function_expression(Node& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_relation_expression(Node& node);
+    type::RValue from_relation_expression(Node& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_unary_expression(Node& node);
+    type::RValue from_unary_expression(Node& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue::LValue from_lvalue_expression(Node& node);
-    RValue::Value from_indirect_identifier(Node& node);
-    RValue::Value from_vector_idenfitier(Node& node);
+    type::RValue::LValue from_lvalue_expression(Node& node);
+    type::RValue::Value from_indirect_identifier(Node& node);
+    type::RValue::Value from_vector_idenfitier(Node& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_assignment_expression(Node& node);
+    type::RValue from_assignment_expression(Node& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue::Value from_constant_expression(Node& node);
-    RValue::Value from_number_literal(Node& node);
-    RValue::Value from_string_literal(Node& node);
-    RValue::Value from_constant_literal(Node& node);
+    type::RValue::Value from_constant_expression(Node& node);
+    type::RValue::Value from_number_literal(Node& node);
+    type::RValue::Value from_string_literal(Node& node);
+    type::RValue::Value from_constant_literal(Node& node);
 
   private:
+    // clang-format on
     void error(std::string_view message, std::string_view symbol_name);
     std::array<std::string, 8> const unary_types_ = { "pre_inc_dec_expression",
                                                       "post_inc_dec_expression",
                                                       "address_of_expression",
                                                       "unary_expression" };
+    // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     json::JSON internal_symbols_;
     Symbol_Table<> symbols_{};

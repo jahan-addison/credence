@@ -192,7 +192,7 @@ RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
 }
 
 /**
- * @brief RValue to queue of operators and operands
+ * @brief type::RValue to queue of operators and operands
  */
 RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
                                RValue_Queue* rvalues_queue)

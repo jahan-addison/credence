@@ -14,6 +14,7 @@
 #include <variant>           // for get, monostate
 
 using namespace credence;
+using namespace credence::type;
 
 struct Fixture
 {
@@ -119,7 +120,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
         ": 10\n                  },\n                  \"root\" : [\"^\"]\n    "
         "            }]");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    RValue::Value null = { std::monostate(), Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("c", null);
     temp.symbols_.table_.emplace("putchar", null);
@@ -145,7 +146,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
         "   \"node\" : \"lvalue\",\n                      \"root\" : \"z\"\n   "
         "                 }]\n}\n                    ");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    RValue::Value null = { std::monostate(), Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("y", null);
     temp.symbols_.table_.emplace("putchar", null);
@@ -179,7 +180,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
         "          \"root\" : [\"*\"]\n                  }\n                "
         "}]");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    RValue::Value null = { std::monostate(), Type_["null"] };
     temp.symbols_.table_.emplace("x", null);
 
     auto expressions = obj["test"].ArrayRange().get();
@@ -247,7 +248,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    RValue::Value null = { std::monostate(), Type_["null"] };
     std::vector<RValue::RValue_Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
 
@@ -361,7 +362,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
         "    \"root\" : [\"!\"]\n                }]");
     auto temp = RValue_Parser(obj);
 
-    RValue::Value null = { std::monostate(), type::Type_["null"] };
+    RValue::Value null = { std::monostate(), Type_["null"] };
 
     temp.symbols_.table_.emplace("x", null);
 
@@ -426,19 +427,19 @@ TEST_CASE_FIXTURE(Fixture,
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
 
-    type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
-    type::Value_Type assigned_type = { 5, type::Type_["int"] };
+    Value_Type value_type = { std::monostate(), Type_["null"] };
+    Value_Type assigned_type = { 5, Type_["int"] };
 
     temp.symbols_.table_.emplace("x", value_type);
 
     auto expr = temp.from_assignment_expression(obj["test"]);
 
-    auto lhs = std::get<type::RValue::Symbol>(expr.value).first;
-    auto* rhs = &std::get<type::RValue::Symbol>(expr.value).second;
+    auto lhs = std::get<RValue::Symbol>(expr.value).first;
+    auto* rhs = &std::get<RValue::Symbol>(expr.value).second;
 
     CHECK(lhs.first == "x");
     CHECK(lhs.second == value_type);
-    CHECK(std::get<type::Value_Type>((*rhs)->value) == assigned_type);
+    CHECK(std::get<Value_Type>((*rhs)->value) == assigned_type);
 }
 
 TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
@@ -455,7 +456,7 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
     auto temp2 = RValue_Parser(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
-    type::Value_Type value_type = { std::monostate(), type::Type_["null"] };
+    Value_Type value_type = { std::monostate(), Type_["null"] };
 
     temp2.symbols_.set_symbol_by_name("x", value_type);
     CHECK(temp2.is_symbol(obj["test"]) == true);
@@ -481,8 +482,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
         "  }, {\n                \"node\" : \"lvalue\",\n                "
         "\"root\" : \"z\"\n              }]");
     auto temp = RValue_Parser(obj);
-    type::RValue::Value empty_value =
-        std::make_pair('0', std::make_pair("byte", 50));
+    RValue::Value empty_value = std::make_pair('0', std::make_pair("byte", 50));
     auto* lvalues = obj["test"].ArrayRange().get();
     auto [vector, pointer, normal] =
         std::tie(lvalues->at(0), lvalues->at(1), lvalues->at(2));
@@ -515,7 +515,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
 
     auto temp = RValue_Parser(obj["test"]);
     CHECK_THROWS(temp.from_indirect_identifier(obj["test"]));
-    type::RValue::Value value = std::make_pair('0', std::make_pair("byte", 50));
+    RValue::Value value = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = value;
     auto test = temp.from_indirect_identifier(obj["test"]);
     CHECK(test == value);
@@ -533,7 +533,7 @@ TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
 
     auto temp = RValue_Parser(obj["test"]);
     CHECK_THROWS(temp.from_vector_idenfitier(obj["test"]));
-    type::Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
+    Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = test;
     CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
 }

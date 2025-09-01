@@ -16,21 +16,21 @@
 
 #pragma once
 
-// clang-format off
 #if defined(DEBUG)
 #include <cpptrace/from_current.hpp>
 #endif
-#include <ostream>                           // for operator<<
-#include <credence/queue.h>                  // for RValue_Queue
-#include <credence/types.h>                  // for RValue
-#include <cpptrace/from_current_macros.hpp>  // for CPPTRACE_TRY
-#include <filesystem>                        // for path
-#include <sstream>                           // for basic_stringstream, stri...
-#include <string>                            // for char_traits, string, all...
-#include <string_view>                       // for basic_string_view, strin...
-#include <tuple>                             // for apply, tuple
-namespace json { class JSON; }  // lines 31-31
-// clang-format on
+#include <cpptrace/from_current_macros.hpp> // for CPPTRACE_TRY
+#include <credence/queue.h>                 // for RValue_Queue
+#include <credence/types.h>                 // for RValue
+#include <filesystem>                       // for path
+#include <ostream>                          // for operator<<
+#include <sstream>                          // for basic_stringstream, stri...
+#include <string>                           // for char_traits, string, all...
+#include <string_view>                      // for basic_string_view, strin...
+#include <tuple>                            // for apply, tuple
+namespace json {
+class JSON;
+} // lines 31-31
 
 // access specifier macros for Doctest unit tests
 #define CREDENCE_PUBLIC public

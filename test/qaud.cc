@@ -2,16 +2,17 @@
 #include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase
 // clang-format on
 #include <credence/ir/qaud.h> // for emit_quadruple, build_from_rval...
-#include <credence/json.h>    // for JSON
-#include <credence/symbol.h>  // for Symbol_Table
-#include <credence/types.h>   // for Type_, Value_Type, Byte, RValue
-#include <iostream>           // for ostringstream, cout
-#include <map>                // for map
-#include <ostream>            // for basic_ostream, operator<<
-#include <sstream>            // for basic_ostringstream
-#include <string>             // for basic_string, allocator, char_t...
-#include <utility>            // for pair, make_pair
-#include <variant>            // for monostate
+#include <credence/ir/temp.h>
+#include <credence/json.h>   // for JSON
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for Type_, Value_Type, Byte, RValue
+#include <iostream>          // for ostringstream, cout
+#include <map>               // for map
+#include <ostream>           // for basic_ostream, operator<<
+#include <sstream>           // for basic_ostringstream
+#include <string>            // for basic_string, allocator, char_t...
+#include <utility>           // for pair, make_pair
+#include <variant>           // for monostate
 
 TEST_CASE("ir/qaud.cc: build_from_function_definition")
 {
@@ -79,9 +80,10 @@ PUSH (5:int:4);
 PUSH (2:int:4);
 CALL exp;
 POP 16;
-_t1 = RET;
-_t2 = (5:int:4) + _t1;
-x = (5:int:4) * _t2;
+_t2 = RET;
+_t3 = (5:int:4) + _t2;
+x = (5:int:4) * _t3;
+LEAVE;
  EndFunc ;
 )qaud";
     CHECK(os_test.str() == expected);
@@ -248,7 +250,7 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
     }
     std::string expected = R"qaud(_t1 = y * y;
 _t2 = x * _t1;
-RET ;
+RET _t2;
 )qaud";
     CHECK(os_test.str() == expected);
 }
@@ -286,6 +288,117 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
         emit_quadruple(os_test, inst);
     }
     CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
+}
+
+TEST_CASE("ir/qaud.cc: while statement branching")
+{
+    using namespace credence;
+    using namespace credence::ir;
+    json::JSON obj;
+    obj["symbols"] = json::JSON::Load(
+        "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
+        "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"main\": "
+        "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
+        "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}}");
+
+    obj["test"] = json::JSON::Load(
+        "{\n        \"left\" : [{\n            \"left\" : [{\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"auto\"\n          }, {\n            \"left\" : [[{\n                "
+        "  \"left\" : {\n                    \"node\" : \"lvalue\",\n          "
+        "          \"root\" : \"x\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 5\n                        },\n                   "
+        "     \"root\" : [\"+\"]\n                      }\n                    "
+        "},\n                    \"node\" : \"relation_expression\",\n         "
+        "           \"right\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 3\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 3\n                        },\n                   "
+        "     \"root\" : [\"+\"]\n                      }\n                    "
+        "},\n                    \"root\" : [\"*\"]\n                  },\n    "
+        "              \"root\" : [\"=\", null]\n                }]],\n        "
+        "    \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n    "
+        "      }, {\n            \"left\" : {\n              \"left\" : {\n    "
+        "            \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"x\"\n              },\n              \"node\" : "
+        "\"relation_expression\",\n              \"right\" : {\n               "
+        " \"node\" : \"number_literal\",\n                \"root\" : 5\n       "
+        "       },\n              \"root\" : [\"<=\"]\n            },\n        "
+        "    \"node\" : \"statement\",\n            \"right\" : [{\n           "
+        "     \"left\" : [{\n                    \"left\" : [[{\n              "
+        "            \"left\" : {\n                            \"node\" : "
+        "\"lvalue\",\n                            \"root\" : \"x\"\n           "
+        "               },\n                          \"node\" : "
+        "\"assignment_expression\",\n                          \"right\" : {\n "
+        "                           \"node\" : \"number_literal\",\n           "
+        "                 \"root\" : 1\n                          },\n         "
+        "                 \"root\" : [\"=\", null]\n                        "
+        "}]],\n                    \"node\" : \"statement\",\n                 "
+        "   \"root\" : \"rvalue\"\n                  }],\n                "
+        "\"node\" : \"statement\",\n                \"root\" : \"block\"\n     "
+        "         }, {\n                \"left\" : [{\n                    "
+        "\"left\" : [[{\n                          \"left\" : {\n              "
+        "              \"node\" : \"lvalue\",\n                            "
+        "\"root\" : \"x\"\n                          },\n                      "
+        "    \"node\" : \"assignment_expression\",\n                          "
+        "\"right\" : {\n                            \"node\" : "
+        "\"number_literal\",\n                            \"root\" : 8\n       "
+        "                   },\n                          \"root\" : [\"=\", "
+        "null]\n                        }]],\n                    \"node\" : "
+        "\"statement\",\n                    \"root\" : \"rvalue\"\n           "
+        "       }],\n                \"node\" : \"statement\",\n               "
+        " \"root\" : \"block\"\n              }],\n            \"root\" : "
+        "\"if\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      }");
+
+    credence::Symbol_Table<> symbols{};
+    Instructions test_instructions{};
+    std::ostringstream os_test;
+    type::RValue::Value null = { std::monostate(), type::Type_["null"] };
+    symbols.table_.emplace("add", null);
+    int temporary{ 0 };
+    auto tail_branch = detail::make_temporary(&temporary);
+    test_instructions = build_from_block_statement(symbols,
+                                                   symbols,
+                                                   obj["test"],
+                                                   obj["symbols"],
+                                                   true,
+                                                   tail_branch,
+                                                   &temporary);
+    for (auto const& inst : test_instructions) {
+        emit_quadruple(os_test, inst);
+    }
+    std::string expected = R"qaud(_t2 = (5:int:4) + (5:int:4);
+_t3 = (3:int:4) + (3:int:4);
+_t4 = _t2 * _t3;
+x = _t4;
+_t5 = x <= (5:int:4);
+IF _t5 GOTO _L6;
+GOTO _L7;
+_L1:
+_L8:
+LEAVE;
+_L6:
+x = (1:int:4);
+GOTO _L1;
+_L7:
+x = (8:int:4);
+GOTO _L1;
+)qaud";
+    CHECK(os_test.str() == expected);
 }
 
 TEST_CASE("ir/qaud.cc: if and else branching")
@@ -367,22 +480,34 @@ TEST_CASE("ir/qaud.cc: if and else branching")
     std::ostringstream os_test;
     type::RValue::Value null = { std::monostate(), type::Type_["null"] };
     symbols.table_.emplace("add", null);
-    test_instructions = build_from_block_statement(
-        symbols, symbols, obj["test"], obj["symbols"]);
+    int temporary{ 0 };
+    auto tail_branch = detail::make_temporary(&temporary);
+    test_instructions = build_from_block_statement(symbols,
+                                                   symbols,
+                                                   obj["test"],
+                                                   obj["symbols"],
+                                                   true,
+                                                   tail_branch,
+                                                   &temporary);
     for (auto const& inst : test_instructions) {
         emit_quadruple(os_test, inst);
     }
-    std::string expected = R"qaud(_t1 = (5:int:4) + (5:int:4);
-_t2 = (3:int:4) + (3:int:4);
-_t3 = _t1 * _t2;
-x = _t3;
-_t4 = x <= (5:int:4);
-IF _t4 GOTO _L5;
-GOTO _L6;
-_L5:
-x = (1:int:4);
+    std::string expected = R"qaud(_t2 = (5:int:4) + (5:int:4);
+_t3 = (3:int:4) + (3:int:4);
+_t4 = _t2 * _t3;
+x = _t4;
+_t5 = x <= (5:int:4);
+IF _t5 GOTO _L6;
+GOTO _L7;
+_L1:
+_L8:
+LEAVE;
 _L6:
+x = (1:int:4);
+GOTO _L1;
+_L7:
 x = (8:int:4);
+GOTO _L1;
 )qaud";
     CHECK(os_test.str() == expected);
 }

@@ -1,6 +1,6 @@
 # Intermediate Representation
 
-The currently available IR is a linear 4-tuple ive named a "Qaudruple". it is a generic platform-agnostic set of instructions that closely matches a target machine language.
+The available IR is a linear 4-tuple I've named a "Qaudruple." It is a platform-agnostic set of abstract instructions that resembles a target machine language.
 
 The construction uses two stacks, an operand stack and "temporary" stack. The operand stack comes from an [rvalue queue](https://github.com/jahan-addison/credence/blob/master/credence/queue.cc) of a block scope of expressions, ordered by operator precedence. A "temporary" breaks up mutual-recursion such that data types may fit on a 3- or 4- tuple. The temporary construction algorithm may be found [here](https://github.com/jahan-addison/credence/blob/master/credence/ir/temp.cc).
 

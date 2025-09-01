@@ -42,33 +42,49 @@ The default compile target is currently the [linear IR](https://github.com/jahan
 
 ```B
 main() {
-  auto x;
-  x = (5 + 5) * (3 + 3);
-  if (x <= 10) {
-    x = 1;
-  } else {
-    x = 8;
+  auto x, y;
+  x = (1 + 1) * (2 + 2);
+  y = add(x, 5);
+  if (x > y) {
+    x = 100;
   }
+  y = x;
+}
+
+add(x, y) {
+  return(x + y);
 }
 ```
 
 Result:
 
 
-```
+```asm
 __main:
  BeginFunc ;
-_t1 = (5:int:4) + (5:int:4);
-_t2 = (3:int:4) + (3:int:4);
-_t3 = _t1 * _t2;
-x = _t3;
-_t4 = x <= (10:int:4);
-IF _t4 GOTO _L5;
-GOTO _L6;
-_L5:
-x = (1:int:4);
+_t2 = (1:int:4) + (1:int:4);
+_t3 = (2:int:4) + (2:int:4);
+_t4 = _t2 * _t3;
+x = _t4;
+PUSH (5:int:4);
+PUSH x;
+CALL add;
+POP 16;
+y = RET;
+_t5 = x > y;
+IF _t5 GOTO _L6;
+_L1:
+y = x;
+LEAVE;
 _L6:
-x = (8:int:4);
+x = (100:int:4);
+GOTO _L1;
+ EndFunc ;
+__add:
+ BeginFunc ;
+_t2 = x + y;
+RET _t2;
+LEAVE;
  EndFunc ;
 ```
 

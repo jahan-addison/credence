@@ -105,7 +105,7 @@ void binary_operands_balanced_temporary_stack(
 
 /**
  * @brief Create and insert instructions from an rvalue operand
- *  See RValue in `types.h' for details.
+ *  See type::RValue in `types.h' for details.
  */
 std::pair<std::string, std::size_t> insert_create_temp_from_operand(
     type::RValue::Type_Pointer operand,
@@ -176,7 +176,7 @@ void binary_operands_unbalanced_temporary_stack(
 /**
  * @brief
  * Construct a temporary lvalue from a recursive rvalue
- *  See RValue in `types.h' for details.
+ *  See type::RValue in `types.h' for details.
  */
 std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
     RValue::Type_Pointer& operand,

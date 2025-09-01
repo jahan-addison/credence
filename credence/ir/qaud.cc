@@ -79,6 +79,7 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
     Instructions instructions{};
     assert(node["node"].ToString().compare("function_definition") == 0);
     Symbol_Table<> block_level{};
+    int temporary{ 0 };
     auto name = node["root"].ToString();
     auto parameters = node["left"];
     auto block = node["right"];
@@ -112,8 +113,9 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
     instructions.push_back(make_quadruple(
         Instruction::LABEL, std::format("__{}", node["root"].ToString()), ""));
     instructions.push_back(make_quadruple(Instruction::FUNC_START, "", ""));
-    auto block_instructions =
-        build_from_block_statement(block_level, globals, block, details);
+    auto tail_branch = detail::make_temporary(&temporary);
+    auto block_instructions = build_from_block_statement(
+        block_level, globals, block, details, true, tail_branch, &temporary);
     instructions.insert(instructions.end(),
                         block_instructions.begin(),
                         block_instructions.end());
@@ -143,7 +145,7 @@ void build_from_vector_definition(Symbol_Table<>& symbols,
                                      "size of vector and rvalue "
                                      "entries do not match");
         }
-        std::vector<RValue::Value> values_at{};
+        std::vector<type::RValue::Value> values_at{};
         for (auto& child_node : right_child_node.ArrayRange()) {
             auto rvalue = parser.from_rvalue(child_node);
             auto datatype = std::get<type::RValue::Value>(rvalue.value);
@@ -159,15 +161,21 @@ void build_from_vector_definition(Symbol_Table<>& symbols,
 Instructions build_from_block_statement(Symbol_Table<>& symbols,
                                         Symbol_Table<>& globals,
                                         Node& node,
-                                        Node& details)
+                                        Node& details,
+                                        bool ret,
+                                        std::optional<Quadruple> tail_branch,
+                                        std::optional<int*> temporary)
 {
+
     using namespace matchit;
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("block") == 0);
     Instructions instructions{};
     Instructions branches{};
-    int temporary{ 0 };
-    assert(node.hasKey("left"));
+    auto scope_tail_branch = tail_branch;
+    int scope_temp{ 0 };
+    int* _temporary = temporary.value_or(&scope_temp);
+
     auto statements = node["left"];
     RValue_Parser parser{ details, symbols };
     for (auto& statement : statements.ArrayRange()) {
@@ -181,20 +189,48 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
                 },
             pattern | "if" =
                 [&] {
-                    auto [jump_instructions, if_instructions] =
-                        build_from_if_statement(
-                            symbols, globals, statement, details, &temporary);
-                    instructions.insert(instructions.end(),
-                                        jump_instructions.begin(),
-                                        jump_instructions.end());
-                    branches.insert(branches.end(),
-                                    if_instructions.begin(),
-                                    if_instructions.end());
+                    if (tail_branch.has_value()) {
+                        auto [jump_instructions, if_instructions] =
+                            build_from_if_statement(symbols,
+                                                    globals,
+                                                    tail_branch.value(),
+                                                    statement,
+                                                    details,
+                                                    _temporary);
+                        instructions.insert(instructions.end(),
+                                            jump_instructions.begin(),
+                                            jump_instructions.end());
+                        branches.insert(branches.end(),
+                                        if_instructions.begin(),
+                                        if_instructions.end());
+                        scope_tail_branch = detail::make_temporary(_temporary);
+                        instructions.push_back(scope_tail_branch.value());
+                    }
+                },
+            pattern | "while" =
+                [&] {
+                    if (tail_branch.has_value()) {
+                        scope_tail_branch = detail::make_temporary(_temporary);
+                        auto [jump_instructions, while_instructions] =
+                            build_from_while_statement(
+                                symbols,
+                                globals,
+                                scope_tail_branch.value(),
+                                statement,
+                                details,
+                                _temporary);
+                        instructions.insert(instructions.end(),
+                                            jump_instructions.begin(),
+                                            jump_instructions.end());
+                        branches.insert(branches.end(),
+                                        while_instructions.begin(),
+                                        while_instructions.end());
+                    }
                 },
             pattern | "rvalue" =
                 [&] {
                     auto rvalue_instructions = build_from_rvalue_statement(
-                        symbols, statement, details, &temporary);
+                        symbols, statement, details, _temporary);
                     instructions.insert(instructions.end(),
                                         rvalue_instructions.begin(),
                                         rvalue_instructions.end());
@@ -218,13 +254,16 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
             pattern | "return" =
                 [&] {
                     auto return_instructions = build_from_return_statement(
-                        symbols, statement, details, &temporary);
+                        symbols, statement, details, _temporary);
                     instructions.insert(instructions.end(),
                                         return_instructions.begin(),
                                         return_instructions.end());
                 }
 
         );
+    }
+    if (ret and tail_branch.has_value()) {
+        instructions.push_back(make_quadruple(Instruction::LEAVE, "", ""));
     }
     instructions.insert(instructions.end(), branches.begin(), branches.end());
     return instructions;
@@ -233,17 +272,19 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
 /**
  * @brief Construct an rvalue or block statement for a branch
  */
-void insert_rvalue_or_block_branch_instructions(
+
+void detail::insert_rvalue_or_block_branch_instructions(
     Symbol_Table<>& symbols,
     Symbol_Table<>& globals,
     Node& block,
     Node& details,
+    Quadruple const& tail_branch,
     int* temporary,
     Instructions& branch_instructions)
 {
     if (block["root"].ToString() == "block") {
-        auto block_instructions =
-            build_from_block_statement(symbols, globals, block, details);
+        auto block_instructions = build_from_block_statement(
+            symbols, globals, block, details, false, tail_branch, temporary);
 
         branch_instructions.insert(branch_instructions.end(),
                                    block_instructions.begin(),
@@ -258,14 +299,73 @@ void insert_rvalue_or_block_branch_instructions(
 }
 
 /**
- * @brief Construct a set of qaud instructions from an if statement
+ * @brief Construct branch instructions from a while statement
  */
-std::pair<Instructions, Instructions> build_from_if_statement(
-    Symbol_Table<>& symbols,
-    Symbol_Table<>& globals,
-    Node& node,
-    Node& details,
-    int* temporary)
+Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
+                                               Symbol_Table<>& globals,
+                                               Quadruple const& tail_branch,
+                                               Node& node,
+                                               Node& details,
+                                               int* temporary)
+{
+    using namespace matchit;
+    assert(node["node"].ToString().compare("statement") == 0);
+    assert(node["root"].ToString().compare("while") == 0);
+    Instructions predicate_instructions{};
+    Instructions branch_instructions{};
+    RValue_Queue list{};
+    auto predicate = node["left"];
+    auto* blocks = node["right"].ArrayRange().get();
+    RValue_Parser parser{ details, symbols };
+
+    auto predicate_rvalue = type::rvalue_type_pointer_from_rvalue(
+        parser.from_rvalue(predicate).value);
+    rvalues_to_queue(predicate_rvalue, &list);
+    auto if_instructions =
+        rvalue_queue_to_linear_ir_instructions(&list, temporary);
+
+    auto start = detail::make_temporary(temporary);
+    auto jump = detail::make_temporary(temporary);
+
+    predicate_instructions.push_back(start);
+    predicate_instructions.insert(predicate_instructions.end(),
+                                  if_instructions.begin(),
+                                  if_instructions.end());
+
+    predicate_instructions.push_back(
+        make_quadruple(Instruction::IF,
+                       std::get<1>(if_instructions.back()),
+                       instruction_to_string(Instruction::GOTO),
+                       std::get<1>(jump)));
+
+    branch_instructions.push_back(jump);
+    predicate_instructions.push_back(
+        make_quadruple(Instruction::GOTO, std::get<1>(tail_branch), ""));
+
+    detail::insert_rvalue_or_block_branch_instructions(symbols,
+                                                       globals,
+                                                       blocks->at(0),
+                                                       details,
+                                                       tail_branch,
+                                                       temporary,
+                                                       branch_instructions);
+
+    branch_instructions.push_back(
+        make_quadruple(Instruction::GOTO, std::get<1>(start), ""));
+    predicate_instructions.push_back(tail_branch);
+
+    return std::make_pair(predicate_instructions, branch_instructions);
+}
+
+/**
+ * @brief Construct branch instructions from an if statement
+ */
+Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
+                                            Symbol_Table<>& globals,
+                                            Quadruple const& tail_branch,
+                                            Node& node,
+                                            Node& details,
+                                            int* temporary)
 {
     using namespace matchit;
     assert(node["node"].ToString().compare("statement") == 0);
@@ -297,14 +397,16 @@ std::pair<Instructions, Instructions> build_from_if_statement(
 
     branch_instructions.push_back(jump);
 
-    if (blocks->at(0)["root"].ToString() == "block") {
-        insert_rvalue_or_block_branch_instructions(symbols,
-                                                   globals,
-                                                   blocks->at(0),
-                                                   details,
-                                                   temporary,
-                                                   branch_instructions);
-    }
+    detail::insert_rvalue_or_block_branch_instructions(symbols,
+                                                       globals,
+                                                       blocks->at(0),
+                                                       details,
+                                                       tail_branch,
+                                                       temporary,
+                                                       branch_instructions);
+
+    branch_instructions.push_back(
+        make_quadruple(Instruction::GOTO, std::get<1>(tail_branch), ""));
 
     // else statement
     if (!blocks->at(1).IsNull()) {
@@ -312,14 +414,17 @@ std::pair<Instructions, Instructions> build_from_if_statement(
         predicate_instructions.push_back(
             make_quadruple(Instruction::GOTO, std::get<1>(else_label), ""));
         branch_instructions.push_back(else_label);
-        insert_rvalue_or_block_branch_instructions(symbols,
-                                                   globals,
-                                                   blocks->at(1),
-                                                   details,
-                                                   temporary,
-                                                   branch_instructions);
+        detail::insert_rvalue_or_block_branch_instructions(symbols,
+                                                           globals,
+                                                           blocks->at(1),
+                                                           details,
+                                                           tail_branch,
+                                                           temporary,
+                                                           branch_instructions);
+        branch_instructions.push_back(
+            make_quadruple(Instruction::GOTO, std::get<1>(tail_branch), ""));
     }
-
+    predicate_instructions.push_back(tail_branch);
     return std::make_pair(predicate_instructions, branch_instructions);
 }
 
@@ -409,7 +514,9 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
         instructions.push_back(make_quadruple(
             Instruction::RETURN, util::rvalue_to_string(*last_rvalue), ""));
     } else {
-        instructions.push_back(make_quadruple(Instruction::RETURN, "", ""));
+        auto last = instructions[instructions.size() - 1];
+        instructions.push_back(
+            make_quadruple(Instruction::RETURN, std::get<1>(last), ""));
     }
 
     return instructions;
@@ -428,9 +535,10 @@ void build_from_extrn_statement(Symbol_Table<>& symbols,
         if (globals.is_defined(name)) {
             symbols.set_symbol_by_name(name, globals);
         } else {
-            throw std::runtime_error(std::format(
-                "Error: global symbol \"{}\" not defined for extrn statement",
-                name));
+            throw std::runtime_error(
+                std::format("Error: global symbol \"{}\" not defined for "
+                            "extrn statement",
+                            name));
         }
     }
 }
@@ -529,6 +637,8 @@ void emit_quadruple(std::ostream& os, Quadruple qaud)
                 [&] {
                     os << op << " " << std::get<1>(qaud) << ";" << std::endl;
                 },
+            pattern |
+                Instruction::LEAVE = [&] { os << op << ";" << std::endl; },
             pattern | Instruction::IF =
                 [&] {
                     os << op << " " << std::get<1>(qaud) << " "

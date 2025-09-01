@@ -22,12 +22,13 @@
 #include <deque>             // for deque
 #include <iomanip>           // for operator<<, setw
 #include <map>               // for map
-#include <ostream>           // for basic_ostream, operator<<, endl
-#include <sstream>           // for basic_ostringstream, ostream
-#include <string>            // for basic_string, char_traits, allo...
-#include <tuple>             // for get, make_tuple, tuple
-#include <variant>           // for monostate
-#include <vector>            // for vector
+#include <optional>
+#include <ostream> // for basic_ostream, operator<<, endl
+#include <sstream> // for basic_ostringstream, ostream
+#include <string>  // for basic_string, char_traits, allo...
+#include <tuple>   // for get, make_tuple, tuple
+#include <variant> // for monostate
+#include <vector>  // for vector
 
 namespace credence {
 
@@ -51,7 +52,6 @@ enum class Instruction
     EOL,
     NOOP
 };
-using Operand = type::Value_Type;
 using Quadruple =
     std::tuple<Instruction, std::string, std::string, std::string>;
 
@@ -59,6 +59,7 @@ static type::Value_Type NULL_DATA_TYPE = { std::monostate(),
                                            type::Type_["null"] };
 
 using Instructions = std::deque<Quadruple>;
+using Branch_Instructions = std::pair<Instructions, Instructions>;
 
 inline Quadruple make_quadruple(Instruction op,
                                 std::string const& s1,
@@ -68,6 +69,19 @@ inline Quadruple make_quadruple(Instruction op,
     return std::make_tuple(op, s1, s2, s3);
 }
 
+namespace detail {
+void insert_rvalue_or_block_branch_instructions(
+    Symbol_Table<>& symbols,
+    Symbol_Table<>& globals,
+    Node& block,
+    Node& details,
+    Quadruple const& tail_branch,
+    int* temporary,
+    Instructions& branch_instructions);
+} // namespace detail
+
+void emit_quadruple(std::ostream& os, Quadruple qaud);
+
 Instructions build_from_definitions(Symbol_Table<>& symbols,
                                     Symbol_Table<>& globals,
                                     Node& node,
@@ -76,15 +90,25 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
                                             Symbol_Table<>& globals,
                                             Node& node,
                                             Node& details);
+
 void build_from_vector_definition(Symbol_Table<>& symbols,
                                   Node& node,
                                   Node& details);
-std::pair<Instructions, Instructions> build_from_if_statement(
-    Symbol_Table<>& symbols,
-    Symbol_Table<>& globals,
-    Node& node,
-    Node& details,
-    int* temporary);
+
+Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
+                                               Symbol_Table<>& globals,
+                                               Quadruple const& tail_branch,
+                                               Node& node,
+                                               Node& details,
+                                               int* temporary);
+
+Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
+                                            Symbol_Table<>& globals,
+                                            Quadruple const& tail_branch,
+                                            Node& node,
+                                            Node& details,
+                                            int* temporary);
+
 Instructions build_from_label_statement(Symbol_Table<>& symbols,
                                         Node& node,
                                         Node& details);
@@ -95,10 +119,15 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details,
                                          int* temporary);
-Instructions build_from_block_statement(Symbol_Table<>& symbols,
-                                        Symbol_Table<>& globals,
-                                        Node& node,
-                                        Node& details);
+Instructions build_from_block_statement(
+    Symbol_Table<>& symbols,
+    Symbol_Table<>& globals,
+    Node& node,
+    Node& details,
+    bool ret = false,
+    std::optional<Quadruple> tail_branch = std::nullopt,
+    std::optional<int*> temporary = std::nullopt);
+
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);
 void build_from_extrn_statement(Symbol_Table<>& symbols,
                                 Symbol_Table<>& globals,
@@ -168,8 +197,6 @@ inline std::string instruction_to_string(Instruction op)
     os << op;
     return os.str();
 }
-
-void emit_quadruple(std::ostream& os, Quadruple qaud);
 
 inline std::string quadruple_to_string(Quadruple qaud)
 {
