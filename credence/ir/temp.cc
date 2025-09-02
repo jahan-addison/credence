@@ -413,15 +413,6 @@ void unary_operand_to_temporary_stack(
             });
 }
 
-// void ternary_operands_to_temporary_stack(
-//     std::stack<type::RValue::Type_Pointer>& operand_stack,
-//     std::stack<std::string>& temporary_stack,
-//     Instructions& instructions,
-//     type::Operator op,
-//     int* temporary)
-// {
-// }
-
 /**
  * @brief
  * Binary operators and temporary stack to instructions
