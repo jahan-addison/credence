@@ -203,7 +203,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     std::string equal_expected = "x (5:int:4) (5:int:4) + = ";
     std::string unary_relation_expected = "(5:int:4) ~ (2:int:4) ^ ";
     std::string ternary_expected =
-        "x (5:int:4) (4:int:4) (10:int:4) (1:int:4) ?: < = ";
+        "x (10:int:4) (1:int:4) (5:int:4) (4:int:4) < PUSH ?: = ";
     std::string function_expected =
         "puts (1:int:4) (2:int:4) (3:int:4) PUSH PUSH PUSH CALL ";
     std::string evaluated_expected =

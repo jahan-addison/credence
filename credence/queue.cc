@@ -128,14 +128,25 @@ RValue_Queue* _rvalue_pointer_to_queue(
                         rhs, rvalues_queue, operator_stack);
                 } else if (s.second.size() == 4) {
                     // ternary
-                    operator_stack.push(op1);
-                    for (auto& operand : s.second) {
-                        auto value = std::make_shared<type::RValue::Type>(
-                            operand->value);
-                        _rvalue_pointer_to_queue(
-                            value, rvalues_queue, operator_stack);
-                    }
                     operator_stack.push(Operator::B_TERNARY);
+                    operator_stack.push(Operator::U_PUSH);
+                    auto ternary_lhs = std::make_shared<type::RValue::Type>(
+                        s.second.at(2)->value);
+                    auto ternary_rhs = std::make_shared<type::RValue::Type>(
+                        s.second.at(3)->value);
+                    _rvalue_pointer_to_queue(
+                        ternary_lhs, rvalues_queue, operator_stack);
+                    _rvalue_pointer_to_queue(
+                        ternary_rhs, rvalues_queue, operator_stack);
+                    auto ternary_truthy = std::make_shared<type::RValue::Type>(
+                        s.second.at(0)->value);
+                    operator_stack.push(op1);
+                    auto ternary_falsey = std::make_shared<type::RValue::Type>(
+                        s.second.at(1)->value);
+                    _rvalue_pointer_to_queue(
+                        ternary_truthy, rvalues_queue, operator_stack);
+                    _rvalue_pointer_to_queue(
+                        ternary_falsey, rvalues_queue, operator_stack);
                 }
                 _balance_queue(rvalues_queue, operator_stack);
                 _associativity_operator_precedence(

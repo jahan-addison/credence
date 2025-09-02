@@ -244,9 +244,6 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
 
                     instructions.push_back(relation);
                     temp_name = std::get<1>(relation);
-
-                } else if (s.second.size() == 4) {
-                    // ternary
                 }
             },
             [&](RValue::Function& s) {
@@ -415,6 +412,15 @@ void unary_operand_to_temporary_stack(
                 );
             });
 }
+
+// void ternary_operands_to_temporary_stack(
+//     std::stack<type::RValue::Type_Pointer>& operand_stack,
+//     std::stack<std::string>& temporary_stack,
+//     Instructions& instructions,
+//     type::Operator op,
+//     int* temporary)
+// {
+// }
 
 /**
  * @brief
@@ -879,6 +885,16 @@ Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
 
                             break;
                         case Operator::B_TERNARY:
+                            binary_operands_to_temporary_stack(operand_stack,
+                                                               temporary_stack,
+                                                               instructions,
+                                                               op,
+                                                               temporary);
+                            instructions.push_back(make_quadruple(
+                                Instruction::POP,
+                                std::to_string(type::Type_["word"].second),
+                                "",
+                                ""));
                             break;
                     }
                 },
