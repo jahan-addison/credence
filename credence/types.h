@@ -20,6 +20,7 @@
 #include <memory>  // For std::unique_ptr
 #include <sstream> // for basic_ostringstream, ostringstream
 #include <string>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -28,8 +29,28 @@ namespace credence {
 namespace type {
 
 struct RValue;
+
+enum class RValue_Type_Variant : size_t
+{
+    RValue_Pointer = 1,
+    Value_Pointer,
+    Symbol,
+    Unary,
+    Relation,
+    Function,
+    LValue,
+    Value
+};
+
 namespace detail {
+
 using RValue_Pointer_PTR = std::shared_ptr<type::RValue>;
+
+constexpr size_t type_variant(RValue_Type_Variant const& type)
+{
+    return static_cast<std::underlying_type_t<RValue_Type_Variant>>(type);
+}
+
 } // namespace detail
 
 using Byte = unsigned char;
@@ -98,6 +119,26 @@ inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
     RValue::Type rvalue_type)
 {
     return std::make_shared<RValue::Type>(rvalue_type);
+}
+
+constexpr size_t get_type_of_rvalue(RValue const& rvalue)
+{
+    if (rvalue.value.index() ==
+        detail::type_variant(RValue_Type_Variant::RValue_Pointer)) {
+        return std::get<RValue::RValue_Pointer>(rvalue.value)->value.index();
+    } else {
+        return rvalue.value.index();
+    }
+}
+
+constexpr RValue_Type_Variant get_rvalue_type_as_variant(RValue const& rvalue)
+{
+    return static_cast<RValue_Type_Variant>(get_type_of_rvalue(rvalue));
+}
+
+constexpr bool is_rvalue_variant(RValue const& rvalue, RValue_Type_Variant type)
+{
+    return get_type_of_rvalue(rvalue) == detail::type_variant(type);
 }
 
 } // namespace type

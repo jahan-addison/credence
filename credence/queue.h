@@ -41,8 +41,10 @@
 
 namespace credence {
 
-using RValue_Queue =
-    std::list<std::variant<type::Operator, type::RValue::Type_Pointer>>;
+using RValue_Queue_Item =
+    std::variant<type::Operator, type::RValue::Type_Pointer>;
+
+using RValue_Queue = std::list<RValue_Queue_Item>;
 
 RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
                                RValue_Queue* rvalues_queue);

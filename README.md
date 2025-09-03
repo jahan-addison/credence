@@ -101,6 +101,7 @@ make test
 There are a few implementation differences between the compiler and B specification, namely:
 
 * Support for C++ style comments (i.e. `//`)
+* Boolean type coercion for conditionals
 * Switch statement condition must always be enclosed with `(` and `)`
 * Uses C operator precedence
 * Constant literals must be exactly 1 byte

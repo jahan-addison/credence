@@ -46,6 +46,7 @@ enum class Instruction
     PUSH,
     POP,
     CALL,
+    CMP,
     VARIABLE,
     RETURN,
     LEAVE,
@@ -70,6 +71,9 @@ inline Quadruple make_quadruple(Instruction op,
 }
 
 namespace detail {
+
+using Branch_Comparator = std::pair<std::string, Instructions>;
+
 void insert_rvalue_or_block_branch_instructions(
     Symbol_Table<>& symbols,
     Symbol_Table<>& globals,
@@ -78,6 +82,13 @@ void insert_rvalue_or_block_branch_instructions(
     Quadruple const& tail_branch,
     int* temporary,
     Instructions& branch_instructions);
+
+std::string build_from_branch_comparator_from_rvalue(Symbol_Table<>& symbols,
+                                                     Node& details,
+                                                     Node& block,
+                                                     Instructions& instructions,
+                                                     int* temporary);
+
 } // namespace detail
 
 void emit_quadruple(std::ostream& os, Quadruple qaud);
@@ -86,6 +97,7 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
                                     Symbol_Table<>& globals,
                                     Node& node,
                                     Node& details);
+
 Instructions build_from_function_definition(Symbol_Table<>& symbols,
                                             Symbol_Table<>& globals,
                                             Node& node,
@@ -94,6 +106,13 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
 void build_from_vector_definition(Symbol_Table<>& symbols,
                                   Node& node,
                                   Node& details);
+
+Branch_Instructions build_from_switch_statement(Symbol_Table<>& symbols,
+                                                Symbol_Table<>& globals,
+                                                Quadruple const& tail_branch,
+                                                Node& node,
+                                                Node& details,
+                                                int* temporary);
 
 Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
                                                Symbol_Table<>& globals,
@@ -159,6 +178,9 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
             break;
         case Instruction::NOOP:
             os << "";
+            break;
+        case Instruction::CMP:
+            os << "CMP";
             break;
         case Instruction::RETURN:
             os << "RET";

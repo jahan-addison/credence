@@ -71,8 +71,16 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
 
 } // namespace detail
 
-Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
-                                                    int* temporary);
+using RValue_Instructions = std::pair<Instructions, RValue_Queue>;
+
+Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
+                                                  int* temporary);
+
+RValue_Instructions rvalue_node_to_list_of_ir_instructions(
+    Symbol_Table<> const& symbols,
+    Node& node,
+    Node& details,
+    int* temporary);
 
 } // namespace ir
 

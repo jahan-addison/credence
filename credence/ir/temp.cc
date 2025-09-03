@@ -18,19 +18,20 @@
 #include <credence/ir/temp.h>
 #include <credence/operators.h> // for Operator, operator_to_string
 #include <credence/queue.h>     // for RValue_Queue
-#include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
-#include <credence/util.h>      // for rvalue_to_string, overload
-#include <deque>                // for deque
-#include <format>               // for format
-#include <map>                  // for map
-#include <matchit.h>            // for Wildcard, Ds, _, Meet, pattern, ds, match
-#include <memory>               // for shared_ptr
-#include <stack>                // for stack
-#include <string>               // for basic_string, string, to_string
-#include <tuple>                // for tuple, get, make_tuple
-#include <utility>              // for pair, make_pair, cmp_equal
-#include <variant>              // for visit, monostate, variant
-#include <vector>               // for vector
+#include <credence/rvalue.h>
+#include <credence/types.h> // for RValue, rvalue_type_pointer_from_rvalue
+#include <credence/util.h>  // for rvalue_to_string, overload
+#include <deque>            // for deque
+#include <format>           // for format
+#include <map>              // for map
+#include <matchit.h>        // for Wildcard, Ds, _, Meet, pattern, ds, match
+#include <memory>           // for shared_ptr
+#include <stack>            // for stack
+#include <string>           // for basic_string, string, to_string
+#include <tuple>            // for tuple, get, make_tuple
+#include <utility>          // for pair, make_pair, cmp_equal
+#include <variant>          // for visit, monostate, variant
+#include <vector>           // for vector
 
 /****************************************************************************
  *  A set of functions that aid construction of 3- or 4- tuple temporaries
@@ -148,11 +149,20 @@ void binary_operands_unbalanced_temporary_stack(
     match(static_cast<int>(instructions.size()))(
         pattern | (_ > 1) =
             [&] {
-                auto last_by_one = instructions[instructions.size() - 2];
+                size_t last_index = 2;
+                Quadruple last_lvalue =
+                    instructions[instructions.size() - last_index];
+                // backtrack the instruction stack and grab the last lvalue
+                while (std::get<0>(last_lvalue) != Instruction::VARIABLE and
+                       last_index < instructions.size()) {
+                    last_lvalue =
+                        instructions[instructions.size() - last_index];
+                    last_index++;
+                }
                 auto operand_temp =
                     make_temporary(temporary,
                                    std::format("{} {} {}",
-                                               std::get<1>(last_by_one),
+                                               std::get<1>(last_lvalue),
                                                operator_to_string(op),
                                                std::get<1>(last)));
                 instructions.push_back(operand_temp);
@@ -562,8 +572,8 @@ void binary_operands_to_temporary_stack(
  *   for operator translation.
  *
  */
-Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
-                                                    int* temporary)
+Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
+                                                  int* temporary)
 {
     using namespace detail;
     using namespace matchit;
@@ -832,9 +842,6 @@ Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
 
                                 instructions.push_back(make_quadruple(
                                     Instruction::CALL, rhs.first, ""));
-
-                                temporary_stack.push(
-                                    instruction_to_string(Instruction::RETURN));
                             }
                             instructions.push_back(make_quadruple(
                                 Instruction::POP,
@@ -842,7 +849,11 @@ Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
                                                type::Type_["word"].second),
                                 "",
                                 ""));
-
+                            auto call_return = make_temporary(temporary, "RET");
+                            instructions.push_back(call_return);
+                            if (operand_stack.size() > 1) {
+                                temporary_stack.push(std::get<1>(call_return));
+                            }
                             param_on_stack = 0;
                         } break;
                         case Operator::U_PUSH: {
@@ -893,6 +904,42 @@ Instructions rvalue_queue_to_linear_ir_instructions(RValue_Queue* queue,
             item);
     }
     return instructions;
+}
+
+/**
+ * @brief RValue node to list of linear ir instructions
+ */
+RValue_Instructions rvalue_node_to_list_of_ir_instructions(
+    Symbol_Table<> const& symbols,
+    Node& node,
+    Node& details,
+    int* temporary)
+{
+    RValue_Parser parser{ details, symbols };
+    RValue_Queue list{};
+    std::vector<type::RValue::Type_Pointer> rvalues{};
+
+    if (node.JSONType() == json::JSON::Class::Array) {
+        for (auto& expression : node.ArrayRange()) {
+            if (expression.JSONType() == json::JSON::Class::Array) {
+                for (auto& rvalue : expression.ArrayRange()) {
+
+                    rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
+                        parser.from_rvalue(rvalue).value));
+                }
+            } else {
+                rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
+                    parser.from_rvalue(expression).value));
+            }
+        }
+        rvalues_to_queue(rvalues, &list);
+    } else {
+        auto rvalue_type_pointer = type::rvalue_type_pointer_from_rvalue(
+            parser.from_rvalue(node).value);
+        rvalues_to_queue(rvalue_type_pointer, &list);
+    }
+    auto instructions = rvalue_queue_to_temp_ir_instructions(&list, temporary);
+    return std::make_pair(instructions, list);
 }
 
 } // namespace ir

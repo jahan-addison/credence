@@ -19,7 +19,7 @@
 #include <assert.h>          // for assert
 #include <matchit.h>         // for pattern, match, PatternHelper, PatternPi...
 #include <credence/rvalue.h>  // for RValue_Parser
-#include <credence/ir/temp.h>   // for rvalue_queue_to_linear_ir_instructions
+#include <credence/ir/temp.h>   // for rvalue_queue_to_temp_ir_instructions
 #include <credence/json.h>      // for JSON
 #include <credence/queue.h>     // for rvalues_to_queue, RValue_Queue
 #include <credence/symbol.h>    // for Symbol_Table
@@ -270,6 +270,64 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
 }
 
 /**
+ * @brief Turn an rvalue into a "truthy" comparator for statement predicates
+ */
+std::string detail::build_from_branch_comparator_from_rvalue(
+    Symbol_Table<>& symbols,
+
+    Node& details,
+    Node& block,
+    Instructions& instructions,
+    int* temporary)
+{
+    using namespace matchit;
+    std::string temp_lvalue{};
+    RValue_Parser parser{ details, symbols };
+    auto rvalue = parser.from_rvalue(block);
+    auto comparator_instructions = rvalue_node_to_list_of_ir_instructions(
+                                       symbols, block, details, temporary)
+                                       .first;
+
+    match(type::get_rvalue_type_as_variant(rvalue))(
+        pattern | or_(type::RValue_Type_Variant::Relation,
+                      type::RValue_Type_Variant::Unary,
+                      type::RValue_Type_Variant::Symbol,
+                      type::RValue_Type_Variant::Value_Pointer) =
+            [&] {
+                instructions.insert(instructions.end(),
+                                    comparator_instructions.begin(),
+                                    comparator_instructions.end());
+                temp_lvalue =
+                    std::get<1>(instructions[instructions.size() - 1]);
+            },
+        pattern | or_(type::RValue_Type_Variant::LValue,
+                      type::RValue_Type_Variant::Value) =
+            [&] {
+                auto rhs =
+                    std::format("{} {}",
+                                instruction_to_string(Instruction::CMP),
+                                util::rvalue_to_string(rvalue.value, false));
+                auto temp = detail::make_temporary(temporary, rhs);
+                instructions.push_back(temp);
+                temp_lvalue = std::get<1>(temp);
+            },
+        pattern | type::RValue_Type_Variant::Function =
+            [&] {
+                instructions.insert(instructions.end(),
+                                    comparator_instructions.begin(),
+                                    comparator_instructions.end());
+                // instructions.pop_back();
+                auto rhs = std::format("{} RET",
+                                       instruction_to_string(Instruction::CMP));
+                auto temp = detail::make_temporary(temporary, rhs);
+                instructions.push_back(temp);
+                temp_lvalue = std::get<1>(temp);
+            });
+
+    return temp_lvalue;
+}
+
+/**
  * @brief Construct an rvalue or block statement for a branch
  */
 
@@ -313,28 +371,18 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
     assert(node["root"].ToString().compare("while") == 0);
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
-    RValue_Queue list{};
     auto predicate = node["left"];
     auto* blocks = node["right"].ArrayRange().get();
-    RValue_Parser parser{ details, symbols };
-
-    auto predicate_rvalue = type::rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(predicate).value);
-    rvalues_to_queue(predicate_rvalue, &list);
-    auto if_instructions =
-        rvalue_queue_to_linear_ir_instructions(&list, temporary);
 
     auto start = detail::make_temporary(temporary);
     auto jump = detail::make_temporary(temporary);
 
-    predicate_instructions.push_back(start);
-    predicate_instructions.insert(predicate_instructions.end(),
-                                  if_instructions.begin(),
-                                  if_instructions.end());
+    auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
+        symbols, details, predicate, predicate_instructions, temporary);
 
     predicate_instructions.push_back(
         make_quadruple(Instruction::IF,
-                       std::get<1>(if_instructions.back()),
+                       predicate_temp,
                        instruction_to_string(Instruction::GOTO),
                        std::get<1>(jump)));
 
@@ -375,23 +423,15 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
     RValue_Queue list{};
     auto predicate = node["left"];
     auto* blocks = node["right"].ArrayRange().get();
-    RValue_Parser parser{ details, symbols };
 
-    auto predicate_rvalue = type::rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(predicate).value);
-    rvalues_to_queue(predicate_rvalue, &list);
-    auto if_instructions =
-        rvalue_queue_to_linear_ir_instructions(&list, temporary);
+    auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
+        symbols, details, predicate, predicate_instructions, temporary);
 
     auto jump = detail::make_temporary(temporary);
 
-    predicate_instructions.insert(predicate_instructions.end(),
-                                  if_instructions.begin(),
-                                  if_instructions.end());
-
     predicate_instructions.push_back(
         make_quadruple(Instruction::IF,
-                       std::get<1>(if_instructions.back()),
+                       predicate_temp,
                        instruction_to_string(Instruction::GOTO),
                        std::get<1>(jump)));
 
@@ -484,33 +524,19 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("return") == 0);
     Instructions instructions{};
-    std::vector<type::RValue::Type_Pointer> rvalues{};
-    RValue_Queue list{};
     assert(node.hasKey("left"));
     auto return_statement = node["left"];
-    RValue_Parser parser{ details, symbols };
-    for (auto& expression : return_statement.ArrayRange()) {
-        if (expression.JSONType() == json::JSON::Class::Array) {
-            for (auto& rvalue : expression.ArrayRange()) {
 
-                rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                    parser.from_rvalue(rvalue).value));
-            }
-        } else {
-            rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                parser.from_rvalue(expression).value));
-        }
-    }
-    rvalues_to_queue(rvalues, &list);
-    auto return_instructions =
-        rvalue_queue_to_linear_ir_instructions(&list, temporary);
+    auto return_instructions = rvalue_node_to_list_of_ir_instructions(
+        symbols, return_statement, details, temporary);
 
     instructions.insert(instructions.end(),
-                        return_instructions.begin(),
-                        return_instructions.end());
+                        return_instructions.first.begin(),
+                        return_instructions.first.end());
 
-    if (!list.empty() and instructions.empty()) {
-        auto last_rvalue = std::get<type::RValue::Type_Pointer>(list.back());
+    if (!return_instructions.second.empty() and instructions.empty()) {
+        auto last_rvalue = std::get<type::RValue::Type_Pointer>(
+            return_instructions.second.back());
         instructions.push_back(make_quadruple(
             Instruction::RETURN, util::rvalue_to_string(*last_rvalue), ""));
     } else {
@@ -586,32 +612,13 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
 {
     assert(node["node"].ToString().compare("statement") == 0);
     assert(node["root"].ToString().compare("rvalue") == 0);
-    Instructions instructions{};
-    assert(node.hasKey("left"));
-    std::vector<type::RValue::Type_Pointer> rvalues{};
     RValue_Queue list{};
+    assert(node.hasKey("left"));
     auto statement = node["left"];
-    RValue_Parser parser{ details, symbols };
-    // for each line:
-    for (auto& expression : statement.ArrayRange()) {
-        if (expression.JSONType() == json::JSON::Class::Array) {
-            for (auto& rvalue : expression.ArrayRange()) {
-                rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                    parser.from_rvalue(rvalue).value));
-            }
-        } else {
-            rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                parser.from_rvalue(expression).value));
-        }
-        rvalues_to_queue(rvalues, &list);
-        auto line = rvalue_queue_to_linear_ir_instructions(&list, temporary);
 
-        instructions.insert(instructions.end(), line.begin(), line.end());
-        rvalues.clear();
-        list.clear();
-    }
-
-    return instructions;
+    return rvalue_node_to_list_of_ir_instructions(
+               symbols, statement, details, temporary)
+        .first;
 }
 
 /**
