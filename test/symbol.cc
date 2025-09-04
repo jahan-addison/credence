@@ -1,10 +1,10 @@
-// clang-format off
-#include <array>             // for array
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
+
+#include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
 #include <map>               // for map
-#include <string>            // for basic_string, string
-// clang-format on
+#include <string>            // for allocator, basic_string, operator==
+#include <vector>            // for vector
 
 using namespace credence;
 

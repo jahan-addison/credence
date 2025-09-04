@@ -1,18 +1,17 @@
-// clang-format off
-#include <vector>             // for vector
-#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase, TEST_CASE
-#include <credence/rvalue.h>   // for RValue_Parser
-#include <credence/json.h>       // for JSON
-#include <credence/queue.h>      // for rvalues_to_queue, RValue_Queue
-#include <credence/symbol.h>     // for Symbol_Table
-#include <credence/types.h>      // for RValue, Type_
-#include <credence/util.h>       // for queue_of_rvalues_to_string
-#include <map>                // for map
-#include <memory>             // for make_shared
-#include <string>             // for basic_string, string
-#include <utility>            // for pair
-#include <variant>            // for monostate
-// clang-format on
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
+
+#include <algorithm>         // for max
+#include <credence/json.h>   // for JSON
+#include <credence/queue.h>  // for rvalues_to_queue, queue_of_rvalues_to_s...
+#include <credence/rvalue.h> // for RValue_Parser
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for RValue, Type_
+#include <map>               // for map
+#include <memory>            // for allocator, make_shared
+#include <string>            // for operator==, basic_string, operator<<
+#include <utility>           // for pair
+#include <variant>           // for monostate
+#include <vector>            // for vector
 
 TEST_CASE("ir/queue.cc: rvalues_to_queue")
 {
@@ -218,7 +217,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["complex"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == complex_expected);
     rvalues.clear();
     list.clear();
@@ -226,7 +225,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["unary"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == unary_expected);
     rvalues.clear();
     list.clear();
@@ -234,7 +233,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["equal"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == equal_expected);
     rvalues.clear();
     list.clear();
@@ -242,7 +241,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["unary_relation"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == unary_relation_expected);
     rvalues.clear();
     list.clear();
@@ -250,7 +249,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["ternary"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == ternary_expected);
     rvalues.clear();
     list.clear();
@@ -258,7 +257,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["function"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == function_expected);
     rvalues.clear();
     list.clear();
@@ -266,7 +265,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["evaluated"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == evaluated_expected);
     rvalues.clear();
     list.clear();
@@ -274,7 +273,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.push_back(std::make_shared<type::RValue::Type>(
         parser.from_rvalue(obj["evaluated_2"]).value));
     rvalues_to_queue(rvalues, &list);
-    test = util::queue_of_rvalues_to_string(&list);
+    test = queue_of_rvalues_to_string(&list);
     CHECK(test == evaluated_expected_2);
     rvalues.clear();
     list.clear();

@@ -5,7 +5,7 @@ list(REMOVE_ITEM sources "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/main.cc")
 
 add_executable(Test_Suite ${sources} ${test_sources})
 
-target_link_libraries(Test_Suite doctest::doctest Python3::Python cxxopts::cxxopts cpptrace::cpptrace)
+target_link_libraries(Test_Suite doctest::doctest Python3::Python matchit cxxopts::cxxopts)
 
 set_target_properties(Test_Suite PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "test_suite")
 

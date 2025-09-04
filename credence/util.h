@@ -16,18 +16,13 @@
 
 #pragma once
 
-#if defined(DEBUG)
-#include <cpptrace/from_current.hpp>
-#endif
-#include <cpptrace/from_current_macros.hpp> // for CPPTRACE_TRY
-#include <credence/queue.h>                 // for RValue_Queue
-#include <credence/types.h>                 // for RValue
-#include <filesystem>                       // for path
-#include <ostream>                          // for operator<<
-#include <sstream>                          // for basic_stringstream, stri...
-#include <string>                           // for char_traits, string, all...
-#include <string_view>                      // for basic_string_view, strin...
-#include <tuple>                            // for apply, tuple
+#include <filesystem>  // for path
+#include <fstream>     // for basic_ifstream
+#include <ostream>     // for operator<<
+#include <sstream>     // for basic_stringstream, stri...
+#include <string>      // for char_traits, string, all...
+#include <string_view> // for basic_string_view, strin...
+#include <tuple>       // for apply, tuple
 namespace json {
 class JSON;
 } // lines 31-31
@@ -40,52 +35,65 @@ class JSON;
 #define CREDENCE_PRIVATE_UNLESS_TESTED private
 #endif
 
-#if defined(DEBUG)
-#define CREDENCE_TRY CPPTRACE_TRY
-#define CREDENCE_CATCH CPPTRACE_CATCH
-#else
-#define CREDENCE_TRY try
-#define CREDENCE_CATCH catch
-#endif
-
 namespace credence {
 
 namespace util {
 
-json::JSON* unravel_nested_node_array(json::JSON* node);
+namespace fs = std::filesystem;
 
-std::string dump_value_type(type::RValue::Value,
-                            std::string_view separator = ":");
-
-std::string rvalue_to_string(type::RValue::Type const& rvalue,
-                             bool separate = true);
-
-std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue);
-
-enum class Logging
+namespace detail {
+template<typename T>
+constexpr std::string to_constexpr_string(T const& val)
 {
-    INFO,
-    WARNING,
-    ERROR
-};
-
-std::string unescape_string(std::string const& escaped_str);
-
-template<typename... Types>
-std::string tuple_to_string(std::tuple<Types...> const& t,
-                            std::string_view separator = ", ")
-{
-    std::stringstream ss;
-    auto first = true;
-    std::apply(
-        [&](const auto&... args) {
-            ((ss << (first ? "" : separator) << args, first = false), ...);
-        },
-        t);
-    return ss.str();
+    if constexpr (std::is_same_v<T, int>) {
+        std::string s;
+        if (val == 0)
+            return "0";
+        int temp = val;
+        bool negative = false;
+        if (temp < 0) {
+            negative = true;
+            temp = -temp;
+        }
+        while (temp > 0) {
+            s.insert(0, 1, static_cast<char>('0' + (temp % 10)));
+            temp /= 10;
+        }
+        if (negative)
+            s.insert(0, 1, '-');
+        return s;
+    } else if constexpr (std::is_same_v<T, double>) {
+        return "double_val";
+    } else if constexpr (std::is_convertible_v<T, std::string_view>) {
+        return std::string(val);
+    } else {
+        return "unsupported_type";
+    }
 }
 
-void log(Logging level, std::string_view message);
+} // namespace detail
+
+template<typename... Args>
+constexpr std::string tuple_to_string(std::tuple<Args...> const& t,
+                                      std::string_view separator = ", ")
+{
+    std::string result{};
+    std::apply(
+        [&](const auto&... elements) {
+            bool first = true;
+            (([&] {
+                 if (!first) {
+                     result += separator;
+                 }
+                 result += detail::to_constexpr_string(elements);
+                 first = false;
+             })(),
+             ...);
+        },
+        t);
+    result += ")";
+    return result;
+}
 
 // The overload pattern
 template<class... Ts>
@@ -96,12 +104,59 @@ struct overload : Ts...
 template<class... Ts>
 overload(Ts...) -> overload<Ts...>;
 
-namespace fs = std::filesystem;
+constexpr std::string unescape_string(std::string_view escaped_str)
+{
+    std::string unescaped_str;
+    for (size_t i = 0; i < escaped_str.length(); ++i) {
+        if (escaped_str[i] == '\\') {
+            if (i + 1 < escaped_str.length()) {
+                char next_char = escaped_str[i + 1];
+                switch (next_char) {
+                    case 'n':
+                        unescaped_str += '\n';
+                        break;
+                    case 't':
+                        unescaped_str += '\t';
+                        break;
+                    case '\\':
+                        unescaped_str += '\\';
+                        break;
+                    case '"':
+                        unescaped_str += '"';
+                        break;
+                    // Add more cases for other escape sequences like \r, \f,
+                    // \b, \v, \a, etc. For Unicode escape sequences like
+                    // \uXXXX, more complex parsing is needed.
+                    default:
+                        unescaped_str += escaped_str[i]; // If not a recognized
+                                                         // escape, keep as is
+                        unescaped_str += next_char;
+                        break;
+                }
+                i++; // Skip the escaped character
+            } else {
+                unescaped_str += escaped_str[i]; // Backslash at end of string
+            }
+        } else {
+            unescaped_str += escaped_str[i];
+        }
+    }
+    return unescaped_str;
+}
 
 /**
  * @brief read a file from a fs::path
  */
-std::string read_file_from_path(fs::path path);
+inline std::string read_file_from_path(std::string_view path)
+{
+    std::ifstream f(path.data(), std::ios::in | std::ios::binary);
+    const auto sz = fs::file_size(path);
+
+    std::string result(sz, '\0');
+    f.read(result.data(), sz);
+
+    return result;
+}
 
 } // namespace util
 

@@ -14,24 +14,30 @@
  * limitations under the License.
  */
 
-#include <credence/ir/qaud.h> // for make_quadruple, Instructions, Instruction
+// clang-format off
 #include <credence/ir/temp.h>
-#include <credence/operators.h> // for Operator, operator_to_string
-#include <credence/queue.h>     // for RValue_Queue
-#include <credence/rvalue.h>
-#include <credence/types.h> // for RValue, rvalue_type_pointer_from_rvalue
-#include <credence/util.h>  // for rvalue_to_string, overload
-#include <deque>            // for deque
-#include <format>           // for format
-#include <map>              // for map
-#include <matchit.h>        // for Wildcard, Ds, _, Meet, pattern, ds, match
-#include <memory>           // for shared_ptr
-#include <stack>            // for stack
-#include <string>           // for basic_string, string, to_string
-#include <tuple>            // for tuple, get, make_tuple
-#include <utility>          // for pair, make_pair, cmp_equal
-#include <variant>          // for visit, monostate, variant
-#include <vector>           // for vector
+#include <credence/ir/qaud.h>    // for make_quadruple, Instructions, Instru...
+#include <credence/operators.h>  // for Operator, operator_to_string
+#include <credence/queue.h>      // for rvalue_to_string, rvalues_to_queue
+#include <credence/rvalue.h>     // for RValue_Parser
+#include <credence/types.h>      // for RValue, rvalue_type_pointer_from_rvalue
+#include <credence/util.h>       // for overload
+#include <matchit.h>             // for Ds, Meet, _, pattern, ds, match, Wil...
+#include <algorithm>             // for copy, max
+#include <deque>                 // for deque, operator==, _Deque_iterator
+#include <format>                // for format, format_string
+#include <list>                  // for operator==, _List_iterator
+#include <map>                   // for map
+#include <memory>                // for __shared_ptr_access, shared_ptr
+#include <stack>                 // for stack
+#include <string>                // for basic_string, string, allocator, to_...
+#include <tuple>                 // for tuple, get
+#include <utility>               // for pair, make_pair, cmp_equal
+#include <variant>               // for visit, variant, monostate
+#include <vector>                // for vector
+#include "credence/json.h"       // for JSON
+#include "credence/symbol.h"     // for Symbol_Table
+// clang-format on
 
 /****************************************************************************
  *  A set of functions that aid construction of 3- or 4- tuple temporaries
@@ -121,7 +127,7 @@ std::pair<std::string, std::size_t> insert_create_temp_from_operand(
                             inst_temp.second.end());
         return std::make_pair(inst_temp.first, inst_temp.second.size());
     } else {
-        return std::make_pair(util::rvalue_to_string(*operand, false), 0);
+        return std::make_pair(rvalue_to_string(*operand, false), 0);
     }
 }
 
@@ -138,7 +144,7 @@ void binary_operands_unbalanced_temporary_stack(
     int* temporary)
 {
     using namespace matchit;
-    auto rhs_lvalue = util::rvalue_to_string(*operand_stack.top(), false);
+    auto rhs_lvalue = rvalue_to_string(*operand_stack.top(), false);
     auto operand = operand_stack.top();
 
     if (instructions.empty())
@@ -210,10 +216,10 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
             },
             [&](RValue::Value_Pointer&) {},
             [&](RValue::Value&) {
-                temp_name = util::rvalue_to_string(*operand, false);
+                temp_name = rvalue_to_string(*operand, false);
             },
             [&](RValue::LValue&) {
-                temp_name = util::rvalue_to_string(*operand, false);
+                temp_name = rvalue_to_string(*operand, false);
             },
             [&](RValue::Unary& s) {
                 auto op = s.first;
@@ -257,10 +263,10 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                 }
             },
             [&](RValue::Function& s) {
-                temp_name = util::rvalue_to_string(s.first, false);
+                temp_name = rvalue_to_string(s.first, false);
             },
             [&](RValue::Symbol& s) {
-                temp_name = util::rvalue_to_string(s.first, false);
+                temp_name = rvalue_to_string(s.first, false);
             } },
         *operand);
 
@@ -295,8 +301,7 @@ void assignment_operands_to_temporary_stack(
             },
         pattern | ds(_ == 1, _ == 0) =
             [&] {
-                auto lhs_rvalue =
-                    util::rvalue_to_string(*operand_stack.top(), false);
+                auto lhs_rvalue = rvalue_to_string(*operand_stack.top(), false);
                 operand_stack.pop();
                 if (instructions.size() > 1) {
                     auto last = instructions[instructions.size() - 1];

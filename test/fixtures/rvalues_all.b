@@ -1,5 +1,5 @@
 main () {
- auto x;
+ auto x, c;
  'x';
  10;
  "hello world";
@@ -11,4 +11,12 @@ main () {
  x--;
  ~5;
 (~5) ^ 10;
+}
+
+putchar(c) {
+
+}
+
+getchar(c) {
+
 }

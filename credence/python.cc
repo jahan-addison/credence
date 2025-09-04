@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-#include <Python.h>     // for PyObject_CallObject
-#include <boolobject.h> // for Py_False, Py_True
 #include <credence/python.h>
+
+#include <Python.h>        // for PyObject_CallObject
+#include <boolobject.h>    // for Py_False, Py_True
 #include <dictobject.h>    // for PyDict_GetItemString
 #include <import.h>        // for PyImport_ImportModule
 #include <moduleobject.h>  // for PyModule_GetDict
@@ -27,9 +28,6 @@
 #include <stddef.h>        // for NULL
 #include <tupleobject.h>   // for PyTuple_SetItem, PyTuple_New
 #include <unicodeobject.h> // for PyUnicode_FromString
-
-#include "pythonrun.h"     // for PyRun_SimpleString
-#include "unicodeobject.h" // for PyUnicode_AsUTF8
 
 namespace credence {
 

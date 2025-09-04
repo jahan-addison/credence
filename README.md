@@ -116,7 +116,7 @@ There are a few implementation differences between the compiler and B specificat
 
 ```bash
 brew update
-brew install coreutils include-what-you-use llvm@18 cmake python3 poetry
+brew install coreutils include-what-you-use llvm@20 cmake python3 poetry
 git clone git@github.com:jahan-addison/credence.git
 cd credence
 bash ./scripts/install.sh
@@ -147,8 +147,7 @@ ninja
 
 * `SimpleJSON` - Simple JSON parser
 * `cxxopts` - Lightweight commandline option parser
-* `cpptrace` - Stack traces, until C++23
-* `matchit` - C++17 pattern matching
+* `matchit` - Pattern matching
 
 # License
 

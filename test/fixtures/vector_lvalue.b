@@ -3,3 +3,5 @@ main () {
   extrn putchar;
   x[0] = 0;
 }
+
+putchar "puts";

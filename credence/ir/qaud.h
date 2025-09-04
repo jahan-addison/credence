@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 #pragma once
-#include <algorithm>         // for __find, find
-#include <array>             // for array
+#include <algorithm>         // for copy, max
 #include <credence/json.h>   // for JSON
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for Value_Type, RValue, Type_
+#include <credence/types.h>  // for RValue, Type_, Value_Type
 #include <deque>             // for deque
 #include <iomanip>           // for operator<<, setw
 #include <map>               // for map
-#include <optional>
-#include <ostream> // for basic_ostream, operator<<, endl
-#include <sstream> // for basic_ostringstream, ostream
-#include <string>  // for basic_string, char_traits, allo...
-#include <tuple>   // for get, make_tuple, tuple
-#include <variant> // for monostate
-#include <vector>  // for vector
-
+#include <optional>          // for optional, nullopt
+#include <sstream>           // for operator<<, basic_ostream, basic_ostrin...
+#include <string>            // for allocator, char_traits, string, operator<<
+#include <tuple>             // for get, make_tuple, tuple
+#include <utility>           // for pair
+#include <variant>           // for monostate
+#include <vector>            // for vector
 namespace credence {
 
 namespace ir {
@@ -62,10 +60,10 @@ static type::Value_Type NULL_DATA_TYPE = { std::monostate(),
 using Instructions = std::deque<Quadruple>;
 using Branch_Instructions = std::pair<Instructions, Instructions>;
 
-inline Quadruple make_quadruple(Instruction op,
-                                std::string const& s1,
-                                std::string const& s2,
-                                std::string const& s3 = "")
+constexpr Quadruple make_quadruple(Instruction op,
+                                   std::string const& s1,
+                                   std::string const& s2,
+                                   std::string const& s3 = "")
 {
     return std::make_tuple(op, s1, s2, s3);
 }
@@ -148,21 +146,23 @@ Instructions build_from_block_statement(
     std::optional<int*> temporary = std::nullopt);
 
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);
+
 void build_from_extrn_statement(Symbol_Table<>& symbols,
                                 Symbol_Table<>& globals,
                                 Node& node);
+
 Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& node,
                                          Node& details,
                                          int* temporary);
-Node unravel_nested_node_array(Node& node);
+
 std::vector<std::string> build_from_rvalue_expression(
     type::RValue::Type& rvalue);
 
 /**
  * @brief Instruction_Operator enum type << operator overload
  */
-inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
+constexpr std::ostream& operator<<(std::ostream& os, Instruction const& op)
 {
     switch (op) {
         case Instruction::FUNC_START:
@@ -213,14 +213,16 @@ inline std::ostream& operator<<(std::ostream& os, Instruction const& op)
     return os;
 }
 
-inline std::string instruction_to_string(Instruction op)
+inline std::string instruction_to_string(
+    Instruction op) // not constexpr until C++23
 {
     std::ostringstream os;
     os << op;
     return os.str();
 }
 
-inline std::string quadruple_to_string(Quadruple qaud)
+inline std::string quadruple_to_string(
+    Quadruple qaud) // not constexpr until C++23
 {
     std::ostringstream os;
     os << std::setw(2) << std::get<1>(qaud) << std::get<0>(qaud)

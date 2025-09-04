@@ -16,17 +16,25 @@
 
 // clang-format off
 #include <credence/ir/qaud.h>
-#include <assert.h>          // for assert
-#include <matchit.h>         // for pattern, match, PatternHelper, PatternPi...
-#include <credence/rvalue.h>  // for RValue_Parser
-#include <credence/ir/temp.h>   // for rvalue_queue_to_temp_ir_instructions
-#include <credence/json.h>      // for JSON
-#include <credence/queue.h>     // for rvalues_to_queue, RValue_Queue
-#include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for rvalue_type_pointer_from_rvalue, RValue
-#include <format>            // for format
-#include <utility>           // for pair
-#include <variant>           // for variant
+#include <assert.h>            // for assert
+#include <credence/ir/temp.h>  // for make_temporary, rvalue_node_to_list_of...
+#include <credence/json.h>     // for JSON
+#include <credence/queue.h>    // for rvalue_to_string, RValue_Queue
+#include <credence/rvalue.h>   // for RValue_Parser
+#include <credence/symbol.h>   // for Symbol_Table
+#include <credence/types.h>    // for RValue, RValue_Type_Variant, Type_, Byte
+#include <matchit.h>           // for pattern, match, PatternHelper, Pattern...
+#include <algorithm>           // for copy, max
+#include <array>               // for array
+#include <format>              // for format, format_string
+#include <functional>          // for identity
+#include <list>                // for list
+#include <memory>              // for __shared_ptr_access, shared_ptr
+#include <ostream>             // for basic_ostream, operator<<, endl
+#include <ranges>              // for __find_fn, find
+#include <stdexcept>           // for runtime_error
+#include <utility>             // for pair, make_pair, cmp_not_equal
+#include <variant>             // for get, variant
 // clang-format on
 
 namespace credence {
@@ -303,10 +311,9 @@ std::string detail::build_from_branch_comparator_from_rvalue(
         pattern | or_(type::RValue_Type_Variant::LValue,
                       type::RValue_Type_Variant::Value) =
             [&] {
-                auto rhs =
-                    std::format("{} {}",
-                                instruction_to_string(Instruction::CMP),
-                                util::rvalue_to_string(rvalue.value, false));
+                auto rhs = std::format("{} {}",
+                                       instruction_to_string(Instruction::CMP),
+                                       rvalue_to_string(rvalue.value, false));
                 auto temp = detail::make_temporary(temporary, rhs);
                 instructions.push_back(temp);
                 temp_lvalue = std::get<1>(temp);
@@ -538,7 +545,7 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
         auto last_rvalue = std::get<type::RValue::Type_Pointer>(
             return_instructions.second.back());
         instructions.push_back(make_quadruple(
-            Instruction::RETURN, util::rvalue_to_string(*last_rvalue), ""));
+            Instruction::RETURN, rvalue_to_string(*last_rvalue), ""));
     } else {
         auto last = instructions[instructions.size() - 1];
         instructions.push_back(

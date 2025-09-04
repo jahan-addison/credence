@@ -76,38 +76,11 @@ CPMAddPackage(
   OPTIONS "CXXOPTS_BUILD_EXAMPLES NO" "CXXOPTS_BUILD_TESTS NO" "CXXOPTS_ENABLE_INSTALL YES"
 )
 
-FetchContent_Declare(
-    matchit
-    GIT_REPOSITORY https://github.com/BowenFu/matchit.cpp.git
-    GIT_TAG main)
-
-
-FetchContent_GetProperties(matchit)
-if(NOT matchit_POPULATED)
-    FetchContent_Populate(matchit)
-    add_subdirectory(${matchit_SOURCE_DIR} ${matchit_BINARY_DIR}
-                    EXCLUDE_FROM_ALL)
-endif()
-
-
-include_directories(${matchit_SOURCE_DIR}/include)
-
-FetchContent_Declare(
-  cpptrace
-  GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-  GIT_TAG        v1.0.4 # <HASH or TAG>
+CPMAddPackage(
+  NAME matchit
+  VERSION 1.0.1
+  GITHUB_REPOSITORY BowenFu/matchit.cpp
 )
-
-FetchContent_GetProperties(cpptrace)
-if(NOT cpptrace_POPULATED)
-    FetchContent_Populate(cpptrace)
-    add_subdirectory(${cpptrace_SOURCE_DIR} ${cpptrace_BINARY_DIR}
-                    EXCLUDE_FROM_ALL)
-endif()
-
-include_directories(${cpptrace_SOURCE_DIR}/include)
-
-FetchContent_MakeAvailable(cxxopts matchit cpptrace)
 
 
 # --- Executables ----
@@ -125,7 +98,7 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit cpptrace::cpptrace)
-target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit cpptrace::cpptrace)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
 
 include(cmake/doctest.cmake)

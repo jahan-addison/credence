@@ -33,13 +33,12 @@ namespace credence {
  *
  * An example table may be a map to `std::array<std::string, 5>':
  *
- * Name
- *     \
+ *    Name
  *     |
  *   ------------------------------------------------------
  *   | Type | Size | Line Declare | Line Usage |  Address |
  *   ------------------------------------------------------
- * ...
+ *
  *  Default:
  *
  *   ------------------------
@@ -67,27 +66,27 @@ class Symbol_Table
     }
 
     inline void set_symbol_by_name(std::string const& name,
-                                   Symbol_Table<> symbol)
+                                   Symbol_Table<>& symbol)
     {
-        table_.insert_or_assign(name, symbol.get_symbol_by_name(name));
+        table_.emplace(std::make_pair(name, symbol.get_symbol_by_name(name)));
     }
 
-    inline T get_symbol_by_name(std::string const& name)
+    constexpr T get_symbol_by_name(std::string const& name) const
     {
         return table_.at(name);
     }
 
-    inline Pointer get_pointer_by_name(std::string const& name)
+    constexpr Pointer get_pointer_by_name(std::string const& name) const
     {
         return addr_.at(name);
     }
 
-    inline bool is_defined(std::string const& name) const
+    constexpr bool is_defined(std::string const& name) const
     {
         return table_.contains(name) or addr_.contains(name);
     }
 
-    inline bool is_pointer(std::string const& name) const
+    constexpr bool is_pointer(std::string const& name) const
     {
         return addr_.contains(name);
     }

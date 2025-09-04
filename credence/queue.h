@@ -18,16 +18,13 @@
 #include <credence/operators.h> // for Operator
 #include <credence/types.h>     // for RValue
 #include <list>                 // for list
+#include <string>               // for string
+#include <string_view>          // for string_view
 #include <variant>              // for variant
 #include <vector>               // for vector
 
 /**************************************************************************
  *
- *                      (+++++++++++)
- *                 (++++)
- *              (+++)
- *            (+++)
- *           (++)
  *           [~]
  *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
  *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
@@ -36,7 +33,6 @@
  *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
  *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
  *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *------------------------------------------------
  ***************************************************************************/
 
 namespace credence {
@@ -46,10 +42,19 @@ using RValue_Queue_Item =
 
 using RValue_Queue = std::list<RValue_Queue_Item>;
 
-RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
+RValue_Queue* rvalues_to_queue(
+    std::vector<type::RValue::Type_Pointer> const& rvalues,
+    RValue_Queue* rvalues_queue);
+
+RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer const& rvalue,
                                RValue_Queue* rvalues_queue);
 
-RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
-                               RValue_Queue* rvalues_queue);
+std::string rvalue_to_string(type::RValue::Type const& rvalue,
+                             bool separate = true);
+
+std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue);
+
+std::string dump_value_type(type::RValue::Value,
+                            std::string_view separator = ":");
 
 } // namespace credence

@@ -23,22 +23,21 @@ jobs:
     - name: Installation
       run: |
         sudo apt-get update
-
-        sudo apt-get install -y gcc-10 llvm-18 clang-18 iwyu python3-dev cppcheck clang-tidy
+        sudo apt-get install -y gcc-10 llvm-20 clang-20 iwyu python3-dev cppcheck clang-tidy
         sudo update-alternatives \
           --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
           --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-10 \
           --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-10 \
           --slave /usr/bin/gcov gcov /usr/bin/gcov-10
         sudo update-alternatives \
-          --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-18 100 \
-          --slave /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-18 \
-          --slave /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-18
+          --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-20 100 \
+          --slave /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-20 \
+          --slave /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-20
         sudo update-alternatives \
-          --install /usr/bin/clang clang /usr/bin/clang-18 100
+          --install /usr/bin/clang clang /usr/bin/clang-20 100
 
     - name: configure
-      run: cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined"
+      run: cmake -Bbuild -DCMAKE_C_COMPILER=$(which clang) -DCMAKE_CXX_COMPILER=$(which clang++) -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined"
 
     - name: build
       run: cmake --build build -j4
@@ -47,4 +46,6 @@ jobs:
       run: ./build/credence -h
 
     - name: test
-      run: ./build/test_suite
+      run: |
+        ./build/test_suite
+        # find ./test/fixtures/ -type f -name "*.b" -print0 | xargs -0 -I{}  ./build/credence {}

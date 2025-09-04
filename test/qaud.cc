@@ -1,18 +1,19 @@
-// clang-format off
-#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase
-// clang-format on
-#include <credence/ir/qaud.h> // for emit_quadruple, build_from_rval...
-#include <credence/ir/temp.h>
-#include <credence/json.h>   // for JSON
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for Type_, Value_Type, Byte, RValue
-#include <iostream>          // for ostringstream, cout
-#include <map>               // for map
-#include <ostream>           // for basic_ostream, operator<<
-#include <sstream>           // for basic_ostringstream
-#include <string>            // for basic_string, allocator, char_t...
-#include <utility>           // for pair, make_pair
-#include <variant>           // for monostate
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
+
+#include <credence/ir/qaud.h> // for emit_quadruple, build_from_block_state...
+#include <credence/ir/temp.h> // for make_temporary
+#include <credence/json.h>    // for JSON
+#include <credence/symbol.h>  // for Symbol_Table
+#include <credence/types.h>   // for Type_, RValue, Value_Type, Byte
+#include <deque>              // for operator==, _Deque_iterator, deque
+#include <map>                // for map
+#include <optional>           // for optional
+#include <sstream>            // for basic_ostringstream, ostringstream
+#include <string>             // for allocator, basic_string, operator==
+#include <tuple>              // for tuple
+#include <utility>            // for pair, make_pair, operator==
+#include <variant>            // for monostate, get, operator==
+#include <vector>             // for vector
 
 TEST_CASE("ir/qaud.cc: build_from_function_definition")
 {

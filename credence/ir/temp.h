@@ -18,33 +18,39 @@
 
 #include <credence/ir/qaud.h> // for Instructions, make_quadruple, Instruction
 #include <credence/queue.h>   // for RValue_Queue
+#include <credence/symbol.h>  // for Symbol_Table
 #include <credence/types.h>   // for RValue
 #include <cstddef>            // for size_t
-#include <format>             // for format
 #include <stack>              // for stack
-#include <string>             // for string
+#include <string>             // for allocator, string, operator+, to_string
 #include <utility>            // for pair
-
+#include <variant>            // for variant
 namespace credence {
-
 namespace type {
 enum class Operator;
 }
+} // lines 29-29
+
+namespace credence {
 
 namespace ir {
 
 namespace detail {
 
-inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
+constexpr Quadruple make_temporary(int* temporary_size, std::string const& temp)
 {
-    auto lhs = std::format("_t{}", ++(*temporary_size));
-    return make_quadruple(Instruction::VARIABLE, lhs, temp);
+    return make_quadruple(Instruction::VARIABLE,
+                          std::string{ "_t" } +
+                              std::to_string(++(*temporary_size)),
+                          temp);
 }
 
-inline Quadruple make_temporary(int* temporary_size)
+constexpr Quadruple make_temporary(int* temporary_size)
 {
-    auto rhs = std::format("_L{}", ++(*temporary_size));
-    return make_quadruple(Instruction::LABEL, rhs, "");
+    return make_quadruple(Instruction::LABEL,
+                          std::string{ "_L" } +
+                              std::to_string(++(*temporary_size)),
+                          "");
 }
 
 std::pair<std::string, std::size_t> insert_create_temp_from_operand(

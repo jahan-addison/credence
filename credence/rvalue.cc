@@ -14,24 +14,26 @@
  * limitations under the License.
  */
 
-#include <algorithm> // for __any_of, any_of
-#include <cassert>   // for assert
-#include <cpptrace/cpptrace.hpp>
+#include <credence/rvalue.h>
+
+#include <algorithm>            // for max, __any_of_fn, any_of
+#include <cassert>              // for assert
 #include <credence/json.h>      // for JSON
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
-#include <credence/rvalue.h>
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for RValue, Type_
-#include <deque>             // for deque
-#include <format>            // for format
-#include <map>               // for map
-#include <matchit.h>         // for pattern, PatternHelper, PatternPipable
-#include <memory>            // for make_shared, shared_ptr
-#include <stdexcept>         // for runtime_error
-#include <string>            // for basic_string, operator==, char_traits
-#include <utility>           // for make_pair, pair, move
-#include <variant>           // for monostate, variant
-#include <vector>            // for vector
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for RValue, Type_
+#include <credence/util.h>      // for unescape_string
+#include <deque>                // for deque, operator==, _Deque_iterator
+#include <format>               // for format, format_string
+#include <functional>           // for identity
+#include <map>                  // for map
+#include <matchit.h>            // for pattern, PatternHelper, PatternPipable
+#include <memory>               // for shared_ptr, make_shared
+#include <stdexcept>            // for runtime_error
+#include <string>               // for allocator, basic_string, operator==
+#include <utility>              // for pair, make_pair, move
+#include <variant>              // for monostate, variant
+#include <vector>               // for vector
 
 namespace credence {
 

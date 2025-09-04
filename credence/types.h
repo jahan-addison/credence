@@ -30,7 +30,7 @@ namespace type {
 
 struct RValue;
 
-enum class RValue_Type_Variant : size_t
+enum class RValue_Type_Variant : unsigned long
 {
     RValue_Pointer = 1,
     Value_Pointer,
@@ -46,7 +46,7 @@ namespace detail {
 
 using RValue_Pointer_PTR = std::shared_ptr<type::RValue>;
 
-constexpr size_t type_variant(RValue_Type_Variant const& type)
+constexpr unsigned long type_variant(RValue_Type_Variant const& type)
 {
     return static_cast<std::underlying_type_t<RValue_Type_Variant>>(type);
 }
@@ -93,9 +93,9 @@ struct RValue
 
     using Symbol = std::pair<LValue, RValue_Pointer>;
 
-    using Unary = std::pair<Operator, RValue_Pointer>;
+    using Unary = std::pair<type::Operator, RValue_Pointer>;
 
-    using Relation = std::pair<Operator, std::vector<RValue_Pointer>>;
+    using Relation = std::pair<type::Operator, std::vector<RValue_Pointer>>;
 
     // name, arguments
     using Function = std::pair<LValue, std::vector<RValue_Pointer>>;
@@ -116,7 +116,7 @@ struct RValue
 };
 
 inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
-    RValue::Type rvalue_type)
+    type::RValue::Type rvalue_type) // not constexpr until C++23
 {
     return std::make_shared<RValue::Type>(rvalue_type);
 }

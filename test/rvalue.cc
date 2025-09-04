@@ -1,6 +1,5 @@
-// clang-format off
-#include <doctest/doctest.h>  // for ResultBuilder, CHECK, TestCase
-// clang-format on
+#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
+
 #include <credence/json.h>   // for JSON
 #include <credence/rvalue.h> // for RValue_Parser
 #include <credence/symbol.h> // for Symbol_Table

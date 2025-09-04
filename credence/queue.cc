@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-#include <algorithm>            // for copy, max
-#include <credence/operators.h> // for Operator, get_precedence, is_left_assoc...
 #include <credence/queue.h>
-#include <credence/types.h> // for RValue
-#include <credence/util.h>  // for overload
-#include <memory>           // for make_shared, shared_ptr, __shared_ptr_a...
-#include <stack>            // for stack
-#include <variant>          // for variant, visit, monostate
+
+#include <algorithm>            // for copy, max
+#include <credence/operators.h> // for Operator, get_precedence, is_left_as...
+#include <credence/types.h>     // for RValue, Type_, Byte
+#include <credence/util.h>      // for overload
+#include <map>                  // for map
+#include <memory>               // for make_shared, shared_ptr, __shared_pt...
+#include <sstream>              // for basic_ostream, basic_ostringstream
+#include <stack>                // for stack
+#include <utility>              // for pair
+#include <variant>              // for variant, get, visit, monostate
 
 /**************************************************************************
  *
@@ -43,16 +47,132 @@
 
 namespace credence {
 
+/**
+ * @brief RValue::Value tuple as a string
+ */
+std::string dump_value_type(type::RValue::Value type,
+                            std::string_view separator)
+{
+    using namespace type;
+    std::ostringstream os;
+    os << "(";
+    std::visit(util::overload{
+                   [&](int i) {
+                       os << i << separator << Type_["int"].first << separator
+                          << Type_["int"].second;
+                   },
+                   [&](long i) {
+                       os << i << separator << Type_["long"].first << separator
+                          << Type_["long"].second;
+                   },
+                   [&](float i) {
+                       os << i << separator << Type_["float"].first << separator
+                          << Type_["float"].second;
+                   },
+                   [&](double i) {
+                       os << i << separator << Type_["double"].first
+                          << separator << Type_["double"].second;
+                   },
+                   [&](bool i) {
+                       os << std::boolalpha << i << separator
+                          << Type_["bool"].first << separator
+                          << Type_["bool"].second;
+                   },
+                   [&]([[maybe_unused]] std::monostate i) {
+                       os << "null" << separator << Type_["null"].first
+                          << separator << Type_["null"].second;
+                   },
+                   [&](credence::type::Byte i) {
+                       os << i << separator << Type_["byte"].first << separator
+                          << type.second.second;
+                   },
+                   [&](char i) {
+                       os << i << Type_["char"].first << separator
+                          << Type_["char"].second;
+                   },
+                   [&]([[maybe_unused]] std::string const& s) {
+                       if (s == "__WORD_") {
+                           // pointer
+                           os << "__WORD_" << separator << Type_["word"].first
+                              << separator << Type_["word"].second;
+                       } else {
+                           os << std::get<std::string>(type.first) << separator
+                              << "string" << separator
+                              << std::get<std::string>(type.first).size();
+                       }
+                   },
+               },
+               type.first);
+    os << ")";
+    return os.str();
+}
+
+/**
+ * @brief Rvalue type to string of it unwrapped data
+ */
+std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
+{
+    using namespace credence::type;
+    auto oss = std::ostringstream();
+    auto space = separate ? " " : "";
+    std::visit(
+        util::overload{
+            [&](std::monostate) {},
+            [&](RValue::RValue_Pointer const&) {},
+            [&](RValue::Value const& s) { oss << dump_value_type(s) << space; },
+            [&](RValue::Value_Pointer const& s) {
+                for (auto const& value : s) {
+                    oss << dump_value_type(value) << space;
+                }
+            },
+            [&](RValue::LValue const& s) { oss << s.first << space; },
+            [&](RValue::Unary const& s) {
+                oss << s.first << rvalue_to_string(s.second->value) << space;
+            },
+            [&](RValue::Relation const& s) {
+                for (auto& relation : s.second) {
+                    oss << rvalue_to_string(relation->value) << space;
+                }
+            },
+            [&](RValue::Function const& s) { oss << s.first.first << space; },
+            [&](RValue::Symbol const& s) { oss << s.first.first << space; } },
+        rvalue);
+    return oss.str();
+}
+
+/**
+ * @brief Queue to string of operators and operands in reverse-polish notaiton
+ */
+std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue)
+{
+    using namespace type;
+    auto oss = std::ostringstream();
+    for (auto& item : *rvalues_queue) {
+        std::visit(util::overload{ [&](type::Operator op) {
+                                      oss << type::operator_to_string(op)
+                                          << " ";
+                                  },
+                                   [&](type::RValue::Type_Pointer& s) {
+                                       oss << rvalue_to_string(*s);
+                                   }
+
+                   },
+                   item);
+    }
+    return oss.str();
+}
+
 namespace detail {
 
 /**
  * @brief Operator precedence check of the queue and operator stack
  */
-inline void _associativity_operator_precedence(
+constexpr void _associativity_operator_precedence(
     type::Operator op1,
     RValue_Queue* rvalues_queue,
     std::stack<type::Operator>& operator_stack)
 {
+    using namespace type;
     while (!operator_stack.empty()) {
         auto op2 = operator_stack.top();
         if ((is_left_associative(op1) &&
@@ -70,8 +190,8 @@ inline void _associativity_operator_precedence(
 /**
  * @brief Re-balance the queue if the stack is empty
  */
-inline void _balance_queue(RValue_Queue* rvalues_queue,
-                           std::stack<type::Operator>& operator_stack)
+constexpr void _balance_queue(RValue_Queue* rvalues_queue,
+                              std::stack<type::Operator>& operator_stack)
 {
     if (operator_stack.size() == 1) {
         rvalues_queue->push_back(operator_stack.top());
@@ -85,7 +205,7 @@ inline void _balance_queue(RValue_Queue* rvalues_queue,
 RValue_Queue* _rvalue_pointer_to_queue(
     type::RValue::Type_Pointer rvalue_pointer,
     RValue_Queue* rvalues_queue,
-    std::stack<type::Operator>& operator_stack)
+    std::stack<type::Operator>& operator_stack) // cant be constexpr until C++26
 {
     using namespace type;
     std::visit(
@@ -189,12 +309,13 @@ RValue_Queue* _rvalue_pointer_to_queue(
 /**
  * @brief List of rvalues to queue of operators and operands
  */
-RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
-                               RValue_Queue* rvalues_queue)
+RValue_Queue* rvalues_to_queue(
+    std::vector<type::RValue::Type_Pointer> const& rvalues,
+    RValue_Queue* rvalues_queue)
 {
     using namespace type;
     std::stack<Operator> operator_stack{};
-    for (type::RValue::Type_Pointer& rvalue : rvalues) {
+    for (type::RValue::Type_Pointer const& rvalue : rvalues) {
         credence::detail::_rvalue_pointer_to_queue(
             rvalue, rvalues_queue, operator_stack);
     }
@@ -205,7 +326,7 @@ RValue_Queue* rvalues_to_queue(std::vector<type::RValue::Type_Pointer>& rvalues,
 /**
  * @brief type::RValue to queue of operators and operands
  */
-RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer& rvalue,
+RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer const& rvalue,
                                RValue_Queue* rvalues_queue)
 {
     using namespace type;

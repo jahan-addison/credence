@@ -1,4 +1,5 @@
 main() {
+  auto x;
   putchar(x);
 }
 

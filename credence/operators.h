@@ -15,9 +15,12 @@
  */
 
 #pragma once
+#include <array>
+#include <credence/util.h>
 #include <map>
 #include <ostream> // for ostream
 #include <sstream>
+#include <utility>
 
 namespace credence {
 
@@ -79,57 +82,157 @@ enum class Associativity
     RIGHT_TO_LEFT
 };
 
-// B operator precedence is more or less the same as C. Where
-// there were differences i made small changes for consistency
+namespace detail {
+template<typename Key, typename Value, size_t Size>
+struct constexpr_map
+{
+    using MapType = std::pair<Key, Value>;
+    std::array<MapType, Size> data;
 
-static std::map<Operator, std::pair<Associativity, unsigned int>>
+    constexpr constexpr_map(std::initializer_list<MapType> init)
+        : data{}
+    {
+        std::copy(init.begin(), init.end(), data.begin());
+    }
+
+    constexpr Value operator[](const Key& key) const
+    {
+        for (auto i : data) {
+            if (std::get<0>(i) == key) {
+                return std::get<1>(i);
+            }
+        }
+        throw std::runtime_error("key not found");
+    }
+};
+
+using Operator_Entry = std::pair<Associativity, unsigned int>;
+constexpr Operator_Entry operator_entry(Associativity const& first,
+                                        unsigned int second)
+{
+    return std::make_pair(first, second);
+}
+constexpr std::pair<Operator, Operator_Entry> operator_map(
+    Operator const& first,
+    Operator_Entry second)
+{
+    return std::make_pair(first, second);
+}
+} // namespace detail
+
+// B operator precedence is more or less the same as C. Where
+// there were differences I made small changes for consistency
+constexpr detail::constexpr_map<Operator, detail::Operator_Entry, 32>
     OPERATOR_PRECEDENCE = {
         // Left-to-right
-        { Operator::POST_INC, { Associativity::LEFT_TO_RIGHT, 1 } },
-        { Operator::POST_DEC, { Associativity::LEFT_TO_RIGHT, 1 } },
-        { Operator::U_SUBSCRIPT, { Associativity::LEFT_TO_RIGHT, 1 } },
-        { Operator::U_CALL, { Associativity::LEFT_TO_RIGHT, 1 } },
-
+        detail::operator_map(
+            Operator::POST_INC,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 1)),
+        detail::operator_map(
+            Operator::POST_DEC,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 1)),
+        detail::operator_map(
+            Operator::U_SUBSCRIPT,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 1)),
+        detail::operator_map(
+            Operator::U_CALL,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 1)),
         // Right-to-left
-        { Operator::PRE_INC, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::PRE_DEC, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::U_PUSH, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::U_MINUS, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::U_NOT, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::U_ADDR_OF, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::U_INDIRECTION, { Associativity::RIGHT_TO_LEFT, 2 } },
-        { Operator::U_ONES_COMPLEMENT, { Associativity::RIGHT_TO_LEFT, 2 } },
+        detail::operator_map(
+            Operator::PRE_INC,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::PRE_DEC,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::U_PUSH,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::U_MINUS,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::U_NOT,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::U_ADDR_OF,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::U_INDIRECTION,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
+        detail::operator_map(
+            Operator::U_ONES_COMPLEMENT,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 2)),
         // Left-to-right
-        { Operator::B_MUL, { Associativity::LEFT_TO_RIGHT, 3 } },
-        { Operator::B_DIV, { Associativity::LEFT_TO_RIGHT, 3 } },
-        { Operator::B_MOD, { Associativity::LEFT_TO_RIGHT, 3 } },
+        detail::operator_map(
+            Operator::B_MUL,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 3)),
+        detail::operator_map(
+            Operator::B_DIV,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 3)),
+        detail::operator_map(
+            Operator::B_MOD,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 3)),
         // Left-to-right
-        { Operator::B_ADD, { Associativity::LEFT_TO_RIGHT, 4 } },
-        { Operator::B_SUBTRACT, { Associativity::LEFT_TO_RIGHT, 4 } },
+        detail::operator_map(
+            Operator::B_ADD,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 4)),
+        detail::operator_map(
+            Operator::B_SUBTRACT,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 4)),
         // Left-to-right
-        { Operator::LSHIFT, { Associativity::LEFT_TO_RIGHT, 5 } },
-        { Operator::RSHIFT, { Associativity::LEFT_TO_RIGHT, 5 } },
+        detail::operator_map(
+            Operator::LSHIFT,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 5)),
+        detail::operator_map(
+            Operator::RSHIFT,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 5)),
         // Left-to-right
-        { Operator::R_LT, { Associativity::LEFT_TO_RIGHT, 6 } },
-        { Operator::R_LE, { Associativity::LEFT_TO_RIGHT, 6 } },
-        { Operator::R_GT, { Associativity::LEFT_TO_RIGHT, 6 } },
-        { Operator::R_GE, { Associativity::LEFT_TO_RIGHT, 6 } },
+        detail::operator_map(
+            Operator::R_LT,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 6)),
+        detail::operator_map(
+            Operator::R_LE,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 6)),
+        detail::operator_map(
+            Operator::R_GT,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 6)),
+        detail::operator_map(
+            Operator::R_GE,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 6)),
         // Left-to-right
-        { Operator::R_EQUAL, { Associativity::LEFT_TO_RIGHT, 7 } },
-        { Operator::R_NEQUAL, { Associativity::LEFT_TO_RIGHT, 7 } },
+        detail::operator_map(
+            Operator::R_EQUAL,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 7)),
+        detail::operator_map(
+            Operator::R_NEQUAL,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 7)),
         // Left-to-right
-        { Operator::AND, { Associativity::LEFT_TO_RIGHT, 8 } },
+        detail::operator_map(
+            Operator::AND,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 8)),
         // Left-to-right
-        { Operator::XOR, { Associativity::LEFT_TO_RIGHT, 9 } },
+        detail::operator_map(
+            Operator::XOR,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 9)),
         // Left-to-right
-        { Operator::OR, { Associativity::LEFT_TO_RIGHT, 10 } },
+        detail::operator_map(
+            Operator::OR,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 10)),
         // Left-to-right
-        { Operator::R_AND, { Associativity::LEFT_TO_RIGHT, 11 } },
+        detail::operator_map(
+            Operator::R_AND,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 11)),
         // Left-to-right
-        { Operator::R_OR, { Associativity::LEFT_TO_RIGHT, 12 } },
+        detail::operator_map(
+            Operator::R_OR,
+            detail::operator_entry(Associativity::LEFT_TO_RIGHT, 12)),
 
-        { Operator::B_TERNARY, { Associativity::RIGHT_TO_LEFT, 13 } },
-        { Operator::B_ASSIGN, { Associativity::RIGHT_TO_LEFT, 14 } }
+        detail::operator_map(
+            Operator::B_TERNARY,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 13)),
+        detail::operator_map(
+            Operator::B_ASSIGN,
+            detail::operator_entry(Associativity::RIGHT_TO_LEFT, 14))
     };
 
 static std::map<std::string, Operator> const BINARY_OPERATORS = {
@@ -147,17 +250,17 @@ static std::map<std::string, Operator> const BINARY_OPERATORS = {
     { "/", Operator::B_DIV }
 };
 
-inline bool is_left_associative(Operator op)
+constexpr bool is_left_associative(Operator const op)
 {
-    return OPERATOR_PRECEDENCE.at(op).first == Associativity::LEFT_TO_RIGHT;
+    return OPERATOR_PRECEDENCE[op].first == Associativity::LEFT_TO_RIGHT;
 }
 
-inline unsigned int get_precedence(Operator op)
+constexpr unsigned int get_precedence(Operator const op)
 {
-    return OPERATOR_PRECEDENCE.at(op).second;
+    return OPERATOR_PRECEDENCE[op].second;
 }
 
-inline std::ostream& operator<<(std::ostream& os, Operator const& op)
+constexpr std::ostream& operator<<(std::ostream& os, Operator const& op)
 {
     switch (op) {
         // relational operators
@@ -270,11 +373,115 @@ inline std::ostream& operator<<(std::ostream& os, Operator const& op)
     return os;
 }
 
-inline std::string operator_to_string(Operator op)
+constexpr std::string operator_to_string(Operator const& op)
 {
-    std::ostringstream os;
-    os << op;
-    return os.str();
+    switch (op) {
+        // relational operators
+        case Operator::R_EQUAL:
+            return "==";
+            break;
+        case Operator::R_NEQUAL:
+            return "!=";
+            break;
+        case Operator::R_LT:
+            return "<";
+            break;
+        case Operator::R_GT:
+            return ">";
+            break;
+        case Operator::R_LE:
+            return "<=";
+            break;
+        case Operator::R_GE:
+            return ">=";
+            break;
+        case Operator::R_OR:
+            return "||";
+            break;
+        case Operator::R_AND:
+            return "&&";
+            break;
+
+        // math binary operators
+        case Operator::B_SUBTRACT:
+            return "-";
+            break;
+        case Operator::B_ADD:
+            return "+";
+            break;
+        case Operator::B_MOD:
+            return "%";
+            break;
+        case Operator::B_MUL:
+            return "*";
+            break;
+        case Operator::B_DIV:
+            return "/";
+            break;
+
+        // unary increment/decrement
+        case Operator::PRE_INC:
+        case Operator::POST_INC:
+            return "++";
+            break;
+
+        case Operator::PRE_DEC:
+        case Operator::POST_DEC:
+            return "--";
+            break;
+
+        // bit ops
+        case Operator::RSHIFT:
+            return ">>";
+            break;
+        case Operator::OR:
+            return "|";
+            break;
+        case Operator::AND:
+            return "&";
+            break;
+        case Operator::LSHIFT:
+            return "<<";
+            break;
+        case Operator::XOR:
+            return "^";
+            break;
+
+        case Operator::U_NOT:
+            return "!";
+            break;
+        case Operator::U_ONES_COMPLEMENT:
+            return "~";
+            break;
+
+        // pointer operators
+        case Operator::U_INDIRECTION:
+            return "*";
+            break;
+        case Operator::U_ADDR_OF:
+            return "&";
+            break;
+        case Operator::U_MINUS:
+            return "-";
+            break;
+        // relational operators
+        case Operator::U_CALL:
+            return "CALL";
+            break;
+        case Operator::U_PUSH:
+            return "PUSH";
+            break;
+        case Operator::B_ASSIGN:
+            return "=";
+            break;
+        case Operator::B_TERNARY:
+            return "?:";
+            break;
+
+        default:
+            return "null";
+            break;
+    }
 }
 
 } // namespace type
