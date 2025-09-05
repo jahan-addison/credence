@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <credence/eternal.h>
 #include <credence/operators.h>
 #include <list>
 #include <map>
-#include <memory>  // For std::unique_ptr
-#include <sstream> // for basic_ostringstream, ostringstream
+#include <memory>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -31,7 +32,7 @@ namespace type {
 
 struct RValue;
 
-enum class RValue_Type_Variant : unsigned long
+enum class RValue_Type_Variant : size_t
 {
     RValue_Pointer = 1,
     Value_Pointer,
@@ -77,7 +78,10 @@ constexpr auto LITERAL_TYPE = mapbox::eternal::map<std::string_view, Type_Size>(
       { "null", { "null", 0 } },
       { "char", { "char", sizeof(char) } } });
 
-constexpr auto NULL_LITERAL = LITERAL_TYPE.find("null")->second;
+constexpr std::pair<std::monostate, Type_Size> NULL_LITERAL = {
+    std::monostate(),
+    type::LITERAL_TYPE.find("null")->second
+};
 
 using Value_Type = std::pair<Value, Type_Size>;
 using Value_Pointer = std::vector<Value_Type>;
@@ -88,18 +92,12 @@ struct RValue
     using Value_Pointer = type::Value_Pointer;
 
     using Value = Value_Type;
-
     using LValue = std::pair<std::string, Value>;
-
     using Symbol = std::pair<LValue, RValue_Pointer>;
-
     using Unary = std::pair<type::Operator, RValue_Pointer>;
-
     using Relation = std::pair<type::Operator, std::vector<RValue_Pointer>>;
 
-    // name, arguments
     using Function = std::pair<LValue, std::vector<RValue_Pointer>>;
-
     using Type = std::variant<std::monostate,
                               RValue_Pointer,
                               Value_Pointer,

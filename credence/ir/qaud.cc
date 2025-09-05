@@ -102,7 +102,7 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
                 pattern | "lvalue" =
                     [&] {
                         block_level.set_symbol_by_name(ident["root"].ToString(),
-                                                       NULL_DATA_TYPE);
+                                                       type::NULL_LITERAL);
                     },
                 pattern | "vector_lvalue" =
                     [&] {
@@ -592,7 +592,7 @@ void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
             pattern | "lvalue" =
                 [&] {
                     symbols.set_symbol_by_name(ident["root"].ToString(),
-                                               NULL_DATA_TYPE);
+                                               type::NULL_LITERAL);
                 },
             pattern | "vector_lvalue" =
                 [&] {

@@ -188,8 +188,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         ": [\"=\", null]\n                }");
 
     RValue_Parser parser{ obj };
-    RValue::Value null = { std::monostate(),
-                           credence::type::LITERAL_TYPE.at("null") };
+    RValue::Value null = type::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);
     parser.symbols_.table_.emplace("exp", null);

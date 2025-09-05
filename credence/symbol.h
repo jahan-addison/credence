@@ -55,7 +55,7 @@ class Symbol_Table
     ~Symbol_Table() = default;
 
   public:
-    inline void set_symbol_by_name(std::string const& name, T entry)
+    inline void set_symbol_by_name(std::string const& name, T const entry)
     {
         table_.insert_or_assign(name, std::move(entry));
     }

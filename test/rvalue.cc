@@ -119,7 +119,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
         ": 10\n                  },\n                  \"root\" : [\"^\"]\n    "
         "            }]");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), LITERAL_TYPE.at("null") };
+    RValue::Value null = type::NULL_LITERAL;
+
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("c", null);
     temp.symbols_.table_.emplace("putchar", null);
@@ -145,7 +146,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
         "   \"node\" : \"lvalue\",\n                      \"root\" : \"z\"\n   "
         "                 }]\n}\n                    ");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), LITERAL_TYPE.at("null") };
+    RValue::Value null = type::NULL_LITERAL;
+
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("y", null);
     temp.symbols_.table_.emplace("putchar", null);
@@ -179,7 +181,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
         "          \"root\" : [\"*\"]\n                  }\n                "
         "}]");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), LITERAL_TYPE.at("null") };
+    RValue::Value null = type::NULL_LITERAL;
+
     temp.symbols_.table_.emplace("x", null);
 
     auto expressions = obj["test"].ArrayRange().get();
@@ -247,7 +250,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
     auto temp = RValue_Parser(obj);
-    RValue::Value null = { std::monostate(), LITERAL_TYPE.at("null") };
+    RValue::Value null = type::NULL_LITERAL;
+
     std::vector<RValue::RValue_Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
 
@@ -361,7 +365,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
         "    \"root\" : [\"!\"]\n                }]");
     auto temp = RValue_Parser(obj);
 
-    RValue::Value null = { std::monostate(), LITERAL_TYPE.at("null") };
+    RValue::Value null = type::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
 
@@ -426,7 +430,8 @@ TEST_CASE_FIXTURE(Fixture,
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
 
-    Value_Type value_type = { std::monostate(), LITERAL_TYPE.at("null") };
+    Value_Type value_type = type::NULL_LITERAL;
+
     Value_Type assigned_type = { 5, LITERAL_TYPE.at("int") };
 
     temp.symbols_.table_.emplace("x", value_type);
@@ -455,8 +460,7 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
     auto temp2 = RValue_Parser(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
-    Value_Type value_type = { std::monostate(), LITERAL_TYPE.at("null") };
-
+    Value_Type value_type = type::NULL_LITERAL;
     temp2.symbols_.set_symbol_by_name("x", value_type);
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }

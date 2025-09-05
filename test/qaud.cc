@@ -143,8 +143,8 @@ TEST_CASE("ir/qaud.cc: build_from_extrn_statement")
 
     credence::Symbol_Table<> symbols{};
     credence::Symbol_Table<> globals{};
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     CHECK_THROWS(build_from_extrn_statement(symbols, globals, obj["test"]));
     globals.table_.emplace("a", null);
     globals.table_.emplace("b", null);
@@ -243,8 +243,7 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
     Instructions test_instructions{};
     std::ostringstream os_test;
     int temporary{ 0 };
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("y", null);
     test_instructions = build_from_return_statement(
@@ -371,8 +370,8 @@ TEST_CASE("ir/qaud.cc: while statement branching")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     symbols.table_.emplace("add", null);
     int temporary{ 0 };
     auto tail_branch = detail::make_temporary(&temporary);
@@ -483,8 +482,8 @@ TEST_CASE("ir/qaud.cc: if and else branching")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     symbols.table_.emplace("add", null);
     int temporary{ 0 };
     auto tail_branch = detail::make_temporary(&temporary);
@@ -565,8 +564,8 @@ TEST_CASE("ir/qaud.cc: truthy type coercion")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     symbols.table_.emplace("x", null);
     symbols.table_.emplace("y", null);
     int temporary{ 0 };
@@ -649,8 +648,8 @@ TEST_CASE("ir/qaud.cc: label and goto")
     credence::Symbol_Table<> symbols{};
     Instructions test_instructions{};
     std::ostringstream os_test;
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     symbols.table_.emplace("add", null);
     test_instructions = build_from_block_statement(
         symbols, symbols, obj["test"], obj["symbols"]);
@@ -854,8 +853,8 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "          \"root\" : \"rvalue\"\n          }");
 
     credence::Symbol_Table<> symbols{};
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     Instructions test_instructions{};
     int temporary{ 0 };
     symbols.table_.emplace("x", null);
@@ -1047,8 +1046,8 @@ TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
     Instructions test_instructions{};
     std::ostringstream os_test;
     int temporary{ 0 };
-    type::RValue::Value null = { std::monostate(),
-                                 type::LITERAL_TYPE.at("null") };
+    type::RValue::Value null = type::NULL_LITERAL;
+
     symbols.table_.emplace("x", null);
     test_instructions = build_from_rvalue_statement(
         symbols, obj["test"], internal_symbols, &temporary);

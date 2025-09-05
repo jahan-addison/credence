@@ -407,7 +407,7 @@ void unary_operand_to_temporary_stack(
                                             operator_to_string(op),
                                             rhs.first));
                             type::RValue::LValue temp_lvalue = std::make_pair(
-                                std::get<1>(operand_temp), NULL_DATA_TYPE);
+                                std::get<1>(operand_temp), type::NULL_LITERAL);
                             operand_stack.push(
                                 rvalue_type_pointer_from_rvalue(temp_lvalue));
                             instructions.push_back(operand_temp);
@@ -548,7 +548,7 @@ void binary_operands_to_temporary_stack(
                                                 rhs_name.first));
                                 type::RValue::LValue temp_lvalue =
                                     std::make_pair(std::get<1>(operand_temp),
-                                                   NULL_DATA_TYPE);
+                                                   type::NULL_LITERAL);
                                 operand_stack.push(
                                     rvalue_type_pointer_from_rvalue(
                                         temp_lvalue));
