@@ -55,7 +55,7 @@ using Quadruple =
     std::tuple<Instruction, std::string, std::string, std::string>;
 
 static type::Value_Type NULL_DATA_TYPE = { std::monostate(),
-                                           type::Type_["null"] };
+                                           type::LITERAL_TYPE.at("null") };
 
 using Instructions = std::deque<Quadruple>;
 using Branch_Instructions = std::pair<Instructions, Instructions>;

@@ -850,8 +850,9 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                             }
                             instructions.push_back(make_quadruple(
                                 Instruction::POP,
-                                std::to_string(param_on_stack *
-                                               type::Type_["word"].second),
+                                std::to_string(
+                                    param_on_stack *
+                                    type::LITERAL_TYPE.at("word").second),
                                 "",
                                 ""));
                             auto call_return = make_temporary(temporary, "RET");
@@ -899,7 +900,8 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                                                temporary);
                             instructions.push_back(make_quadruple(
                                 Instruction::POP,
-                                std::to_string(type::Type_["word"].second),
+                                std::to_string(
+                                    type::LITERAL_TYPE.at("word").second),
                                 "",
                                 ""));
                             break;

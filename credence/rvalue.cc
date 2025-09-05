@@ -295,7 +295,7 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node& node)
                       name);
             else
                 symbols_.set_symbol_by_name(
-                    name, { "__WORD__", type::Type_["word"] });
+                    name, { "__WORD__", type::LITERAL_TYPE.at("word") });
         }
     }
     type::RValue::LValue lvalue{};
@@ -369,7 +369,8 @@ type::RValue::Value RValue_Parser::from_vector_idenfitier(Node& node)
 type::RValue::Value RValue_Parser::from_number_literal(Node& node)
 {
     assert(node["node"].ToString().compare("number_literal") == 0);
-    return { static_cast<int>(node["root"].ToInt()), type::Type_["int"] };
+    return { static_cast<int>(node["root"].ToInt()),
+             type::LITERAL_TYPE.at("int") };
 }
 
 /**
@@ -391,7 +392,7 @@ type::RValue::Value RValue_Parser::from_constant_literal(Node& node)
 {
     assert(node["node"].ToString().compare("constant_literal") == 0);
     return { static_cast<char>(node["root"].ToString()[0]),
-             type::Type_["char"] };
+             type::LITERAL_TYPE.at("char") };
 }
 
 } // namespace credence

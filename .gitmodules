@@ -1,3 +1,3 @@
-[submodule "external/chakram"]
-	path = external/chakram
+[submodule "python/chakram"]
+	path = python/chakram
 	url = git@github.com:jahan-addison/chakram.git

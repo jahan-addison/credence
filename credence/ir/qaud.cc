@@ -92,7 +92,8 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
     auto parameters = node["left"];
     auto block = node["right"];
 
-    symbols.set_symbol_by_name(name, { "__WORD__", type::Type_["word"] });
+    symbols.set_symbol_by_name(name,
+                               { "__WORD__", type::LITERAL_TYPE.at("word") });
 
     if (parameters.JSONType() == json::JSON::Class::Array and
         !parameters.ArrayRange().get()->at(0).IsNull()) {
@@ -114,7 +115,7 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
                     [&] {
                         block_level.set_symbol_by_name(
                             ident["left"]["root"].ToString(),
-                            { "__WORD__", type::Type_["word"] });
+                            { "__WORD__", type::LITERAL_TYPE.at("word") });
                     });
         }
     }
@@ -604,7 +605,7 @@ void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
                 [&] {
                     symbols.set_symbol_by_name(
                         ident["left"]["root"].ToString(),
-                        { "__WORD__", type::Type_["word"] });
+                        { "__WORD__", type::LITERAL_TYPE.at("word") });
                 });
     }
 }

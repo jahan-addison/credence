@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <credence/eternal.h>
 #include <credence/operators.h>
 #include <list>
 #include <map>
@@ -54,7 +55,7 @@ constexpr unsigned long type_variant(RValue_Type_Variant const& type)
 } // namespace detail
 
 using Byte = unsigned char;
-
+using Type_Size = std::pair<std::string, std::size_t>;
 using Value = std::variant<std::monostate,
                            int,
                            long,
@@ -65,19 +66,18 @@ using Value = std::variant<std::monostate,
                            std::string,
                            char>;
 
-using Type_Size = std::pair<std::string, std::size_t>;
+constexpr auto LITERAL_TYPE = mapbox::eternal::map<std::string_view, Type_Size>(
+    { { "word", { "word", sizeof(void*) } },
+      { "byte", { "byte", sizeof(Byte) } },
+      { "int", { "int", sizeof(int) } },
+      { "long", { "long", sizeof(long) } },
+      { "float", { "float", sizeof(float) } },
+      { "double", { "double", sizeof(double) } },
+      { "bool", { "bool", sizeof(bool) } },
+      { "null", { "null", 0 } },
+      { "char", { "char", sizeof(char) } } });
 
-static std::map<std::string, Type_Size> Type_ = {
-    { "word", { "word", sizeof(void*) } },
-    { "byte", { "byte", sizeof(unsigned char) } },
-    { "int", { "int", sizeof(int) } },
-    { "long", { "long", sizeof(long) } },
-    { "float", { "float", sizeof(float) } },
-    { "double", { "double", sizeof(double) } },
-    { "bool", { "bool", sizeof(bool) } },
-    { "null", { "null", 0 } },
-    { "char", { "char", sizeof(char) } }
-};
+constexpr auto NULL_LITERAL = LITERAL_TYPE.find("null")->second;
 
 using Value_Type = std::pair<Value, Type_Size>;
 using Value_Pointer = std::vector<Value_Type>;

@@ -58,43 +58,45 @@ std::string dump_value_type(type::RValue::Value type,
     os << "(";
     std::visit(util::overload{
                    [&](int i) {
-                       os << i << separator << Type_["int"].first << separator
-                          << Type_["int"].second;
+                       os << i << separator << LITERAL_TYPE.at("int").first
+                          << separator << LITERAL_TYPE.at("int").second;
                    },
                    [&](long i) {
-                       os << i << separator << Type_["long"].first << separator
-                          << Type_["long"].second;
+                       os << i << separator << LITERAL_TYPE.at("long").first
+                          << separator << LITERAL_TYPE.at("long").second;
                    },
                    [&](float i) {
-                       os << i << separator << Type_["float"].first << separator
-                          << Type_["float"].second;
+                       os << i << separator << LITERAL_TYPE.at("float").first
+                          << separator << LITERAL_TYPE.at("float").second;
                    },
                    [&](double i) {
-                       os << i << separator << Type_["double"].first
-                          << separator << Type_["double"].second;
+                       os << i << separator << LITERAL_TYPE.at("double").first
+                          << separator << LITERAL_TYPE.at("double").second;
                    },
                    [&](bool i) {
                        os << std::boolalpha << i << separator
-                          << Type_["bool"].first << separator
-                          << Type_["bool"].second;
+                          << LITERAL_TYPE.at("bool").first << separator
+                          << LITERAL_TYPE.at("bool").second;
                    },
                    [&]([[maybe_unused]] std::monostate i) {
-                       os << "null" << separator << Type_["null"].first
-                          << separator << Type_["null"].second;
+                       os << "null" << separator
+                          << LITERAL_TYPE.at("null").first << separator
+                          << LITERAL_TYPE.at("null").second;
                    },
                    [&](credence::type::Byte i) {
-                       os << i << separator << Type_["byte"].first << separator
-                          << type.second.second;
+                       os << i << separator << LITERAL_TYPE.at("byte").first
+                          << separator << type.second.second;
                    },
                    [&](char i) {
-                       os << i << Type_["char"].first << separator
-                          << Type_["char"].second;
+                       os << i << LITERAL_TYPE.at("char").first << separator
+                          << LITERAL_TYPE.at("char").second;
                    },
                    [&]([[maybe_unused]] std::string const& s) {
                        if (s == "__WORD_") {
                            // pointer
-                           os << "__WORD_" << separator << Type_["word"].first
-                              << separator << Type_["word"].second;
+                           os << "__WORD_" << separator
+                              << LITERAL_TYPE.at("word").first << separator
+                              << LITERAL_TYPE.at("word").second;
                        } else {
                            os << std::get<std::string>(type.first) << separator
                               << "string" << separator

@@ -145,9 +145,10 @@ ninja
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `SimpleJSON` - Simple JSON parser
-* `cxxopts` - Lightweight commandline option parser
-* `matchit` - Pattern matching
+* `SimpleJSON` - simple JSON parser
+* `cxxopts` - lightweight commandline parser
+* `matchit` - pattern matching
+* `eternal` - `constexpr` lookup tables
 
 # License
 
