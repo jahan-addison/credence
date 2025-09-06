@@ -15,13 +15,13 @@
  */
 #pragma once
 #include <algorithm>         // for copy, max
-#include <credence/json.h>   // for JSON
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue, Type_, Value_Type
 #include <deque>             // for deque
 #include <iomanip>           // for operator<<, setw
 #include <map>               // for map
 #include <optional>          // for optional, nullopt
+#include <simplejson.h>      // for JSON
 #include <sstream>           // for operator<<, basic_ostream, basic_ostrin...
 #include <string>            // for allocator, char_traits, string, operator<<
 #include <tuple>             // for get, make_tuple, tuple
@@ -31,6 +31,9 @@
 namespace credence {
 
 namespace ir {
+
+// This stanford lecture was extremely helpful:
+// https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/13/Slides13.pdf
 
 using Node = json::JSON;
 

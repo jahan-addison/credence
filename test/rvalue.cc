@@ -1,12 +1,12 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
-#include <credence/json.h>   // for JSON
 #include <credence/rvalue.h> // for RValue_Parser
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for Value_Type, RValue, Type_, Byte
 #include <deque>             // for deque
 #include <map>               // for map
 #include <memory>            // for shared_ptr
+#include <simplejson.h>      // for JSON
 #include <string>            // for basic_string, string
 #include <tuple>             // for get, tie
 #include <utility>           // for pair, make_pair, get
@@ -486,7 +486,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
         "\"root\" : \"z\"\n              }]");
     auto temp = RValue_Parser(obj);
     RValue::Value empty_value = std::make_pair('0', std::make_pair("byte", 50));
-    auto* lvalues = obj["test"].ArrayRange().get();
+    auto lvalues = obj["test"].ArrayRange().get();
     auto [vector, pointer, normal] =
         std::tie(lvalues->at(0), lvalues->at(1), lvalues->at(2));
     temp.symbols_.table_["x"] = empty_value;

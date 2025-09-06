@@ -1,13 +1,13 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
 #include <algorithm>         // for max
-#include <credence/json.h>   // for JSON
 #include <credence/queue.h>  // for rvalues_to_queue, queue_of_rvalues_to_s...
 #include <credence/rvalue.h> // for RValue_Parser
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue, Type_
 #include <map>               // for map
 #include <memory>            // for allocator, make_shared
+#include <simplejson.h>      // for JSON
 #include <string>            // for operator==, basic_string, operator<<
 #include <utility>           // for pair
 #include <variant>           // for monostate

@@ -145,7 +145,8 @@ ninja
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `SimpleJSON` - simple JSON parser
+* `simplejson++` - [easy-to-use memory safe json library](https://github.com/jahan-addison/simplejson)
+* `chakram` - [LALR(1) parser generator](https://github.com/jahan-addison/chakram)
 * `cxxopts` - lightweight commandline parser
 * `matchit` - pattern matching
 * `eternal` - `constexpr` lookup tables

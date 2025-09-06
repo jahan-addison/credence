@@ -2,12 +2,12 @@
 
 #include <credence/ir/qaud.h> // for emit_quadruple, build_from_block_state...
 #include <credence/ir/temp.h> // for make_temporary
-#include <credence/json.h>    // for JSON
 #include <credence/symbol.h>  // for Symbol_Table
 #include <credence/types.h>   // for Type_, RValue, Value_Type, Byte
 #include <deque>              // for operator==, _Deque_iterator, deque
 #include <map>                // for map
 #include <optional>           // for optional
+#include <simplejson.h>       // for JSON
 #include <sstream>            // for basic_ostringstream, ostringstream
 #include <string>             // for allocator, basic_string, operator==
 #include <tuple>              // for tuple
@@ -188,7 +188,7 @@ TEST_CASE("ir/qaud.cc: build_from_vector_definition")
         "\"\\\"tough luck\\\"\"\n        }]\n    }]");
 
     credence::Symbol_Table<> symbols{};
-    auto* vectors = obj["test"].ArrayRange().get();
+    auto vectors = obj["test"].ArrayRange().get();
     build_from_vector_definition(symbols, vectors->at(0), obj["symbols"]);
     CHECK(symbols.is_defined(vectors->at(0)["root"].ToString()) == true);
     auto symbol = symbols.get_symbol_by_name(vectors->at(0)["root"].ToString());

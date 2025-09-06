@@ -18,7 +18,7 @@
 #include <credence/ir/qaud.h>
 #include <assert.h>            // for assert
 #include <credence/ir/temp.h>  // for make_temporary, rvalue_node_to_list_of...
-#include <credence/json.h>     // for JSON
+#include <simplejson.h>     // for JSON
 #include <credence/queue.h>    // for rvalue_to_string, RValue_Queue
 #include <credence/rvalue.h>   // for RValue_Parser
 #include <credence/symbol.h>   // for Symbol_Table
@@ -378,7 +378,7 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
     auto predicate = node["left"];
-    auto* blocks = node["right"].ArrayRange().get();
+    auto blocks = node["right"].ArrayRange().get();
 
     auto start = detail::make_temporary(temporary);
     auto jump = detail::make_temporary(temporary);
@@ -428,7 +428,7 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
     Instructions branch_instructions{};
     RValue_Queue list{};
     auto predicate = node["left"];
-    auto* blocks = node["right"].ArrayRange().get();
+    auto blocks = node["right"].ArrayRange().get();
 
     auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
         symbols, details, predicate, predicate_instructions, temporary);

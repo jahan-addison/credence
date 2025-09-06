@@ -18,7 +18,6 @@
 
 #include <algorithm>            // for max, __any_of_fn, any_of
 #include <cassert>              // for assert
-#include <credence/json.h>      // for JSON
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for RValue, Type_
@@ -29,6 +28,7 @@
 #include <map>                  // for map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
 #include <memory>               // for shared_ptr, make_shared
+#include <simplejson.h>         // for JSON
 #include <stdexcept>            // for runtime_error
 #include <string>               // for allocator, basic_string, operator==
 #include <utility>              // for pair, make_pair, move

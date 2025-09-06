@@ -78,6 +78,13 @@ CPMAddPackage(
 )
 
 CPMAddPackage(
+  NAME simplejson
+  VERSION 1.1.3
+  GITHUB_REPOSITORY jahan-addison/simplejson
+  OPTIONS "BUILD_EXAMPLES OFF"
+)
+
+CPMAddPackage(
   NAME matchit
   VERSION 1.0.1
   GITHUB_REPOSITORY BowenFu/matchit.cpp
@@ -99,7 +106,7 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
-target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson)
 
 include(cmake/doctest.cmake)

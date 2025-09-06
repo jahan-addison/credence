@@ -14,30 +14,29 @@
  * limitations under the License.
  */
 
-// clang-format off
 #include <credence/ir/temp.h>
-#include <credence/ir/qaud.h>    // for make_quadruple, Instructions, Instru...
-#include <credence/operators.h>  // for Operator, operator_to_string
-#include <credence/queue.h>      // for rvalue_to_string, rvalues_to_queue
-#include <credence/rvalue.h>     // for RValue_Parser
-#include <credence/types.h>      // for RValue, rvalue_type_pointer_from_rvalue
-#include <credence/util.h>       // for overload
-#include <matchit.h>             // for Ds, Meet, _, pattern, ds, match, Wil...
-#include <algorithm>             // for copy, max
-#include <deque>                 // for deque, operator==, _Deque_iterator
-#include <format>                // for format, format_string
-#include <list>                  // for operator==, _List_iterator
-#include <map>                   // for map
-#include <memory>                // for __shared_ptr_access, shared_ptr
-#include <stack>                 // for stack
-#include <string>                // for basic_string, string, allocator, to_...
-#include <tuple>                 // for tuple, get
-#include <utility>               // for pair, make_pair, cmp_equal
-#include <variant>               // for visit, variant, monostate
-#include <vector>                // for vector
-#include "credence/json.h"       // for JSON
-#include "credence/symbol.h"     // for Symbol_Table
-// clang-format on
+
+#include <algorithm>            // for copy, max
+#include <credence/ir/qaud.h>   // for make_quadruple, Instructions, Instru...
+#include <credence/operators.h> // for Operator, operator_to_string
+#include <credence/queue.h>     // for rvalue_to_string, rvalues_to_queue
+#include <credence/rvalue.h>    // for RValue_Parser
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
+#include <credence/util.h>      // for overload
+#include <deque>                // for deque, operator==, _Deque_iterator
+#include <format>               // for format, format_string
+#include <list>                 // for operator==, _List_iterator
+#include <map>                  // for map
+#include <matchit.h>            // for Ds, Meet, _, pattern, ds, match, Wil...
+#include <memory>               // for __shared_ptr_access, shared_ptr
+#include <simplejson.h>         // for JSON
+#include <stack>                // for stack
+#include <string>               // for basic_string, string, allocator, to_...
+#include <tuple>                // for tuple, get
+#include <utility>              // for pair, make_pair, cmp_equal
+#include <variant>              // for visit, variant, monostate
+#include <vector>               // for vector
 
 /****************************************************************************
  *  A set of functions that aid construction of 3- or 4- tuple temporaries

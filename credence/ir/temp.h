@@ -25,6 +25,7 @@
 #include <string>             // for allocator, string, operator+, to_string
 #include <utility>            // for pair
 #include <variant>            // for variant
+
 namespace credence {
 namespace type {
 enum class Operator;

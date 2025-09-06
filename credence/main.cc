@@ -15,7 +15,6 @@
  */
 
 #include <credence/ir/qaud.h> // for build_from_definitions, emit_quadruple
-#include <credence/json.h>    // for JSON, operator<<
 #include <credence/python.h>  // for Python_Module_Loader
 #include <credence/symbol.h>  // for Symbol_Table
 #include <credence/util.h>    // for read_file_from_path
@@ -25,6 +24,7 @@
 #include <iostream>           // for basic_ostream, operator<<, endl, cout
 #include <matchit.h>          // for match, pattern, PatternHelper, Pattern...
 #include <memory>             // for allocator, shared_ptr, __shared_ptr_ac...
+#include <simplejson.h>       // for JSON, operator<<
 #include <stdexcept>          // for runtime_error
 #include <stdlib.h>           // for exit
 #include <string>             // for char_traits, operator==, string, basic...
