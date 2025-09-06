@@ -214,7 +214,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     RValue_Queue list{};
     std::string test{};
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["complex"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -222,7 +222,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["unary"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -230,7 +230,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["equal"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -238,7 +238,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["unary_relation"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -246,7 +246,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["ternary"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -254,7 +254,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["function"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -262,7 +262,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["evaluated"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -270,7 +270,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["evaluated_2"]).value));
     rvalues_to_queue(rvalues, &list);
     test = queue_of_rvalues_to_string(&list);
@@ -278,7 +278,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     rvalues.clear();
     list.clear();
 
-    rvalues.push_back(std::make_shared<type::RValue::Type>(
+    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["evaluated_3"]).value));
     rvalues_to_queue(rvalues, &list);
     rvalues.clear();

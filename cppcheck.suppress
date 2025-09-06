@@ -21,6 +21,7 @@ cstyleCast
 
 // ignore dependencies
 *:*json*
+*:*eternal*
 *:*test*
 *:*python*
 *:*cpm_modules*

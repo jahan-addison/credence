@@ -110,7 +110,7 @@ std::string dump_value_type(type::RValue::Value type,
 }
 
 /**
- * @brief Rvalue type to string of it unwrapped data
+ * @brief Rvalue type to string of unwrapped data
  */
 std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
 {
@@ -132,7 +132,7 @@ std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
                 oss << s.first << rvalue_to_string(s.second->value) << space;
             },
             [&](RValue::Relation const& s) {
-                for (auto& relation : s.second) {
+                for (auto const& relation : s.second) {
                     oss << rvalue_to_string(relation->value) << space;
                 }
             },
@@ -143,7 +143,7 @@ std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
 }
 
 /**
- * @brief Queue to string of operators and operands in reverse-polish notaiton
+ * @brief Queue to string of operators and operands in reverse-polish notation
  */
 std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue)
 {
@@ -154,7 +154,7 @@ std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue)
                                       oss << type::operator_to_string(op)
                                           << " ";
                                   },
-                                   [&](type::RValue::Type_Pointer& s) {
+                                   [&](type::RValue::Type_Pointer const& s) {
                                        oss << rvalue_to_string(*s);
                                    }
 
@@ -181,7 +181,7 @@ constexpr void _associativity_operator_precedence(
              get_precedence(op2) <= get_precedence(op2)) ||
             (!is_left_associative(op1) &&
              get_precedence(op1) < get_precedence(op2))) {
-            rvalues_queue->push_back(operator_stack.top());
+            rvalues_queue->emplace_back(operator_stack.top());
             operator_stack.pop();
         } else {
             break;
@@ -196,7 +196,7 @@ constexpr void _balance_queue(RValue_Queue* rvalues_queue,
                               std::stack<type::Operator>& operator_stack)
 {
     if (operator_stack.size() == 1) {
-        rvalues_queue->push_back(operator_stack.top());
+        rvalues_queue->emplace_back(operator_stack.top());
         operator_stack.pop();
     }
 }
@@ -213,58 +213,57 @@ RValue_Queue* _rvalue_pointer_to_queue(
     std::visit(
         util::overload{
             [&](std::monostate) {},
-            [&](type::RValue::RValue_Pointer& s) {
-                auto value = std::make_shared<type::RValue::Type>(s->value);
+            [&](type::RValue::RValue_Pointer const& s) {
+                auto value = rvalue_type_pointer_from_rvalue(s->value);
                 _rvalue_pointer_to_queue(value, rvalues_queue, operator_stack);
             },
             [&](type::RValue::Value_Pointer&) {
-                rvalues_queue->push_back(rvalue_pointer);
+                rvalues_queue->emplace_back(rvalue_pointer);
             },
             [&](type::RValue::Value&) {
-                rvalues_queue->push_back(rvalue_pointer);
+                rvalues_queue->emplace_back(rvalue_pointer);
             },
             [&](type::RValue::LValue&) {
-                rvalues_queue->push_back(rvalue_pointer);
+                rvalues_queue->emplace_back(rvalue_pointer);
             },
-            [&](type::RValue::Unary& s) {
+            [&](type::RValue::Unary const& s) {
                 auto op1 = s.first;
-                auto rhs =
-                    std::make_shared<type::RValue::Type>(s.second->value);
+                auto rhs = rvalue_type_pointer_from_rvalue(s.second->value);
                 _rvalue_pointer_to_queue(rhs, rvalues_queue, operator_stack);
-                operator_stack.push(op1);
+                operator_stack.emplace(op1);
                 _balance_queue(rvalues_queue, operator_stack);
                 _associativity_operator_precedence(
                     op1, rvalues_queue, operator_stack);
             },
-            [&](type::RValue::Relation& s) {
+            [&](type::RValue::Relation const& s) {
                 auto op1 = s.first;
                 if (s.second.size() == 2) {
-                    auto lhs = std::make_shared<type::RValue::Type>(
-                        s.second.at(0)->value);
-                    auto rhs = std::make_shared<type::RValue::Type>(
-                        s.second.at(1)->value);
+                    auto lhs =
+                        rvalue_type_pointer_from_rvalue(s.second.at(0)->value);
+                    auto rhs =
+                        rvalue_type_pointer_from_rvalue(s.second.at(1)->value);
                     _rvalue_pointer_to_queue(
                         lhs, rvalues_queue, operator_stack);
-                    operator_stack.push(op1);
+                    operator_stack.emplace(op1);
                     _rvalue_pointer_to_queue(
                         rhs, rvalues_queue, operator_stack);
                 } else if (s.second.size() == 4) {
                     // ternary
-                    operator_stack.push(Operator::B_TERNARY);
-                    operator_stack.push(Operator::U_PUSH);
-                    auto ternary_lhs = std::make_shared<type::RValue::Type>(
-                        s.second.at(2)->value);
-                    auto ternary_rhs = std::make_shared<type::RValue::Type>(
-                        s.second.at(3)->value);
+                    operator_stack.emplace(Operator::B_TERNARY);
+                    operator_stack.emplace(Operator::U_PUSH);
+                    auto ternary_lhs =
+                        rvalue_type_pointer_from_rvalue(s.second.at(2)->value);
+                    auto ternary_rhs =
+                        rvalue_type_pointer_from_rvalue(s.second.at(3)->value);
                     _rvalue_pointer_to_queue(
                         ternary_lhs, rvalues_queue, operator_stack);
                     _rvalue_pointer_to_queue(
                         ternary_rhs, rvalues_queue, operator_stack);
-                    auto ternary_truthy = std::make_shared<type::RValue::Type>(
-                        s.second.at(0)->value);
-                    operator_stack.push(op1);
-                    auto ternary_falsey = std::make_shared<type::RValue::Type>(
-                        s.second.at(1)->value);
+                    auto ternary_truthy =
+                        rvalue_type_pointer_from_rvalue(s.second.at(0)->value);
+                    operator_stack.emplace(op1);
+                    auto ternary_falsey =
+                        rvalue_type_pointer_from_rvalue(s.second.at(1)->value);
                     _rvalue_pointer_to_queue(
                         ternary_truthy, rvalues_queue, operator_stack);
                     _rvalue_pointer_to_queue(
@@ -274,15 +273,15 @@ RValue_Queue* _rvalue_pointer_to_queue(
                 _associativity_operator_precedence(
                     op1, rvalues_queue, operator_stack);
             },
-            [&](type::RValue::Function& s) {
+            [&](type::RValue::Function const& s) {
                 auto op1 = Operator::U_CALL;
-                auto lhs = std::make_shared<type::RValue::Type>(s.first);
-                operator_stack.push(op1);
+                auto lhs = rvalue_type_pointer_from_rvalue(s.first);
+                operator_stack.emplace(op1);
                 _rvalue_pointer_to_queue(lhs, rvalues_queue, operator_stack);
-                for (auto& parameter : s.second) {
+                for (auto const& parameter : s.second) {
                     auto param =
-                        std::make_shared<type::RValue::Type>(parameter->value);
-                    operator_stack.push(Operator::U_PUSH);
+                        rvalue_type_pointer_from_rvalue(parameter->value);
+                    operator_stack.emplace(Operator::U_PUSH);
                     _rvalue_pointer_to_queue(
                         param, rvalues_queue, operator_stack);
                 }
@@ -290,14 +289,13 @@ RValue_Queue* _rvalue_pointer_to_queue(
                 _associativity_operator_precedence(
                     op1, rvalues_queue, operator_stack);
             },
-            [&](type::RValue::Symbol& s) {
+            [&](type::RValue::Symbol const& s) {
                 auto op1 = Operator::B_ASSIGN;
-                auto lhs = std::make_shared<type::RValue::Type>(s.first);
-                auto rhs =
-                    std::make_shared<type::RValue::Type>(s.second->value);
+                auto lhs = rvalue_type_pointer_from_rvalue(s.first);
+                auto rhs = rvalue_type_pointer_from_rvalue(s.second->value);
                 _rvalue_pointer_to_queue(lhs, rvalues_queue, operator_stack);
                 _rvalue_pointer_to_queue(rhs, rvalues_queue, operator_stack);
-                operator_stack.push(op1);
+                operator_stack.emplace(op1);
                 _balance_queue(rvalues_queue, operator_stack);
                 _associativity_operator_precedence(
                     op1, rvalues_queue, operator_stack);

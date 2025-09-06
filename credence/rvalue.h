@@ -21,11 +21,9 @@
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <deque>             // for deque
-#include <map>               // for map
-#include <string>            // for allocator, basic_string, string
+#include <memory>            // for make_shared
+#include <string>            // for basic_string, string
 #include <string_view>       // for string_view
-#include <vector>            // for vector
 
 namespace credence {
 
@@ -62,15 +60,31 @@ class RValue_Parser
     ~RValue_Parser() = default;
 
   public:
+    static inline type::RValue make_rvalue(json::JSON const& node,
+                                           json::JSON const& internals,
+                                           Symbol_Table<> const& symbols = {},
+                                           Symbol_Table<> const& globals = {})
+    {
+        auto rvalue = RValue_Parser(internals, symbols, globals);
+        return rvalue.from_rvalue(node);
+    }
+
+  public:
     using Node = json::JSON;
-    type::RValue from_rvalue(Node& node);
-    inline type::RValue from_rvalue_expression(Node& node)
+    type::RValue from_rvalue(Node const& node);
+
+    inline type::RValue::RValue_Pointer shared_ptr_from_rvalue(Node const& node)
+    {
+        return std::make_shared<type::RValue>(from_rvalue(node));
+    }
+
+    inline type::RValue from_rvalue_expression(Node const& node)
     {
         return from_rvalue(node);
     }
 
   public:
-    inline bool is_symbol(Node& node)
+    inline bool is_symbol(Node const& node)
     {
         auto lvalue = node["root"].ToString();
         return symbols_.is_defined(lvalue) or globals_.is_defined(lvalue);
@@ -83,28 +97,28 @@ class RValue_Parser
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_evaluated_expression(Node& node);
-    type::RValue from_function_expression(Node& node);
+    type::RValue from_evaluated_expression(Node const& node);
+    type::RValue from_function_expression(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_relation_expression(Node& node);
+    type::RValue from_relation_expression(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_unary_expression(Node& node);
+    type::RValue from_unary_expression(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue::LValue from_lvalue_expression(Node& node);
-    type::RValue::Value from_indirect_identifier(Node& node);
-    type::RValue::Value from_vector_idenfitier(Node& node);
+    type::RValue::LValue from_lvalue_expression(Node const& node);
+    type::RValue::Value from_indirect_identifier(Node const& node);
+    type::RValue::Value from_vector_idenfitier(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_assignment_expression(Node& node);
+    type::RValue from_assignment_expression(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue::Value from_constant_expression(Node& node);
-    type::RValue::Value from_number_literal(Node& node);
-    type::RValue::Value from_string_literal(Node& node);
-    type::RValue::Value from_constant_literal(Node& node);
+    type::RValue::Value from_constant_expression(Node const& node);
+    type::RValue::Value from_number_literal(Node const& node);
+    type::RValue::Value from_string_literal(Node const& node);
+    type::RValue::Value from_constant_literal(Node const& node);
 
   private:
     // clang-format on
@@ -119,5 +133,17 @@ class RValue_Parser
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };
+
+// clang-format on
+
+inline type::RValue::RValue_Pointer make_rvalue(
+    json::JSON const& node,
+    json::JSON const& internals,
+    Symbol_Table<> const& symbols = {},
+    Symbol_Table<> const& globals = {})
+{
+    return std::make_shared<type::RValue>(
+        RValue_Parser::make_rvalue(node, internals, symbols, globals));
+}
 
 } // namespace credence

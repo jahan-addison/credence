@@ -15,8 +15,7 @@
  *
  */
 
-/**
- * @brief Heavily-modified version of "SimpleJSON"
+/** @brief Heavily-modified version of "SimpleJSON"
  */
 
 #pragma once
@@ -112,12 +111,12 @@ class JSON
         {
         }
 
-        deque<JSON>* List;
-        map<string, JSON>* Map;
-        string* String;
-        double Float;
-        long Int;
-        bool Bool;
+        mutable deque<JSON>* List;
+        mutable map<string, JSON>* Map;
+        mutable string* String;
+        mutable double Float;
+        mutable long Int;
+        mutable bool Bool;
     } Internal;
 
   public:
@@ -182,7 +181,7 @@ class JSON
         {
         }
 
-        inline Container* get() const { return object; }
+        inline const Container* get() const { return object; }
 
         JSON& operator[](int index) const { return object->at(index); }
 
@@ -388,6 +387,12 @@ class JSON
         return Internal.Map->operator[](key);
     }
 
+    const JSON& operator[](const string& key) const
+    {
+        SetType(Class::Object);
+        return Internal.Map->operator[](key);
+    }
+
     JSON& operator[](unsigned index)
     {
         SetType(Class::Array);
@@ -400,6 +405,7 @@ class JSON
 
     const JSON& at(const string& key) const
     {
+        SetType(Class::Object);
         return Internal.Map->operator[](key);
     }
 
@@ -573,7 +579,7 @@ class JSON
     friend std::ostream& operator<<(std::ostream&, const JSON&);
 
   private:
-    void SetType(Class type)
+    void SetType(Class type) const
     {
         if (type == Type)
             return;
@@ -612,7 +618,7 @@ class JSON
       performed here. This function should be called in a constructed JSON just
       before you are going to overwrite Internal...
     */
-    void ClearInternal()
+    void ClearInternal() const
     {
         switch (Type) {
             case Class::Object:
@@ -629,7 +635,7 @@ class JSON
     }
 
   private:
-    Class Type = Class::Null;
+    mutable Class Type = Class::Null;
 };
 
 inline JSON Array()

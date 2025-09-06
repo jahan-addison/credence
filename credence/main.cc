@@ -92,6 +92,7 @@ int main(int argc, const char* argv[])
         }
 
         match(result["target"].as<std::string>())(
+            // cppcheck-suppress syntaxError
             pattern | "ir" =
                 [&]() {
                     credence::Symbol_Table<> symbols{};

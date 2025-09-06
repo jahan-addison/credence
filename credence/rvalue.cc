@@ -62,7 +62,7 @@ void RValue_Parser::error(std::string_view message,
 /**
  * @brief Parse rvalue ast node into type::RValue struct type pointer
  */
-type::RValue RValue_Parser::from_rvalue(Node& node)
+type::RValue RValue_Parser::from_rvalue(Node const& node)
 {
 
     using namespace matchit;
@@ -72,6 +72,7 @@ type::RValue RValue_Parser::from_rvalue(Node& node)
             return str == node["node"].ToString();
         });
     match(node["node"].ToString())(
+        // cppcheck-suppress syntaxError
         pattern | "constant_literal" =
             [&] { rvalue.value = from_constant_expression(node); },
         pattern | "number_literal" =
@@ -120,7 +121,7 @@ type::RValue RValue_Parser::from_rvalue(Node& node)
 /**
  * @brief Build rvalue from function call expression
  */
-type::RValue RValue_Parser::from_function_expression(Node& node)
+type::RValue RValue_Parser::from_function_expression(Node const& node)
 {
     type::RValue rvalue{};
 
@@ -128,8 +129,7 @@ type::RValue RValue_Parser::from_function_expression(Node& node)
     std::vector<type::RValue::RValue_Pointer> parameters{};
 
     for (auto& param : node["right"].ArrayRange()) {
-        parameters.push_back(
-            std::make_shared<type::RValue>(from_rvalue(param)));
+        parameters.emplace_back(shared_ptr_from_rvalue(param));
     }
     auto lhs = from_lvalue_expression(node["left"]);
     rvalue.value = std::make_pair(lhs, std::move(parameters));
@@ -139,18 +139,18 @@ type::RValue RValue_Parser::from_function_expression(Node& node)
 /**
  * @brief An rvalue wrapped in parenthesis, pre-evaluated
  */
-type::RValue RValue_Parser::from_evaluated_expression(Node& node)
+type::RValue RValue_Parser::from_evaluated_expression(Node const& node)
 {
     type::RValue rvalue{};
     assert(node["node"].ToString().compare("evaluated_expression") == 0);
-    rvalue.value = std::make_shared<type::RValue>(from_rvalue(node["root"]));
+    rvalue.value = shared_ptr_from_rvalue(node["root"]);
     return rvalue;
 }
 
 /**
  * @brief Relation to sum type of operator and chain of rvalues
  */
-type::RValue RValue_Parser::from_relation_expression(Node& node)
+type::RValue RValue_Parser::from_relation_expression(Node const& node)
 {
     type::RValue rvalue{};
     assert(node["node"].ToString().compare("relation_expression") == 0);
@@ -159,22 +159,16 @@ type::RValue RValue_Parser::from_relation_expression(Node& node)
         node["right"]["node"].ToString() == "ternary_expression") {
         auto ternary = node["right"];
         auto op = node["root"].ArrayRange().get()->at(0).ToString();
-        blocks.push_back(
-            std::make_shared<type::RValue>(from_rvalue(node["left"])));
-        blocks.push_back(
-            std::make_shared<type::RValue>(from_rvalue(ternary["root"])));
-        blocks.push_back(
-            std::make_shared<type::RValue>(from_rvalue(ternary["left"])));
-        blocks.push_back(
-            std::make_shared<type::RValue>(from_rvalue(ternary["right"])));
+        blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
+        blocks.emplace_back(shared_ptr_from_rvalue(ternary["root"]));
+        blocks.emplace_back(shared_ptr_from_rvalue(ternary["left"]));
+        blocks.emplace_back(shared_ptr_from_rvalue(ternary["right"]));
         rvalue.value =
             std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
     } else {
         auto op = node["root"].ArrayRange().get()->at(0).ToString();
-        blocks.push_back(
-            std::make_shared<type::RValue>(from_rvalue(node["left"])));
-        blocks.push_back(
-            std::make_shared<type::RValue>(from_rvalue(node["right"])));
+        blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
+        blocks.emplace_back(shared_ptr_from_rvalue(node["right"]));
         rvalue.value =
             std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
     }
@@ -184,7 +178,7 @@ type::RValue RValue_Parser::from_relation_expression(Node& node)
 /**
  * @brief Unary operator expression to algebraic pair
  */
-type::RValue RValue_Parser::from_unary_expression(Node& node)
+type::RValue RValue_Parser::from_unary_expression(Node const& node)
 {
     using namespace matchit;
     using namespace type;
@@ -230,16 +224,14 @@ type::RValue RValue_Parser::from_unary_expression(Node& node)
             [&] {
                 auto op = node["root"].ArrayRange().get()->at(0).ToString();
                 assert(op.compare("&") == 0);
-                auto rhs =
-                    std::make_shared<type::RValue>(from_rvalue(node["left"]));
+                auto rhs = shared_ptr_from_rvalue(node["left"]);
                 rvalue.value = std::make_pair(Operator::U_ADDR_OF, rhs);
             },
         // otherwise:
         pattern | _ =
             [&] {
                 auto op = node["root"].ArrayRange().get()->at(0).ToString();
-                auto rhs =
-                    std::make_shared<type::RValue>(from_rvalue(node["left"]));
+                auto rhs = shared_ptr_from_rvalue(node["left"]);
                 rvalue.value = std::make_pair(other_unary.at(op), rhs);
             });
     return rvalue;
@@ -248,7 +240,7 @@ type::RValue RValue_Parser::from_unary_expression(Node& node)
 /**
  * @brief Parse assignment expression into pairs of LHS and RHS
  */
-type::RValue RValue_Parser::from_assignment_expression(Node& node)
+type::RValue RValue_Parser::from_assignment_expression(Node const& node)
 {
     assert(node["node"].ToString().compare("assignment_expression") == 0);
     assert(node.hasKey("left"));
@@ -262,9 +254,9 @@ type::RValue RValue_Parser::from_assignment_expression(Node& node)
     }
 
     auto lhs = from_lvalue_expression(left_child_node);
-    auto rhs = from_rvalue(right_child_node);
+    auto rhs = shared_ptr_from_rvalue(right_child_node);
     type::RValue rvalue = type::RValue{};
-    rvalue.value = std::make_pair(lhs, std::make_shared<type::RValue>(rhs));
+    rvalue.value = std::make_pair(lhs, rhs);
 
     return rvalue;
 }
@@ -272,7 +264,7 @@ type::RValue RValue_Parser::from_assignment_expression(Node& node)
 /**
  * @brief Parse lvalue expression data types
  */
-type::RValue::LValue RValue_Parser::from_lvalue_expression(Node& node)
+type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
 {
     using namespace matchit;
     auto constant_type = node["node"].ToString();
@@ -324,7 +316,7 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node& node)
 /**
  * @brief Parse constant expression data types
  */
-type::RValue::Value RValue_Parser::from_constant_expression(Node& node)
+type::RValue::Value RValue_Parser::from_constant_expression(Node const& node)
 {
     using namespace matchit;
     auto constant_type = node["node"].ToString();
@@ -338,7 +330,7 @@ type::RValue::Value RValue_Parser::from_constant_expression(Node& node)
 /**
  * @brief Parse lvalue to pointer data type
  */
-type::RValue::Value RValue_Parser::from_indirect_identifier(Node& node)
+type::RValue::Value RValue_Parser::from_indirect_identifier(Node const& node)
 {
     assert(node["node"].ToString().compare("indirect_lvalue") == 0);
     assert(node.hasKey("left"));
@@ -352,7 +344,7 @@ type::RValue::Value RValue_Parser::from_indirect_identifier(Node& node)
 /**
  * @brief Parse fixed-size vector (array) lvalue
  */
-type::RValue::Value RValue_Parser::from_vector_idenfitier(Node& node)
+type::RValue::Value RValue_Parser::from_vector_idenfitier(Node const& node)
 {
     assert(node["node"].ToString().compare("vector_lvalue") == 0);
 
@@ -366,7 +358,7 @@ type::RValue::Value RValue_Parser::from_vector_idenfitier(Node& node)
 /**
  * @brief Parse number literal node into symbols
  */
-type::RValue::Value RValue_Parser::from_number_literal(Node& node)
+type::RValue::Value RValue_Parser::from_number_literal(Node const& node)
 {
     assert(node["node"].ToString().compare("number_literal") == 0);
     return { static_cast<int>(node["root"].ToInt()),
@@ -376,7 +368,7 @@ type::RValue::Value RValue_Parser::from_number_literal(Node& node)
 /**
  * @brief Parse string literal node into symbols
  */
-type::RValue::Value RValue_Parser::from_string_literal(Node& node)
+type::RValue::Value RValue_Parser::from_string_literal(Node const& node)
 {
     assert(node["node"].ToString().compare("string_literal") == 0);
     auto string_literal = util::unescape_string(node["root"].ToString());
@@ -388,7 +380,7 @@ type::RValue::Value RValue_Parser::from_string_literal(Node& node)
 /**
  * @brief Parse constant literal node into symbols
  */
-type::RValue::Value RValue_Parser::from_constant_literal(Node& node)
+type::RValue::Value RValue_Parser::from_constant_literal(Node const& node)
 {
     assert(node["node"].ToString().compare("constant_literal") == 0);
     return { static_cast<char>(node["root"].ToString()[0]),

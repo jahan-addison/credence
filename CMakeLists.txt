@@ -27,6 +27,7 @@ include(cmake/CPM.cmake)
 CPMAddPackage("gh:StableCoder/cmake-scripts#24.04")
 CPMAddPackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
+
 # Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake
 # enables sanitizers support using the the `USE_SANITIZER` flag available values are: Address,
 # Memory, MemoryWithOrigins, Undefined, Thread, Leak, 'Address;Undefined'

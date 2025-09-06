@@ -96,8 +96,8 @@ void binary_operands_balanced_temporary_stack(
     instructions.insert(
         instructions.end(), lhs.second.begin(), lhs.second.end());
     auto temp_rhs = make_temporary(temporary, rhs);
-    instructions.push_back(temp_rhs);
-    temporary_stack.push(std::format(
+    instructions.emplace_back(temp_rhs);
+    temporary_stack.emplace(std::format(
         "{} {} {}", lhs.first, operator_to_string(op), std::get<1>(temp_rhs)));
     // an lvalue at the end of a call stack
     if (operand1->index() == 6 and operand_stack.size() == 0) {
@@ -106,7 +106,7 @@ void binary_operands_balanced_temporary_stack(
                                                    lhs.first,
                                                    operator_to_string(op),
                                                    std::get<1>(temp_rhs)));
-        instructions.push_back(temp_lhs);
+        instructions.emplace_back(temp_lhs);
     }
 }
 
@@ -171,9 +171,10 @@ void binary_operands_unbalanced_temporary_stack(
                                                std::get<1>(last_lvalue),
                                                operator_to_string(op),
                                                std::get<1>(last)));
-                instructions.push_back(operand_temp);
-                temporary_stack.push(std::get<1>(operand_temp));
+                instructions.emplace_back(operand_temp);
+                temporary_stack.emplace(std::get<1>(operand_temp));
             },
+        // cppcheck-suppress syntaxError
         pattern | 1 =
             [&] {
                 auto operand_temp =
@@ -182,8 +183,8 @@ void binary_operands_unbalanced_temporary_stack(
                                                rhs_lvalue,
                                                operator_to_string(op),
                                                std::get<1>(last)));
-                instructions.push_back(operand_temp);
-                temporary_stack.push(std::get<1>(operand_temp));
+                instructions.emplace_back(operand_temp);
+                temporary_stack.emplace(std::get<1>(operand_temp));
             }
 
     );
@@ -235,7 +236,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                                             std::format("{} {}",
                                                         operator_to_string(op),
                                                         std::get<1>(temp)));
-                instructions.push_back(unary);
+                instructions.emplace_back(unary);
                 temp_name = std::get<1>(unary);
             },
             [&](RValue::Relation& s) {
@@ -258,7 +259,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                                                    operator_to_string(op),
                                                    rhs.first));
 
-                    instructions.push_back(relation);
+                    instructions.emplace_back(relation);
                     temp_name = std::get<1>(relation);
                 }
             },
@@ -296,7 +297,7 @@ void assignment_operands_to_temporary_stack(
                                                                      temporary);
                 instructions.insert(
                     instructions.end(), lhs.second.begin(), lhs.second.end());
-                instructions.push_back(
+                instructions.emplace_back(
                     make_quadruple(Instruction::VARIABLE, lhs.first, rhs));
             },
         pattern | ds(_ == 1, _ == 0) =
@@ -305,7 +306,7 @@ void assignment_operands_to_temporary_stack(
                 operand_stack.pop();
                 if (instructions.size() > 1) {
                     auto last = instructions[instructions.size() - 1];
-                    instructions.push_back(make_quadruple(
+                    instructions.emplace_back(make_quadruple(
                         Instruction::VARIABLE, lhs_rvalue, std::get<1>(last)));
                 }
             },
@@ -325,7 +326,7 @@ void assignment_operands_to_temporary_stack(
                     instructions.end(), lhs.second.begin(), lhs.second.end());
                 instructions.insert(
                     instructions.end(), rhs.second.begin(), rhs.second.end());
-                instructions.push_back(make_quadruple(
+                instructions.emplace_back(make_quadruple(
                     Instruction::VARIABLE, lhs.first, rhs.first));
             });
 }
@@ -376,7 +377,7 @@ void unary_operand_to_temporary_stack(
                 auto unary = make_temporary(
                     temporary,
                     std::format("{} {}", operator_to_string(op), operand1));
-                temporary_stack.push(std::format(
+                temporary_stack.emplace(std::format(
                     "{} {}", operator_to_string(op), std::get<1>(unary), ""));
             },
         pattern | _ =
@@ -389,8 +390,8 @@ void unary_operand_to_temporary_stack(
                     auto operand1 = temporary_stack.top();
                     temporary_stack.pop();
                     auto last_expression = make_temporary(temporary, operand1);
-                    instructions.push_back(last_expression);
-                    temporary_stack.push(std::get<1>(last_expression));
+                    instructions.emplace_back(last_expression);
+                    temporary_stack.emplace(std::get<1>(last_expression));
                 }
                 auto rhs = instruction_temporary_from_rvalue_operand(operand1,
                                                                      temporary);
@@ -408,9 +409,9 @@ void unary_operand_to_temporary_stack(
                                             rhs.first));
                             type::RValue::LValue temp_lvalue = std::make_pair(
                                 std::get<1>(operand_temp), type::NULL_LITERAL);
-                            operand_stack.push(
+                            operand_stack.emplace(
                                 rvalue_type_pointer_from_rvalue(temp_lvalue));
-                            instructions.push_back(operand_temp);
+                            instructions.emplace_back(operand_temp);
                         },
                     pattern | _ =
                         [&] {
@@ -420,8 +421,8 @@ void unary_operand_to_temporary_stack(
                                 std::format("{} {}",
                                             operator_to_string(op),
                                             rhs.first));
-                            instructions.push_back(unary);
-                            temporary_stack.push(std::get<1>(unary));
+                            instructions.emplace_back(unary);
+                            temporary_stack.emplace(std::get<1>(unary));
                         }
 
                 );
@@ -492,7 +493,7 @@ void binary_operands_to_temporary_stack(
                 auto last_instruction = make_temporary(
                     temporary,
                     std::format("{} {} {}", lhs, operator_to_string(op), rhs));
-                instructions.push_back(last_instruction);
+                instructions.emplace_back(last_instruction);
             },
         // there is exactly one temporary lvalue,
         // and at least one rvalue operand to use
@@ -549,13 +550,13 @@ void binary_operands_to_temporary_stack(
                                 type::RValue::LValue temp_lvalue =
                                     std::make_pair(std::get<1>(operand_temp),
                                                    type::NULL_LITERAL);
-                                operand_stack.push(
+                                operand_stack.emplace(
                                     rvalue_type_pointer_from_rvalue(
                                         temp_lvalue));
-                                instructions.push_back(operand_temp);
+                                instructions.emplace_back(operand_temp);
 
                             } else {
-                                temporary_stack.push(
+                                temporary_stack.emplace(
                                     std::format("{} {} {}",
                                                 lhs_name.first,
                                                 operator_to_string(op),
@@ -810,14 +811,14 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                 auto rhs = temporary_stack.top();
                                 temporary_stack.pop();
                                 auto temp_rhs = make_temporary(temporary, rhs);
-                                instructions.push_back(temp_rhs);
-                                temporary_stack.push(
+                                instructions.emplace_back(temp_rhs);
+                                temporary_stack.emplace(
                                     std::format("{} {}",
                                                 operator_to_string(op),
                                                 std::get<1>(temp_rhs)));
-                                instructions.push_back(
+                                instructions.emplace_back(
                                     make_quadruple(Instruction::CALL, rhs, ""));
-                                temporary_stack.push(rhs);
+                                temporary_stack.emplace(rhs);
                             } else {
                                 if (temporary_stack.size() == 1 and
                                     operand_stack.size() < 1) {
@@ -825,14 +826,14 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                     temporary_stack.pop();
                                     auto temp_rhs =
                                         make_temporary(temporary, rhs);
-                                    instructions.push_back(temp_rhs);
-                                    temporary_stack.push(
+                                    instructions.emplace_back(temp_rhs);
+                                    temporary_stack.emplace(
                                         std::format("{} {}",
                                                     operator_to_string(op),
                                                     std::get<1>(temp_rhs)));
-                                    instructions.push_back(make_quadruple(
+                                    instructions.emplace_back(make_quadruple(
                                         Instruction::CALL, rhs, ""));
-                                    temporary_stack.push(rhs);
+                                    temporary_stack.emplace(rhs);
                                 }
                                 if (operand_stack.size() < 1)
                                     return;
@@ -845,10 +846,10 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                                     rhs.second.begin(),
                                                     rhs.second.end());
 
-                                instructions.push_back(make_quadruple(
+                                instructions.emplace_back(make_quadruple(
                                     Instruction::CALL, rhs.first, ""));
                             }
-                            instructions.push_back(make_quadruple(
+                            instructions.emplace_back(make_quadruple(
                                 Instruction::POP,
                                 std::to_string(
                                     param_on_stack *
@@ -856,9 +857,10 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                 "",
                                 ""));
                             auto call_return = make_temporary(temporary, "RET");
-                            instructions.push_back(call_return);
+                            instructions.emplace_back(call_return);
                             if (operand_stack.size() > 1) {
-                                temporary_stack.push(std::get<1>(call_return));
+                                temporary_stack.emplace(
+                                    std::get<1>(call_return));
                             }
                             param_on_stack = 0;
                         } break;
@@ -866,7 +868,7 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                             if (temporary_stack.size() >= 1) {
                                 auto rhs = temporary_stack.top();
                                 temporary_stack.pop();
-                                instructions.push_back(
+                                instructions.emplace_back(
                                     make_quadruple(Instruction::PUSH, rhs, ""));
                             } else {
                                 if (operand_stack.size() < 1)
@@ -879,7 +881,7 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                 instructions.insert(instructions.end(),
                                                     rhs.second.begin(),
                                                     rhs.second.end());
-                                instructions.push_back(make_quadruple(
+                                instructions.emplace_back(make_quadruple(
                                     Instruction::PUSH, rhs.first, ""));
                             }
                             param_on_stack++;
@@ -898,7 +900,7 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                                                instructions,
                                                                op,
                                                                temporary);
-                            instructions.push_back(make_quadruple(
+                            instructions.emplace_back(make_quadruple(
                                 Instruction::POP,
                                 std::to_string(
                                     type::LITERAL_TYPE.at("word").second),
@@ -907,7 +909,9 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                             break;
                     }
                 },
-                [&](type::RValue::Type_Pointer& s) { operand_stack.push(s); } },
+                [&](type::RValue::Type_Pointer& s) {
+                    operand_stack.emplace(s);
+                } },
             item);
     }
     return instructions;
@@ -930,19 +934,21 @@ RValue_Instructions rvalue_node_to_list_of_ir_instructions(
         for (auto& expression : node.ArrayRange()) {
             if (expression.JSONType() == json::JSON::Class::Array) {
                 for (auto& rvalue : expression.ArrayRange()) {
-
-                    rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                        parser.from_rvalue(rvalue).value));
+                    auto expression_rvalue =
+                        RValue_Parser::make_rvalue(rvalue, details, symbols);
+                    rvalues.emplace_back(type::rvalue_type_pointer_from_rvalue(
+                        expression_rvalue.value));
                 }
             } else {
-                rvalues.push_back(type::rvalue_type_pointer_from_rvalue(
-                    parser.from_rvalue(expression).value));
+                rvalues.emplace_back(type::rvalue_type_pointer_from_rvalue(
+                    RValue_Parser::make_rvalue(expression, details, symbols)
+                        .value));
             }
         }
         rvalues_to_queue(rvalues, &list);
     } else {
         auto rvalue_type_pointer = type::rvalue_type_pointer_from_rvalue(
-            parser.from_rvalue(node).value);
+            RValue_Parser::make_rvalue(node, details, symbols).value);
         rvalues_to_queue(rvalue_type_pointer, &list);
     }
     auto instructions = rvalue_queue_to_temp_ir_instructions(&list, temporary);
