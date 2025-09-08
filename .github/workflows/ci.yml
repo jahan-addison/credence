@@ -5,25 +5,35 @@ on:
     branches:
       - master
       - main
+      - ci/*
   pull_request:
     branches:
       - master
       - main
 
-env:
-  CPM_SOURCE_CACHE: ${{ github.workspace }}/cpm_modules
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [g++, clang++]
+        exclude: # Exclude macOS + GCC as it's not the default and requires extra setup
+          - os: macos-latest
+            compiler: g++
 
     steps:
-    - uses: actions/checkout@v3
 
-    - name: Installation
+    - name: Install dependencies (Ubuntu)
+      if: startsWith(matrix.os, 'ubuntu')
+      shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-10 llvm-20 clang-20 iwyu python3-dev cppcheck clang-tidy
+        sudo apt-get install cmake -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
+        echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.bashrc
+        source ~/.bashrc
+        pipx install poetry
         sudo update-alternatives \
           --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
           --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-10 \
@@ -36,16 +46,41 @@ jobs:
         sudo update-alternatives \
           --install /usr/bin/clang clang /usr/bin/clang-20 100
 
-    - name: configure
-      run: cmake -Bbuild -DCMAKE_C_COMPILER=$(which clang) -DCMAKE_CXX_COMPILER=$(which clang++) -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined"
+    - name: Install dependencies (Mac)
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        brew update
+        brew install include-what-you-use llvm@20 clang-format cppcheck coreutils poetry python3
+
+    - uses: actions/checkout@v4
 
     - name: build
-      run: cmake --build build -j4
-
-    - name: run
-      run: ./build/credence -h
+      run: |
+        # Make with -fsanitize
+        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
     - name: test
       run: |
+        # Make with -fsanitize
+        cmake --build build
+        cd python/chakram
+        poetry install
+        make install
+        cd ../../
+        ./build/credence -h
+        ./build/credence -d -t ast $(pwd)/examples/1.b
+        ./build/credence -d $(pwd)/examples/1.b
         ./build/test_suite
-        # find ./test/fixtures/ -type f -name "*.b" -print0 | xargs -0 -I{}  ./build/credence {}
+
+    - name: memcheck
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        # Build for valgrind without -fsanitize
+        rm -rf build
+        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=ON
+        cmake --build build
+        cd python/chakram
+        poetry install
+        make install
+        cd ../../
+        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/examples/1.b

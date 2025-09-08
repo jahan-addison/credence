@@ -67,16 +67,17 @@ using Value = std::variant<std::monostate,
                            std::string,
                            char>;
 
-constexpr auto LITERAL_TYPE = mapbox::eternal::map<std::string_view, Type_Size>(
-    { { "word", { "word", sizeof(void*) } },
-      { "byte", { "byte", sizeof(Byte) } },
-      { "int", { "int", sizeof(int) } },
-      { "long", { "long", sizeof(long) } },
-      { "float", { "float", sizeof(float) } },
-      { "double", { "double", sizeof(double) } },
-      { "bool", { "bool", sizeof(bool) } },
-      { "null", { "null", 0 } },
-      { "char", { "char", sizeof(char) } } });
+MAPBOX_ETERNAL_CONSTEXPR auto LITERAL_TYPE =
+    mapbox::eternal::map<std::string_view, Type_Size>(
+        { { "word", { "word", sizeof(void*) } },
+          { "byte", { "byte", sizeof(Byte) } },
+          { "int", { "int", sizeof(int) } },
+          { "long", { "long", sizeof(long) } },
+          { "float", { "float", sizeof(float) } },
+          { "double", { "double", sizeof(double) } },
+          { "bool", { "bool", sizeof(bool) } },
+          { "null", { "null", 0 } },
+          { "char", { "char", sizeof(char) } } });
 
 constexpr std::pair<std::monostate, Type_Size> NULL_LITERAL = {
     std::monostate(),
