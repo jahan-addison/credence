@@ -15,10 +15,10 @@
  */
 #pragma once
 
-#include <credence/eternal.h>
 #include <credence/operators.h>
 #include <list>
 #include <map>
+#include <mapbox/eternal.hpp>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -67,8 +67,9 @@ using Value = std::variant<std::monostate,
                            std::string,
                            char>;
 
-MAPBOX_ETERNAL_CONSTEXPR auto LITERAL_TYPE =
-    mapbox::eternal::map<std::string_view, Type_Size>(
+#ifdef __clang__
+constexpr auto LITERAL_TYPE =
+    mapbox::eternal::map<std::string_view, std::pair<std::string, std::size_t>>(
         { { "word", { "word", sizeof(void*) } },
           { "byte", { "byte", sizeof(Byte) } },
           { "int", { "int", sizeof(int) } },
@@ -78,11 +79,25 @@ MAPBOX_ETERNAL_CONSTEXPR auto LITERAL_TYPE =
           { "bool", { "bool", sizeof(bool) } },
           { "null", { "null", 0 } },
           { "char", { "char", sizeof(char) } } });
+#else
+static auto LITERAL_TYPE =
+    mapbox::eternal::map<std::string_view, std::pair<std::string, std::size_t>>(
+        { { "word", { "word", sizeof(void*) } },
+          { "byte", { "byte", sizeof(Byte) } },
+          { "int", { "int", sizeof(int) } },
+          { "long", { "long", sizeof(long) } },
+          { "float", { "float", sizeof(float) } },
+          { "double", { "double", sizeof(double) } },
+          { "bool", { "bool", sizeof(bool) } },
+          { "null", { "null", 0 } },
+          { "char", { "char", sizeof(char) } } });
+#endif
 
-constexpr std::pair<std::monostate, Type_Size> NULL_LITERAL = {
-    std::monostate(),
-    type::LITERAL_TYPE.find("null")->second
-};
+constexpr auto NULL_LITERAL =
+    std::pair<std::monostate, std::pair<std::string, std::size_t>>{
+        std::monostate{},
+        std::pair<std::string, std::size_t>{ "null", 0 }
+    };
 
 using Value_Type = std::pair<Value, Type_Size>;
 using Value_Pointer = std::vector<Value_Type>;

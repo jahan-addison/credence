@@ -5,6 +5,8 @@ list(REMOVE_ITEM sources "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/main.cc")
 
 add_executable(Test_Suite ${sources} ${test_sources})
 
+target_include_directories(Test_Suite PUBLIC ${CMAKE_BINARY_DIR}/_deps/eternal-src/include)
+
 target_link_libraries(Test_Suite doctest::doctest Python3::Python matchit cxxopts::cxxopts simplejson)
 
 set_target_properties(Test_Suite PROPERTIES CXX_STANDARD 20 OUTPUT_NAME "test_suite")
@@ -13,6 +15,7 @@ target_include_directories(
   Test_Suite PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
+
 
 # enable compiler warnings
 if(NOT TEST_INSTALLED_VERSION)

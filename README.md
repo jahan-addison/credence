@@ -116,7 +116,7 @@ There are a few implementation differences between the compiler and B specificat
 
 ```bash
 brew update
-brew install coreutils include-what-you-use llvm@20 cmake python3 poetry
+brew install coreutils include-what-you-use llvm@20 cmake python3 poetry python-dev
 git clone git@github.com:jahan-addison/credence.git
 cd credence
 bash ./scripts/install.sh

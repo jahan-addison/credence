@@ -38,7 +38,7 @@ namespace ir {
 
 namespace detail {
 
-constexpr Quadruple make_temporary(int* temporary_size, std::string const& temp)
+inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
 {
     return make_quadruple(Instruction::VARIABLE,
                           std::string{ "_t" } +
@@ -46,7 +46,7 @@ constexpr Quadruple make_temporary(int* temporary_size, std::string const& temp)
                           temp);
 }
 
-constexpr Quadruple make_temporary(int* temporary_size)
+inline Quadruple make_temporary(int* temporary_size)
 {
     return make_quadruple(Instruction::LABEL,
                           std::string{ "_L" } +

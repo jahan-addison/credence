@@ -60,10 +60,10 @@ using Quadruple =
 using Instructions = std::deque<Quadruple>;
 using Branch_Instructions = std::pair<Instructions, Instructions>;
 
-constexpr Quadruple make_quadruple(Instruction op,
-                                   std::string const& s1,
-                                   std::string const& s2,
-                                   std::string const& s3 = "")
+constexpr inline Quadruple make_quadruple(Instruction op,
+                                          std::string const& s1,
+                                          std::string const& s2,
+                                          std::string const& s3 = "")
 {
     return std::make_tuple(op, s1, s2, s3);
 }

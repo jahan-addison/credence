@@ -85,6 +85,13 @@ CPMAddPackage(
 )
 
 CPMAddPackage(
+  NAME eternal
+  VERSION 1.0.1
+  GITHUB_REPOSITORY dirkarnez/eternal
+  OPTIONS "WITH_TESTS OFF"
+)
+
+CPMAddPackage(
   NAME matchit
   VERSION 1.0.1
   GITHUB_REPOSITORY BowenFu/matchit.cpp
@@ -106,7 +113,7 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson)
-target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson ${CMAKE_BINARY_DIR}/_deps/eternal-src/include)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson eternal)
 
 include(cmake/doctest.cmake)

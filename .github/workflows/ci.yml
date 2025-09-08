@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         compiler: [g++, clang++]
@@ -24,13 +24,17 @@ jobs:
             compiler: g++
 
     steps:
+    - name: Setup cmake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.16.x'
 
-    - name: Install dependencies (Ubuntu)
+    - name: install dependencies (Ubuntu)
       if: startsWith(matrix.os, 'ubuntu')
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install cmake -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
+        sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
         echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.bashrc
         source ~/.bashrc
         pipx install poetry
@@ -46,11 +50,11 @@ jobs:
         sudo update-alternatives \
           --install /usr/bin/clang clang /usr/bin/clang-20 100
 
-    - name: Install dependencies (Mac)
+    - name: install dependencies (Mac)
       if: startsWith(matrix.os, 'macos')
       run: |
         brew update
-        brew install include-what-you-use llvm@20 clang-format cppcheck coreutils poetry python3
+        brew install include-what-you-use llvm@20 clang-format cppcheck coreutils poetry python@3.13
 
     - uses: actions/checkout@v4
 
@@ -63,6 +67,7 @@ jobs:
       run: |
         # Make with -fsanitize
         cmake --build build
+        git submodule update --init --recursive
         cd python/chakram
         poetry install
         make install
@@ -79,6 +84,7 @@ jobs:
         rm -rf build
         cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=ON
         cmake --build build
+        git submodule update --init --recursive
         cd python/chakram
         poetry install
         make install

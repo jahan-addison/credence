@@ -16,9 +16,9 @@
 
 #pragma once
 #include <array>
-#include <credence/eternal.h>
 #include <credence/util.h>
 #include <map>
+#include <mapbox/eternal.hpp>
 #include <ostream>
 #include <sstream>
 #include <utility>

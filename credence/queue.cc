@@ -169,7 +169,7 @@ namespace detail {
 /**
  * @brief Operator precedence check of the queue and operator stack
  */
-constexpr void _associativity_operator_precedence(
+void _associativity_operator_precedence(
     type::Operator op1,
     RValue_Queue* rvalues_queue,
     std::stack<type::Operator>& operator_stack)
@@ -192,8 +192,8 @@ constexpr void _associativity_operator_precedence(
 /**
  * @brief Re-balance the queue if the stack is empty
  */
-constexpr void _balance_queue(RValue_Queue* rvalues_queue,
-                              std::stack<type::Operator>& operator_stack)
+inline void _balance_queue(RValue_Queue* rvalues_queue,
+                           std::stack<type::Operator>& operator_stack)
 {
     if (operator_stack.size() == 1) {
         rvalues_queue->emplace_back(operator_stack.top());
