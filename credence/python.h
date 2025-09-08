@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include <Python.h>
 #include <initializer_list>
+#include <stack>
 #include <string>
 #include <string_view>
 
@@ -36,12 +38,31 @@ class Python_Module_Loader
 
     ~Python_Module_Loader();
 
+    inline void python_loader_error()
+    {
+        free_refs();
+        PyErr_Print();
+        throw;
+    }
+
+  private:
+    inline void free_refs()
+    {
+        while (refs_.size() > 0) {
+            auto ref = refs_.top();
+            if (ref != NULL)
+                Py_DECREF(ref);
+            refs_.pop();
+        }
+    }
+
   public:
     std::string call_method_on_module(std::string_view method_name,
                                       std::initializer_list<std::string> args);
 
   private:
     std::string_view module_path_;
+    std::stack<PyObject*> refs_;
     std::string_view module_name_;
 };
 

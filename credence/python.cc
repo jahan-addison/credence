@@ -31,14 +31,6 @@
 
 namespace credence {
 
-namespace detail {
-inline void Python_Loader_Error()
-{
-    PyErr_Print();
-    throw;
-}
-} // namespace detail
-
 /**
  * @brief Python_Module_Loader constructor
  */
@@ -61,43 +53,41 @@ std::string Python_Module_Loader::call_method_on_module(
     std::initializer_list<std::string> args)
 {
     std::string ret{};
-    PyObject *pModule, *pDict, *pFunc, *vModule;
+    PyObject* pModule = NULL;
+    PyObject* pDict = NULL;
+    PyObject* pFunc = NULL;
+    PyObject* vModule = NULL;
 
     // Load the module object
     pModule = PyImport_ImportModule(module_name_.data());
-
     if (!pModule) {
-        Py_DECREF(pModule);
-        detail::Python_Loader_Error();
+        python_loader_error();
     }
+    refs_.push(pModule);
 
     // pDict is a borrowed reference
     pDict = PyModule_GetDict(pModule);
-
     if (!pDict) {
-        Py_DECREF(pDict);
-        detail::Python_Loader_Error();
+        python_loader_error();
     }
+    refs_.push(pDict);
 
     vModule = PyDict_GetItemString(pDict, "__name__");
-
     if (!vModule) {
-        Py_DECREF(pModule);
-        Py_DECREF(pDict);
-        detail::Python_Loader_Error();
+        python_loader_error();
     }
+    refs_.push(vModule);
 
     // pFunc is also a borrowed reference
     pFunc = PyDict_GetItemString(pDict, method_name.data());
-
     if (!pFunc) {
-        Py_DECREF(pModule);
-        Py_DECREF(pDict);
-        detail::Python_Loader_Error();
+        python_loader_error();
     }
+    refs_.push(pFunc);
 
     if (PyCallable_Check(pFunc)) {
-        PyObject *pValue, *pArgs;
+        PyObject* pValue = NULL;
+        PyObject* pArgs = NULL;
         int index = 0;
         pArgs = PyTuple_New(args.size());
         // construct the arguments from the initializer list `args'
@@ -113,20 +103,20 @@ std::string Python_Module_Loader::call_method_on_module(
             index++;
         }
         pValue = PyObject_CallObject(pFunc, pArgs);
+        refs_.push(pValue);
         if (pValue != NULL) {
+            refs_.push(pValue);
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
-            Py_DECREF(pValue);
         } else {
-            detail::Python_Loader_Error();
+            python_loader_error();
         }
         if (pArgs != NULL) {
-            Py_DECREF(pArgs);
+            refs_.push(pArgs);
         }
     } else {
-        detail::Python_Loader_Error();
+        python_loader_error();
     }
-    Py_DECREF(pModule);
-    Py_DECREF(pDict);
+    free_refs();
     return ret;
 }
 
