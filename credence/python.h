@@ -36,16 +36,15 @@ class Python_Module_Loader
     Python_Module_Loader(Python_Module_Loader const&) = delete;
     Python_Module_Loader(std::string_view module_name);
 
-    ~Python_Module_Loader();
+    inline void shutdown() { Py_FinalizeEx(); }
 
+  private:
     inline void python_loader_error()
     {
         free_refs();
         PyErr_Print();
         throw;
     }
-
-  private:
     inline void free_refs()
     {
         while (refs_.size() > 0) {

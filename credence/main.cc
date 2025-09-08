@@ -84,7 +84,7 @@ int main(int argc, const char* argv[])
                 throw std::runtime_error("symbol table construction failed");
 
             ast["root"] = json::JSON::Load(ast_as_json);
-
+            python_module.shutdown();
         } else if (type == "json") {
             ast["root"] = json::JSON::Load(source);
         } else {

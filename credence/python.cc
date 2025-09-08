@@ -103,7 +103,6 @@ std::string Python_Module_Loader::call_method_on_module(
             index++;
         }
         pValue = PyObject_CallObject(pFunc, pArgs);
-        refs_.push(pValue);
         if (pValue != NULL) {
             refs_.push(pValue);
             ret = std::string{ PyUnicode_AsUTF8(pValue) };
@@ -118,14 +117,6 @@ std::string Python_Module_Loader::call_method_on_module(
     }
     free_refs();
     return ret;
-}
-
-/**
- * @brief clean up
- */
-Python_Module_Loader::~Python_Module_Loader()
-{
-    Py_FinalizeEx();
 }
 
 } // namespace credence
