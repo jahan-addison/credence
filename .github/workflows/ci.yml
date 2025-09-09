@@ -54,7 +54,13 @@ jobs:
       if: startsWith(matrix.os, 'macos')
       run: |
         brew update
-        brew install include-what-you-use llvm@20 clang-format cppcheck coreutils poetry python@3.13
+        brew install include-what-you-use llvm@20 clang-format cppcheck coreutils poetry
+
+    - name: python
+      if: startsWith(matrix.os, 'macos')
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
 
     - uses: actions/checkout@v4
 
@@ -74,7 +80,7 @@ jobs:
         cd ../../
         ./build/credence -h
         ./build/credence -d -t ast $(pwd)/examples/1.b
-        ./build/credence -d $(pwd)/examples/1.b
+        ./build/credence -d $(pwd)/test/fixtures/readme.b
         ./build/test_suite
 
     - name: memcheck
@@ -89,4 +95,4 @@ jobs:
         poetry install
         make install
         cd ../../
-        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/examples/1.b
+        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b

@@ -14,25 +14,27 @@
  * limitations under the License.
  */
 
-#include <credence/ir/qaud.h> // for build_from_definitions, emit_quadruple
-#include <credence/python.h>  // for Python_Module_Loader
+#include <pybind11/pybind11.h> // for error_already_set::what, module
+
+#include <credence/ir/qaud.h> // for build_from_definitions, emit_qu...
 #include <credence/symbol.h>  // for Symbol_Table
 #include <credence/util.h>    // for read_file_from_path
-#include <cxxopts.hpp>        // for value, Options, OptionAdder, ParseResult
-#include <deque>              // for operator==, _Deque_iterator
+#include <cxxopts.hpp>        // for value, Options, OptionAdder
 #include <exception>          // for exception
-#include <iostream>           // for basic_ostream, operator<<, endl, cout
-#include <matchit.h>          // for match, pattern, PatternHelper, Pattern...
-#include <memory>             // for allocator, shared_ptr, __shared_ptr_ac...
+#include <iostream>           // for cerr, cout
+#include <matchit.h>          // for pattern, match, PatternHelper
+#include <memory>             // for shared_ptr
+#include <ostream>            // for basic_ostream, operator<<, endl
+#include <pybind11/cast.h>    // for object_api::operator(), object:...
+#include <pybind11/embed.h>   // for scoped_interpreter
+#include <pybind11/pytypes.h> // for object, accessor, str_attr, err...
 #include <simplejson.h>       // for JSON, operator<<
 #include <stdexcept>          // for runtime_error
-#include <stdlib.h>           // for exit
-#include <string>             // for char_traits, operator==, string, basic...
-#include <tuple>              // for tuple
-#include <vector>             // for vector
+#include <string>             // for basic_string, char_traits, string
 
 int main(int argc, const char* argv[])
 {
+    namespace py = pybind11;
 
     using namespace matchit;
     try {
@@ -67,28 +69,40 @@ int main(int argc, const char* argv[])
             result["source-code"].as<std::string>());
 
         if (type == "python") {
-            auto python_module =
-                credence::Python_Module_Loader("chakram.parser");
-            auto hoisted_symbols = python_module.call_method_on_module(
-                "get_source_program_symbol_table_as_json", { source });
-            hoisted = json::JSON::Load(hoisted_symbols);
-            if (result["debug"].count()) {
-                std::cout << "*** Symbol Table:" << std::endl
-                          << hoisted_symbols << std::endl;
+            py::scoped_interpreter guard{};
+            try {
+                py::object python_module = py::module::import("chakram.parser");
+
+                py::object symbol_table_call = python_module.attr(
+                    "get_source_program_symbol_table_as_json");
+                py::object symbols = symbol_table_call(source);
+
+                hoisted = json::JSON::Load(symbols.cast<std::string>());
+                if (result["debug"].count()) {
+                    std::cout << "*** Symbol Table:" << std::endl
+                              << symbols.cast<std::string>() << std::endl;
+                }
+                py::object get_ast_call =
+                    python_module.attr("get_source_program_ast_as_json");
+
+                py::object ast_as_json = get_ast_call(source);
+
+                if (ast_as_json.is_none())
+                    throw std::runtime_error("could not construct ast");
+
+                ast["root"] = json::JSON::Load(ast_as_json.cast<std::string>());
+            } catch (py::error_already_set const& e) {
+                auto error_message = std::string_view{ e.what() };
+                std::cerr << "Credence :: "
+                          << error_message.substr(0, error_message.find("At:"));
+                return 1;
             }
 
-            auto ast_as_json = python_module.call_method_on_module(
-                "get_source_program_ast_as_json", { source });
-
-            if (ast_as_json.empty())
-                throw std::runtime_error("symbol table construction failed");
-
-            ast["root"] = json::JSON::Load(ast_as_json);
-            python_module.shutdown();
         } else if (type == "json") {
             ast["root"] = json::JSON::Load(source);
         } else {
-            std::cerr << "Error :: No source file provided" << std::endl;
+            std::cerr << "Credence :: No source file provided" << std::endl;
+            return 1;
         }
 
         match(result["target"].as<std::string>())(
@@ -112,16 +126,16 @@ int main(int argc, const char* argv[])
 
     } catch (std::runtime_error const& e) {
         std::cerr << "Credence :: " << e.what() << std::endl;
-        return -1;
+        return 1;
     } catch (const cxxopts::exceptions::option_has_no_value&) {
         std::cout << "Credence :: See \"--help\" for usage overview"
                   << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error :: " << e.what() << std::endl;
-        return -1;
+        return 1;
     } catch (...) {
         std::cerr << "Unknown exception occurred: " << std::endl;
-        return -1;
+        return 1;
     }
 
     return 0;

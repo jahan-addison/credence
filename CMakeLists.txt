@@ -63,8 +63,7 @@ endif()
 
 # Add python-dev library to interface with python
 
-find_package(Python3 COMPONENTS Interpreter Development)
-include_directories(${PYTHON_INCLUDE_DIRS})
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
 # Dependencies
 
@@ -79,7 +78,7 @@ CPMAddPackage(
 
 CPMAddPackage(
   NAME simplejson
-  VERSION 1.1.3
+  VERSION 1.1.4
   GITHUB_REPOSITORY jahan-addison/simplejson
   OPTIONS "BUILD_EXAMPLES OFF"
 )
@@ -92,11 +91,18 @@ CPMAddPackage(
 )
 
 CPMAddPackage(
+  NAME pybind11
+  VERSION 3.0.1
+  GITHUB_REPOSITORY pybind/pybind11
+)
+
+CPMAddPackage(
   NAME matchit
   VERSION 1.0.1
   GITHUB_REPOSITORY BowenFu/matchit.cpp
 )
 
+set(PYBIND11_FINDPYTHON ON)
 
 # --- Executables ----
 
@@ -113,7 +119,7 @@ target_include_directories(
                          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson ${CMAKE_BINARY_DIR}/_deps/eternal-src/include)
-target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python cxxopts::cxxopts matchit simplejson eternal)
+target_include_directories(${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts matchit simplejson ${CMAKE_BINARY_DIR}/_deps/eternal-src/include)
+target_link_libraries(${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts matchit simplejson eternal)
 
 include(cmake/doctest.cmake)
