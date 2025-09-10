@@ -78,7 +78,7 @@ CPMAddPackage(
 
 CPMAddPackage(
   NAME simplejson
-  VERSION 1.1.4
+  VERSION 1.1.7
   GITHUB_REPOSITORY jahan-addison/simplejson
   OPTIONS "BUILD_EXAMPLES OFF"
 )

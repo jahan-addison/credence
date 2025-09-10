@@ -52,17 +52,17 @@ Instructions build_from_definitions(Symbol_Table<>& symbols,
                                     Node& details)
 {
     using namespace matchit;
-    assert(node["root"].ToString().compare("definitions") == 0);
+    assert(node["root"].to_string().compare("definitions") == 0);
     Instructions instructions{};
     auto definitions = node["left"];
     // vector definitions first
-    for (auto& definition : definitions.ArrayRange())
-        if (definition["node"].ToString() == "vector_definition")
+    for (auto& definition : definitions.array_range())
+        if (definition["node"].to_string() == "vector_definition")
             build_from_vector_definition(globals, definition, details);
-    for (auto& definition : definitions.ArrayRange()) {
+    for (auto& definition : definitions.array_range()) {
         // cppcheck-suppress syntaxError
-        match(definition["node"].ToString())(pattern |
-                                                 "function_definition" = [&] {
+        match(definition["node"].to_string())(pattern |
+                                                  "function_definition" = [&] {
             auto function_instructions = build_from_function_definition(
                 symbols, globals, definition, details);
             instructions.insert(instructions.end(),
@@ -83,42 +83,42 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
 {
     using namespace matchit;
     Instructions instructions{};
-    assert(node["node"].ToString().compare("function_definition") == 0);
+    assert(node["node"].to_string().compare("function_definition") == 0);
     Symbol_Table<> block_level{};
     int temporary{ 0 };
-    auto name = node["root"].ToString();
+    auto name = node["root"].to_string();
     auto parameters = node["left"];
     auto block = node["right"];
 
     symbols.set_symbol_by_name(name,
                                { "__WORD__", type::LITERAL_TYPE.at("word") });
 
-    if (parameters.JSONType() == json::JSON::Class::Array and
-        !parameters.ArrayRange().get()->at(0).IsNull()) {
-        for (auto& ident : parameters.ArrayRange()) {
-            match(ident["node"].ToString())(
+    if (parameters.JSON_type() == json::JSON::Class::Array and
+        !parameters.to_deque().front().is_null()) {
+        for (auto& ident : parameters.array_range()) {
+            match(ident["node"].to_string())(
                 pattern | "lvalue" =
                     [&] {
-                        block_level.set_symbol_by_name(ident["root"].ToString(),
-                                                       type::NULL_LITERAL);
+                        block_level.set_symbol_by_name(
+                            ident["root"].to_string(), type::NULL_LITERAL);
                     },
                 pattern | "vector_lvalue" =
                     [&] {
-                        auto size = ident["left"]["root"].ToInt();
+                        auto size = ident["left"]["root"].to_int();
                         block_level.set_symbol_by_name(
-                            ident["root"].ToString(),
+                            ident["root"].to_string(),
                             { static_cast<type::Byte>('0'), { "byte", size } });
                     },
                 pattern | "indirect_lvalue" =
                     [&] {
                         block_level.set_symbol_by_name(
-                            ident["left"]["root"].ToString(),
+                            ident["left"]["root"].to_string(),
                             { "__WORD__", type::LITERAL_TYPE.at("word") });
                     });
         }
     }
     instructions.emplace_back(make_quadruple(
-        Instruction::LABEL, std::format("__{}", node["root"].ToString()), ""));
+        Instruction::LABEL, std::format("__{}", node["root"].to_string()), ""));
     instructions.emplace_back(make_quadruple(Instruction::FUNC_START, "", ""));
     auto tail_branch = detail::make_temporary(&temporary);
     auto block_instructions = build_from_block_statement(
@@ -135,25 +135,25 @@ void build_from_vector_definition(Symbol_Table<>& symbols,
                                   Node& details)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("vector_definition") == 0);
-    assert(node.hasKey("left"));
-    auto name = node["root"].ToString();
+    assert(node["node"].to_string().compare("vector_definition") == 0);
+    assert(node.has_key("left"));
+    auto name = node["root"].to_string();
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
-    if (right_child_node.ArrayRange().get()->empty()) {
+    if (right_child_node.to_deque().empty()) {
         auto rvalue =
             RValue_Parser::make_rvalue(left_child_node, details, symbols);
         auto datatype = std::get<type::RValue::Value>(rvalue.value);
         symbols.set_symbol_by_name(name, datatype);
     } else {
-        if (std::cmp_not_equal(left_child_node["root"].ToInt(),
-                               right_child_node.ArrayRange().get()->size())) {
+        if (std::cmp_not_equal(left_child_node["root"].to_int(),
+                               right_child_node.to_deque().size())) {
             throw std::runtime_error("Error: invalid vector definition, "
                                      "size of vector and rvalue "
                                      "entries do not match");
         }
         std::vector<type::RValue::Value> values_at{};
-        for (auto& child_node : right_child_node.ArrayRange()) {
+        for (auto& child_node : right_child_node.array_range()) {
             auto rvalue =
                 RValue_Parser::make_rvalue(child_node, details, symbols);
             auto datatype = std::get<type::RValue::Value>(rvalue.value);
@@ -176,8 +176,8 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
 {
 
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("block") == 0);
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("block") == 0);
     Instructions instructions{};
     Instructions branches{};
     auto scope_tail_branch = tail_branch;
@@ -186,8 +186,8 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
 
     auto statements = node["left"];
     RValue_Parser parser{ details, symbols };
-    for (auto& statement : statements.ArrayRange()) {
-        auto statement_type = statement["root"].ToString();
+    for (auto& statement : statements.array_range()) {
+        auto statement_type = statement["root"].to_string();
         match(statement_type)(
             pattern |
                 "auto" = [&] { build_from_auto_statement(symbols, statement); },
@@ -346,7 +346,7 @@ void detail::insert_rvalue_or_block_branch_instructions(
     int* temporary,
     Instructions& branch_instructions)
 {
-    if (block["root"].ToString() == "block") {
+    if (block["root"].to_string() == "block") {
         auto block_instructions = build_from_block_statement(
             symbols, globals, block, details, false, tail_branch, temporary);
 
@@ -373,12 +373,12 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
                                                int* temporary)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("while") == 0);
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("while") == 0);
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
     auto predicate = node["left"];
-    auto blocks = node["right"].ArrayRange().get();
+    auto blocks = node["right"].to_deque();
 
     auto start = detail::make_temporary(temporary);
     auto jump = detail::make_temporary(temporary);
@@ -398,7 +398,7 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
 
     detail::insert_rvalue_or_block_branch_instructions(symbols,
                                                        globals,
-                                                       blocks->at(0),
+                                                       blocks.at(0),
                                                        details,
                                                        tail_branch,
                                                        temporary,
@@ -422,13 +422,13 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
                                             int* temporary)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("if") == 0);
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("if") == 0);
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
     RValue_Queue list{};
     auto predicate = node["left"];
-    auto blocks = node["right"].ArrayRange().get();
+    auto blocks = node["right"].to_deque();
 
     auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
         symbols, details, predicate, predicate_instructions, temporary);
@@ -445,7 +445,7 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
 
     detail::insert_rvalue_or_block_branch_instructions(symbols,
                                                        globals,
-                                                       blocks->at(0),
+                                                       blocks.at(0),
                                                        details,
                                                        tail_branch,
                                                        temporary,
@@ -455,14 +455,14 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
         make_quadruple(Instruction::GOTO, std::get<1>(tail_branch), ""));
 
     // else statement
-    if (!blocks->at(1).IsNull()) {
+    if (!blocks.at(1).is_null()) {
         auto else_label = detail::make_temporary(temporary);
         predicate_instructions.emplace_back(
             make_quadruple(Instruction::GOTO, std::get<1>(else_label), ""));
         branch_instructions.emplace_back(else_label);
         detail::insert_rvalue_or_block_branch_instructions(symbols,
                                                            globals,
-                                                           blocks->at(1),
+                                                           blocks.at(1),
                                                            details,
                                                            tail_branch,
                                                            temporary,
@@ -482,13 +482,13 @@ Instructions build_from_label_statement(Symbol_Table<>& symbols,
                                         Node& details)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("label") == 0);
-    assert(node.hasKey("left"));
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("label") == 0);
+    assert(node.has_key("left"));
     Instructions instructions{};
     auto statement = node["left"];
     RValue_Parser parser{ details, symbols };
-    auto label = statement.ArrayRange().begin()->ToString();
+    auto label = statement.array_range().begin()->to_string();
     instructions.emplace_back(
         make_quadruple(Instruction::LABEL, std::format("_L_{}", label), ""));
     return instructions;
@@ -502,13 +502,13 @@ Instructions build_from_goto_statement(Symbol_Table<>& symbols,
                                        Node& details)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("goto") == 0);
-    assert(node.hasKey("left"));
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("goto") == 0);
+    assert(node.has_key("left"));
     Instructions instructions{};
     RValue_Parser parser{ details, symbols };
     auto statement = node["left"];
-    auto label = statement.ArrayRange().begin()->ToString();
+    auto label = statement.array_range().begin()->to_string();
     if (!parser.is_defined(label)) {
         throw std::runtime_error(
             std::format("Error: label \"{}\" does not exist", label));
@@ -527,10 +527,10 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          int* temporary)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("return") == 0);
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("return") == 0);
     Instructions instructions{};
-    assert(node.hasKey("left"));
+    assert(node.has_key("left"));
     auto return_statement = node["left"];
 
     auto return_instructions = rvalue_node_to_list_of_ir_instructions(
@@ -558,12 +558,12 @@ void build_from_extrn_statement(Symbol_Table<>& symbols,
                                 Symbol_Table<>& globals,
                                 Node& node)
 {
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("extrn") == 0);
-    assert(node.hasKey("left"));
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("extrn") == 0);
+    assert(node.has_key("left"));
     auto left_child_node = node["left"];
-    for (auto& ident : left_child_node.ArrayRange()) {
-        auto name = ident["root"].ToString();
+    for (auto& ident : left_child_node.array_range()) {
+        auto name = ident["root"].to_string();
         if (globals.is_defined(name)) {
             symbols.set_symbol_by_name(name, globals);
         } else {
@@ -581,28 +581,28 @@ void build_from_extrn_statement(Symbol_Table<>& symbols,
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node)
 {
     using namespace matchit;
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("auto") == 0);
-    assert(node.hasKey("left"));
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("auto") == 0);
+    assert(node.has_key("left"));
     auto left_child_node = node["left"];
-    for (auto& ident : left_child_node.ArrayRange()) {
-        match(ident["node"].ToString())(
+    for (auto& ident : left_child_node.array_range()) {
+        match(ident["node"].to_string())(
             pattern | "lvalue" =
                 [&] {
-                    symbols.set_symbol_by_name(ident["root"].ToString(),
+                    symbols.set_symbol_by_name(ident["root"].to_string(),
                                                type::NULL_LITERAL);
                 },
             pattern | "vector_lvalue" =
                 [&] {
-                    auto size = ident["left"]["root"].ToInt();
+                    auto size = ident["left"]["root"].to_int();
                     symbols.set_symbol_by_name(
-                        ident["root"].ToString(),
+                        ident["root"].to_string(),
                         { static_cast<type::Byte>('0'), { "byte", size } });
                 },
             pattern | "indirect_lvalue" =
                 [&] {
                     symbols.set_symbol_by_name(
-                        ident["left"]["root"].ToString(),
+                        ident["left"]["root"].to_string(),
                         { "__WORD__", type::LITERAL_TYPE.at("word") });
                 });
     }
@@ -616,10 +616,10 @@ Instructions build_from_rvalue_statement(Symbol_Table<>& symbols,
                                          Node& details,
                                          int* temporary)
 {
-    assert(node["node"].ToString().compare("statement") == 0);
-    assert(node["root"].ToString().compare("rvalue") == 0);
+    assert(node["node"].to_string().compare("statement") == 0);
+    assert(node["root"].to_string().compare("rvalue") == 0);
     RValue_Queue list{};
-    assert(node.hasKey("left"));
+    assert(node.has_key("left"));
     auto statement = node["left"];
 
     return rvalue_node_to_list_of_ir_instructions(

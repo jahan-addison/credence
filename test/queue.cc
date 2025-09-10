@@ -19,7 +19,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     using namespace credence::type;
     json::JSON obj;
 
-    obj["complex"] = json::JSON::Load(
+    obj["complex"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"number_literal\",\n                    \"root\" : 5\n               "
         "   },\n                  \"node\" : \"relation_expression\",\n        "
@@ -51,11 +51,11 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           },\n                    \"root\" : [\"+\"]\n               "
         "   },\n                  \"root\" : [\"*\"]\n                }\n      "
         "    ");
-    obj["unary"] = json::JSON::Load(
+    obj["unary"] = json::JSON::load(
         "{\n  \"left\": {\n    \"node\": \"number_literal\",\n    \"root\": "
         "5\n  },\n  \"node\": \"unary_expression\",\n  \"root\": [\n    "
         "\"~\"\n  ]\n}");
-    obj["equal"] = json::JSON::Load(
+    obj["equal"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -67,7 +67,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : 5\n                    },\n                    \"root\" : "
         "[\"+\"]\n                  },\n                  \"root\" : [\"=\", "
         "null]\n                }\n");
-    obj["unary_relation"] = json::JSON::Load(
+    obj["unary_relation"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"left\" : {\n "
         "                     \"node\" : \"number_literal\",\n                 "
         "     \"root\" : 5\n                    },\n                    "
@@ -77,7 +77,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "         \"node\" : \"number_literal\",\n                    \"root\" "
         ": 2\n                  },\n                  \"root\" : [\"^\"]\n     "
         "           }");
-    obj["ternary"] = json::JSON::Load(
+    obj["ternary"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -96,7 +96,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           }\n                    },\n                    \"root\" : "
         "[\"<\"]\n                  },\n                  \"root\" : [\"=\", "
         "null]\n                }");
-    obj["function"] = json::JSON::Load(
+    obj["function"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"puts\"\n                "
         "  },\n                  \"node\" : \"function_expression\",\n         "
@@ -107,7 +107,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           \"node\" : \"number_literal\",\n                      "
         "\"root\" : 3\n                    }],\n                  \"root\" : "
         "\"puts\"\n                },\n");
-    obj["evaluated"] = json::JSON::Load(
+    obj["evaluated"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -134,7 +134,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
 
-    obj["evaluated_2"] = json::JSON::Load(
+    obj["evaluated_2"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -160,7 +160,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "               }\n                    },\n                    "
         "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
-    obj["evaluated_3"] = json::JSON::Load(
+    obj["evaluated_3"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "

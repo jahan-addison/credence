@@ -22,7 +22,7 @@ struct Fixture
 
     Fixture()
     {
-        assignment_symbol_table = json::JSON::Load(
+        assignment_symbol_table = json::JSON::load(
             "{\n  \"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n "
             "   "
             "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
@@ -32,7 +32,7 @@ struct Fixture
             "\"line\" : "
             "2,\n    \"start_pos\" : 12,\n    \"type\" : \"number_literal\"\n  "
             "}\n}");
-        lvalue_ast_node_json = json::JSON::Load(
+        lvalue_ast_node_json = json::JSON::load(
             " {\n        \"left\" : [{\n            \"left\" : [{\n            "
             "    "
             "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n        "
@@ -64,7 +64,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
 {
     json::JSON obj;
     using std::get;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "[{\n                  \"node\" : \"constant_literal\",\n              "
         "    \"root\" : \"x\"\n                }, {\n                  "
         "\"node\" : \"number_literal\",\n                  \"root\" : 10\n     "
@@ -126,7 +126,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
     temp.symbols_.table_.emplace("putchar", null);
     temp.symbols_.table_.emplace("getchar", null);
     // check all
-    for (auto& rvalue : obj["test"].ArrayRange()) {
+    for (auto& rvalue : obj["test"].array_range()) {
         CHECK_NOTHROW(temp.from_rvalue(rvalue));
     }
 }
@@ -135,7 +135,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
 {
     json::JSON obj;
     using std::get;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"putchar\"\n             "
         "     },\n                  \"node\" : \"function_expression\",\n      "
@@ -165,7 +165,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
 {
     json::JSON obj;
     using std::get;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "[{\n                  \"node\" : \"evaluated_expression\",\n          "
         "        \"root\" : {\n                    \"left\" : {\n              "
         "        \"node\" : \"number_literal\",\n                      "
@@ -185,13 +185,13 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
 
     temp.symbols_.table_.emplace("x", null);
 
-    auto expressions = obj["test"].ArrayRange().get();
-    auto test1 = temp.from_evaluated_expression(expressions->at(0));
+    auto expressions = obj["test"].to_deque();
+    auto test1 = temp.from_evaluated_expression(expressions.at(0));
     auto expr1 = get<RValue::RValue_Pointer>(test1.value);
     CHECK(
         get<RValue::Relation>(get<RValue::RValue_Pointer>(expr1->value)->value)
             .first == Operator::B_MUL);
-    auto test2 = temp.from_evaluated_expression(expressions->at(1));
+    auto test2 = temp.from_evaluated_expression(expressions.at(1));
     auto expr2 = get<RValue::RValue_Pointer>(test2.value);
     CHECK(get<RValue::LValue>(expr2->value).first == "x");
 }
@@ -199,7 +199,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
 TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      "
         "\"root\": "
         "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    "
@@ -255,12 +255,12 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
     std::vector<RValue::RValue_Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
 
-    auto relation_expressions = obj["test"].ArrayRange().get();
+    auto relation_expressions = obj["test"].to_deque();
 
     // forgive me
     using std::get;
 
-    auto test1 = temp.from_relation_expression(relation_expressions->at(0));
+    auto test1 = temp.from_relation_expression(relation_expressions.at(0));
     CHECK(std::get<RValue::Relation>(test1.value).first == Operator::B_MUL);
     arguments = std::get<RValue::Relation>(test1.value).second;
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
@@ -268,7 +268,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
           10);
 
     // ternary relation test
-    auto test2 = temp.from_relation_expression(relation_expressions->at(1));
+    auto test2 = temp.from_relation_expression(relation_expressions.at(1));
     CHECK(std::get<RValue::Relation>(test2.value).first == Operator::R_LE);
     arguments = std::move(std::get<RValue::Relation>(test2.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
@@ -276,35 +276,35 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
     CHECK(get<int>(get<RValue::Value>(arguments[2]->value).first) == 10);
     CHECK(get<int>(get<RValue::Value>(arguments[3]->value).first) == 1);
 
-    auto test3 = temp.from_relation_expression(relation_expressions->at(2));
+    auto test3 = temp.from_relation_expression(relation_expressions.at(2));
     CHECK(std::get<RValue::Relation>(test3.value).first == Operator::R_EQUAL);
     arguments = std::move(std::get<RValue::Relation>(test3.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
     CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
           5);
 
-    auto test4 = temp.from_relation_expression(relation_expressions->at(3));
+    auto test4 = temp.from_relation_expression(relation_expressions.at(3));
     CHECK(std::get<RValue::Relation>(test4.value).first == Operator::R_NEQUAL);
     arguments = std::move(std::get<RValue::Relation>(test4.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
     CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
           5);
 
-    auto test5 = temp.from_relation_expression(relation_expressions->at(4));
+    auto test5 = temp.from_relation_expression(relation_expressions.at(4));
     CHECK(std::get<RValue::Relation>(test5.value).first == Operator::XOR);
     arguments = std::move(std::get<RValue::Relation>(test5.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
     CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
           0);
 
-    auto test6 = temp.from_relation_expression(relation_expressions->at(5));
+    auto test6 = temp.from_relation_expression(relation_expressions.at(5));
     CHECK(std::get<RValue::Relation>(test6.value).first == Operator::R_LT);
     arguments = std::move(std::get<RValue::Relation>(test6.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
     CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
           5);
 
-    auto test7 = temp.from_relation_expression(relation_expressions->at(6));
+    auto test7 = temp.from_relation_expression(relation_expressions.at(6));
     CHECK(std::get<RValue::Relation>(test7.value).first == Operator::R_LE);
     arguments = std::move(std::get<RValue::Relation>(test7.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
@@ -315,7 +315,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
 TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "[{\n                  \"node\" : \"post_inc_dec_expression\",\n   "
         "    "
         "           \"right\" : {\n                    \"node\" : "
@@ -369,42 +369,42 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
 
     temp.symbols_.table_.emplace("x", null);
 
-    auto unary_expressions = obj["test"].ArrayRange().get();
+    auto unary_expressions = obj["test"].to_deque();
     std::shared_ptr<RValue> lvalue, constant;
 
-    auto test1 = temp.from_unary_expression(unary_expressions->at(0));
+    auto test1 = temp.from_unary_expression(unary_expressions.at(0));
     lvalue = std::get<RValue::Unary>(test1.value).second;
     CHECK(std::get<RValue::Unary>(test1.value).first == Operator::POST_INC);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
-    auto test2 = temp.from_unary_expression(unary_expressions->at(1));
+    auto test2 = temp.from_unary_expression(unary_expressions.at(1));
     lvalue = std::get<RValue::Unary>(test2.value).second;
     CHECK(std::get<RValue::Unary>(test2.value).first == Operator::PRE_INC);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
-    auto test3 = temp.from_unary_expression(unary_expressions->at(2));
+    auto test3 = temp.from_unary_expression(unary_expressions.at(2));
     lvalue = std::get<RValue::Unary>(test3.value).second;
     CHECK(std::get<RValue::Unary>(test3.value).first == Operator::U_ADDR_OF);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
-    auto test4 = temp.from_unary_expression(unary_expressions->at(3));
+    auto test4 = temp.from_unary_expression(unary_expressions.at(3));
     constant = std::get<RValue::Unary>(test4.value).second;
     CHECK(std::get<RValue::Unary>(test4.value).first ==
           Operator::U_ONES_COMPLEMENT);
     CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
 
-    auto test5 = temp.from_unary_expression(unary_expressions->at(4));
+    auto test5 = temp.from_unary_expression(unary_expressions.at(4));
     lvalue = std::get<RValue::Unary>(test5.value).second;
     CHECK(std::get<RValue::Unary>(test5.value).first ==
           Operator::U_INDIRECTION);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
-    auto test6 = temp.from_unary_expression(unary_expressions->at(5));
+    auto test6 = temp.from_unary_expression(unary_expressions.at(5));
     constant = std::get<RValue::Unary>(test6.value).second;
     CHECK(std::get<RValue::Unary>(test6.value).first == Operator::U_MINUS);
     CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
 
-    auto test7 = temp.from_unary_expression(unary_expressions->at(6));
+    auto test7 = temp.from_unary_expression(unary_expressions.at(6));
     lvalue = std::get<RValue::Unary>(test7.value).second;
     CHECK(std::get<RValue::Unary>(test7.value).first == Operator::U_NOT);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
@@ -415,7 +415,7 @@ TEST_CASE_FIXTURE(Fixture,
 {
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n               "
         "   "
@@ -450,7 +450,7 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
 {
     json::JSON obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = json::JSON::Load("{\"node\":  \"lvalue\","
+    obj["test"] = json::JSON::load("{\"node\":  \"lvalue\","
                                    "\"root\": \"x\""
                                    "}");
     auto temp = RValue_Parser(obj["test"]);
@@ -468,7 +468,7 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
 TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "[\n               {\n                \"left\" : {\n               "
         "   "
         "\"node\" : \"number_literal\",\n                  \"root\" : 50\n "
@@ -486,9 +486,9 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
         "\"root\" : \"z\"\n              }]");
     auto temp = RValue_Parser(obj);
     RValue::Value empty_value = std::make_pair('0', std::make_pair("byte", 50));
-    auto lvalues = obj["test"].ArrayRange().get();
+    auto lvalues = obj["test"].to_deque();
     auto [vector, pointer, normal] =
-        std::tie(lvalues->at(0), lvalues->at(1), lvalues->at(2));
+        std::tie(lvalues.at(0), lvalues.at(1), lvalues.at(2));
     temp.symbols_.table_["x"] = empty_value;
     temp.symbols_.table_["y"] = empty_value;
     temp.symbols_.table_["z"] = empty_value;
@@ -509,7 +509,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
 TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n                \"left\" : {\n                  \"node\" : "
         "\"lvalue\",\n                  \"root\" : \"x\"\n                "
         "},\n "
@@ -526,7 +526,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
 TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n                \"left\" : {\n                  \"node\" : "
         "\"number_literal\",\n                  \"root\" : 50\n            "
         "    "
@@ -544,7 +544,7 @@ TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
 TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
+    obj["test"] = json::JSON::load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
                                    "}");
 
@@ -559,7 +559,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
 TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load("{\"node\":  \"number_literal\","
+    obj["test"] = json::JSON::load("{\"node\":  \"number_literal\","
                                    "\"root\": 10"
                                    "}");
 
@@ -574,7 +574,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
 TEST_CASE("rvalue.cc: RValue_Parser::from_string_literal")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n                  \"node\" : \"string_literal\",\n                 "
         " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
@@ -589,7 +589,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_string_literal")
 TEST_CASE("rvalue.cc: RValue_Parser::from_constant_literal")
 {
     json::JSON obj;
-    obj["test"] = json::JSON::Load("{\"node\":  \"constant_literal\","
+    obj["test"] = json::JSON::load("{\"node\":  \"constant_literal\","
                                    "\"root\": \"x\""
                                    "}");
 

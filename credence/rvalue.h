@@ -86,13 +86,13 @@ class RValue_Parser
   public:
     inline bool is_symbol(Node const& node)
     {
-        auto lvalue = node["root"].ToString();
+        auto lvalue = node["root"].to_string();
         return symbols_.is_defined(lvalue) or globals_.is_defined(lvalue);
     }
 
     inline bool is_defined(std::string const& label)
     {
-        return internal_symbols_.hasKey(label);
+        return internal_symbols_.has_key(label);
     }
 
     // clang-format off

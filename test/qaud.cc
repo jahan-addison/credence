@@ -20,7 +20,7 @@ TEST_CASE("ir/qaud.cc: build_from_function_definition")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    auto internal_symbols = json::JSON::Load(
+    auto internal_symbols = json::JSON::load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
         "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
         "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
@@ -34,7 +34,7 @@ TEST_CASE("ir/qaud.cc: build_from_function_definition")
         ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
         "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
         "\"lvalue\"\n  }\n}");
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
         "[{\n            \"left\" : [{\n                \"node\" : "
@@ -96,7 +96,7 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
@@ -132,7 +132,7 @@ TEST_CASE("ir/qaud.cc: build_from_extrn_statement")
     using namespace credence::ir;
     json::JSON obj;
 
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n            \"left\" : [{\n                \"node\" : "
         "\"lvalue\",\n                \"root\" : \"a\"\n              }, {\n   "
         "             \"node\" : \"lvalue\",\n                \"root\" : "
@@ -160,7 +160,7 @@ TEST_CASE("ir/qaud.cc: build_from_vector_definition")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["symbols"] = json::JSON::Load(
+    obj["symbols"] = json::JSON::load(
         "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
         "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"main\": "
         "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
@@ -176,7 +176,7 @@ TEST_CASE("ir/qaud.cc: build_from_vector_definition")
         "\"vector_definition\", \"line\": 15, \"start_pos\": 124, \"column\": "
         "1, \"end_pos\": 128, \"end_column\": 5}}");
 
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "[{\n      \"left\" : {\n        \"node\" : \"string_literal\",\n      "
         "  \"root\" : \"\\\"orld\\\"\"\n      },\n      \"node\" : "
         "\"vector_definition\",\n      \"right\" : [],\n      \"root\" : "
@@ -188,19 +188,19 @@ TEST_CASE("ir/qaud.cc: build_from_vector_definition")
         "\"\\\"tough luck\\\"\"\n        }]\n    }]");
 
     credence::Symbol_Table<> symbols{};
-    auto vectors = obj["test"].ArrayRange().get();
-    build_from_vector_definition(symbols, vectors->at(0), obj["symbols"]);
-    CHECK(symbols.is_defined(vectors->at(0)["root"].ToString()) == true);
-    auto symbol = symbols.get_symbol_by_name(vectors->at(0)["root"].ToString());
+    auto vectors = obj["test"].to_deque();
+    build_from_vector_definition(symbols, vectors.at(0), obj["symbols"]);
+    CHECK(symbols.is_defined(vectors.at(0)["root"].to_string()) == true);
+    auto symbol = symbols.get_symbol_by_name(vectors.at(0)["root"].to_string());
     auto [value, type] = symbol;
     CHECK(std::get<std::string>(value) == "orld");
     CHECK(type.first == "string");
     CHECK(type.second == sizeof(char) * 4);
-    build_from_vector_definition(symbols, vectors->at(1), obj["symbols"]);
-    CHECK(symbols.is_defined(vectors->at(1)["root"].ToString()) == true);
-    CHECK(symbols.is_pointer(vectors->at(1)["root"].ToString()) == true);
+    build_from_vector_definition(symbols, vectors.at(1), obj["symbols"]);
+    CHECK(symbols.is_defined(vectors.at(1)["root"].to_string()) == true);
+    CHECK(symbols.is_pointer(vectors.at(1)["root"].to_string()) == true);
     auto vector_of_strings =
-        symbols.get_pointer_by_name(vectors->at(1)["root"].ToString());
+        symbols.get_pointer_by_name(vectors.at(1)["root"].to_string());
     CHECK(vector_of_strings.size() == 2);
     CHECK(std::get<std::string>(vector_of_strings.at(0).first) == "too bad");
     CHECK(std::get<std::string>(vector_of_strings.at(1).first) == "tough luck");
@@ -211,7 +211,7 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    auto internal_symbols = json::JSON::Load(
+    auto internal_symbols = json::JSON::load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
         "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
         "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
@@ -225,7 +225,7 @@ TEST_CASE("ir/qaud.cc: build_from_return_statement")
         ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
         "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
         "\"lvalue\"\n  }\n}");
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n            \"left\" : [{\n                \"left\" : {\n          "
         "        \"node\" : \"lvalue\",\n                  \"root\" : \"x\"\n  "
         "              },\n                \"node\" : "
@@ -263,7 +263,7 @@ TEST_CASE("ir/qaud.cc: build_from_block_statement")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
@@ -298,13 +298,13 @@ TEST_CASE("ir/qaud.cc: while statement branching")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["symbols"] = json::JSON::Load(
+    obj["symbols"] = json::JSON::load(
         "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
         "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"main\": "
         "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
         "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}}");
 
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
@@ -410,13 +410,13 @@ TEST_CASE("ir/qaud.cc: if and else branching")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["symbols"] = json::JSON::Load(
+    obj["symbols"] = json::JSON::load(
         "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
         "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"main\": "
         "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
         "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}}");
 
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
@@ -522,7 +522,7 @@ TEST_CASE("ir/qaud.cc: truthy type coercion")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["symbols"] = json::JSON::Load(
+    obj["symbols"] = json::JSON::load(
         "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
         "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"y\": {\"type\": "
         "\"lvalue\", \"line\": 2, \"start_pos\": 19, \"column\": 11, "
@@ -530,7 +530,7 @@ TEST_CASE("ir/qaud.cc: truthy type coercion")
         "\"function_definition\", \"line\": 1, \"start_pos\": 0, \"column\": "
         "1, \"end_pos\": 4, \"end_column\": 5}}");
 
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
@@ -598,7 +598,7 @@ TEST_CASE("ir/qaud.cc: label and goto")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["symbols"] = json::JSON::Load(
+    obj["symbols"] = json::JSON::load(
         "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
         "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"y\": {\"type\": "
         "\"lvalue\", \"line\": 2, \"start_pos\": 18, \"column\": 10, "
@@ -613,7 +613,7 @@ TEST_CASE("ir/qaud.cc: label and goto")
         "6}, \"b\": {\"type\": \"lvalue\", \"line\": 9, \"start_pos\": 73, "
         "\"column\": 7, \"end_pos\": 74, \"end_column\": 8}}");
 
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
@@ -674,7 +674,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"number_literal\",\n                    "
         "\"root\" : 5\n                  },\n                  \"node\" : "
@@ -707,7 +707,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
         ": [\"*\"]\n                }]],\n            \"node\" : "
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }");
-    obj["nested_binary"] = json::JSON::Load(
+    obj["nested_binary"] = json::JSON::load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
         "\"y\"\n                  },\n                  \"node\" : "
@@ -741,7 +741,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "               \"root\" : [\"=\", null]\n                }]],\n       "
         "     \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n   "
         "       }");
-    obj["nested_or"] = json::JSON::Load(
+    obj["nested_or"] = json::JSON::load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
         "\"y\"\n                  },\n                  \"node\" : "
@@ -765,7 +765,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "  \"root\" : [\"||\"]\n                  },\n                  "
         "\"root\" : [\"=\", null]\n                }]],\n            \"node\" "
         ": \"statement\",\n            \"root\" : \"rvalue\"\n          }");
-    obj["complex_or"] = json::JSON::Load(
+    obj["complex_or"] = json::JSON::load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
         "\"y\"\n                  },\n                  \"node\" : "
@@ -805,7 +805,7 @@ TEST_CASE("ir/qaud.cc: build_from_rvalue_statement")
         "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }]],\n            \"node\" : "
         "\"statement\",\n            \"root\" : \"rvalue\"\n}");
-    obj["or_with_call"] = json::JSON::Load(
+    obj["or_with_call"] = json::JSON::load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
         "\"y\"\n                  },\n                  \"node\" : "
@@ -964,7 +964,7 @@ TEST_CASE("ir/qaud.cc: build_from_auto_statement")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n  \"left\" : [{\n      \"left\" : {\n        \"node\" : "
         "\"number_literal\",\n        \"root\" : 50\n      },\n      \"node\" "
         ": \"vector_lvalue\",\n      \"root\" : \"x\"\n    }, {\n      "
@@ -999,7 +999,7 @@ TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
     using namespace credence;
     using namespace credence::ir;
     json::JSON obj;
-    auto internal_symbols = json::JSON::Load(
+    auto internal_symbols = json::JSON::load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
         "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
         "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
@@ -1013,7 +1013,7 @@ TEST_CASE("ir/qaud.cc: deep-evaluated rvalue")
         ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
         "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
         "\"lvalue\"\n  }\n}");
-    obj["test"] = json::JSON::Load(
+    obj["test"] = json::JSON::load(
         "{\n            \"left\" : [[{\n                  \"left\" : {\n       "
         "             \"node\" : \"lvalue\",\n                    \"root\" : "
         "\"x\"\n                  },\n                  \"node\" : "

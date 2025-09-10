@@ -77,7 +77,7 @@ int main(int argc, const char* argv[])
                     "get_source_program_symbol_table_as_json");
                 py::object symbols = symbol_table_call(source);
 
-                hoisted = json::JSON::Load(symbols.cast<std::string>());
+                hoisted = json::JSON::load(symbols.cast<std::string>());
                 if (result["debug"].count()) {
                     std::cout << "*** Symbol Table:" << std::endl
                               << symbols.cast<std::string>() << std::endl;
@@ -90,7 +90,7 @@ int main(int argc, const char* argv[])
                 if (ast_as_json.is_none())
                     throw std::runtime_error("could not construct ast");
 
-                ast["root"] = json::JSON::Load(ast_as_json.cast<std::string>());
+                ast["root"] = json::JSON::load(ast_as_json.cast<std::string>());
             } catch (py::error_already_set const& e) {
                 auto error_message = std::string_view{ e.what() };
                 std::cerr << "Credence :: "
@@ -99,7 +99,7 @@ int main(int argc, const char* argv[])
             }
 
         } else if (type == "json") {
-            ast["root"] = json::JSON::Load(source);
+            ast["root"] = json::JSON::load(source);
         } else {
             std::cerr << "Credence :: No source file provided" << std::endl;
             return 1;
@@ -119,7 +119,7 @@ int main(int argc, const char* argv[])
                 },
             pattern | "ast" =
                 [&]() {
-                    if (!ast.IsNull()) {
+                    if (!ast.is_null()) {
                         std::cout << ast["root"] << std::endl;
                     }
                 });

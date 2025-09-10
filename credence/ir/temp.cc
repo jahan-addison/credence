@@ -929,10 +929,10 @@ RValue_Instructions rvalue_node_to_list_of_ir_instructions(
     RValue_Queue list{};
     std::vector<type::RValue::Type_Pointer> rvalues{};
 
-    if (node.JSONType() == json::JSON::Class::Array) {
-        for (auto& expression : node.ArrayRange()) {
-            if (expression.JSONType() == json::JSON::Class::Array) {
-                for (auto& rvalue : expression.ArrayRange()) {
+    if (node.JSON_type() == json::JSON::Class::Array) {
+        for (auto& expression : node.array_range()) {
+            if (expression.JSON_type() == json::JSON::Class::Array) {
+                for (auto& rvalue : expression.array_range()) {
                     auto expression_rvalue =
                         RValue_Parser::make_rvalue(rvalue, details, symbols);
                     rvalues.emplace_back(type::rvalue_type_pointer_from_rvalue(
