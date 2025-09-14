@@ -32,7 +32,7 @@ namespace credence {
 
 namespace ir {
 
-// This stanford lecture was extremely helpful:
+// This lecture was extremely helpful:
 // https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/13/Slides13.pdf
 
 using Node = json::JSON;
@@ -142,7 +142,7 @@ Instructions build_from_block_statement(
     Node& node,
     Node& details,
     bool ret = false,
-    std::optional<Quadruple> tail_branch = std::nullopt,
+    std::optional<Quadruple> const& tail_branch = std::nullopt,
     std::optional<int*> temporary = std::nullopt);
 
 void build_from_auto_statement(Symbol_Table<>& symbols, Node& node);

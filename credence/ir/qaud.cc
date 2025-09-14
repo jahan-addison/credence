@@ -14,28 +14,27 @@
  * limitations under the License.
  */
 
-// clang-format off
 #include <credence/ir/qaud.h>
-#include <assert.h>            // for assert
-#include <credence/ir/temp.h>  // for make_temporary, rvalue_node_to_list_of...
-#include <simplejson.h>     // for JSON
-#include <credence/queue.h>    // for rvalue_to_string, RValue_Queue
-#include <credence/rvalue.h>   // for RValue_Parser
-#include <credence/symbol.h>   // for Symbol_Table
-#include <credence/types.h>    // for RValue, RValue_Type_Variant, Type_, Byte
-#include <matchit.h>           // for pattern, match, PatternHelper, Pattern...
-#include <algorithm>           // for copy, max
-#include <array>               // for array
-#include <format>              // for format, format_string
-#include <functional>          // for identity
-#include <list>                // for list
-#include <memory>              // for __shared_ptr_access, shared_ptr
-#include <ostream>             // for basic_ostream, operator<<, endl
-#include <ranges>              // for __find_fn, find
-#include <stdexcept>           // for runtime_error
-#include <utility>             // for pair, make_pair, cmp_not_equal
-#include <variant>             // for get, variant
-// clang-format on
+
+#include <algorithm>          // for copy, max
+#include <array>              // for array
+#include <assert.h>           // for assert
+#include <credence/ir/temp.h> // for make_temporary, rvalue_node_to_list_of...
+#include <credence/queue.h>   // for rvalue_to_string, RValue_Queue
+#include <credence/rvalue.h>  // for RValue_Parser
+#include <credence/symbol.h>  // for Symbol_Table
+#include <credence/types.h>   // for RValue, RValue_Type_Variant, Type_, Byte
+#include <format>             // for format, format_string
+#include <functional>         // for identity
+#include <list>               // for list
+#include <matchit.h>          // for pattern, match, PatternHelper, Pattern...
+#include <memory>             // for __shared_ptr_access, shared_ptr
+#include <ostream>            // for basic_ostream, operator<<, endl
+#include <ranges>             // for __find_fn, find
+#include <simplejson.h>       // for JSON
+#include <stdexcept>          // for runtime_error
+#include <utility>            // for pair, make_pair, cmp_not_equal
+#include <variant>            // for get, variant
 
 namespace credence {
 
@@ -120,12 +119,15 @@ Instructions build_from_function_definition(Symbol_Table<>& symbols,
     instructions.emplace_back(make_quadruple(
         Instruction::LABEL, std::format("__{}", node["root"].to_string()), ""));
     instructions.emplace_back(make_quadruple(Instruction::FUNC_START, "", ""));
+
     auto tail_branch = detail::make_temporary(&temporary);
     auto block_instructions = build_from_block_statement(
         block_level, globals, block, details, true, tail_branch, &temporary);
+
     instructions.insert(instructions.end(),
                         block_instructions.begin(),
                         block_instructions.end());
+
     instructions.emplace_back(make_quadruple(Instruction::FUNC_END, "", ""));
     return instructions;
 }
@@ -166,15 +168,15 @@ void build_from_vector_definition(Symbol_Table<>& symbols,
 /**
  * @brief Construct a set of qaud instructions from a block statement
  */
-Instructions build_from_block_statement(Symbol_Table<>& symbols,
-                                        Symbol_Table<>& globals,
-                                        Node& node,
-                                        Node& details,
-                                        bool ret,
-                                        std::optional<Quadruple> tail_branch,
-                                        std::optional<int*> temporary)
+Instructions build_from_block_statement(
+    Symbol_Table<>& symbols,
+    Symbol_Table<>& globals,
+    Node& node,
+    Node& details,
+    bool ret,
+    std::optional<Quadruple> const& tail_branch,
+    std::optional<int*> temporary)
 {
-
     using namespace matchit;
     assert(node["node"].to_string().compare("statement") == 0);
     assert(node["root"].to_string().compare("block") == 0);
@@ -201,7 +203,7 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
                         auto [jump_instructions, if_instructions] =
                             build_from_if_statement(symbols,
                                                     globals,
-                                                    tail_branch.value(),
+                                                    scope_tail_branch.value(),
                                                     statement,
                                                     details,
                                                     _temporary);
@@ -218,7 +220,6 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
             pattern | "while" =
                 [&] {
                     if (tail_branch.has_value()) {
-                        scope_tail_branch = detail::make_temporary(_temporary);
                         auto [jump_instructions, while_instructions] =
                             build_from_while_statement(
                                 symbols,
@@ -233,6 +234,8 @@ Instructions build_from_block_statement(Symbol_Table<>& symbols,
                         branches.insert(branches.end(),
                                         while_instructions.begin(),
                                         while_instructions.end());
+                        scope_tail_branch = detail::make_temporary(_temporary);
+                        instructions.emplace_back(scope_tail_branch.value());
                     }
                 },
             pattern | "rvalue" =
@@ -386,12 +389,12 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
     auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
         symbols, details, predicate, predicate_instructions, temporary);
 
+    predicate_instructions.push_back(start);
     predicate_instructions.emplace_back(
         make_quadruple(Instruction::IF,
                        predicate_temp,
                        instruction_to_string(Instruction::GOTO),
                        std::get<1>(jump)));
-
     branch_instructions.emplace_back(jump);
     predicate_instructions.emplace_back(
         make_quadruple(Instruction::GOTO, std::get<1>(tail_branch), ""));

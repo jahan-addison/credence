@@ -71,6 +71,7 @@ int main(int argc, const char* argv[])
         if (type == "python") {
             py::scoped_interpreter guard{};
             try {
+                // PYTHONHOME should be set to an env that has this package
                 py::object python_module = py::module::import("chakram.parser");
 
                 py::object symbol_table_call = python_module.attr(
@@ -93,8 +94,13 @@ int main(int argc, const char* argv[])
                 ast["root"] = json::JSON::load(ast_as_json.cast<std::string>());
             } catch (py::error_already_set const& e) {
                 auto error_message = std::string_view{ e.what() };
+#ifndef DEBUG
                 std::cerr << "Credence :: "
-                          << error_message.substr(0, error_message.find("At:"));
+                          << error_message.substr(0, error_message.find("At:"))
+                          << std::endl;
+#else
+                std::cerr << "Credence :: " << error_message << std::endl;
+#endif
                 return 1;
             }
 
