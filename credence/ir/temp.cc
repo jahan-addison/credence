@@ -27,12 +27,13 @@
 #include <deque>                // for deque, operator==, _Deque_iterator
 #include <format>               // for format, format_string
 #include <list>                 // for operator==, _List_iterator
-#include <map>                  // for map
+#include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for Ds, Meet, _, pattern, ds, match, Wil...
 #include <memory>               // for __shared_ptr_access, shared_ptr
 #include <simplejson.h>         // for JSON
 #include <stack>                // for stack
 #include <string>               // for basic_string, string, allocator, to_...
+#include <string_view>          // for basic_string_view, operator<=>
 #include <tuple>                // for tuple, get
 #include <utility>              // for pair, make_pair, cmp_equal
 #include <variant>              // for visit, variant, monostate

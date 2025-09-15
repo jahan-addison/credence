@@ -16,25 +16,25 @@
 
 #include <credence/rvalue.h>
 
-#include <algorithm>            // for max, __any_of_fn, any_of
+#include <algorithm>            // for __any_of_fn, any_of
 #include <cassert>              // for assert
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for RValue, Type_
+#include <credence/types.h>     // for RValue, LITERAL_TYPE
 #include <credence/util.h>      // for unescape_string
-#include <deque>                // for deque, operator==, _Deque_iterator
+#include <deque>                // for operator==, _Deque_iterator
 #include <format>               // for format, format_string
 #include <functional>           // for identity
 #include <map>                  // for map
+#include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
-#include <memory>               // for shared_ptr, make_shared
-#include <simplejson.h>         // for JSON
+#include <memory>               // for shared_ptr, allocator, make_shared
+#include <simplejson.h>         // for JSON, JSON_String
 #include <stdexcept>            // for runtime_error
-#include <string>               // for allocator, basic_string, operator==
+#include <string>               // for basic_string, operator==, char_traits
 #include <utility>              // for pair, make_pair, move
 #include <variant>              // for monostate, variant
 #include <vector>               // for vector
-
 namespace credence {
 
 /**

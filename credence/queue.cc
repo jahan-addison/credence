@@ -16,16 +16,16 @@
 
 #include <credence/queue.h>
 
-#include <algorithm>            // for copy, max
+#include <algorithm>            // for copy
 #include <credence/operators.h> // for Operator, get_precedence, is_left_as...
-#include <credence/types.h>     // for RValue, Type_, Byte
+#include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
 #include <credence/util.h>      // for overload
-#include <map>                  // for map
-#include <memory>               // for make_shared, shared_ptr, __shared_pt...
+#include <mapbox/eternal.hpp>   // for element, map
+#include <memory>               // for shared_ptr, __shared_ptr_access
 #include <sstream>              // for basic_ostream, basic_ostringstream
 #include <stack>                // for stack
 #include <utility>              // for pair
-#include <variant>              // for variant, get, visit, monostate
+#include <variant>              // for get, visit, monostate, variant
 
 /**************************************************************************
  *

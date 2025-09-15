@@ -23,18 +23,19 @@
 #include <credence/queue.h>   // for rvalue_to_string, RValue_Queue
 #include <credence/rvalue.h>  // for RValue_Parser
 #include <credence/symbol.h>  // for Symbol_Table
-#include <credence/types.h>   // for RValue, RValue_Type_Variant, Type_, Byte
+#include <credence/types.h>   // for RValue, RValue_Type_Variant, LITERAL_TYPE
 #include <format>             // for format, format_string
 #include <functional>         // for identity
 #include <list>               // for list
+#include <mapbox/eternal.hpp> // for element, map
 #include <matchit.h>          // for pattern, match, PatternHelper, Pattern...
 #include <memory>             // for __shared_ptr_access, shared_ptr
-#include <ostream>            // for basic_ostream, operator<<, endl
 #include <ranges>             // for __find_fn, find
 #include <simplejson.h>       // for JSON
 #include <stdexcept>          // for runtime_error
+#include <string_view>        // for basic_string_view, operator<=>
 #include <utility>            // for pair, make_pair, cmp_not_equal
-#include <variant>            // for get, variant
+#include <variant>            // for get, variant, monostate
 
 namespace credence {
 
@@ -217,6 +218,27 @@ Instructions build_from_block_statement(
                         instructions.emplace_back(scope_tail_branch.value());
                     }
                 },
+            pattern | "switch" =
+                [&] {
+                    if (tail_branch.has_value()) {
+                        auto [jump_instructions, while_instructions] =
+                            build_from_switch_statement(
+                                symbols,
+                                globals,
+                                scope_tail_branch.value(),
+                                statement,
+                                details,
+                                _temporary);
+                        instructions.insert(instructions.end(),
+                                            jump_instructions.begin(),
+                                            jump_instructions.end());
+                        branches.insert(branches.end(),
+                                        while_instructions.begin(),
+                                        while_instructions.end());
+                        scope_tail_branch = detail::make_temporary(_temporary);
+                        instructions.emplace_back(scope_tail_branch.value());
+                    }
+                },
             pattern | "while" =
                 [&] {
                     if (tail_branch.has_value()) {
@@ -283,7 +305,7 @@ Instructions build_from_block_statement(
 /**
  * @brief Turn an rvalue into a "truthy" comparator for statement predicates
  */
-std::string detail::build_from_branch_comparator_from_rvalue(
+std::string detail::build_from_branch_comparator_rvalue(
     Symbol_Table<>& symbols,
 
     Node& details,
@@ -357,12 +379,71 @@ void detail::insert_rvalue_or_block_branch_instructions(
                                    block_instructions.begin(),
                                    block_instructions.end());
     } else {
-        auto rvalue_instructions =
-            build_from_rvalue_statement(symbols, block, details, temporary);
+        auto block_statement = json::object();
+        block_statement["node"] = json::JSON{ "statement" };
+        block_statement["root"] = json::JSON{ "block" };
+        block_statement["left"].append(block);
+        auto block_instructions = build_from_block_statement(symbols,
+                                                             globals,
+                                                             block_statement,
+                                                             details,
+                                                             false,
+                                                             tail_branch,
+                                                             temporary);
+
         branch_instructions.insert(branch_instructions.end(),
-                                   rvalue_instructions.begin(),
-                                   rvalue_instructions.end());
+                                   block_instructions.begin(),
+                                   block_instructions.end());
     }
+}
+
+Branch_Instructions build_from_switch_statement(Symbol_Table<>& symbols,
+                                                Symbol_Table<>& globals,
+                                                Quadruple const& tail_branch,
+                                                Node& node,
+                                                Node& details,
+                                                int* temporary)
+{
+    Instructions predicate_instructions{};
+    Instructions branch_instructions{};
+    auto predicate = node["left"];
+    auto blocks = node["right"];
+
+    auto predicate_temp = detail::build_from_branch_comparator_rvalue(
+        symbols, details, predicate, predicate_instructions, temporary);
+
+    for (auto const& block : blocks.array_range()) {
+        assert(block["node"].to_string().compare("statement") == 0);
+        assert(block["root"].to_string().compare("case") == 0);
+
+        auto jump = detail::make_temporary(temporary);
+        auto statements = block["right"].to_deque();
+        // the case predicate is always a constant literal
+        auto constant_literal =
+            RValue_Parser::make_rvalue(block["left"], details, symbols);
+        predicate_instructions.emplace_back(
+            make_quadruple(Instruction::IF_Z,
+                           predicate_temp,
+                           rvalue_to_string(constant_literal.value, false),
+                           std::get<1>(jump)));
+        branch_instructions.emplace_back(jump);
+        detail::insert_rvalue_or_block_branch_instructions(symbols,
+                                                           globals,
+                                                           statements.front(),
+                                                           details,
+                                                           tail_branch,
+                                                           temporary,
+                                                           branch_instructions);
+        if (statements.size() > 1) {
+            // break statement
+            branch_instructions.emplace_back(make_quadruple(
+                Instruction::GOTO, std::get<1>(tail_branch), ""));
+        }
+    }
+    predicate_instructions.emplace_back(
+        make_quadruple(Instruction::GOTO, std::get<1>(tail_branch), ""));
+    predicate_instructions.emplace_back(tail_branch);
+    return std::make_pair(predicate_instructions, branch_instructions);
 }
 
 /**
@@ -375,7 +456,6 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
                                                Node& details,
                                                int* temporary)
 {
-    using namespace matchit;
     assert(node["node"].to_string().compare("statement") == 0);
     assert(node["root"].to_string().compare("while") == 0);
     Instructions predicate_instructions{};
@@ -386,7 +466,7 @@ Branch_Instructions build_from_while_statement(Symbol_Table<>& symbols,
     auto start = detail::make_temporary(temporary);
     auto jump = detail::make_temporary(temporary);
 
-    auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
+    auto predicate_temp = detail::build_from_branch_comparator_rvalue(
         symbols, details, predicate, predicate_instructions, temporary);
 
     predicate_instructions.push_back(start);
@@ -424,7 +504,6 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
                                             Node& details,
                                             int* temporary)
 {
-    using namespace matchit;
     assert(node["node"].to_string().compare("statement") == 0);
     assert(node["root"].to_string().compare("if") == 0);
     Instructions predicate_instructions{};
@@ -433,7 +512,7 @@ Branch_Instructions build_from_if_statement(Symbol_Table<>& symbols,
     auto predicate = node["left"];
     auto blocks = node["right"].to_deque();
 
-    auto predicate_temp = detail::build_from_branch_comparator_from_rvalue(
+    auto predicate_temp = detail::build_from_branch_comparator_rvalue(
         symbols, details, predicate, predicate_instructions, temporary);
 
     auto jump = detail::make_temporary(temporary);
@@ -484,7 +563,6 @@ Instructions build_from_label_statement(Symbol_Table<>& symbols,
                                         Node& node,
                                         Node& details)
 {
-    using namespace matchit;
     assert(node["node"].to_string().compare("statement") == 0);
     assert(node["root"].to_string().compare("label") == 0);
     assert(node.has_key("left"));
@@ -504,7 +582,6 @@ Instructions build_from_goto_statement(Symbol_Table<>& symbols,
                                        Node& node,
                                        Node& details)
 {
-    using namespace matchit;
     assert(node["node"].to_string().compare("statement") == 0);
     assert(node["root"].to_string().compare("goto") == 0);
     assert(node.has_key("left"));
@@ -529,7 +606,6 @@ Instructions build_from_return_statement(Symbol_Table<>& symbols,
                                          Node& details,
                                          int* temporary)
 {
-    using namespace matchit;
     assert(node["node"].to_string().compare("statement") == 0);
     assert(node["root"].to_string().compare("return") == 0);
     Instructions instructions{};
@@ -655,7 +731,7 @@ void emit_quadruple(std::ostream& os, Quadruple qaud)
                 },
             pattern |
                 Instruction::LEAVE = [&] { os << op << ";" << std::endl; },
-            pattern | Instruction::IF =
+            pattern | or_(Instruction::IF, Instruction::IF_Z) =
                 [&] {
                     os << op << " " << std::get<1>(qaud) << " "
                        << std::get<2>(qaud) << " " << std::get<3>(qaud) << ";"

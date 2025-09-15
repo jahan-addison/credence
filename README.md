@@ -10,11 +10,8 @@
 ---
 
 
-* The frontend (Lexer, Parser) first-pass is built with an [LALR(1) grammar and parser generator in python](https://github.com/jahan-addison/chakram/tree/master), that interfaces with C++ via libpython
-* The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm64, and z80.
-
-_**Status**: in progress_
-
+* The Lexer, Parser first-pass is built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
+* The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm64, and z80
 
 ## Usage
 
@@ -98,11 +95,11 @@ make test
 
 ## Language
 
-There are a few implementation differences between the compiler and B specification, namely:
+There are a few differences between the compiler and B specification, namely:
 
 * Support for C++ style comments (i.e. `//`)
-* Boolean type coercion for conditionals
-* Switch statement condition must always be enclosed with `(` and `)`
+* Boolean type coercion for all data types in conditionals
+* Switch statement condition must always be enclosed with `(` and `)`,
 * Uses C operator precedence
 * Constant literals must be exactly 1 byte
 * Logical and/or operators behave more like C (i.e. `||` and `&&`)
@@ -112,41 +109,60 @@ There are a few implementation differences between the compiler and B specificat
 
 ## Installation
 
+Note: `$PYTHONHOME` must be set to an installation that has [chakram](https://github.com/jahan-addison/chakram) installed.
+
+
+### Ubuntu
+
+```bash
+sudo apt-get update
+sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
+# Inside the repository:
+echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.profile
+source ~/.profile
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build
+```
+
 ### MacOS
 
 ```bash
 brew update
-brew install coreutils include-what-you-use llvm@20 cmake python3 poetry python-dev
-git clone git@github.com:jahan-addison/credence.git
-cd credence
-bash ./scripts/install.sh
-cd build
+brew install coreutils include-what-you-use llvm@20 cmake python3 pyenv
+# Inside the repository:
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-make
-./credence
+cmake --build build
 ```
 
 ### Windows (mingw/msys)
 
 ```bash
 pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
-git clone git@github.com:jahan-addison/credence.git
-cd credence
-bash ./scripts/install.sh
-cd build
-# Note: iwyu and sanitizers may not work in mingw
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# Inside the repository:
+# Note: iwyu and the -fsanitizers do not work in mingw
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ninja
-./credence
-
 ```
+
+#### Installing chakram
+
+```bash
+git submodule update --init --recursive
+cd python/chakram
+pipx install poetry # or similar
+poetry install
+# Be sure to use pyenv or similar
+make install
+```
+
+---
 
 ## Dependencies
 
 **Note: These are installed automatically via CPM and cmake.**
 
 * `simplejson++` - [lightweight memory safe json library](https://github.com/jahan-addison/simplejson)
-* `chakram` - [LALR(1) parser generator](https://github.com/jahan-addison/chakram)
+* `chakram` - [LALR(1) parser generator and frontend](https://github.com/jahan-addison/chakram)
 * `cxxopts` - lightweight commandline parser
 * `matchit` - pattern matching
 * `eternal` - `constexpr` lookup tables

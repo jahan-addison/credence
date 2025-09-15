@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-#include <pybind11/pybind11.h> // for error_already_set::what, module
-
-#include <credence/ir/qaud.h> // for build_from_definitions, emit_qu...
-#include <credence/symbol.h>  // for Symbol_Table
-#include <credence/util.h>    // for read_file_from_path
-#include <cxxopts.hpp>        // for value, Options, OptionAdder
-#include <exception>          // for exception
-#include <iostream>           // for cerr, cout
-#include <matchit.h>          // for pattern, match, PatternHelper
-#include <memory>             // for shared_ptr
-#include <ostream>            // for basic_ostream, operator<<, endl
-#include <pybind11/cast.h>    // for object_api::operator(), object:...
-#include <pybind11/embed.h>   // for scoped_interpreter
-#include <pybind11/pytypes.h> // for object, accessor, str_attr, err...
-#include <simplejson.h>       // for JSON, operator<<
-#include <stdexcept>          // for runtime_error
-#include <string>             // for basic_string, char_traits, string
+#include <credence/ir/qaud.h>  // for build_from_definitions, emit_quadruple
+#include <credence/symbol.h>   // for Symbol_Table
+#include <credence/util.h>     // for read_file_from_path
+#include <cxxopts.hpp>         // for value, Options, OptionAdder, ParseResult
+#include <deque>               // for operator==, _Deque_iterator
+#include <exception>           // for exception
+#include <iostream>            // for basic_ostream, operator<<, endl, cerr
+#include <matchit.h>           // for match, pattern, PatternHelper, Patter...
+#include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
+#include <pybind11/cast.h>     // for object_api::operator(), object::cast
+#include <pybind11/embed.h>    // for scoped_interpreter
+#include <pybind11/pybind11.h> // for error_already_set::what, module, module_
+#include <pybind11/pytypes.h>  // for object, error_already_set, object_api
+#include <simplejson.h>        // for JSON, operator<<
+#include <stdexcept>           // for runtime_error
+#include <stdlib.h>            // for exit
+#include <string>              // for char_traits, basic_string, string
+#include <string_view>         // for operator<<, string_view
+#include <tuple>               // for tuple
+#include <vector>              // for vector
 
 int main(int argc, const char* argv[])
 {

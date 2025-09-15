@@ -16,17 +16,15 @@
 #pragma once
 #include <algorithm>         // for copy, max
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for RValue, Type_, Value_Type
+#include <credence/types.h>  // for RValue
 #include <deque>             // for deque
 #include <iomanip>           // for operator<<, setw
-#include <map>               // for map
 #include <optional>          // for optional, nullopt
 #include <simplejson.h>      // for JSON
 #include <sstream>           // for operator<<, basic_ostream, basic_ostrin...
 #include <string>            // for allocator, char_traits, string, operator<<
 #include <tuple>             // for get, make_tuple, tuple
 #include <utility>           // for pair
-#include <variant>           // for monostate
 #include <vector>            // for vector
 namespace credence {
 
@@ -44,6 +42,7 @@ enum class Instruction
     LABEL,
     GOTO,
     IF,
+    IF_Z,
     PUSH,
     POP,
     CALL,
@@ -81,11 +80,11 @@ void insert_rvalue_or_block_branch_instructions(
     int* temporary,
     Instructions& branch_instructions);
 
-std::string build_from_branch_comparator_from_rvalue(Symbol_Table<>& symbols,
-                                                     Node& details,
-                                                     Node& block,
-                                                     Instructions& instructions,
-                                                     int* temporary);
+std::string build_from_branch_comparator_rvalue(Symbol_Table<>& symbols,
+                                                Node& details,
+                                                Node& block,
+                                                Instructions& instructions,
+                                                int* temporary);
 
 } // namespace detail
 
@@ -187,6 +186,9 @@ constexpr std::ostream& operator<<(std::ostream& os, Instruction const& op)
             break;
         case Instruction::LEAVE:
             os << "LEAVE";
+            break;
+        case Instruction::IF_Z:
+            os << "IF_Z";
             break;
         case Instruction::IF:
             os << "IF";
