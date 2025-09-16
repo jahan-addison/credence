@@ -16,27 +16,24 @@
 
 #include <credence/ir/temp.h>
 
-#include <algorithm>            // for copy, max
-#include <credence/ir/qaud.h>   // for make_quadruple, Instructions, Instru...
+#include <credence/ir/ita.h>    // for ITA
 #include <credence/operators.h> // for Operator, operator_to_string
 #include <credence/queue.h>     // for rvalue_to_string, rvalues_to_queue
 #include <credence/rvalue.h>    // for RValue_Parser
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
-#include <credence/util.h>      // for overload
-#include <deque>                // for deque, operator==, _Deque_iterator
-#include <format>               // for format, format_string
-#include <list>                 // for operator==, _List_iterator
+#include <credence/util.h>      // for AST_Node, overload
+#include <deque>                // for deque
+#include <format>               // for format
 #include <mapbox/eternal.hpp>   // for element, map
-#include <matchit.h>            // for Ds, Meet, _, pattern, ds, match, Wil...
-#include <memory>               // for __shared_ptr_access, shared_ptr
+#include <matchit.h>            // for Ds, Meet, _, Wildcard, pattern, ds
+#include <memory>               // for shared_ptr
 #include <simplejson.h>         // for JSON
-#include <stack>                // for stack
-#include <string>               // for basic_string, string, allocator, to_...
-#include <string_view>          // for basic_string_view, operator<=>
-#include <tuple>                // for tuple, get
+#include <string>               // for basic_string, string, to_string
+#include <string_view>          // for basic_string_view
+#include <tuple>                // for get, tuple
 #include <utility>              // for pair, make_pair, cmp_equal
-#include <variant>              // for visit, variant, monostate
+#include <variant>              // for visit, monostate, variant
 #include <vector>               // for vector
 
 /****************************************************************************
@@ -78,9 +75,9 @@ namespace detail {
  * from each stack into instruction tuple
  */
 void binary_operands_balanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    detail::Operand_Stack& operand_stack,
+    detail::Temporary_Stack& temporary_stack,
+    ITA::Instructions& instructions,
     type::Operator op,
     int* temporary)
 {
@@ -95,17 +92,23 @@ void binary_operands_balanced_temporary_stack(
     auto lhs = instruction_temporary_from_rvalue_operand(operand1, temporary);
     instructions.insert(
         instructions.end(), lhs.second.begin(), lhs.second.end());
-    auto temp_rhs = make_temporary(temporary, rhs);
+    auto temp_rhs = ITA::make_temporary(temporary, rhs);
     instructions.emplace_back(temp_rhs);
-    temporary_stack.emplace(std::format(
-        "{} {} {}", lhs.first, operator_to_string(op), std::get<1>(temp_rhs)));
+    temporary_stack.emplace(
+        std::format(
+            "{} {} {}",
+            lhs.first,
+            operator_to_string(op),
+            std::get<1>(temp_rhs)));
     // an lvalue at the end of a call stack
     if (operand1->index() == 6 and operand_stack.size() == 0) {
-        auto temp_lhs = make_temporary(temporary,
-                                       std::format("{} {} {}",
-                                                   lhs.first,
-                                                   operator_to_string(op),
-                                                   std::get<1>(temp_rhs)));
+        auto temp_lhs = ITA::make_temporary(
+            temporary,
+            std::format(
+                "{} {} {}",
+                lhs.first,
+                operator_to_string(op),
+                std::get<1>(temp_rhs)));
         instructions.emplace_back(temp_lhs);
     }
 }
@@ -116,15 +119,13 @@ void binary_operands_balanced_temporary_stack(
  */
 std::pair<std::string, std::size_t> insert_create_temp_from_operand(
     type::RValue::Type_Pointer operand,
-    Instructions& instructions,
+    ITA::Instructions& instructions,
     int* temporary)
 {
     auto inst_temp =
         instruction_temporary_from_rvalue_operand(operand, temporary);
     if (inst_temp.second.size() > 0) {
-        instructions.insert(instructions.end(),
-                            inst_temp.second.begin(),
-                            inst_temp.second.end());
+        ITA::insert_instructions(instructions, inst_temp.second);
         return std::make_pair(inst_temp.first, inst_temp.second.size());
     } else {
         return std::make_pair(rvalue_to_string(*operand, false), 0);
@@ -137,9 +138,9 @@ std::pair<std::string, std::size_t> insert_create_temp_from_operand(
  * so use the lvalue from the last instruction for the LHS.
  */
 void binary_operands_unbalanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    detail::Operand_Stack& operand_stack,
+    detail::Temporary_Stack& temporary_stack,
+    ITA::Instructions& instructions,
     type::Operator op,
     int* temporary)
 {
@@ -156,33 +157,37 @@ void binary_operands_unbalanced_temporary_stack(
         pattern | (_ > 1) =
             [&] {
                 size_t last_index = 2;
-                Quadruple last_lvalue =
+                ITA::Quadruple last_lvalue =
                     instructions[instructions.size() - last_index];
                 // backtrack the instruction stack and grab the last lvalue
-                while (std::get<0>(last_lvalue) != Instruction::VARIABLE and
+                while (std::get<0>(last_lvalue) !=
+                           ITA::Instruction::VARIABLE and
                        last_index < instructions.size()) {
                     last_lvalue =
                         instructions[instructions.size() - last_index];
                     last_index++;
                 }
-                auto operand_temp =
-                    make_temporary(temporary,
-                                   std::format("{} {} {}",
-                                               std::get<1>(last_lvalue),
-                                               operator_to_string(op),
-                                               std::get<1>(last)));
+                auto operand_temp = ITA::make_temporary(
+                    temporary,
+                    std::format(
+                        "{} {} {}",
+                        std::get<1>(last_lvalue),
+                        operator_to_string(op),
+                        std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
                 temporary_stack.emplace(std::get<1>(operand_temp));
             },
         // cppcheck-suppress syntaxError
         pattern | 1 =
             [&] {
+                // clang-format off
                 auto operand_temp =
-                    make_temporary(temporary,
-                                   std::format("{} {} {}",
-                                               rhs_lvalue,
-                                               operator_to_string(op),
-                                               std::get<1>(last)));
+                    ITA::make_temporary(temporary,
+                    std::format("{} {} {}",
+                        rhs_lvalue,
+                        operator_to_string(op),
+                        std::get<1>(last)));
+                // clang-format on
                 instructions.emplace_back(operand_temp);
                 temporary_stack.emplace(std::get<1>(operand_temp));
             }
@@ -195,11 +200,14 @@ void binary_operands_unbalanced_temporary_stack(
  * Construct a temporary lvalue from a recursive rvalue
  *  See type::RValue in `types.h' for details.
  */
-std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
+// clang-format off
+std::pair<std::string, ITA::Instructions>
+instruction_temporary_from_rvalue_operand(
     RValue::Type_Pointer& operand,
     int* temporary_size)
 {
-    Instructions instructions{};
+    // clang-format on
+    ITA::Instructions instructions{};
     std::string temp_name{};
     std::visit(
         util::overload{
@@ -209,10 +217,7 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                     type::rvalue_type_pointer_from_rvalue(s->value);
                 auto rvalue_pointer = instruction_temporary_from_rvalue_operand(
                     unwrap_type, temporary_size);
-
-                instructions.insert(instructions.end(),
-                                    rvalue_pointer.second.begin(),
-                                    rvalue_pointer.second.end());
+                ITA::insert_instructions(instructions, rvalue_pointer.second);
                 temp_name = rvalue_pointer.first;
             },
             [&](RValue::Value_Pointer&) {},
@@ -228,14 +233,13 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                     type::rvalue_type_pointer_from_rvalue(s.second->value);
                 auto rhs = instruction_temporary_from_rvalue_operand(
                     unwrap_rhs_type, temporary_size);
-                instructions.insert(
-                    instructions.end(), rhs.second.begin(), rhs.second.end());
-                auto temp = make_temporary(temporary_size, rhs.first);
+                ITA::insert_instructions(instructions, rhs.second);
+                auto temp = ITA::make_temporary(temporary_size, rhs.first);
 
-                auto unary = make_temporary(temporary_size,
-                                            std::format("{} {}",
-                                                        operator_to_string(op),
-                                                        std::get<1>(temp)));
+                auto unary = ITA::make_temporary(
+                    temporary_size,
+                    std::format(
+                        "{} {}", operator_to_string(op), std::get<1>(temp)));
                 instructions.emplace_back(unary);
                 temp_name = std::get<1>(unary);
             },
@@ -252,13 +256,14 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
                         unwrap_lhs_type, temporary_size);
                     auto rhs = instruction_temporary_from_rvalue_operand(
                         unwrap_rhs_type, temporary_size);
+                    // clang-format off
                     auto relation =
-                        make_temporary(temporary_size,
-                                       std::format("{} {} {}",
-                                                   lhs.first,
-                                                   operator_to_string(op),
-                                                   rhs.first));
-
+                        ITA::make_temporary(temporary_size,
+                            std::format("{} {} {}",
+                                lhs.first,
+                                operator_to_string(op),
+                                rhs.first));
+                    // clang-format on
                     instructions.emplace_back(relation);
                     temp_name = std::get<1>(relation);
                 }
@@ -278,9 +283,9 @@ std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
  * @brief Construct temporary instructions from assignment operator
  */
 void assignment_operands_to_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    detail::Operand_Stack& operand_stack,
+    detail::Temporary_Stack& temporary_stack,
+    ITA::Instructions& instructions,
     int* temporary)
 {
     using namespace matchit;
@@ -293,21 +298,25 @@ void assignment_operands_to_temporary_stack(
                 temporary_stack.pop();
                 auto lvalue = operand_stack.top();
                 operand_stack.pop();
-                auto lhs = instruction_temporary_from_rvalue_operand(lvalue,
-                                                                     temporary);
-                instructions.insert(
-                    instructions.end(), lhs.second.begin(), lhs.second.end());
+                auto lhs = instruction_temporary_from_rvalue_operand(
+                    lvalue, temporary);
+                ITA::insert_instructions(instructions, lhs.second);
                 instructions.emplace_back(
-                    make_quadruple(Instruction::VARIABLE, lhs.first, rhs));
+                    ITA::make_quadruple(
+                        ITA::Instruction::VARIABLE, lhs.first, rhs));
             },
         pattern | ds(_ == 1, _ == 0) =
             [&] {
                 auto lhs_rvalue = rvalue_to_string(*operand_stack.top(), false);
                 operand_stack.pop();
                 if (instructions.size() > 1) {
+                    // clang-format off
                     auto last = instructions[instructions.size() - 1];
-                    instructions.emplace_back(make_quadruple(
-                        Instruction::VARIABLE, lhs_rvalue, std::get<1>(last)));
+                    instructions.emplace_back(
+                        ITA::make_quadruple(ITA::Instruction::VARIABLE,
+                            lhs_rvalue,
+                            std::get<1>(last)));
+                    // clang-format on
                 }
             },
         pattern | ds(_ >= 2, _ == 0) =
@@ -317,17 +326,15 @@ void assignment_operands_to_temporary_stack(
                 auto operand2 = operand_stack.top();
                 operand_stack.pop();
 
-                auto lhs = instruction_temporary_from_rvalue_operand(operand2,
-                                                                     temporary);
-                auto rhs = instruction_temporary_from_rvalue_operand(operand1,
-                                                                     temporary);
-
-                instructions.insert(
-                    instructions.end(), lhs.second.begin(), lhs.second.end());
-                instructions.insert(
-                    instructions.end(), rhs.second.begin(), rhs.second.end());
-                instructions.emplace_back(make_quadruple(
-                    Instruction::VARIABLE, lhs.first, rhs.first));
+                auto lhs = instruction_temporary_from_rvalue_operand(
+                    operand2, temporary);
+                auto rhs = instruction_temporary_from_rvalue_operand(
+                    operand1, temporary);
+                ITA::insert_instructions(instructions, lhs.second);
+                ITA::insert_instructions(instructions, rhs.second);
+                instructions.emplace_back(
+                    ITA::make_quadruple(
+                        ITA::Instruction::VARIABLE, lhs.first, rhs.first));
             });
 }
 
@@ -356,9 +363,9 @@ void assignment_operands_to_temporary_stack(
  * identifier _t2. We popped it off and used it in our final temporary.
  */
 void unary_operand_to_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    detail::Operand_Stack& operand_stack,
+    detail::Temporary_Stack& temporary_stack,
+    ITA::Instructions& instructions,
     Operator op,
     int* temporary)
 {
@@ -374,11 +381,15 @@ void unary_operand_to_temporary_stack(
             [&] {
                 auto operand1 = temporary_stack.top();
                 temporary_stack.pop();
-                auto unary = make_temporary(
+                auto unary = ITA::make_temporary(
                     temporary,
                     std::format("{} {}", operator_to_string(op), operand1));
-                temporary_stack.emplace(std::format(
-                    "{} {}", operator_to_string(op), std::get<1>(unary), ""));
+                temporary_stack.emplace(
+                    std::format(
+                        "{} {}",
+                        operator_to_string(op),
+                        std::get<1>(unary),
+                        ""));
             },
         pattern | _ =
             [&] {
@@ -389,24 +400,25 @@ void unary_operand_to_temporary_stack(
                     // lvalue, pop to its own temporary first
                     auto operand1 = temporary_stack.top();
                     temporary_stack.pop();
-                    auto last_expression = make_temporary(temporary, operand1);
+                    auto last_expression =
+                        ITA::make_temporary(temporary, operand1);
                     instructions.emplace_back(last_expression);
                     temporary_stack.emplace(std::get<1>(last_expression));
                 }
-                auto rhs = instruction_temporary_from_rvalue_operand(operand1,
-                                                                     temporary);
-                instructions.insert(
-                    instructions.end(), rhs.second.begin(), rhs.second.end());
+                auto rhs = instruction_temporary_from_rvalue_operand(
+                    operand1, temporary);
+                ITA::insert_instructions(instructions, rhs.second);
                 match(std::cmp_equal(tss, 0))(
                     pattern | true =
                         [&] {
                             // No temporary stack available, so push the newest
                             // temporary as an lvalue operand on the main stack
-                            auto operand_temp = make_temporary(
+                            auto operand_temp = ITA::make_temporary(
                                 temporary,
-                                std::format("{} {}",
-                                            operator_to_string(op),
-                                            rhs.first));
+                                std::format(
+                                    "{} {}",
+                                    operator_to_string(op),
+                                    rhs.first));
                             type::RValue::LValue temp_lvalue = std::make_pair(
                                 std::get<1>(operand_temp), type::NULL_LITERAL);
                             operand_stack.emplace(
@@ -416,11 +428,12 @@ void unary_operand_to_temporary_stack(
                     pattern | _ =
                         [&] {
                             // pop the last expression as the unary operand
-                            auto unary = make_temporary(
+                            auto unary = ITA::make_temporary(
                                 temporary,
-                                std::format("{} {}",
-                                            operator_to_string(op),
-                                            rhs.first));
+                                std::format(
+                                    "{} {}",
+                                    operator_to_string(op),
+                                    rhs.first));
                             instructions.emplace_back(unary);
                             temporary_stack.emplace(std::get<1>(unary));
                         }
@@ -471,9 +484,9 @@ void unary_operand_to_temporary_stack(
  * for the final binary expression.
  */
 void binary_operands_to_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    detail::Operand_Stack& operand_stack,
+    detail::Temporary_Stack& temporary_stack,
+    ITA::Instructions& instructions,
     Operator op,
     int* temporary)
 {
@@ -490,7 +503,7 @@ void binary_operands_to_temporary_stack(
                 temporary_stack.pop();
                 auto lhs = temporary_stack.top();
                 temporary_stack.pop();
-                auto last_instruction = make_temporary(
+                auto last_instruction = ITA::make_temporary(
                     temporary,
                     std::format("{} {} {}", lhs, operator_to_string(op), rhs));
                 instructions.emplace_back(last_instruction);
@@ -499,11 +512,12 @@ void binary_operands_to_temporary_stack(
         // and at least one rvalue operand to use
         pattern | ds(_ >= 1, _ == 1) =
             [&] {
-                binary_operands_balanced_temporary_stack(operand_stack,
-                                                         temporary_stack,
-                                                         instructions,
-                                                         op,
-                                                         temporary);
+                binary_operands_balanced_temporary_stack(
+                    operand_stack,
+                    temporary_stack,
+                    instructions,
+                    op,
+                    temporary);
             },
         pattern | _ =
             [&] {
@@ -541,15 +555,17 @@ void binary_operands_to_temporary_stack(
                                 rhs_name.second == 0 and tss == 0) {
                                 // if the lhs is an lvalue, use the
                                 // temporary from the last instruction
-                                auto operand_temp = make_temporary(
+                                auto operand_temp = ITA::make_temporary(
                                     temporary,
-                                    std::format("{} {} {}",
-                                                lhs_name.first,
-                                                operator_to_string(op),
-                                                rhs_name.first));
+                                    std::format(
+                                        "{} {} {}",
+                                        lhs_name.first,
+                                        operator_to_string(op),
+                                        rhs_name.first));
                                 type::RValue::LValue temp_lvalue =
-                                    std::make_pair(std::get<1>(operand_temp),
-                                                   type::NULL_LITERAL);
+                                    std::make_pair(
+                                        std::get<1>(operand_temp),
+                                        type::NULL_LITERAL);
                                 operand_stack.emplace(
                                     rvalue_type_pointer_from_rvalue(
                                         temp_lvalue));
@@ -557,10 +573,11 @@ void binary_operands_to_temporary_stack(
 
                             } else {
                                 temporary_stack.emplace(
-                                    std::format("{} {} {}",
-                                                lhs_name.first,
-                                                operator_to_string(op),
-                                                rhs_name.first));
+                                    std::format(
+                                        "{} {} {}",
+                                        lhs_name.first,
+                                        operator_to_string(op),
+                                        rhs_name.first));
                             }
                         }
 
@@ -578,17 +595,21 @@ void binary_operands_to_temporary_stack(
  *   for operator translation.
  *
  */
-Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
-                                                  int* temporary)
+// clang-format off
+ITA::Instructions
+rvalue_queue_to_temp_instructions(
+    RValue_Queue* queue,
+    int* temporary)
 {
+    // clang-format on
     using namespace detail;
     using namespace matchit;
-    Instructions instructions{};
+    ITA::Instructions instructions{};
     if (queue->empty()) {
         return instructions;
     }
-    std::stack<std::string> temporary_stack{};
-    std::stack<type::RValue::Type_Pointer> operand_stack{};
+    detail::Temporary_Stack temporary_stack{};
+    detail::Operand_Stack operand_stack{};
     int param_on_stack = 0;
     for (auto& item : *queue) {
         std::visit(
@@ -597,212 +618,240 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                     switch (op) {
                         // relational operators
                         case Operator::R_EQUAL:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
 
                             break;
                         case Operator::R_NEQUAL:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::R_LT:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::R_GT:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::R_LE:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::R_GE:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::R_OR:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
 
                             break;
                         case Operator::R_AND:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         // math binary operators
                         case Operator::B_SUBTRACT:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::B_ADD:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::B_MOD:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::B_MUL:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::B_DIV:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         // unary increment/decrement
                         case Operator::PRE_INC:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::POST_INC:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         case Operator::PRE_DEC:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::POST_DEC:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         // bit ops
                         case Operator::RSHIFT:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::OR:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::AND:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::LSHIFT:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::XOR:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         case Operator::U_NOT:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::U_ONES_COMPLEMENT:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         // pointer operators
                         case Operator::U_SUBSCRIPT:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::U_INDIRECTION:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::U_ADDR_OF:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
                         case Operator::U_MINUS:
-                            unary_operand_to_temporary_stack(operand_stack,
-                                                             temporary_stack,
-                                                             instructions,
-                                                             op,
-                                                             temporary);
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
                             break;
 
                         // lvalue and address operators
@@ -810,14 +859,17 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                             if (temporary_stack.size() > 1) {
                                 auto rhs = temporary_stack.top();
                                 temporary_stack.pop();
-                                auto temp_rhs = make_temporary(temporary, rhs);
+                                auto temp_rhs =
+                                    ITA::make_temporary(temporary, rhs);
                                 instructions.emplace_back(temp_rhs);
                                 temporary_stack.emplace(
-                                    std::format("{} {}",
-                                                operator_to_string(op),
-                                                std::get<1>(temp_rhs)));
+                                    std::format(
+                                        "{} {}",
+                                        operator_to_string(op),
+                                        std::get<1>(temp_rhs)));
                                 instructions.emplace_back(
-                                    make_quadruple(Instruction::CALL, rhs, ""));
+                                    ITA::make_quadruple(
+                                        ITA::Instruction::CALL, rhs, ""));
                                 temporary_stack.emplace(rhs);
                             } else {
                                 if (temporary_stack.size() == 1 and
@@ -825,14 +877,16 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                     auto rhs = temporary_stack.top();
                                     temporary_stack.pop();
                                     auto temp_rhs =
-                                        make_temporary(temporary, rhs);
+                                        ITA::make_temporary(temporary, rhs);
                                     instructions.emplace_back(temp_rhs);
                                     temporary_stack.emplace(
-                                        std::format("{} {}",
-                                                    operator_to_string(op),
-                                                    std::get<1>(temp_rhs)));
-                                    instructions.emplace_back(make_quadruple(
-                                        Instruction::CALL, rhs, ""));
+                                        std::format(
+                                            "{} {}",
+                                            operator_to_string(op),
+                                            std::get<1>(temp_rhs)));
+                                    instructions.emplace_back(
+                                        ITA::make_quadruple(
+                                            ITA::Instruction::CALL, rhs, ""));
                                     temporary_stack.emplace(rhs);
                                 }
                                 if (operand_stack.size() < 1)
@@ -842,21 +896,22 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                 auto rhs =
                                     instruction_temporary_from_rvalue_operand(
                                         operand, temporary);
-                                instructions.insert(instructions.end(),
-                                                    rhs.second.begin(),
-                                                    rhs.second.end());
-
-                                instructions.emplace_back(make_quadruple(
-                                    Instruction::CALL, rhs.first, ""));
+                                ITA::insert_instructions(
+                                    instructions, rhs.second);
+                                instructions.emplace_back(
+                                    ITA::make_quadruple(
+                                        ITA::Instruction::CALL, rhs.first, ""));
                             }
-                            instructions.emplace_back(make_quadruple(
-                                Instruction::POP,
-                                std::to_string(
-                                    param_on_stack *
-                                    type::LITERAL_TYPE.at("word").second),
-                                "",
-                                ""));
-                            auto call_return = make_temporary(temporary, "RET");
+                            instructions.emplace_back(
+                                ITA::make_quadruple(
+                                    ITA::Instruction::POP,
+                                    std::to_string(
+                                        param_on_stack *
+                                        type::LITERAL_TYPE.at("word").second),
+                                    "",
+                                    ""));
+                            auto call_return =
+                                ITA::make_temporary(temporary, "RET");
                             instructions.emplace_back(call_return);
                             if (operand_stack.size() > 1) {
                                 temporary_stack.emplace(
@@ -869,7 +924,8 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                 auto rhs = temporary_stack.top();
                                 temporary_stack.pop();
                                 instructions.emplace_back(
-                                    make_quadruple(Instruction::PUSH, rhs, ""));
+                                    ITA::make_quadruple(
+                                        ITA::Instruction::PUSH, rhs, ""));
                             } else {
                                 if (operand_stack.size() < 1)
                                     return;
@@ -878,11 +934,11 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
                                 auto rhs =
                                     instruction_temporary_from_rvalue_operand(
                                         operand, temporary);
-                                instructions.insert(instructions.end(),
-                                                    rhs.second.begin(),
-                                                    rhs.second.end());
-                                instructions.emplace_back(make_quadruple(
-                                    Instruction::PUSH, rhs.first, ""));
+                                ITA::insert_instructions(
+                                    instructions, rhs.second);
+                                instructions.emplace_back(
+                                    ITA::make_quadruple(
+                                        ITA::Instruction::PUSH, rhs.first, ""));
                             }
                             param_on_stack++;
                         } break;
@@ -895,17 +951,19 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
 
                             break;
                         case Operator::B_TERNARY:
-                            binary_operands_to_temporary_stack(operand_stack,
-                                                               temporary_stack,
-                                                               instructions,
-                                                               op,
-                                                               temporary);
-                            instructions.emplace_back(make_quadruple(
-                                Instruction::POP,
-                                std::to_string(
-                                    type::LITERAL_TYPE.at("word").second),
-                                "",
-                                ""));
+                            binary_operands_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
+                            instructions.emplace_back(
+                                ITA::make_quadruple(
+                                    ITA::Instruction::POP,
+                                    std::to_string(
+                                        type::LITERAL_TYPE.at("word").second),
+                                    "",
+                                    ""));
                             break;
                     }
                 },
@@ -920,12 +978,15 @@ Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
 /**
  * @brief RValue node to list of linear ir instructions
  */
-RValue_Instructions rvalue_node_to_list_of_ir_instructions(
+// clang-format off
+RValue_Instructions
+rvalue_node_to_list_of_temp_instructions(
     Symbol_Table<> const& symbols,
-    Node& node,
-    Node& details,
+    util::AST_Node& node,
+    util::AST_Node& details,
     int* temporary)
 {
+    // clang-format on
     RValue_Parser parser{ details, symbols };
     RValue_Queue list{};
     std::vector<type::RValue::Type_Pointer> rvalues{};
@@ -936,13 +997,15 @@ RValue_Instructions rvalue_node_to_list_of_ir_instructions(
                 for (auto& rvalue : expression.array_range()) {
                     auto expression_rvalue =
                         RValue_Parser::make_rvalue(rvalue, details, symbols);
-                    rvalues.emplace_back(type::rvalue_type_pointer_from_rvalue(
-                        expression_rvalue.value));
+                    rvalues.emplace_back(
+                        type::rvalue_type_pointer_from_rvalue(
+                            expression_rvalue.value));
                 }
             } else {
-                rvalues.emplace_back(type::rvalue_type_pointer_from_rvalue(
-                    RValue_Parser::make_rvalue(expression, details, symbols)
-                        .value));
+                rvalues.emplace_back(
+                    type::rvalue_type_pointer_from_rvalue(
+                        RValue_Parser::make_rvalue(expression, details, symbols)
+                            .value));
             }
         }
         rvalues_to_queue(rvalues, &list);
@@ -951,7 +1014,7 @@ RValue_Instructions rvalue_node_to_list_of_ir_instructions(
             RValue_Parser::make_rvalue(node, details, symbols).value);
         rvalues_to_queue(rvalue_type_pointer, &list);
     }
-    auto instructions = rvalue_queue_to_temp_ir_instructions(&list, temporary);
+    auto instructions = rvalue_queue_to_temp_instructions(&list, temporary);
     return std::make_pair(instructions, list);
 }
 

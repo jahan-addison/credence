@@ -42,16 +42,18 @@ class RValue_Parser
     RValue_Parser& operator=(RValue_Parser const&) = delete;
 
   public:
-    explicit RValue_Parser(json::JSON const& internal_symbols,
-                           Symbol_Table<> const& symbols = {})
+    explicit RValue_Parser(
+        json::JSON const& internal_symbols,
+        Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
 
-    explicit RValue_Parser(json::JSON const& internal_symbols,
-                           Symbol_Table<> const& symbols,
-                           Symbol_Table<> const& globals)
+    explicit RValue_Parser(
+        json::JSON const& internal_symbols,
+        Symbol_Table<> const& symbols,
+        Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
         , globals_(globals)
@@ -61,17 +63,18 @@ class RValue_Parser
     ~RValue_Parser() = default;
 
   public:
-    static inline type::RValue make_rvalue(json::JSON const& node,
-                                           json::JSON const& internals,
-                                           Symbol_Table<> const& symbols = {},
-                                           Symbol_Table<> const& globals = {})
+    static inline type::RValue make_rvalue(
+        json::JSON const& node,
+        json::JSON const& internals,
+        Symbol_Table<> const& symbols = {},
+        Symbol_Table<> const& globals = {})
     {
         auto rvalue = RValue_Parser(internals, symbols, globals);
         return rvalue.from_rvalue(node);
     }
 
   public:
-    using Node = json::JSON;
+    using Node = util::AST_Node;
     type::RValue from_rvalue(Node const& node);
 
     inline type::RValue::RValue_Pointer shared_ptr_from_rvalue(Node const& node)

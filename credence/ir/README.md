@@ -1,43 +1,78 @@
 # Intermediate Representation
 
-The available IR is a linear 4-tuple I've named a "Qaudruple." It is a platform-agnostic set of abstract instructions that resembles a target machine language.
+The intermediate representation (IR) is formalized as a linear four-tuple, named the Instruction Tuple Abstraction (ITA). The ITA constitutes a collection of platform-independent, generic instructions that approximate the structure and semantics of a target machine language.
 
-The construction uses two stacks, an operand stack and "temporary" stack. The operand stack comes from an [rvalue queue](https://github.com/jahan-addison/credence/blob/master/credence/queue.cc) of a block scope of expressions, ordered by operator precedence. A "temporary" breaks up mutual-recursion such that data types may fit on a 3- or 4- tuple. The temporary construction algorithm may be found [here](https://github.com/jahan-addison/credence/blob/master/credence/ir/temp.cc).
+Its construction is governed by two interacting stacks: an operand stack and a temporary stack. The operand stack is derived from an [r-value queue](https://github.com/jahan-addison/credence/blob/master/credence/queue.cc) associated with a block scope of expressions, ordered according to operator precedence. The temporary stack serves to decouple mutual recursion, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary construction is provided [here](https://github.com/jahan-addison/credence/blob/master/credence/ir/temp.cc).
 
-## Examples:
 
-```B
+## Example:
+
+B Code:
+
+```C
+main() {
+  auto x, y, z;
+  x = 5;
+  y = 1;
+  z = add(x, y) * sub(x,y);
+  while(z > x) {
+    z = z - 1;
+  }
+  x = 0;
+}
+
+add(x,y) {
+  return(x + y);
+}
+
+sub(x,y) {
+  return(x - y);
+}
+```
+
+ITA:
+
+```asm
 __main:
- BeginFunc ;
-_t1 = (5:int:4) + (5:int:4);
-_t2 = (3:int:4) + (3:int:4);
-_t3 = _t1 * _t2;
-x = _t3;
-_t4 = x <= (10:int:4);
-IF _t4 GOTO _L5;
-GOTO _L6;
+   BeginFunc ;
+  x = (5:int:4);
+  y = (1:int:4);
+  PUSH y;
+  PUSH x;
+  CALL add;
+  POP 16;
+  _t1 = RET;
+  PUSH y;
+  PUSH x;
+  CALL sub;
+  POP 16;
+  _t2 = RET;
+  _t3 = _t1 * _t2;
+  z = _t3;
+  _t6 = z > x;
+_L4:
+  IF _t6 GOTO _L5;
+  GOTO _L1;
+_L1:
+  x = (0:int:4);
+_L8:
+  LEAVE;
+
 _L5:
-x = (1:int:4);
-_L6:
-x = (8:int:4);
- EndFunc ;
- ```
-
-
-```B
-__main:
- BeginFunc ;
-PUSH (6:int:4);
-CALL exp;
-POP 8;
-_t1 = RET;
-_t2 = (5:int:4) || _t1;
-_t3 = ~ (2:int:4);
-_t4 = _t2 || _t3;
-x = _t4;
- EndFunc ;
-__exp:
- BeginFunc ;
-RET a ;
- EndFunc ;
- ```
+  _t7 = z - (1:int:4);
+  z = _t7;
+  GOTO _L4;
+   EndFunc ;
+__add:
+   BeginFunc ;
+  _t1 = x + y;
+  RET _t1;
+  LEAVE;
+   EndFunc ;
+__sub:
+   BeginFunc ;
+  _t1 = x - y;
+  RET _t1;
+  LEAVE;
+   EndFunc ;
+```

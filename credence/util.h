@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include <filesystem>  // for path
-#include <fstream>     // for basic_ifstream
-#include <ostream>     // for operator<<
-#include <sstream>     // for basic_stringstream, stri...
-#include <string>      // for char_traits, string, all...
-#include <string_view> // for basic_string_view, strin...
-#include <tuple>       // for apply, tuple
+#include <filesystem>   // for path
+#include <fstream>      // for basic_ifstream
+#include <ostream>      // for operator<<
+#include <simplejson.h> // for JSON
+#include <sstream>      // for basic_stringstream, stri...
+#include <string>       // for char_traits, string, all...
+#include <string_view>  // for basic_string_view, strin...
+#include <tuple>        // for apply, tuple
 namespace json {
 class JSON;
 } // lines 31-31
@@ -38,6 +39,8 @@ class JSON;
 namespace credence {
 
 namespace util {
+
+using AST_Node = json::JSON;
 
 namespace fs = std::filesystem;
 
@@ -74,8 +77,9 @@ constexpr std::string to_constexpr_string(T const& val)
 } // namespace detail
 
 template<typename... Args>
-constexpr std::string tuple_to_string(std::tuple<Args...> const& t,
-                                      std::string_view separator = ", ")
+constexpr std::string tuple_to_string(
+    std::tuple<Args...> const& t,
+    std::string_view separator = ", ")
 {
     std::string result{};
     std::apply(

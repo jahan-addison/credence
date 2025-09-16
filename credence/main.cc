@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <credence/ir/qaud.h>  // for build_from_definitions, emit_quadruple
+#include <credence/ir/ita.h>   // for build_from_definitions, emit_quadruple
 #include <credence/symbol.h>   // for Symbol_Table
 #include <credence/util.h>     // for read_file_from_path
 #include <cxxopts.hpp>         // for value, Options, OptionAdder, ParseResult
@@ -52,8 +52,8 @@ int main(int argc, const char* argv[])
             cxxopts::value<std::string>()->default_value("ir"))(
             "d,debug",
             "Enable debugging",
-            cxxopts::value<bool>()->default_value("false"))("h,help",
-                                                            "Print usage")(
+            cxxopts::value<bool>()->default_value("false"))(
+            "h,help", "Print usage")(
             "source-code", "B Source file", cxxopts::value<std::string>());
         options.parse_positional({ "source-code" });
 
@@ -120,11 +120,9 @@ int main(int argc, const char* argv[])
                 [&]() {
                     credence::Symbol_Table<> symbols{};
                     credence::Symbol_Table<> globals{};
-                    auto ir_instructions = credence::ir::build_from_definitions(
-                        symbols, globals, ast["root"], hoisted);
-                    for (auto const& inst : ir_instructions) {
-                        emit_quadruple(std::cout, inst);
-                    }
+                    credence::ir::ITA ita{ hoisted, symbols, globals };
+                    ita.build_from_definitions(ast["root"]);
+                    ita.emit(std::cout);
                 },
             pattern | "ast" =
                 [&]() {

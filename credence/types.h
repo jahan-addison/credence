@@ -57,15 +57,16 @@ constexpr unsigned long type_variant(RValue_Type_Variant const& type)
 
 using Byte = unsigned char;
 using Type_Size = std::pair<std::string, std::size_t>;
-using Value = std::variant<std::monostate,
-                           int,
-                           long,
-                           Byte,
-                           float,
-                           double,
-                           bool,
-                           std::string,
-                           char>;
+using Value = std::variant<
+    std::monostate,
+    int,
+    long,
+    Byte,
+    float,
+    double,
+    bool,
+    std::string,
+    char>;
 
 #ifdef __clang__
 constexpr auto LITERAL_TYPE =
@@ -99,6 +100,12 @@ constexpr auto NULL_LITERAL =
         std::pair<std::string, std::size_t>{ "null", 0 }
     };
 
+constexpr auto WORD_LITERAL =
+    std::pair<std::string, std::pair<std::string, std::size_t>>{
+        "__WORD__",
+        std::pair<std::string, std::size_t>{ "word", sizeof(void*) }
+    };
+
 using Value_Type = std::pair<Value, Type_Size>;
 using Value_Pointer = std::vector<Value_Type>;
 
@@ -114,15 +121,16 @@ struct RValue
     using Relation = std::pair<type::Operator, std::vector<RValue_Pointer>>;
 
     using Function = std::pair<LValue, std::vector<RValue_Pointer>>;
-    using Type = std::variant<std::monostate,
-                              RValue_Pointer,
-                              Value_Pointer,
-                              Symbol,
-                              Unary,
-                              Relation,
-                              Function,
-                              LValue,
-                              Value>;
+    using Type = std::variant<
+        std::monostate,
+        RValue_Pointer,
+        Value_Pointer,
+        Symbol,
+        Unary,
+        Relation,
+        Function,
+        LValue,
+        Value>;
 
     using Type_Pointer = std::shared_ptr<RValue::Type>;
 

@@ -16,77 +16,68 @@
 
 #pragma once
 
-#include <credence/ir/qaud.h> // for Instructions, make_quadruple, Instruction
-#include <credence/queue.h>   // for RValue_Queue
-#include <credence/symbol.h>  // for Symbol_Table
-#include <credence/types.h>   // for RValue
-#include <cstddef>            // for size_t
-#include <stack>              // for stack
-#include <string>             // for allocator, string, operator+, to_string
-#include <utility>            // for pair
-#include <variant>            // for variant
-
+#include <credence/ir/ita.h> // for ITA
+#include <credence/queue.h>  // for RValue_Queue
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for RValue
+#include <credence/util.h>   // for AST_Node
+#include <cstddef>           // for size_t
+#include <stack>             // for stack
+#include <string>            // for basic_string, string
+#include <utility>           // for pair
 namespace credence {
 namespace type {
 enum class Operator;
 }
-} // lines 29-29
+} // lines 31-31
 
 namespace credence {
 
 namespace ir {
 
+using RValue_Instructions = std::pair<ITA::Instructions, RValue_Queue>;
+
 namespace detail {
 
-inline Quadruple make_temporary(int* temporary_size, std::string const& temp)
-{
-    return make_quadruple(Instruction::VARIABLE,
-                          std::string{ "_t" } +
-                              std::to_string(++(*temporary_size)),
-                          temp);
-}
-
-inline Quadruple make_temporary(int* temporary_size)
-{
-    return make_quadruple(Instruction::LABEL,
-                          std::string{ "_L" } +
-                              std::to_string(++(*temporary_size)),
-                          "");
-}
+using Operand_Stack = std::stack<type::RValue::Type_Pointer>;
+using Temporary_Stack = std::stack<std::string>;
 
 std::pair<std::string, std::size_t> insert_create_temp_from_operand(
     type::RValue::Type_Pointer operand,
-    Instructions& instructions,
+    ITA::Instructions& instructions,
     int* temporary);
 
 void binary_operands_balanced_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,
     std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    ITA::Instructions& instructions,
     type::Operator op,
     int* temporary);
 
 void binary_operands_unbalanced_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,
     std::stack<std::string>& temporary_stack,
-    Instructions& instructions,
+    ITA::Instructions& instructions,
     int* temporary);
 
-std::pair<std::string, Instructions> instruction_temporary_from_rvalue_operand(
+// clang-format off
+std::pair<std::string, ITA::Instructions>
+instruction_temporary_from_rvalue_operand(
     type::RValue::Type_Pointer& operand,
     int* temporary_size);
 
 } // namespace detail
 
-using RValue_Instructions = std::pair<Instructions, RValue_Queue>;
+ITA::Instructions
+rvalue_queue_to_temp_instructions(
+    RValue_Queue* queue,
+    int* temporary);
+// clang-format on
 
-Instructions rvalue_queue_to_temp_ir_instructions(RValue_Queue* queue,
-                                                  int* temporary);
-
-RValue_Instructions rvalue_node_to_list_of_ir_instructions(
+RValue_Instructions rvalue_node_to_list_of_temp_instructions(
     Symbol_Table<> const& symbols,
-    Node& node,
-    Node& details,
+    util::AST_Node& node,
+    util::AST_Node& details,
     int* temporary);
 
 } // namespace ir

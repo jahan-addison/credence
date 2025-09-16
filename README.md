@@ -2,16 +2,29 @@
   <img src="docs/images/credence-compiler-logo.png" width="800px" alt="credence"> </img>
 </div>
 
-> B Language Compiler in C++
-
 * B Language grammar - [here](https://github.com/jahan-addison/chakram/blob/master/chakram/grammar.lark)
 * Language reference - [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 ---
 
+The compiler works in 3 stages:
 
-* The Lexer, Parser first-pass is built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
-* The backend is exploratory research in modern IRs such as SSA, Sea of Nodes, and compiler optimizations through breakthroughs in LLVM, V8, and similar toolchains. The target platforms are x86_64, arm64, and z80
+* The Lexer, Parser first-pass, built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
+* An IR I've called [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and application runtime
+
+* The target platforms - currently x86_64, arm64, and z80
+
+---
+
+There are a few differences between the compiler and B specification, namely:
+
+* Support for C++ style comments (i.e. `//`)
+* Boolean type coercion for all data types in conditionals
+* Switch statement condition must always be enclosed with `(` and `)`,
+* Uses C operator precedence
+* Constant literals must be exactly 1 byte
+* Logical operators behave more like C (i.e. `||` and `&&`)
+* Bitwise operators behave more like C (i.e. `|` and `&`)
 
 ## Usage
 
@@ -33,77 +46,89 @@ Usage:
 
 ## Targets
 
-The default compile target is currently the [linear IR](https://github.com/jahan-addison/credence/tree/master/credence/ir):
+The default compile target is currently ITA:
 
-#### Example
+### Example:
 
-```B
+B Code:
+
+```C
 main() {
-  auto x, y;
-  x = (1 + 1) * (2 + 2);
-  y = add(x, 5);
-  if (x > y) {
-    x = 100;
+  auto x, y, z;
+  x = 5;
+  y = 1;
+  z = add(x, y) * sub(x,y);
+  while(z > x) {
+    z = z - 1;
   }
-  y = x;
+  x = 0;
 }
 
-add(x, y) {
+add(x,y) {
   return(x + y);
+}
+
+sub(x,y) {
+  return(x - y);
 }
 ```
 
-Result:
+ITA:
 
 
 ```asm
 __main:
- BeginFunc ;
-_t2 = (1:int:4) + (1:int:4);
-_t3 = (2:int:4) + (2:int:4);
-_t4 = _t2 * _t3;
-x = _t4;
-PUSH (5:int:4);
-PUSH x;
-CALL add;
-POP 16;
-y = RET;
-_t5 = x > y;
-IF _t5 GOTO _L6;
+   BeginFunc ;
+  x = (5:int:4);
+  y = (1:int:4);
+  PUSH y;
+  PUSH x;
+  CALL add;
+  POP 16;
+  _t1 = RET;
+  PUSH y;
+  PUSH x;
+  CALL sub;
+  POP 16;
+  _t2 = RET;
+  _t3 = _t1 * _t2;
+  z = _t3;
+  _t6 = z > x;
+_L4:
+  IF _t6 GOTO _L5;
+  GOTO _L1;
 _L1:
-y = x;
-LEAVE;
-_L6:
-x = (100:int:4);
-GOTO _L1;
- EndFunc ;
+  x = (0:int:4);
+_L8:
+  LEAVE;
+
+_L5:
+  _t7 = z - (1:int:4);
+  z = _t7;
+  GOTO _L4;
+   EndFunc ;
 __add:
- BeginFunc ;
-_t2 = x + y;
-RET _t2;
-LEAVE;
- EndFunc ;
+   BeginFunc ;
+  _t1 = x + y;
+  RET _t1;
+  LEAVE;
+   EndFunc ;
+__sub:
+   BeginFunc ;
+  _t1 = x - y;
+  RET _t1;
+  LEAVE;
+   EndFunc ;
 ```
+
 
 ---
 
-Test suite:
+## Test suite
 
 ```bash
 make test
 ```
-
-## Language
-
-There are a few differences between the compiler and B specification, namely:
-
-* Support for C++ style comments (i.e. `//`)
-* Boolean type coercion for all data types in conditionals
-* Switch statement condition must always be enclosed with `(` and `)`,
-* Uses C operator precedence
-* Constant literals must be exactly 1 byte
-* Logical and/or operators behave more like C (i.e. `||` and `&&`)
-* Bitwise and/or operators behave more like C (i.e. `|` and `&`)
 
 ---
 
@@ -162,7 +187,7 @@ make install
 **Note: These are installed automatically via CPM and cmake.**
 
 * `simplejson++` - [lightweight memory safe json library](https://github.com/jahan-addison/simplejson)
-* `chakram` - [LALR(1) parser generator and frontend](https://github.com/jahan-addison/chakram)
+* `chakram` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/chakram)
 * `cxxopts` - lightweight commandline parser
 * `matchit` - pattern matching
 * `eternal` - `constexpr` lookup tables
