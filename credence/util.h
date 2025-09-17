@@ -16,14 +16,16 @@
 
 #pragma once
 
-#include <filesystem>   // for path
-#include <fstream>      // for basic_ifstream
+#include <filesystem> // for path
+#include <fstream>    // for basic_ifstream
+#include <iostream>
 #include <ostream>      // for operator<<
 #include <simplejson.h> // for JSON
-#include <sstream>      // for basic_stringstream, stri...
-#include <string>       // for char_traits, string, all...
-#include <string_view>  // for basic_string_view, strin...
-#include <tuple>        // for apply, tuple
+#include <source_location>
+#include <sstream>     // for basic_stringstream, stri...
+#include <string>      // for char_traits, string, all...
+#include <string_view> // for basic_string_view, strin...
+#include <tuple>       // for apply, tuple
 namespace json {
 class JSON;
 } // lines 31-31
@@ -31,6 +33,7 @@ class JSON;
 // access specifier macros for Doctest unit tests
 #define CREDENCE_PUBLIC public
 #ifdef DOCTEST_LIBRARY_INCLUDED
+#define CREDENCE_TEST
 #define CREDENCE_PRIVATE_UNLESS_TESTED public
 #else
 #define CREDENCE_PRIVATE_UNLESS_TESTED private
@@ -45,6 +48,24 @@ using AST_Node = json::JSON;
 namespace fs = std::filesystem;
 
 namespace detail {
+
+inline void make_assertion(
+    bool condition,
+    std::string_view message,
+    // clang-format off
+    std::source_location const& location =
+        std::source_location::current())
+{
+    // clang-format on
+    if (!condition) {
+        std::cerr << "Credence assertion: " << message << std::endl
+                  << "  File: " << location.file_name() << std::endl
+                  << "  Line: " << location.line() << std::endl
+                  << "  Function: " << location.function_name() << std::endl;
+        std::abort();
+    }
+}
+
 template<typename T>
 constexpr std::string to_constexpr_string(T const& val)
 {

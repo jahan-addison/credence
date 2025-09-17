@@ -78,47 +78,47 @@ ITA:
 
 ```asm
 __main:
-   BeginFunc ;
-  x = (5:int:4);
-  y = (1:int:4);
-  PUSH y;
-  PUSH x;
-  CALL add;
-  POP 16;
-  _t1 = RET;
-  PUSH y;
-  PUSH x;
-  CALL sub;
-  POP 16;
-  _t2 = RET;
-  _t3 = _t1 * _t2;
-  z = _t3;
-  _t6 = z > x;
+ BeginFunc ;
+    x = (5:int:4);
+    y = (1:int:4);
+    PUSH y;
+    PUSH x;
+    CALL add;
+    POP 16;
+    _t1 = RET;
+    PUSH y;
+    PUSH x;
+    CALL sub;
+    POP 16;
+    _t2 = RET;
+    _t3 = _t1 * _t2;
+    z = _t3;
+    _t6 = z > x;
 _L4:
-  IF _t6 GOTO _L5;
-  GOTO _L1;
+    IF _t6 GOTO _L5;
+    GOTO _L1;
 _L1:
-  x = (0:int:4);
+    x = (0:int:4);
 _L8:
-  LEAVE;
-
+    LEAVE;
 _L5:
-  _t7 = z - (1:int:4);
-  z = _t7;
-  GOTO _L4;
-   EndFunc ;
+    _t7 = z - (1:int:4);
+    z = _t7;
+    GOTO _L4;
+ EndFunc ;
 __add:
-   BeginFunc ;
-  _t1 = x + y;
-  RET _t1;
-  LEAVE;
-   EndFunc ;
+ BeginFunc ;
+    _t1 = x + y;
+    RET _t1;
+    LEAVE;
+ EndFunc ;
 __sub:
-   BeginFunc ;
-  _t1 = x - y;
-  RET _t1;
-  LEAVE;
-   EndFunc ;
+ BeginFunc ;
+    _t1 = x - y;
+    RET _t1;
+    LEAVE;
+ EndFunc ;
+
 ```
 
 

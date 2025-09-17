@@ -25,7 +25,6 @@
 #include <matchit.h>         // for pattern, Or, Wildcard, PatternH...
 #include <optional>          // for optional
 #include <ostream>           // for basic_ostream, operator<<, endl
-#include <ranges>            // for ranges::find
 #include <simplejson.h>      // for JSON
 #include <sstream>           // for basic_ostringstream, ostream
 #include <string>            // for basic_string, char_traits, allo...
@@ -49,16 +48,13 @@ namespace m = matchit;
 class ITA
 {
   public:
+#ifndef CREDENCE_TEST
     ITA(ITA const&) = delete;
     ITA& operator=(ITA const&) = delete;
-
-    explicit ITA(
-        json::JSON const& internal_symbols,
-        Symbol_Table<> const& symbols,
-        Symbol_Table<> const& globals)
+#endif
+    explicit ITA() = default;
+    explicit ITA(json::JSON const& internal_symbols)
         : internal_symbols_(internal_symbols)
-        , symbols_(symbols)
-        , globals_(globals)
     {
     }
 
@@ -149,7 +145,10 @@ class ITA
     /**
      * @brief Emit a qaudruple tuple to a std::ostream
      */
-    static void emit_to(std::ostream& os, ITA::Quadruple const& ita)
+    static void emit_to(
+        std::ostream& os,
+        ITA::Quadruple const& ita,
+        bool indent = false)
     {
         ITA::Instruction op = std::get<ITA::Instruction>(ita);
         std::array<ITA::Instruction, 5> lhs_instruction = {
@@ -160,11 +159,19 @@ class ITA
             ITA::Instruction::CALL
         };
         if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
-            if (op == ITA::Instruction::LABEL)
+            if (op == ITA::Instruction::LABEL) {
                 os << std::get<1>(ita) << ":" << std::endl;
-            else
+            } else {
+                if (indent)
+                    os << "    ";
                 os << op << " " << std::get<1>(ita) << ";" << std::endl;
+            }
         } else {
+            if (indent) {
+                if (op != ITA::Instruction::FUNC_START and
+                    op != ITA::Instruction::FUNC_END)
+                    os << "    ";
+            }
             m::match(op)(
                 m::pattern | ITA::Instruction::RETURN =
                     [&] {
@@ -195,6 +202,12 @@ class ITA
     {
         for (auto const& i : instructions_) {
             ITA::emit_to(os, i);
+        }
+    }
+    inline void emit(std::ostream& os, bool indent)
+    {
+        for (auto const& i : instructions_) {
+            ITA::emit_to(os, i, indent);
         }
     }
 
@@ -301,9 +314,9 @@ class ITA
         Node& block,
         Instructions& instructions);
 
-    // clang-format on
-  private:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     int temporary{ 0 };
+    // clang-format on
 
   private:
     Instructions instructions_;
@@ -322,9 +335,8 @@ class ITA
     // clang-format off
     std::array<std::string_view, 3> BRANCH_STATEMENTS =
         { "if", "while", "switch" };
-    // clang-format on
 
-  private:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     json::JSON internal_symbols_;
     Tail_Branch tail_branch;
     bool is_branching = false;

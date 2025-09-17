@@ -16,7 +16,7 @@
 
 #include <credence/ir/ita.h>
 
-#include <cassert>            // for assert
+#include <credence/assert.h>  // for CREDENCE_ASSERT_NODE, CREDENCE_ASSERT
 #include <credence/ir/temp.h> // for rvalue_node_to_list_of_temp_instructions
 #include <credence/queue.h>   // for rvalue_to_string, RValue_Queue
 #include <credence/rvalue.h>  // for RValue_Parser
@@ -41,7 +41,7 @@ namespace ir {
 ITA::Instructions ITA::build_from_definitions(Node& node)
 {
 
-    assert(node["root"].to_string().compare("definitions") == 0);
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "definitions");
     Instructions instructions{};
     auto definitions = node["left"];
     // vector definitions
@@ -67,7 +67,7 @@ ITA::Instructions ITA::build_from_definitions(Node& node)
  */
 ITA::Instructions ITA::build_from_function_definition(Node& node)
 {
-    assert(node["node"].to_string().compare("function_definition") == 0);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_definition");
     Instructions instructions{};
     Symbol_Table<> block_level{};
     auto name = node["root"].to_string();
@@ -106,7 +106,7 @@ ITA::Instructions ITA::build_from_function_definition(Node& node)
     instructions.emplace_back(make_quadruple(Instruction::FUNC_START, "", ""));
 
     tail_branch = make_temporary(&temporary);
-    temporary = 0; // reset
+    temporary = 0;
     auto block_instructions = build_from_block_statement(block, true);
     insert_instructions(instructions, block_instructions);
 
@@ -119,8 +119,8 @@ ITA::Instructions ITA::build_from_function_definition(Node& node)
  */
 void ITA::build_from_vector_definition(Node& node)
 {
-    assert(node["node"].to_string().compare("vector_definition") == 0);
-    assert(node.has_key("left"));
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_definition");
+    CREDENCE_ASSERT(node.has_key("left"));
     auto name = node["root"].to_string();
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
@@ -181,8 +181,8 @@ void ITA::return_and_resume_instructions(Instructions& instructions)
  */
 ITA::Instructions ITA::build_from_block_statement(Node& node, bool ret)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("block") == 0);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "block");
 
     Instructions instructions{};
     Instructions branches{};
@@ -311,7 +311,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
 }
 
 /**
- * @brief Construct an rvalue or block statement for a branch
+ * @brief Construct rvalue or block statement instructions for a branch
  */
 void ITA::insert_rvalue_or_block_branch_instructions(
     Node& block,
@@ -349,8 +349,8 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(
         build_from_branch_comparator_rvalue(predicate, predicate_instructions);
 
     for (auto const& block : blocks.array_range()) {
-        assert(block["node"].to_string().compare("statement") == 0);
-        assert(block["root"].to_string().compare("case") == 0);
+        CREDENCE_ASSERT_NODE(block["node"].to_string(), "statement");
+        CREDENCE_ASSERT_NODE(block["root"].to_string(), "case");
 
         auto jump = make_temporary(&temporary);
         auto statements = block["right"].to_deque();
@@ -384,8 +384,8 @@ ITA::Branch_Instructions ITA::build_from_while_statement(
     Tail_Branch& block_level,
     Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("while") == 0);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "while");
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
     auto predicate = node["left"];
@@ -421,8 +421,8 @@ ITA::Branch_Instructions ITA::build_from_if_statement(
     Tail_Branch& block_level,
     Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("if") == 0);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "if");
     Instructions predicate_instructions{};
     Instructions branch_instructions{};
     RValue_Queue list{};
@@ -468,9 +468,9 @@ ITA::Branch_Instructions ITA::build_from_if_statement(
  */
 ITA::Instructions ITA::build_from_label_statement(Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("label") == 0);
-    assert(node.has_key("left"));
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "label");
+    CREDENCE_ASSERT(node.has_key("left"));
     Instructions instructions{};
     auto statement = node["left"];
     RValue_Parser parser{ internal_symbols_, symbols_ };
@@ -485,9 +485,9 @@ ITA::Instructions ITA::build_from_label_statement(Node& node)
  */
 ITA::Instructions ITA::build_from_goto_statement(Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("goto") == 0);
-    assert(node.has_key("left"));
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "goto");
+    CREDENCE_ASSERT(node.has_key("left"));
     Instructions instructions{};
     RValue_Parser parser{ internal_symbols_, symbols_ };
     auto statement = node["left"];
@@ -506,10 +506,10 @@ ITA::Instructions ITA::build_from_goto_statement(Node& node)
  */
 ITA::Instructions ITA::build_from_return_statement(Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("return") == 0);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "return");
+    CREDENCE_ASSERT(node.has_key("left"));
     Instructions instructions{};
-    assert(node.has_key("left"));
     auto return_statement = node["left"];
 
     auto return_instructions = rvalue_node_to_list_of_temp_instructions(
@@ -539,9 +539,9 @@ ITA::Instructions ITA::build_from_return_statement(Node& node)
  */
 void ITA::build_from_extrn_statement(Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("extrn") == 0);
-    assert(node.has_key("left"));
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "extrn");
+    CREDENCE_ASSERT(node.has_key("left"));
     auto left_child_node = node["left"];
     for (auto& ident : left_child_node.array_range()) {
         auto name = ident["root"].to_string();
@@ -562,9 +562,9 @@ void ITA::build_from_extrn_statement(Node& node)
  */
 void ITA::build_from_auto_statement(Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("auto") == 0);
-    assert(node.has_key("left"));
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "auto");
+    CREDENCE_ASSERT(node.has_key("left"));
     auto left_child_node = node["left"];
     for (auto& ident : left_child_node.array_range()) {
         m::match(ident["node"].to_string())(
@@ -593,10 +593,10 @@ void ITA::build_from_auto_statement(Node& node)
  */
 ITA::Instructions ITA::build_from_rvalue_statement(Node& node)
 {
-    assert(node["node"].to_string().compare("statement") == 0);
-    assert(node["root"].to_string().compare("rvalue") == 0);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "rvalue");
+    CREDENCE_ASSERT(node.has_key("left"));
     RValue_Queue list{};
-    assert(node.has_key("left"));
     auto statement = node["left"];
 
     return rvalue_node_to_list_of_temp_instructions(

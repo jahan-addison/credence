@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <credence/assert.h>
+
 #include <credence/ir/ita.h>   // for build_from_definitions, emit_quadruple
 #include <credence/symbol.h>   // for Symbol_Table
 #include <credence/util.h>     // for read_file_from_path
@@ -38,8 +40,6 @@
 int main(int argc, const char* argv[])
 {
     namespace py = pybind11;
-
-    using namespace matchit;
     try {
         cxxopts::Options options("Credence", "Credence :: B Language Compiler");
         options.show_positional_help();
@@ -114,17 +114,15 @@ int main(int argc, const char* argv[])
             return 1;
         }
 
-        match(result["target"].as<std::string>())(
+        matchit::match(result["target"].as<std::string>())(
             // cppcheck-suppress syntaxError
-            pattern | "ir" =
+            matchit::pattern | "ir" =
                 [&]() {
-                    credence::Symbol_Table<> symbols{};
-                    credence::Symbol_Table<> globals{};
-                    credence::ir::ITA ita{ hoisted, symbols, globals };
+                    credence::ir::ITA ita{ hoisted };
                     ita.build_from_definitions(ast["root"]);
-                    ita.emit(std::cout);
+                    ita.emit(std::cout, true);
                 },
-            pattern | "ast" =
+            matchit::pattern | "ast" =
                 [&]() {
                     if (!ast.is_null()) {
                         std::cout << ast["root"] << std::endl;
