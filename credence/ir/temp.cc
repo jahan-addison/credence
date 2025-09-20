@@ -982,8 +982,8 @@ rvalue_queue_to_temp_instructions(
 RValue_Instructions
 rvalue_node_to_list_of_temp_instructions(
     Symbol_Table<> const& symbols,
-    util::AST_Node& node,
-    util::AST_Node& details,
+    util::AST_Node const& node,
+    util::AST_Node const& details,
     int* temporary)
 {
     // clang-format on

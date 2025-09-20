@@ -66,7 +66,7 @@ class ITA
         LABEL,
         GOTO,
         IF,
-        IF_E,
+        JMP_E,
         PUSH,
         POP,
         CALL,
@@ -114,8 +114,8 @@ class ITA
             case ITA::Instruction::LEAVE:
                 os << "LEAVE";
                 break;
-            case ITA::Instruction::IF_E:
-                os << "IF_E";
+            case ITA::Instruction::JMP_E:
+                os << "JMP_E";
                 break;
             case ITA::Instruction::IF:
                 os << "IF";
@@ -180,7 +180,7 @@ class ITA
                 m::pattern | ITA::Instruction::LEAVE =
                     [&] { os << op << ";" << std::endl; },
                 m::pattern |
-                    m::or_(ITA::Instruction::IF, ITA::Instruction::IF_E) =
+                    m::or_(ITA::Instruction::IF, ITA::Instruction::JMP_E) =
                     [&] {
                         os << op << " " << std::get<1>(ita) << " "
                            << std::get<2>(ita) << " " << std::get<3>(ita) << ";"
@@ -242,6 +242,18 @@ class ITA
             std::string{ "_L" } + std::to_string(++(*temporary_size)),
             "");
     }
+
+#ifdef __clang__
+    constexpr inline Quadruple make_temporary()
+#else
+    inline Quadruple make_temporary()
+#endif
+    {
+        return make_quadruple(
+            Instruction::LABEL,
+            std::string{ "_L" } + std::to_string(++temporary),
+            "");
+    }
 #ifdef __clang__
     static constexpr inline Quadruple make_quadruple(
 #else
@@ -276,42 +288,42 @@ class ITA
 
   public:
     using Node = util::AST_Node;
-    Instructions build_from_definitions(Node& node);
+    Instructions build_from_definitions(Node const& node);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_function_definition(Node& node);
-    void build_from_vector_definition(Node& node);
+    Instructions build_from_function_definition(Node const& node);
+    void build_from_vector_definition(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_block_statement(Node& node, bool ret = false);
+    Instructions build_from_block_statement(Node const& node, bool ret = false);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Branch_Instructions build_from_switch_statement(Tail_Branch& block_level, Node& node);
-    Branch_Instructions build_from_while_statement(Tail_Branch& block_level, Node& node);
-    Branch_Instructions build_from_if_statement(Tail_Branch& block_level, Node& node);
+    Branch_Instructions build_from_switch_statement(Tail_Branch& block_level, Node const& node);
+    Branch_Instructions build_from_while_statement(Tail_Branch& block_level, Node const& node);
+    Branch_Instructions build_from_if_statement(Tail_Branch& block_level, Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_label_statement(Node& node);
-    Instructions build_from_goto_statement(Node& node);
-    Instructions build_from_return_statement(Node& node);
+    Instructions build_from_label_statement(Node const& node);
+    Instructions build_from_goto_statement(Node const& node);
+    Instructions build_from_return_statement(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build_from_auto_statement(Node& node);
-    void build_from_extrn_statement(Node& node);
+    void build_from_auto_statement(Node const& node);
+    void build_from_extrn_statement(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_rvalue_statement(Node& node);
+    Instructions build_from_rvalue_statement(Node const& node);
     std::vector<std::string> build_from_rvalue_expression(
         type::RValue::Type& rvalue);
 
   private:
-    void insert_rvalue_or_block_branch_instructions(
+    void insert_branch_block_instructions(
         Node& block,
         Instructions& branch_instructions);
 
     std::string build_from_branch_comparator_rvalue(
-        Node& block,
+        Node const& block,
         Instructions& instructions);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -322,15 +334,40 @@ class ITA
     Instructions instructions_;
 
   private:
-    void return_and_resume_instructions(
+    /**
+     * @brief An object of branch state during ITA construction,
+     * in order to enable continuation and passing of instructions
+     *
+     */
+    struct Branch
+    {
+        Tail_Branch root_branch;
+        Tail_Branch block_level;
+        constexpr inline void set_block_to_root() { block_level = root_branch; }
+        constexpr inline void set_root_branch(ITA& ita)
+        {
+            if (level == 1) {
+                // _L1 label is reserved for function scope continuation
+                root_branch = ita.make_temporary();
+                set_block_to_root();
+            }
+        }
+        bool is_branching = false;
+        int level = 1;
+    };
+    Branch branch_state{};
+    constexpr void return_and_resume_instructions(
         Instructions& instructions,
         std::string_view from);
-    void return_and_resume_instructions(Instructions& instructions);
-    inline void insert_tail_branch_jump_instruction(
-        Instructions& instructions,
-        Tail_Branch& block_tail)
+    constexpr void return_and_resume_instructions();
+    void branch_continuation_passing(
+        Instructions& predicate,
+        Instructions& branch,
+        Tail_Branch& pass,
+        std::string const& to);
+    inline Branch_Instructions make_statement_instructions()
     {
-        instructions.emplace_back(block_tail.value());
+        return std::make_pair(Instructions{}, Instructions{});
     }
     // clang-format off
     std::array<std::string_view, 3> BRANCH_STATEMENTS =
@@ -338,8 +375,7 @@ class ITA
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     json::JSON internal_symbols_;
-    Tail_Branch tail_branch;
-    bool is_branching = false;
+    std::string peek_next;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };

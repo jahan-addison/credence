@@ -1,9 +1,10 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
-#include <credence/ir/ita.h>  // for ITA
-#include <credence/symbol.h>  // for Symbol_Table
-#include <credence/types.h>   // for Value_Type, LITERAL_TYPE, Byte, NULL_L...
-#include <credence/util.h>    // for AST_Node
+#include <credence/ir/ita.h> // for ITA
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for Value_Type, LITERAL_TYPE, Byte, NULL_L...
+#include <credence/util.h>   // for AST_Node
+#include <deque>
 #include <map>                // for map
 #include <mapbox/eternal.hpp> // for element, map
 #include <simplejson.h>       // for JSON
@@ -21,28 +22,59 @@
 
 struct ITA_Fixture
 {
-    static inline credence::ir::ITA ITA_hoisted(
-        credence::util::AST_Node const& node)
+    using NULL_symbols = std::deque<std::string>;
+    using Node = credence::util::AST_Node;
+    static inline credence::ir::ITA ITA_hoisted(Node const& node)
     {
         return credence::ir::ITA{ node };
     }
-    static inline credence::ir::ITA ITA_with_tail_branch(
-        credence::util::AST_Node const& node)
+    static inline credence::ir::ITA ITA_with_tail_branch(Node const& node)
     {
         auto ita = credence::ir::ITA{ node };
         auto tail_branch = credence::ir::ITA::make_temporary(&ita.temporary);
-        ita.tail_branch = tail_branch;
         return ita;
+    }
+
+    inline void TEST_BLOCK_STATEMENT_NODE_WITH(
+        Node const& symbols,
+        Node const& node,
+        std::string_view test,
+        bool tail = true,
+        bool ret = true)
+    {
+        std::ostringstream os_test;
+        auto hoisted =
+            tail ? ITA_with_tail_branch(symbols) : ITA_hoisted(symbols);
+        auto test_instructions = hoisted.build_from_block_statement(node, ret);
+        for (auto const& inst : test_instructions) {
+            EMIT(os_test, inst);
+        }
+        REQUIRE(os_test.str() == test);
+    }
+
+    inline void TEST_RETURN_STATEMENT_NODE_WITH(
+        Node const& symbols,
+        NULL_symbols const& nulls,
+        Node const& node,
+        std::string_view test)
+    {
+        std::ostringstream os_test;
+        auto hoisted = ITA_hoisted(symbols);
+        for (auto const& s : nulls)
+            hoisted.symbols_.table_.emplace(s, credence::type::NULL_LITERAL);
+        auto test_instructions = hoisted.build_from_return_statement(node);
+        for (auto const& inst : test_instructions) {
+            EMIT(os_test, inst);
+        }
+        REQUIRE(os_test.str() == test);
     }
 
     credence::ir::ITA ita_;
 };
 
-/*
-TEST_CASE("ir/ita.cc: build_from_function_definition")
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
 {
     using namespace credence;
-    using namespace credence::ir;
     credence::util::AST_Node obj;
     auto internal_symbols = json::JSON::load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
@@ -91,13 +123,11 @@ TEST_CASE("ir/ita.cc: build_from_function_definition")
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
         "},\n      \"root\" : \"main\"\n    }");
 
-    credence::Symbol_Table<> symbols{};
-    Instructions test_instructions{};
-    std::ostringstream os_test;
-    test_instructions = build_from_function_definition(
-        symbols, symbols, obj["test"], internal_symbols);
+    auto os_test = std::ostringstream();
+    auto ita = ITA_hoisted(internal_symbols);
+    auto test_instructions = ita.build_from_function_definition(obj["test"]);
     for (auto const& inst : test_instructions) {
-        emit_quadruple(os_test, inst);
+        EMIT(os_test, inst);
     }
     std::string expected = R"ita(__main:
  BeginFunc ;
@@ -115,10 +145,9 @@ LEAVE;
     CHECK(os_test.str() == expected);
 }
 
-TEST_CASE("ir/ita.cc: build_from_block_statement")
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_block_statement")
 {
     using namespace credence;
-    using namespace credence::ir;
     credence::util::AST_Node obj;
     obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
@@ -139,21 +168,17 @@ TEST_CASE("ir/ita.cc: build_from_block_statement")
         "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
         "\"root\" : \"block\"\n      }");
 
-    credence::Symbol_Table<> symbols{};
-    Instructions test_instructions{};
-    std::ostringstream os_test;
-    test_instructions =
-        build_from_block_statement(symbols, symbols, obj["test"], obj);
-    for (auto const& inst : test_instructions) {
-        emit_quadruple(os_test, inst);
-    }
-    CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
+    TEST_BLOCK_STATEMENT_NODE_WITH(
+        obj,
+        obj["test"],
+        "_t2 = (5:int:4) || (2:int:4);\nx = _t2;\n",
+        false,
+        false);
 }
 
-TEST_CASE("ir/ita.cc: build_from_extrn_statement")
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
 {
     using namespace credence;
-    using namespace credence::ir;
     credence::util::AST_Node obj;
 
     obj["test"] = json::JSON::load(
@@ -165,24 +190,25 @@ TEST_CASE("ir/ita.cc: build_from_extrn_statement")
         "\"node\" : \"statement\",\n            \"root\" : \"extrn\"\n         "
         " }");
 
-    credence::Symbol_Table<> symbols{};
-    credence::Symbol_Table<> globals{};
-    type::RValue::Value null = type::NULL_LITERAL;
+    auto vectors = obj["test"].to_deque();
+    auto ita = ITA_hoisted(obj["symbols"]);
 
-    CHECK_THROWS(build_from_extrn_statement(symbols, globals, obj["test"]));
-    globals.table_.emplace("a", null);
-    globals.table_.emplace("b", null);
-    globals.table_.emplace("c", null);
-    CHECK_NOTHROW(build_from_extrn_statement(symbols, globals, obj["test"]));
-    CHECK_EQ(symbols.is_defined("a"), true);
-    CHECK_EQ(symbols.is_defined("b"), true);
-    CHECK_EQ(symbols.is_defined("c"), true);
+    CHECK_THROWS(ita.build_from_extrn_statement(obj["test"]));
+
+    ita.globals_.table_.emplace("a", type::NULL_LITERAL);
+    ita.globals_.table_.emplace("b", type::NULL_LITERAL);
+    ita.globals_.table_.emplace("c", type::NULL_LITERAL);
+
+    CHECK_NOTHROW(ita.build_from_extrn_statement(obj["test"]));
+
+    CHECK_EQ(ita.symbols_.is_defined("a"), true);
+    CHECK_EQ(ita.symbols_.is_defined("b"), true);
+    CHECK_EQ(ita.symbols_.is_defined("c"), true);
 }
 
-TEST_CASE("ir/ita.cc: build_from_vector_definition")
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_vector_definition")
 {
     using namespace credence;
-    using namespace credence::ir;
     credence::util::AST_Node obj;
     obj["symbols"] = json::JSON::load(
         "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
@@ -211,29 +237,29 @@ TEST_CASE("ir/ita.cc: build_from_vector_definition")
         " }, {\n          \"node\" : \"string_literal\",\n          \"root\" : "
         "\"\\\"tough luck\\\"\"\n        }]\n    }]");
 
-    credence::Symbol_Table<> symbols{};
     auto vectors = obj["test"].to_deque();
-    build_from_vector_definition(symbols, vectors.at(0), obj["symbols"]);
-    CHECK(symbols.is_defined(vectors.at(0)["root"].to_string()) == true);
-    auto symbol = symbols.get_symbol_by_name(vectors.at(0)["root"].to_string());
+    auto ita = ITA_hoisted(obj["symbols"]);
+    ita.build_from_vector_definition(vectors.at(0));
+    CHECK(ita.symbols_.is_defined(vectors.at(0)["root"].to_string()) == true);
+    auto symbol =
+        ita.symbols_.get_symbol_by_name(vectors.at(0)["root"].to_string());
     auto [value, type] = symbol;
     CHECK(std::get<std::string>(value) == "orld");
     CHECK(type.first == "string");
     CHECK(type.second == sizeof(char) * 4);
-    build_from_vector_definition(symbols, vectors.at(1), obj["symbols"]);
-    CHECK(symbols.is_defined(vectors.at(1)["root"].to_string()) == true);
-    CHECK(symbols.is_pointer(vectors.at(1)["root"].to_string()) == true);
+    ita.build_from_vector_definition(vectors.at(1));
+    CHECK(ita.symbols_.is_defined(vectors.at(1)["root"].to_string()) == true);
+    CHECK(ita.symbols_.is_pointer(vectors.at(1)["root"].to_string()) == true);
     auto vector_of_strings =
-        symbols.get_pointer_by_name(vectors.at(1)["root"].to_string());
+        ita.symbols_.get_pointer_by_name(vectors.at(1)["root"].to_string());
     CHECK(vector_of_strings.size() == 2);
     CHECK(std::get<std::string>(vector_of_strings.at(0).first) == "too bad");
     CHECK(std::get<std::string>(vector_of_strings.at(1).first) == "tough luck");
 }
 
-TEST_CASE("ir/ita.cc: build_from_return_statement")
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_return_statement")
 {
     using namespace credence;
-    using namespace credence::ir;
     credence::util::AST_Node obj;
     auto internal_symbols = json::JSON::load(
         "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
@@ -263,29 +289,17 @@ TEST_CASE("ir/ita.cc: build_from_return_statement")
         "         }],\n            \"node\" : \"statement\",\n            "
         "\"root\" : \"return\"\n          }");
 
-    credence::Symbol_Table<> symbols{};
-    Instructions test_instructions{};
-    std::ostringstream os_test;
-    int temporary{ 0 };
-    type::RValue::Value null = type::NULL_LITERAL;
-    symbols.table_.emplace("x", null);
-    symbols.table_.emplace("y", null);
-    test_instructions = build_from_return_statement(
-        symbols, obj["test"], internal_symbols, &temporary);
-    for (auto const& inst : test_instructions) {
-        emit_quadruple(os_test, inst);
-    }
     std::string expected = R"ita(_t1 = y * y;
 _t2 = x * _t1;
 RET _t2;
 )ita";
-    CHECK(os_test.str() == expected);
+    TEST_RETURN_STATEMENT_NODE_WITH(
+        internal_symbols, { "x", "y" }, obj["test"], expected);
 }
 
-TEST_CASE("ir/ita.cc: build_from_block_statement")
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_block_statement")
 {
     using namespace credence;
-    using namespace credence::ir;
     credence::util::AST_Node obj;
     obj["test"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
@@ -306,18 +320,13 @@ TEST_CASE("ir/ita.cc: build_from_block_statement")
         "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
         "\"root\" : \"block\"\n      }");
 
-    credence::Symbol_Table<> symbols{};
-    Instructions test_instructions{};
-    std::ostringstream os_test;
-    test_instructions =
-        build_from_block_statement(symbols, symbols, obj["test"], obj);
-    for (auto const& inst : test_instructions) {
-        emit_quadruple(os_test, inst);
-    }
-    CHECK(os_test.str() == "_t1 = (5:int:4) || (2:int:4);\nx = _t1;\n");
+    TEST_BLOCK_STATEMENT_NODE_WITH(
+        obj,
+        obj["test"],
+        "_t2 = (5:int:4) || (2:int:4);\nx = _t2;\n",
+        false,
+        false);
 }
-
-*/
 
 TEST_CASE_FIXTURE(
     ITA_Fixture,
@@ -637,123 +646,84 @@ TEST_CASE_FIXTURE(
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    std::string expected = R"ita(x = (100:int:4);
+    auto expected = R"ita(_t3 = (5:int:4) + (5:int:4);
+_t4 = (3:int:4) + (3:int:4);
+_t5 = _t3 * _t4;
+x = _t5;
 y = (100:int:4);
-_t2 = x > (5:int:4);
-IF _t2 GOTO _L3;
-_L1:
+_t6 = x > (0:int:4);
+IF _t6 GOTO _L7;
+GOTO _L13;
+_L2:
+_L14:
+x = (2:int:4);
+LEAVE;
+_L7:
+_t10 = x >= (0:int:4);
+_L8:
+IF _t10 GOTO _L9;
+GOTO _L2;
+_L9:
+_t11 = -- x;
+_t12 = -- y;
+x = _t12;
+GOTO _L8;
+GOTO _L2;
+_L13:
+_t15 = ++ x;
+y = (5:int:4);
+_t16 = x + y;
+_t17 = x + x;
+_t18 = _t16 * _t17;
+x = _t18;
+GOTO _L14;
+)ita";
+    auto expected_2 = R"ita(x = (1:int:4);
+y = (10:int:4);
+_t5 = x >= (0:int:4);
+_L3:
+IF _t5 GOTO _L4;
+_t11 = x <= (100:int:4);
+_L9:
+IF _t11 GOTO _L10;
+x = (2:int:4);
+LEAVE;
+_L4:
+_t7 = -- x;
+_t8 = -- y;
+x = _t8;
+GOTO _L3;
+_L10:
+_t13 = ++ x;
+GOTO _L9;
+)ita";
+    std::string expected_3 = R"ita(x = (100:int:4);
+y = (100:int:4);
+_t3 = x > (5:int:4);
+IF _t3 GOTO _L4;
+_L2:
 _t10 = ++ x;
 y = (5:int:4);
 _t11 = x + y;
 _t12 = x + x;
 _t13 = _t11 * _t12;
 x = _t13;
-_L9:
 LEAVE;
-_L3:
-_t6 = x >= (0:int:4);
 _L4:
-IF _t6 GOTO _L5;
-GOTO _L1;
+_t7 = x >= (0:int:4);
 _L5:
-_t7 = -- x;
-_t8 = -- y;
-x = _t8;
-GOTO _L4;
-)ita";
-    std::string expected_2 = R"ita(x = (1:int:4);
-y = (10:int:4);
-_t3 = x >= (0:int:4);
-_L1:
-IF _t3 GOTO _L2;
-GOTO _L1;
-_L1:
+IF _t7 GOTO _L6;
+GOTO _L2;
 _L6:
-_t9 = x <= (100:int:4);
-_L7:
-IF _t9 GOTO _L8;
-GOTO _L6;
-_L6:
-_L11:
-x = (2:int:4);
-LEAVE;
-_L2:
-_t4 = -- x;
-_t5 = -- y;
-x = _t5;
-GOTO _L1;
-_L8:
-_t10 = ++ x;
-GOTO _L7;
+_t8 = -- x;
+_t9 = -- y;
+x = _t9;
+GOTO _L5;
+GOTO _L2;
 )ita";
-    std::string expected_3 = R"ita(_t1 = (5:int:4) + (5:int:4);
-_t2 = (3:int:4) + (3:int:4);
-_t3 = _t1 * _t2;
-x = _t3;
-y = (100:int:4);
-_t4 = x > (0:int:4);
-IF _t4 GOTO _L5;
-GOTO _L12;
-_L1:
-_L17:
-x = (2:int:4);
-LEAVE;
-_L5:
-_t8 = x >= (0:int:4);
-_L6:
-IF _t8 GOTO _L7;
-GOTO _L1;
-_L1:
-_L11:
-_L7:
-_t9 = -- x;
-_t10 = -- y;
-x = _t10;
-GOTO _L6;
-GOTO _L1;
-_L12:
-_t13 = ++ x;
-y = (5:int:4);
-_t14 = x + y;
-_t15 = x + x;
-_t16 = _t14 * _t15;
-x = _t16;
-GOTO _L1;
-)ita";
-    std::ostringstream os_test;
-    ir::ITA::Instructions test_instructions{};
-    auto hoisted = ITA_with_tail_branch(obj["symbols"]);
-
-    hoisted.symbols_.table_.emplace("add", type::NULL_LITERAL);
-
-    test_instructions =
-        hoisted.build_from_block_statement(obj["while_4"], true);
-    for (auto const& inst : test_instructions) {
-        EMIT(os_test, inst);
-    }
-
-    CHECK(os_test.str() == expected);
-    os_test.str("");
-    hoisted.temporary = 0;
-    os_test.clear();
-
-    test_instructions =
-        hoisted.build_from_block_statement(obj["while_2"], true);
-    for (auto const& inst : test_instructions) {
-        EMIT(os_test, inst);
-    }
-
-    // CHECK(os_test.str() == expected_2);
-    //  os_test.str("");
-    //  hoisted.temporary = 0;
-    //  os_test.clear();
-
-    // test_instructions = hoisted.build_from_block_statement(obj["while"],
-    // true); for (auto const& inst : test_instructions) {
-    //     EMIT(os_test, inst);
-    // }
-
-    // CHECK(os_test.str() == expected_3);
+    TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while"], expected);
+    TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while_2"], expected_2);
+    TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while_4"], expected_3);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: if and else branching")
@@ -766,95 +736,208 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: if and else branching")
         "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
         "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}}");
 
-    obj["test"] = json::JSON::load(
+    obj["if"] = json::JSON::load(
         "{\n        \"left\" : [{\n            \"left\" : [{\n                "
         "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
         "  }],\n            \"node\" : \"statement\",\n            \"root\" : "
-        "\"auto\"\n          }, {\n            \"left\" : [[{\n                "
-        "  \"left\" : {\n                    \"node\" : \"lvalue\",\n          "
-        "          \"root\" : \"x\"\n                  },\n                  "
-        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
-        "{\n                    \"left\" : {\n                      \"node\" : "
-        "\"evaluated_expression\",\n                      \"root\" : {\n       "
-        "                 \"left\" : {\n                          \"node\" : "
+        "\"auto\"\n          }, \n          {\n            \"left\" : [[{\n    "
+        "              \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"evaluated_expression\",\n                      "
+        "\"root\" : {\n                        \"left\" : {\n                  "
+        "        \"node\" : \"number_literal\",\n                          "
+        "\"root\" : 5\n                        },\n                        "
+        "\"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
         "\"number_literal\",\n                          \"root\" : 5\n         "
-        "               },\n                        \"node\" : "
-        "\"relation_expression\",\n                        \"right\" : {\n     "
-        "                     \"node\" : \"number_literal\",\n                 "
-        "         \"root\" : 5\n                        },\n                   "
-        "     \"root\" : [\"+\"]\n                      }\n                    "
-        "},\n                    \"node\" : \"relation_expression\",\n         "
-        "           \"right\" : {\n                      \"node\" : "
-        "\"evaluated_expression\",\n                      \"root\" : {\n       "
-        "                 \"left\" : {\n                          \"node\" : "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"node\" : \"relation_expression\",\n                    \"right\" : "
+        "{\n                      \"node\" : \"evaluated_expression\",\n       "
+        "               \"root\" : {\n                        \"left\" : {\n   "
+        "                       \"node\" : \"number_literal\",\n               "
+        "           \"root\" : 3\n                        },\n                 "
+        "       \"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
         "\"number_literal\",\n                          \"root\" : 3\n         "
-        "               },\n                        \"node\" : "
-        "\"relation_expression\",\n                        \"right\" : {\n     "
-        "                     \"node\" : \"number_literal\",\n                 "
-        "         \"root\" : 3\n                        },\n                   "
-        "     \"root\" : [\"+\"]\n                      }\n                    "
-        "},\n                    \"root\" : [\"*\"]\n                  },\n    "
-        "              \"root\" : [\"=\", null]\n                }]],\n        "
-        "    \"node\" : \"statement\",\n            \"root\" : \"rvalue\"\n    "
-        "      }, {\n            \"left\" : {\n              \"left\" : {\n    "
-        "            \"node\" : \"lvalue\",\n                \"root\" : "
-        "\"x\"\n              },\n              \"node\" : "
-        "\"relation_expression\",\n              \"right\" : {\n               "
-        " \"node\" : \"number_literal\",\n                \"root\" : 5\n       "
-        "       },\n              \"root\" : [\"<=\"]\n            },\n        "
-        "    \"node\" : \"statement\",\n            \"right\" : [{\n           "
-        "     \"left\" : [{\n                    \"left\" : [[{\n              "
-        "            \"left\" : {\n                            \"node\" : "
-        "\"lvalue\",\n                            \"root\" : \"x\"\n           "
-        "               },\n                          \"node\" : "
-        "\"assignment_expression\",\n                          \"right\" : {\n "
-        "                           \"node\" : \"number_literal\",\n           "
-        "                 \"root\" : 1\n                          },\n         "
-        "                 \"root\" : [\"=\", null]\n                        "
-        "}]],\n                    \"node\" : \"statement\",\n                 "
-        "   \"root\" : \"rvalue\"\n                  }],\n                "
-        "\"node\" : \"statement\",\n                \"root\" : \"block\"\n     "
-        "         }, {\n                \"left\" : [{\n                    "
-        "\"left\" : [[{\n                          \"left\" : {\n              "
-        "              \"node\" : \"lvalue\",\n                            "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }, {\n   "
+        "         \"left\" : {\n              \"left\" : {\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  },\n              \"node\" : \"relation_expression\",\n             "
+        " \"right\" : {\n                \"node\" : \"number_literal\",\n      "
+        "          \"root\" : 5\n              },\n              \"root\" : "
+        "[\"<=\"]\n            },\n            \"node\" : \"statement\",\n     "
+        "       \"right\" : [{\n                \"left\" : [{\n                "
+        "    \"left\" : [[{\n                          \"left\" : {\n          "
+        "                  \"node\" : \"lvalue\",\n                            "
         "\"root\" : \"x\"\n                          },\n                      "
         "    \"node\" : \"assignment_expression\",\n                          "
         "\"right\" : {\n                            \"node\" : "
-        "\"number_literal\",\n                            \"root\" : 8\n       "
+        "\"number_literal\",\n                            \"root\" : 1\n       "
         "                   },\n                          \"root\" : [\"=\", "
         "null]\n                        }]],\n                    \"node\" : "
         "\"statement\",\n                    \"root\" : \"rvalue\"\n           "
         "       }],\n                \"node\" : \"statement\",\n               "
-        " \"root\" : \"block\"\n              }],\n            \"root\" : "
-        "\"if\"\n          }],\n        \"node\" : \"statement\",\n        "
+        " \"root\" : \"block\"\n              }, {\n                \"left\" : "
+        "[{\n                    \"left\" : [[{\n                          "
+        "\"left\" : {\n                            \"node\" : \"lvalue\",\n    "
+        "                        \"root\" : \"x\"\n                          "
+        "},\n                          \"node\" : \"assignment_expression\",\n "
+        "                         \"right\" : {\n                            "
+        "\"node\" : \"number_literal\",\n                            \"root\" "
+        ": 8\n                          },\n                          \"root\" "
+        ": [\"=\", null]\n                        }]],\n                    "
+        "\"node\" : \"statement\",\n                    \"root\" : "
+        "\"rvalue\"\n                  }],\n                \"node\" : "
+        "\"statement\",\n                \"root\" : \"block\"\n              "
+        "}],\n            \"root\" : \"if\"\n          }, {\n            "
+        "\"left\" : [[{\n                  \"left\" : {\n                    "
+        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n        "
+        "          },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 5\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 2\n             "
+        "       },\n                    \"root\" : [\"||\"]\n                  "
+        "},\n                  \"root\" : [\"=\", null]\n                "
+        "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
         "\"root\" : \"block\"\n      }");
 
-    std::ostringstream os_test;
+    obj["if_2"] = json::JSON::load(
+        "      {\n        \"left\" : [{\n            \"left\" : [{\n           "
+        "     \"node\" : \"lvalue\",\n                \"root\" : \"x\"\n       "
+        "       }],\n            \"node\" : \"statement\",\n            "
+        "\"root\" : \"auto\"\n          }, {\n            \"left\" : [[{\n     "
+        "             \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"evaluated_expression\",\n                      "
+        "\"root\" : {\n                        \"left\" : {\n                  "
+        "        \"node\" : \"number_literal\",\n                          "
+        "\"root\" : 5\n                        },\n                        "
+        "\"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"node\" : \"relation_expression\",\n                    \"right\" : "
+        "{\n                      \"node\" : \"evaluated_expression\",\n       "
+        "               \"root\" : {\n                        \"left\" : {\n   "
+        "                       \"node\" : \"number_literal\",\n               "
+        "           \"root\" : 3\n                        },\n                 "
+        "       \"node\" : \"relation_expression\",\n                        "
+        "\"right\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 3\n         "
+        "               },\n                        \"root\" : [\"+\"]\n       "
+        "               }\n                    },\n                    "
+        "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
+        ": [\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }, {\n   "
+        "         \"left\" : {\n              \"left\" : {\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  },\n              \"node\" : \"relation_expression\",\n             "
+        " \"right\" : {\n                \"node\" : \"number_literal\",\n      "
+        "          \"root\" : 5\n              },\n              \"root\" : "
+        "[\"<=\"]\n            },\n            \"node\" : \"statement\",\n     "
+        "       \"right\" : [{\n                \"left\" : [{\n                "
+        "    \"left\" : [[{\n                          \"left\" : {\n          "
+        "                  \"node\" : \"lvalue\",\n                            "
+        "\"root\" : \"x\"\n                          },\n                      "
+        "    \"node\" : \"assignment_expression\",\n                          "
+        "\"right\" : {\n                            \"node\" : "
+        "\"number_literal\",\n                            \"root\" : 1\n       "
+        "                   },\n                          \"root\" : [\"=\", "
+        "null]\n                        }]],\n                    \"node\" : "
+        "\"statement\",\n                    \"root\" : \"rvalue\"\n           "
+        "       }],\n                \"node\" : \"statement\",\n               "
+        " \"root\" : \"block\"\n              }, null],\n            \"root\" "
+        ": \"if\"\n          }, {\n            \"left\" : {\n              "
+        "\"left\" : {\n                \"node\" : \"lvalue\",\n                "
+        "\"root\" : \"x\"\n              },\n              \"node\" : "
+        "\"relation_expression\",\n              \"right\" : {\n               "
+        " \"node\" : \"number_literal\",\n                \"root\" : 5\n       "
+        "       },\n              \"root\" : [\">\"]\n            },\n         "
+        "   \"node\" : \"statement\",\n            \"right\" : [{\n            "
+        "    \"left\" : [{\n                    \"left\" : [[{\n               "
+        "           \"left\" : {\n                            \"node\" : "
+        "\"lvalue\",\n                            \"root\" : \"x\"\n           "
+        "               },\n                          \"node\" : "
+        "\"assignment_expression\",\n                          \"right\" : {\n "
+        "                           \"node\" : \"number_literal\",\n           "
+        "                 \"root\" : 10\n                          },\n        "
+        "                  \"root\" : [\"=\", null]\n                        "
+        "}]],\n                    \"node\" : \"statement\",\n                 "
+        "   \"root\" : \"rvalue\"\n                  }],\n                "
+        "\"node\" : \"statement\",\n                \"root\" : \"block\"\n     "
+        "         }, null],\n            \"root\" : \"if\"\n          }, {\n   "
+        "         \"left\" : [[{\n                  \"left\" : {\n             "
+        "       \"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n "
+        "                 },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 5\n             "
+        "       },\n                    \"node\" : \"relation_expression\",\n  "
+        "                  \"right\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 2\n             "
+        "       },\n                    \"root\" : [\"||\"]\n                  "
+        "},\n                  \"root\" : [\"=\", null]\n                "
+        "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      }");
 
-    auto hoisted = ITA_with_tail_branch(obj["symbols"]);
-    hoisted.symbols_.table_.emplace("add", type::NULL_LITERAL);
-    auto test_instructions =
-        hoisted.build_from_block_statement(obj["test"], true);
-    for (auto const& inst : test_instructions) {
-        EMIT(os_test, inst);
-    }
-    std::string expected = R"ita(_t2 = (5:int:4) + (5:int:4);
-_t3 = (3:int:4) + (3:int:4);
-_t4 = _t2 * _t3;
-x = _t4;
-_t5 = x <= (5:int:4);
-IF _t5 GOTO _L6;
-GOTO _L7;
-_L1:
+    auto expected = R"ita(_t3 = (5:int:4) + (5:int:4);
+_t4 = (3:int:4) + (3:int:4);
+_t5 = _t3 * _t4;
+x = _t5;
+_t6 = x <= (5:int:4);
+IF _t6 GOTO _L7;
+GOTO _L9;
+_L8:
+_L10:
+_t11 = (5:int:4) || (2:int:4);
+x = _t11;
 LEAVE;
-_L6:
-x = (1:int:4);
-GOTO _L1;
 _L7:
+x = (1:int:4);
+GOTO _L8;
+_L9:
 x = (8:int:4);
-GOTO _L1;
+GOTO _L10;
 )ita";
-    CHECK(os_test.str() == expected);
+
+    auto expected_2 = R"ita(_t3 = (5:int:4) + (5:int:4);
+_t4 = (3:int:4) + (3:int:4);
+_t5 = _t3 * _t4;
+x = _t5;
+_t6 = x <= (5:int:4);
+IF _t6 GOTO _L7;
+_L8:
+_t9 = x > (5:int:4);
+IF _t9 GOTO _L10;
+_L11:
+_t12 = (5:int:4) || (2:int:4);
+x = _t12;
+LEAVE;
+_L7:
+x = (1:int:4);
+GOTO _L8;
+_L10:
+x = (10:int:4);
+GOTO _L11;
+)ita";
+
+    TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["if"], expected);
+    TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["if_2"], expected_2);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: truthy type coercion")
@@ -910,13 +993,13 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: truthy type coercion")
         EMIT(os_test, inst);
     }
     std::string expected = R"ita(x = (5:int:4);
-_t2 = CMP x;
-IF _t2 GOTO _L3;
-_L1:
+_t3 = CMP x;
+IF _t3 GOTO _L4;
+_L5:
 LEAVE;
-_L3:
+_L4:
 y = (10:int:4);
-GOTO _L1;
+GOTO _L5;
 )ita";
     CHECK(os_test.str() == expected);
 }
@@ -985,8 +1068,8 @@ PUSH (5:int:4);
 PUSH (2:int:4);
 CALL add;
 POP 16;
-_t1 = RET;
-x = _t1;
+_t2 = RET;
+x = _t2;
 y = (10:int:4);
 GOTO ADD;
 )ita";
