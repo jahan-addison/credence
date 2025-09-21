@@ -22,6 +22,7 @@
 #include <credence/rvalue.h>  // for RValue_Parser
 #include <credence/symbol.h>  // for Symbol_Table
 #include <credence/types.h>   // for RValue, RValue_Type_Variant, WORD_LITERAL
+#include <credence/util.h>    // for AST_Node
 #include <format>             // for format
 #include <list>               // for list
 #include <matchit.h>          // for pattern, PatternHelper, PatternPipable
@@ -76,7 +77,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
 
     symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
 
-    if (parameters.JSON_type() == json::JSON::Class::Array and
+    if (parameters.JSON_type() == util::AST_Node::Class::Array and
         !parameters.to_deque().front().is_null()) {
         for (auto& ident : parameters.array_range()) {
             m::match(ident["node"].to_string())(
@@ -350,9 +351,9 @@ void ITA::insert_branch_block_instructions(
         insert_instructions(branch_instructions, block_instructions);
 
     } else {
-        auto block_statement = json::object();
-        block_statement["node"] = json::JSON{ "statement" };
-        block_statement["root"] = json::JSON{ "block" };
+        auto block_statement = util::AST::object();
+        block_statement["node"] = util::AST_Node{ "statement" };
+        block_statement["root"] = util::AST_Node{ "block" };
         block_statement["left"].append(block);
         auto block_instructions =
             build_from_block_statement(block_statement, false);

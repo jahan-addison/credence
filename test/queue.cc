@@ -17,9 +17,9 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
 {
     using namespace credence;
     using namespace credence::type;
-    json::JSON obj;
+    credence::util::AST_Node obj;
 
-    obj["complex"] = json::JSON::load(
+    obj["complex"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"number_literal\",\n                    \"root\" : 5\n               "
         "   },\n                  \"node\" : \"relation_expression\",\n        "
@@ -51,11 +51,11 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           },\n                    \"root\" : [\"+\"]\n               "
         "   },\n                  \"root\" : [\"*\"]\n                }\n      "
         "    ");
-    obj["unary"] = json::JSON::load(
+    obj["unary"] = credence::util::AST_Node::load(
         "{\n  \"left\": {\n    \"node\": \"number_literal\",\n    \"root\": "
         "5\n  },\n  \"node\": \"unary_expression\",\n  \"root\": [\n    "
         "\"~\"\n  ]\n}");
-    obj["equal"] = json::JSON::load(
+    obj["equal"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -67,7 +67,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : 5\n                    },\n                    \"root\" : "
         "[\"+\"]\n                  },\n                  \"root\" : [\"=\", "
         "null]\n                }\n");
-    obj["unary_relation"] = json::JSON::load(
+    obj["unary_relation"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"left\" : {\n "
         "                     \"node\" : \"number_literal\",\n                 "
         "     \"root\" : 5\n                    },\n                    "
@@ -77,7 +77,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "         \"node\" : \"number_literal\",\n                    \"root\" "
         ": 2\n                  },\n                  \"root\" : [\"^\"]\n     "
         "           }");
-    obj["ternary"] = json::JSON::load(
+    obj["ternary"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -96,7 +96,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           }\n                    },\n                    \"root\" : "
         "[\"<\"]\n                  },\n                  \"root\" : [\"=\", "
         "null]\n                }");
-    obj["function"] = json::JSON::load(
+    obj["function"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"puts\"\n                "
         "  },\n                  \"node\" : \"function_expression\",\n         "
@@ -107,7 +107,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "           \"node\" : \"number_literal\",\n                      "
         "\"root\" : 3\n                    }],\n                  \"root\" : "
         "\"puts\"\n                },\n");
-    obj["evaluated"] = json::JSON::load(
+    obj["evaluated"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -134,7 +134,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : [\"+\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
 
-    obj["evaluated_2"] = json::JSON::load(
+    obj["evaluated_2"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "
@@ -160,7 +160,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "               }\n                    },\n                    "
         "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
-    obj["evaluated_3"] = json::JSON::load(
+    obj["evaluated_3"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
         "},\n                  \"node\" : \"assignment_expression\",\n         "

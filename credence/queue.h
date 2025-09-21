@@ -40,21 +40,26 @@ namespace credence {
 using RValue_Queue_Item =
     std::variant<type::Operator, type::RValue::Type_Pointer>;
 
-using RValue_Queue = std::list<RValue_Queue_Item>;
+using RValue_Types = std::vector<type::RValue::Type_Pointer>;
+
+using RValue_Queue = std::deque<RValue_Queue_Item>;
 
 RValue_Queue* rvalues_to_queue(
-    std::vector<type::RValue::Type_Pointer> const& rvalues,
+    RValue_Types const& rvalues,
     RValue_Queue* rvalues_queue);
 
-RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer const& rvalue,
-                               RValue_Queue* rvalues_queue);
+RValue_Queue* rvalues_to_queue(
+    type::RValue::Type_Pointer const& rvalue,
+    RValue_Queue* rvalues_queue);
 
-std::string rvalue_to_string(type::RValue::Type const& rvalue,
-                             bool separate = true);
+std::string rvalue_to_string(
+    type::RValue::Type const& rvalue,
+    bool separate = true);
 
 std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue);
 
-std::string dump_value_type(type::RValue::Value,
-                            std::string_view separator = ":");
+std::string dump_value_type(
+    type::RValue::Value,
+    std::string_view separator = ":");
 
 } // namespace credence

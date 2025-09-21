@@ -50,61 +50,62 @@ namespace credence {
 /**
  * @brief RValue::Value tuple as a string
  */
-std::string dump_value_type(type::RValue::Value type,
-                            std::string_view separator)
+std::string dump_value_type(
+    type::RValue::Value type,
+    std::string_view separator)
 {
     using namespace type;
     std::ostringstream os;
     os << "(";
-    std::visit(util::overload{
-                   [&](int i) {
-                       os << i << separator << LITERAL_TYPE.at("int").first
-                          << separator << LITERAL_TYPE.at("int").second;
-                   },
-                   [&](long i) {
-                       os << i << separator << LITERAL_TYPE.at("long").first
-                          << separator << LITERAL_TYPE.at("long").second;
-                   },
-                   [&](float i) {
-                       os << i << separator << LITERAL_TYPE.at("float").first
-                          << separator << LITERAL_TYPE.at("float").second;
-                   },
-                   [&](double i) {
-                       os << i << separator << LITERAL_TYPE.at("double").first
-                          << separator << LITERAL_TYPE.at("double").second;
-                   },
-                   [&](bool i) {
-                       os << std::boolalpha << i << separator
-                          << LITERAL_TYPE.at("bool").first << separator
-                          << LITERAL_TYPE.at("bool").second;
-                   },
-                   [&]([[maybe_unused]] std::monostate i) {
-                       os << "null" << separator
-                          << LITERAL_TYPE.at("null").first << separator
-                          << LITERAL_TYPE.at("null").second;
-                   },
-                   [&](credence::type::Byte i) {
-                       os << i << separator << LITERAL_TYPE.at("byte").first
-                          << separator << type.second.second;
-                   },
-                   [&](char i) {
-                       os << i << LITERAL_TYPE.at("char").first << separator
-                          << LITERAL_TYPE.at("char").second;
-                   },
-                   [&]([[maybe_unused]] std::string const& s) {
-                       if (s == "__WORD_") {
-                           // pointer
-                           os << "__WORD_" << separator
-                              << LITERAL_TYPE.at("word").first << separator
-                              << LITERAL_TYPE.at("word").second;
-                       } else {
-                           os << std::get<std::string>(type.first) << separator
-                              << "string" << separator
-                              << std::get<std::string>(type.first).size();
-                       }
-                   },
-               },
-               type.first);
+    std::visit(
+        util::overload{
+            [&](int i) {
+                os << i << separator << LITERAL_TYPE.at("int").first
+                   << separator << LITERAL_TYPE.at("int").second;
+            },
+            [&](long i) {
+                os << i << separator << LITERAL_TYPE.at("long").first
+                   << separator << LITERAL_TYPE.at("long").second;
+            },
+            [&](float i) {
+                os << i << separator << LITERAL_TYPE.at("float").first
+                   << separator << LITERAL_TYPE.at("float").second;
+            },
+            [&](double i) {
+                os << i << separator << LITERAL_TYPE.at("double").first
+                   << separator << LITERAL_TYPE.at("double").second;
+            },
+            [&](bool i) {
+                os << std::boolalpha << i << separator
+                   << LITERAL_TYPE.at("bool").first << separator
+                   << LITERAL_TYPE.at("bool").second;
+            },
+            [&]([[maybe_unused]] std::monostate i) {
+                os << "null" << separator << LITERAL_TYPE.at("null").first
+                   << separator << LITERAL_TYPE.at("null").second;
+            },
+            [&](credence::type::Byte i) {
+                os << i << separator << LITERAL_TYPE.at("byte").first
+                   << separator << type.second.second;
+            },
+            [&](char i) {
+                os << i << LITERAL_TYPE.at("char").first << separator
+                   << LITERAL_TYPE.at("char").second;
+            },
+            [&]([[maybe_unused]] std::string const& s) {
+                if (s == "__WORD_") {
+                    // pointer
+                    os << "__WORD_" << separator
+                       << LITERAL_TYPE.at("word").first << separator
+                       << LITERAL_TYPE.at("word").second;
+                } else {
+                    os << std::get<std::string>(type.first) << separator
+                       << "string" << separator
+                       << std::get<std::string>(type.first).size();
+                }
+            },
+        },
+        type.first);
     os << ")";
     return os.str();
 }
@@ -150,16 +151,16 @@ std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue)
     using namespace type;
     auto oss = std::ostringstream();
     for (auto& item : *rvalues_queue) {
-        std::visit(util::overload{ [&](type::Operator op) {
-                                      oss << type::operator_to_string(op)
-                                          << " ";
-                                  },
-                                   [&](type::RValue::Type_Pointer const& s) {
-                                       oss << rvalue_to_string(*s);
-                                   }
+        std::visit(
+            util::overload{ [&](type::Operator op) {
+                               oss << type::operator_to_string(op) << " ";
+                           },
+                            [&](type::RValue::Type_Pointer const& s) {
+                                oss << rvalue_to_string(*s);
+                            }
 
-                   },
-                   item);
+            },
+            item);
     }
     return oss.str();
 }
@@ -192,8 +193,9 @@ void _associativity_operator_precedence(
 /**
  * @brief Re-balance the queue if the stack is empty
  */
-inline void _balance_queue(RValue_Queue* rvalues_queue,
-                           std::stack<type::Operator>& operator_stack)
+inline void _balance_queue(
+    RValue_Queue* rvalues_queue,
+    std::stack<type::Operator>& operator_stack)
 {
     if (operator_stack.size() == 1) {
         rvalues_queue->emplace_back(operator_stack.top());
@@ -310,7 +312,7 @@ RValue_Queue* _rvalue_pointer_to_queue(
  * @brief List of rvalues to queue of operators and operands
  */
 RValue_Queue* rvalues_to_queue(
-    std::vector<type::RValue::Type_Pointer> const& rvalues,
+    RValue_Types const& rvalues,
     RValue_Queue* rvalues_queue)
 {
     using namespace type;
@@ -326,8 +328,9 @@ RValue_Queue* rvalues_to_queue(
 /**
  * @brief type::RValue to queue of operators and operands
  */
-RValue_Queue* rvalues_to_queue(type::RValue::Type_Pointer const& rvalue,
-                               RValue_Queue* rvalues_queue)
+RValue_Queue* rvalues_to_queue(
+    type::RValue::Type_Pointer const& rvalue,
+    RValue_Queue* rvalues_queue)
 {
     using namespace type;
     std::stack<Operator> operator_stack{};

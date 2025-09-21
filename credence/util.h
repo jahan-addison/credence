@@ -43,7 +43,8 @@ namespace credence {
 
 namespace util {
 
-using AST_Node = json::JSON;
+namespace AST = json;
+using AST_Node = AST::JSON;
 
 namespace fs = std::filesystem;
 

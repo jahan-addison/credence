@@ -14,13 +14,9 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h>
-
 #include <credence/ir/ita.h>   // for build_from_definitions, emit_quadruple
-#include <credence/symbol.h>   // for Symbol_Table
 #include <credence/util.h>     // for read_file_from_path
 #include <cxxopts.hpp>         // for value, Options, OptionAdder, ParseResult
-#include <deque>               // for operator==, _Deque_iterator
 #include <exception>           // for exception
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
 #include <matchit.h>           // for match, pattern, PatternHelper, Patter...
@@ -29,13 +25,9 @@
 #include <pybind11/embed.h>    // for scoped_interpreter
 #include <pybind11/pybind11.h> // for error_already_set::what, module, module_
 #include <pybind11/pytypes.h>  // for object, error_already_set, object_api
-#include <simplejson.h>        // for JSON, operator<<
 #include <stdexcept>           // for runtime_error
-#include <stdlib.h>            // for exit
 #include <string>              // for char_traits, basic_string, string
 #include <string_view>         // for operator<<, string_view
-#include <tuple>               // for tuple
-#include <vector>              // for vector
 
 int main(int argc, const char* argv[])
 {
@@ -64,8 +56,8 @@ int main(int argc, const char* argv[])
             exit(0);
         }
 
-        json::JSON ast;
-        json::JSON hoisted;
+        credence::util::AST_Node ast;
+        credence::util::AST_Node hoisted;
 
         auto type = result["ast-loader"].as<std::string>();
         auto source = credence::util::read_file_from_path(
@@ -81,7 +73,8 @@ int main(int argc, const char* argv[])
                     "get_source_program_symbol_table_as_json");
                 py::object symbols = symbol_table_call(source);
 
-                hoisted = json::JSON::load(symbols.cast<std::string>());
+                hoisted =
+                    credence::util::AST_Node::load(symbols.cast<std::string>());
                 if (result["debug"].count()) {
                     std::cout << "*** Symbol Table:" << std::endl
                               << symbols.cast<std::string>() << std::endl;
@@ -94,7 +87,8 @@ int main(int argc, const char* argv[])
                 if (ast_as_json.is_none())
                     throw std::runtime_error("could not construct ast");
 
-                ast["root"] = json::JSON::load(ast_as_json.cast<std::string>());
+                ast["root"] = credence::util::AST_Node::load(
+                    ast_as_json.cast<std::string>());
             } catch (py::error_already_set const& e) {
                 auto error_message = std::string_view{ e.what() };
 #ifndef DEBUG
@@ -108,7 +102,7 @@ int main(int argc, const char* argv[])
             }
 
         } else if (type == "json") {
-            ast["root"] = json::JSON::load(source);
+            ast["root"] = credence::util::AST_Node::load(source);
         } else {
             std::cerr << "Credence :: No source file provided" << std::endl;
             return 1;

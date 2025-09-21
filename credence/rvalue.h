@@ -43,7 +43,7 @@ class RValue_Parser
 
   public:
     explicit RValue_Parser(
-        json::JSON const& internal_symbols,
+        util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
@@ -51,7 +51,7 @@ class RValue_Parser
     }
 
     explicit RValue_Parser(
-        json::JSON const& internal_symbols,
+        util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols,
         Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
@@ -64,8 +64,8 @@ class RValue_Parser
 
   public:
     static inline type::RValue make_rvalue(
-        json::JSON const& node,
-        json::JSON const& internals,
+        util::AST_Node const& node,
+        util::AST_Node const& internals,
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
     {
@@ -133,7 +133,7 @@ class RValue_Parser
                                                       "unary_expression" };
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    json::JSON internal_symbols_;
+    util::AST_Node internal_symbols_;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };
@@ -141,8 +141,8 @@ class RValue_Parser
 // clang-format on
 
 inline type::RValue::RValue_Pointer make_rvalue(
-    json::JSON const& node,
-    json::JSON const& internals,
+    util::AST_Node const& node,
+    util::AST_Node const& internals,
     Symbol_Table<> const& symbols = {},
     Symbol_Table<> const& globals = {})
 {

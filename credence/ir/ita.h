@@ -25,7 +25,6 @@
 #include <matchit.h>         // for pattern, Or, Wildcard, PatternH...
 #include <optional>          // for optional
 #include <ostream>           // for basic_ostream, operator<<, endl
-#include <simplejson.h>      // for JSON
 #include <sstream>           // for basic_ostringstream, ostream
 #include <string>            // for basic_string, char_traits, allo...
 #include <string_view>       // for basic_string_view, string_view
@@ -53,7 +52,7 @@ class ITA
     ITA& operator=(ITA const&) = delete;
 #endif
     explicit ITA() = default;
-    explicit ITA(json::JSON const& internal_symbols)
+    explicit ITA(util::AST_Node const& internal_symbols)
         : internal_symbols_(internal_symbols)
     {
     }
@@ -374,7 +373,7 @@ class ITA
         { "if", "while", "switch" };
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    json::JSON internal_symbols_;
+    util::AST_Node internal_symbols_;
     std::string peek_next;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};

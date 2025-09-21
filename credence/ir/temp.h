@@ -31,6 +31,31 @@ enum class Operator;
 }
 } // lines 31-31
 
+/****************************************************************************
+ *  A set of functions that aid construction of 3- or 4- tuple temporaries
+ *  and linear instructions from an rvalue stack. The rvalue stack should
+ *  be ordered by operator precedence, thus constituting an IR that closely
+ *  resembles a generic platform assembly language.
+ *
+ *  Example:
+ *
+ *  main() {
+ *    auto x;
+ *    x = (5 + 5) * (6 + 6);
+ *  }
+ *
+ *  Becomes:
+ *
+ *  __main:
+ *   BeginFunc ;
+ *.   _t1 = (5:int:4) + (5:int:4);
+ *.   _t2 = (6:int:4) + (6:int:4);
+ *.   _t3 = _t1 * _t2;
+ *.   x = _t3;
+ *   EndFunc ;
+ *
+ ****************************************************************************/
+
 namespace credence {
 
 namespace ir {
@@ -46,6 +71,47 @@ std::pair<std::string, std::size_t> insert_create_temp_from_operand(
     type::RValue::Type_Pointer operand,
     ITA::Instructions& instructions,
     int* temporary);
+/**
+ * @brief
+ * Binary operators and temporary stack to instructions
+ *
+ * Consider the expression `(x > 1 || x < 1)`
+ *
+ * In order to express this in a set of 3 or 4 expressions, we create the
+ * temporaries:
+ *
+ * clang-format off
+ *
+ *  _t1 = x > 1
+ *  _t2 = x < 1
+ *  _t3 = _t1 || _t2
+ *
+ * clang-format on
+ *
+ * The binary temporary is "_t3", which we return.
+ *
+ * We must also keep note of evaluated expressions, i.e wrapped in parenthesis:
+ *
+ * `(5 + 5) * (6 * 6)`
+ *
+ * Becomes:
+ *
+ * clang-format off
+ *
+ * _t1 = (5:int:4) + (5:int:4);
+ * _t2 = (6:int:4) + (6:int:4);
+ * _t3 = _t1 * _t2;
+ *
+ * clang-format on
+ *
+ * If there is a stack of temporaries from a sub-expression in an operand,
+ * we pop them and use the last temporary's idenfitier for the instruction
+ * name of the top of the temporary stack.
+ *
+ * I.e., the sub-expressions `x > 1` and `x < 1` were popped off the
+ * temporary stack, which were assigned _t1 and _t2, and used in _t3
+ * for the final binary expression.
+ */
 
 void binary_operands_balanced_temporary_stack(
     std::stack<type::RValue::Type_Pointer>& operand_stack,

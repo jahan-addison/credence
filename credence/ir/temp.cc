@@ -65,9 +65,15 @@ namespace credence {
 
 namespace ir {
 
+namespace m = matchit;
 using namespace type;
 
 namespace detail {
+
+std::pair<std::string, ITA::Instructions>
+instruction_temporary_from_rvalue_operand(
+    type::RValue::Type_Pointer& operand,
+    int* temporary_size);
 
 /**
  * @brief
@@ -153,8 +159,8 @@ void binary_operands_unbalanced_temporary_stack(
 
     auto last = instructions[instructions.size() - 1];
 
-    match(static_cast<int>(instructions.size()))(
-        pattern | (_ > 1) =
+    m::match(static_cast<int>(instructions.size()))(
+        m::pattern | (_ > 1) =
             [&] {
                 size_t last_index = 2;
                 ITA::Quadruple last_lvalue =
@@ -178,7 +184,7 @@ void binary_operands_unbalanced_temporary_stack(
                 temporary_stack.emplace(std::get<1>(operand_temp));
             },
         // cppcheck-suppress syntaxError
-        pattern | 1 =
+        m::pattern | 1 =
             [&] {
                 // clang-format off
                 auto operand_temp =
@@ -288,11 +294,10 @@ void assignment_operands_to_temporary_stack(
     ITA::Instructions& instructions,
     int* temporary)
 {
-    using namespace matchit;
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
-    match(oss, tss)(
-        pattern | ds(_ >= 1, _ >= 1) =
+    m::match(oss, tss)(
+        m::pattern | m::ds(m::_ >= 1, m::_ >= 1) =
             [&] {
                 auto rhs = temporary_stack.top();
                 temporary_stack.pop();
@@ -305,7 +310,7 @@ void assignment_operands_to_temporary_stack(
                     ITA::make_quadruple(
                         ITA::Instruction::VARIABLE, lhs.first, rhs));
             },
-        pattern | ds(_ == 1, _ == 0) =
+        m::pattern | ds(m::_ == 1, m::_ == 0) =
             [&] {
                 auto lhs_rvalue = rvalue_to_string(*operand_stack.top(), false);
                 operand_stack.pop();
@@ -319,7 +324,7 @@ void assignment_operands_to_temporary_stack(
                     // clang-format on
                 }
             },
-        pattern | ds(_ >= 2, _ == 0) =
+        m::pattern | m::ds(m::_ >= 2, m::_ == 0) =
             [&] {
                 auto operand1 = operand_stack.top();
                 operand_stack.pop();
@@ -336,6 +341,66 @@ void assignment_operands_to_temporary_stack(
                     ITA::make_quadruple(
                         ITA::Instruction::VARIABLE, lhs.first, rhs.first));
             });
+}
+
+/**
+ * @brief Construct temporary instructions from function call
+ */
+void function_call_operands_to_temporary_instructions(
+    detail::Operand_Stack& operand_stack,
+    detail::Temporary_Stack& temporary_stack,
+    ITA::Instructions& instructions,
+    int* temporary,
+    int* param_on_stack)
+{
+    auto op = Operator::U_CALL;
+    if (temporary_stack.size() > 1) {
+        auto rhs = temporary_stack.top();
+        temporary_stack.pop();
+        auto temp_rhs = ITA::make_temporary(temporary, rhs);
+        instructions.emplace_back(temp_rhs);
+        temporary_stack.emplace(
+            std::format(
+                "{} {}", operator_to_string(op), std::get<1>(temp_rhs)));
+        instructions.emplace_back(
+            ITA::make_quadruple(ITA::Instruction::CALL, rhs, ""));
+        temporary_stack.emplace(rhs);
+    } else {
+        if (temporary_stack.size() == 1 and operand_stack.size() < 1) {
+            auto rhs = temporary_stack.top();
+            temporary_stack.pop();
+            auto temp_rhs = ITA::make_temporary(temporary, rhs);
+            instructions.emplace_back(temp_rhs);
+            temporary_stack.emplace(
+                std::format(
+                    "{} {}", operator_to_string(op), std::get<1>(temp_rhs)));
+            instructions.emplace_back(
+                ITA::make_quadruple(ITA::Instruction::CALL, rhs, ""));
+            temporary_stack.emplace(rhs);
+        }
+        if (operand_stack.size() < 1)
+            return;
+        auto operand = operand_stack.top();
+        operand_stack.pop();
+        auto rhs =
+            instruction_temporary_from_rvalue_operand(operand, temporary);
+        ITA::insert_instructions(instructions, rhs.second);
+        instructions.emplace_back(
+            ITA::make_quadruple(ITA::Instruction::CALL, rhs.first, ""));
+    }
+    instructions.emplace_back(
+        ITA::make_quadruple(
+            ITA::Instruction::POP,
+            std::to_string(
+                (*param_on_stack) * type::LITERAL_TYPE.at("word").second),
+            "",
+            ""));
+    auto call_return = ITA::make_temporary(temporary, "RET");
+    instructions.emplace_back(call_return);
+    if (operand_stack.size() > 1) {
+        temporary_stack.emplace(std::get<1>(call_return));
+    }
+    *param_on_stack = 0;
 }
 
 } // namespace detail
@@ -370,14 +435,13 @@ void unary_operand_to_temporary_stack(
     int* temporary)
 {
     using namespace detail;
-    using namespace matchit;
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
-    match(oss, tss)(
+    m::match(oss, tss)(
         // the primary operand stack is empty, do nothing
-        pattern | ds(_ == 0, _) = [&] { return; },
+        m::pattern | m::ds(m::_ == 0, m::_) = [&] { return; },
         //  the temporary stack is empty, create our first temp lvalue
-        pattern | ds(_, _ > 1) =
+        m::pattern | m::ds(m::_, m::_ > 1) =
             [&] {
                 auto operand1 = temporary_stack.top();
                 temporary_stack.pop();
@@ -391,7 +455,7 @@ void unary_operand_to_temporary_stack(
                         std::get<1>(unary),
                         ""));
             },
-        pattern | _ =
+        m::pattern | m::_ =
             [&] {
                 auto operand1 = operand_stack.top();
                 operand_stack.pop();
@@ -408,8 +472,8 @@ void unary_operand_to_temporary_stack(
                 auto rhs = instruction_temporary_from_rvalue_operand(
                     operand1, temporary);
                 ITA::insert_instructions(instructions, rhs.second);
-                match(std::cmp_equal(tss, 0))(
-                    pattern | true =
+                m::match(std::cmp_equal(tss, 0))(
+                    m::pattern | true =
                         [&] {
                             // No temporary stack available, so push the newest
                             // temporary as an lvalue operand on the main stack
@@ -425,7 +489,7 @@ void unary_operand_to_temporary_stack(
                                 rvalue_type_pointer_from_rvalue(temp_lvalue));
                             instructions.emplace_back(operand_temp);
                         },
-                    pattern | _ =
+                    m::pattern | m::_ =
                         [&] {
                             // pop the last expression as the unary operand
                             auto unary = ITA::make_temporary(
@@ -491,13 +555,12 @@ void binary_operands_to_temporary_stack(
     int* temporary)
 {
     using namespace detail;
-    using namespace matchit;
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
-    match(oss, tss)(
+    m::match(oss, tss)(
         // there are at least two items on the temporary
         // stack, pop them as use them as operands
-        pattern | ds(_, _ >= 2) =
+        m::pattern | m::ds(m::_, m::_ >= 2) =
             [&] {
                 auto rhs = temporary_stack.top();
                 temporary_stack.pop();
@@ -510,7 +573,7 @@ void binary_operands_to_temporary_stack(
             },
         // there is exactly one temporary lvalue,
         // and at least one rvalue operand to use
-        pattern | ds(_ >= 1, _ == 1) =
+        m::pattern | m::ds(m::_ >= 1, m::_ == 1) =
             [&] {
                 binary_operands_balanced_temporary_stack(
                     operand_stack,
@@ -519,13 +582,13 @@ void binary_operands_to_temporary_stack(
                     op,
                     temporary);
             },
-        pattern | _ =
+        m::pattern | m::_ =
             [&] {
-                match(oss)(
+                m::match(oss)(
                     // if there is only one operand on the stack, the next
                     // result was already evaluated and we take the temporary
                     // lvalues from the last two instructions as operands
-                    pattern | (oss == 1) =
+                    m::pattern | (oss == 1) =
                         [&] {
                             binary_operands_unbalanced_temporary_stack(
                                 operand_stack,
@@ -536,11 +599,11 @@ void binary_operands_to_temporary_stack(
                         },
 
                     // empty rvalue operand stack, do nothing
-                    pattern | (_ < 1) = [&] { return; },
+                    m::pattern | (m::_ < 1) = [&] { return; },
 
                     // there are two or more operands on
                     // the primary rvalue stack, use them
-                    pattern | _ =
+                    m::pattern | m::_ =
                         [&] {
                             auto operand1 = operand_stack.top();
                             operand_stack.pop();
@@ -595,15 +658,11 @@ void binary_operands_to_temporary_stack(
  *   for operator translation.
  *
  */
-// clang-format off
-ITA::Instructions
-rvalue_queue_to_temp_instructions(
+ITA::Instructions rvalue_queue_to_temp_instructions(
     RValue_Queue* queue,
     int* temporary)
 {
-    // clang-format on
     using namespace detail;
-    using namespace matchit;
     ITA::Instructions instructions{};
     if (queue->empty()) {
         return instructions;
@@ -853,72 +912,15 @@ rvalue_queue_to_temp_instructions(
                                 op,
                                 temporary);
                             break;
-
                         // lvalue and address operators
-                        case Operator::U_CALL: {
-                            if (temporary_stack.size() > 1) {
-                                auto rhs = temporary_stack.top();
-                                temporary_stack.pop();
-                                auto temp_rhs =
-                                    ITA::make_temporary(temporary, rhs);
-                                instructions.emplace_back(temp_rhs);
-                                temporary_stack.emplace(
-                                    std::format(
-                                        "{} {}",
-                                        operator_to_string(op),
-                                        std::get<1>(temp_rhs)));
-                                instructions.emplace_back(
-                                    ITA::make_quadruple(
-                                        ITA::Instruction::CALL, rhs, ""));
-                                temporary_stack.emplace(rhs);
-                            } else {
-                                if (temporary_stack.size() == 1 and
-                                    operand_stack.size() < 1) {
-                                    auto rhs = temporary_stack.top();
-                                    temporary_stack.pop();
-                                    auto temp_rhs =
-                                        ITA::make_temporary(temporary, rhs);
-                                    instructions.emplace_back(temp_rhs);
-                                    temporary_stack.emplace(
-                                        std::format(
-                                            "{} {}",
-                                            operator_to_string(op),
-                                            std::get<1>(temp_rhs)));
-                                    instructions.emplace_back(
-                                        ITA::make_quadruple(
-                                            ITA::Instruction::CALL, rhs, ""));
-                                    temporary_stack.emplace(rhs);
-                                }
-                                if (operand_stack.size() < 1)
-                                    return;
-                                auto operand = operand_stack.top();
-                                operand_stack.pop();
-                                auto rhs =
-                                    instruction_temporary_from_rvalue_operand(
-                                        operand, temporary);
-                                ITA::insert_instructions(
-                                    instructions, rhs.second);
-                                instructions.emplace_back(
-                                    ITA::make_quadruple(
-                                        ITA::Instruction::CALL, rhs.first, ""));
-                            }
-                            instructions.emplace_back(
-                                ITA::make_quadruple(
-                                    ITA::Instruction::POP,
-                                    std::to_string(
-                                        param_on_stack *
-                                        type::LITERAL_TYPE.at("word").second),
-                                    "",
-                                    ""));
-                            auto call_return =
-                                ITA::make_temporary(temporary, "RET");
-                            instructions.emplace_back(call_return);
-                            if (operand_stack.size() > 1) {
-                                temporary_stack.emplace(
-                                    std::get<1>(call_return));
-                            }
-                            param_on_stack = 0;
-                        } break;
+                        case Operator::U_CALL:
+                            function_call_operands_to_temporary_instructions(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                temporary,
+                                &param_on_stack);
+                            break;
                         case Operator::U_PUSH: {
                             if (temporary_stack.size() >= 1) {
                                 auto rhs = temporary_stack.top();
@@ -991,9 +993,9 @@ rvalue_node_to_list_of_temp_instructions(
     RValue_Queue list{};
     std::vector<type::RValue::Type_Pointer> rvalues{};
 
-    if (node.JSON_type() == json::JSON::Class::Array) {
+    if (node.JSON_type() == util::AST_Node::Class::Array) {
         for (auto& expression : node.array_range()) {
-            if (expression.JSON_type() == json::JSON::Class::Array) {
+            if (expression.JSON_type() == util::AST_Node::Class::Array) {
                 for (auto& rvalue : expression.array_range()) {
                     auto expression_rvalue =
                         RValue_Parser::make_rvalue(rvalue, details, symbols);

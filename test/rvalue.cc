@@ -17,12 +17,12 @@ using namespace credence::type;
 
 struct Fixture
 {
-    json::JSON lvalue_ast_node_json;
-    json::JSON assignment_symbol_table;
+    credence::util::AST_Node lvalue_ast_node_json;
+    credence::util::AST_Node assignment_symbol_table;
 
     Fixture()
     {
-        assignment_symbol_table = json::JSON::load(
+        assignment_symbol_table = credence::util::AST_Node::load(
             "{\n  \"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n "
             "   "
             "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
@@ -32,7 +32,7 @@ struct Fixture
             "\"line\" : "
             "2,\n    \"start_pos\" : 12,\n    \"type\" : \"number_literal\"\n  "
             "}\n}");
-        lvalue_ast_node_json = json::JSON::load(
+        lvalue_ast_node_json = credence::util::AST_Node::load(
             " {\n        \"left\" : [{\n            \"left\" : [{\n            "
             "    "
             "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n        "
@@ -62,9 +62,9 @@ struct Fixture
 
 TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
 {
-    json::JSON obj;
+    credence::util::AST_Node obj;
     using std::get;
-    obj["test"] = json::JSON::load(
+    obj["test"] = credence::util::AST_Node::load(
         "[{\n                  \"node\" : \"constant_literal\",\n              "
         "    \"root\" : \"x\"\n                }, {\n                  "
         "\"node\" : \"number_literal\",\n                  \"root\" : 10\n     "
@@ -133,9 +133,9 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
 
 TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
 {
-    json::JSON obj;
+    credence::util::AST_Node obj;
     using std::get;
-    obj["test"] = json::JSON::load(
+    obj["test"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"putchar\"\n             "
         "     },\n                  \"node\" : \"function_expression\",\n      "
@@ -163,9 +163,9 @@ TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
 
 TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
 {
-    json::JSON obj;
+    credence::util::AST_Node obj;
     using std::get;
-    obj["test"] = json::JSON::load(
+    obj["test"] = credence::util::AST_Node::load(
         "[{\n                  \"node\" : \"evaluated_expression\",\n          "
         "        \"root\" : {\n                    \"left\" : {\n              "
         "        \"node\" : \"number_literal\",\n                      "
@@ -198,8 +198,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load(
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
         "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      "
         "\"root\": "
         "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    "
@@ -264,8 +264,9 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
     CHECK(std::get<RValue::Relation>(test1.value).first == Operator::B_MUL);
     arguments = std::get<RValue::Relation>(test1.value).second;
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-          10);
+    CHECK(
+        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+        10);
 
     // ternary relation test
     auto test2 = temp.from_relation_expression(relation_expressions.at(1));
@@ -280,42 +281,43 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
     CHECK(std::get<RValue::Relation>(test3.value).first == Operator::R_EQUAL);
     arguments = std::move(std::get<RValue::Relation>(test3.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-          5);
+    CHECK(
+        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 5);
 
     auto test4 = temp.from_relation_expression(relation_expressions.at(3));
     CHECK(std::get<RValue::Relation>(test4.value).first == Operator::R_NEQUAL);
     arguments = std::move(std::get<RValue::Relation>(test4.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-          5);
+    CHECK(
+        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 5);
 
     auto test5 = temp.from_relation_expression(relation_expressions.at(4));
     CHECK(std::get<RValue::Relation>(test5.value).first == Operator::XOR);
     arguments = std::move(std::get<RValue::Relation>(test5.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-          0);
+    CHECK(
+        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 0);
 
     auto test6 = temp.from_relation_expression(relation_expressions.at(5));
     CHECK(std::get<RValue::Relation>(test6.value).first == Operator::R_LT);
     arguments = std::move(std::get<RValue::Relation>(test6.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-          5);
+    CHECK(
+        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 5);
 
     auto test7 = temp.from_relation_expression(relation_expressions.at(6));
     CHECK(std::get<RValue::Relation>(test7.value).first == Operator::R_LE);
     arguments = std::move(std::get<RValue::Relation>(test7.value).second);
     CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-          10);
+    CHECK(
+        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
+        10);
 }
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load(
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
         "[{\n                  \"node\" : \"post_inc_dec_expression\",\n   "
         "    "
         "           \"right\" : {\n                    \"node\" : "
@@ -389,14 +391,15 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
 
     auto test4 = temp.from_unary_expression(unary_expressions.at(3));
     constant = std::get<RValue::Unary>(test4.value).second;
-    CHECK(std::get<RValue::Unary>(test4.value).first ==
-          Operator::U_ONES_COMPLEMENT);
+    CHECK(
+        std::get<RValue::Unary>(test4.value).first ==
+        Operator::U_ONES_COMPLEMENT);
     CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
 
     auto test5 = temp.from_unary_expression(unary_expressions.at(4));
     lvalue = std::get<RValue::Unary>(test5.value).second;
-    CHECK(std::get<RValue::Unary>(test5.value).first ==
-          Operator::U_INDIRECTION);
+    CHECK(
+        std::get<RValue::Unary>(test5.value).first == Operator::U_INDIRECTION);
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 
     auto test6 = temp.from_unary_expression(unary_expressions.at(5));
@@ -410,12 +413,13 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
     CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
 }
 
-TEST_CASE_FIXTURE(Fixture,
-                  "rvalue.cc: RValue_Parser::from_assignment_expression")
+TEST_CASE_FIXTURE(
+    Fixture,
+    "rvalue.cc: RValue_Parser::from_assignment_expression")
 {
-    json::JSON obj;
+    credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = json::JSON::load(
+    obj["test"] = credence::util::AST_Node::load(
         "{\n                  \"left\" : {\n                    \"node\" : "
         "\"lvalue\",\n                    \"root\" : \"x\"\n               "
         "   "
@@ -448,11 +452,12 @@ TEST_CASE_FIXTURE(Fixture,
 
 TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
 {
-    json::JSON obj;
+    credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = json::JSON::load("{\"node\":  \"lvalue\","
-                                   "\"root\": \"x\""
-                                   "}");
+    obj["test"] = credence::util::AST_Node::load(
+        "{\"node\":  \"lvalue\","
+        "\"root\": \"x\""
+        "}");
     auto temp = RValue_Parser(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
@@ -467,8 +472,8 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load(
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
         "[\n               {\n                \"left\" : {\n               "
         "   "
         "\"node\" : \"number_literal\",\n                  \"root\" : 50\n "
@@ -508,8 +513,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load(
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
         "{\n                \"left\" : {\n                  \"node\" : "
         "\"lvalue\",\n                  \"root\" : \"x\"\n                "
         "},\n "
@@ -525,8 +530,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
 }
 TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load(
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
         "{\n                \"left\" : {\n                  \"node\" : "
         "\"number_literal\",\n                  \"root\" : 50\n            "
         "    "
@@ -543,10 +548,11 @@ TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load("{\"node\":  \"number_literal\","
-                                   "\"root\": 10"
-                                   "}");
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
+        "{\"node\":  \"number_literal\","
+        "\"root\": 10"
+        "}");
 
     auto temp = RValue_Parser(obj);
     auto data = temp.from_constant_expression(obj["test"]);
@@ -558,10 +564,11 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load("{\"node\":  \"number_literal\","
-                                   "\"root\": 10"
-                                   "}");
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
+        "{\"node\":  \"number_literal\","
+        "\"root\": 10"
+        "}");
 
     auto temp = RValue_Parser(obj);
     auto data = temp.from_number_literal(obj["test"]);
@@ -573,8 +580,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_string_literal")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load(
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
         "{\n                  \"node\" : \"string_literal\",\n                 "
         " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
@@ -588,10 +595,11 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_string_literal")
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_constant_literal")
 {
-    json::JSON obj;
-    obj["test"] = json::JSON::load("{\"node\":  \"constant_literal\","
-                                   "\"root\": \"x\""
-                                   "}");
+    credence::util::AST_Node obj;
+    obj["test"] = credence::util::AST_Node::load(
+        "{\"node\":  \"constant_literal\","
+        "\"root\": \"x\""
+        "}");
 
     auto temp = RValue_Parser(obj);
     auto data = temp.from_constant_literal(obj["test"]);
