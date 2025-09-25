@@ -32,6 +32,7 @@
 int main(int argc, const char* argv[])
 {
     namespace py = pybind11;
+    namespace m = matchit;
     try {
         cxxopts::Options options("Credence", "Credence :: B Language Compiler");
         options.show_positional_help();
@@ -40,7 +41,7 @@ int main(int argc, const char* argv[])
             "AST Loader [json, python]",
             cxxopts::value<std::string>()->default_value("python"))(
             "t,target",
-            "Target [ast, ir, arm64, x86_64, z80]",
+            "Target [ir, syntax, ast, arm64, x86_64, z80]",
             cxxopts::value<std::string>()->default_value("ir"))(
             "d,debug",
             "Enable debugging",
@@ -56,6 +57,7 @@ int main(int argc, const char* argv[])
             exit(0);
         }
 
+        std::string syntax_tree;
         credence::util::AST_Node ast;
         credence::util::AST_Node hoisted;
 
@@ -72,14 +74,23 @@ int main(int argc, const char* argv[])
                 py::object symbol_table_call = python_module.attr(
                     "get_source_program_symbol_table_as_json");
                 py::object symbols = symbol_table_call(source);
+                py::object get_ast_call;
 
                 hoisted =
                     credence::util::AST_Node::load(symbols.cast<std::string>());
-                if (result["debug"].count()) {
+
+                if (result["debug"].count())
                     std::cout << "*** Symbol Table:" << std::endl
                               << symbols.cast<std::string>() << std::endl;
+
+                if (result["target"].as<std::string>() == "syntax") {
+                    auto get_source_ast =
+                        python_module.attr("parse_source_program_as_string");
+                    syntax_tree =
+                        get_source_ast(source, py::arg("pretty") = true)
+                            .cast<std::string>();
                 }
-                py::object get_ast_call =
+                get_ast_call =
                     python_module.attr("get_source_program_ast_as_json");
 
                 py::object ast_as_json = get_ast_call(source);
@@ -108,20 +119,28 @@ int main(int argc, const char* argv[])
             return 1;
         }
 
-        matchit::match(result["target"].as<std::string>())(
+        m::match(result["target"].as<std::string>())(
             // cppcheck-suppress syntaxError
-            matchit::pattern | "ir" =
+            m::pattern | "ir" =
                 [&]() {
                     credence::ir::ITA ita{ hoisted };
                     ita.build_from_definitions(ast["root"]);
                     ita.emit(std::cout, true);
                 },
-            matchit::pattern | "ast" =
+            m::pattern | "ast" =
                 [&]() {
                     if (!ast.is_null()) {
                         std::cout << ast["root"] << std::endl;
                     }
-                });
+                },
+            m::pattern | "syntax" =
+                [&]() {
+                    if (!syntax_tree.empty()) {
+                        std::cout << syntax_tree << std::endl;
+                    }
+                }
+
+        );
 
     } catch (std::runtime_error const& e) {
         std::cerr << "Credence :: " << e.what() << std::endl;

@@ -143,7 +143,7 @@ inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
     return std::make_shared<RValue::Type>(rvalue_type);
 }
 
-constexpr size_t get_type_of_rvalue(RValue const& rvalue)
+constexpr inline size_t get_type_of_rvalue(RValue const& rvalue)
 {
     if (rvalue.value.index() ==
         detail::type_variant(RValue_Type_Variant::RValue_Pointer)) {
@@ -152,13 +152,25 @@ constexpr size_t get_type_of_rvalue(RValue const& rvalue)
         return rvalue.value.index();
     }
 }
+template<typename T>
+constexpr inline T get_raw_value_from_rvalue_type(
+    RValue::Type_Pointer const& type)
+{
+    static_assert(
+        std::is_constructible_v<Value, T>,
+        "Error: Type T is not a valid alternative in Value");
+    return std::get<T>(std::get<RValue::Value>(*type).first);
+}
 
-constexpr RValue_Type_Variant get_rvalue_type_as_variant(RValue const& rvalue)
+constexpr inline RValue_Type_Variant get_rvalue_type_as_variant(
+    RValue const& rvalue)
 {
     return static_cast<RValue_Type_Variant>(get_type_of_rvalue(rvalue));
 }
 
-constexpr bool is_rvalue_variant(RValue const& rvalue, RValue_Type_Variant type)
+constexpr inline bool is_rvalue_variant(
+    RValue const& rvalue,
+    RValue_Type_Variant type)
 {
     return get_type_of_rvalue(rvalue) == detail::type_variant(type);
 }
