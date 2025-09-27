@@ -54,6 +54,26 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
+    void TEST_BLOCK_STATEMENT_NODE_WITH(
+        Node const& symbols,
+        Node const& node,
+        std::string_view test,
+        NULL_symbols const& nulls,
+        bool tail = true,
+        bool ret = true)
+    {
+        std::ostringstream os_test;
+        auto hoisted =
+            tail ? ITA_with_tail_branch(symbols) : ITA_hoisted(symbols);
+        for (auto const& s : nulls)
+            hoisted.symbols_.table_.emplace(s, credence::type::NULL_LITERAL);
+        auto test_instructions = hoisted.build_from_block_statement(node, ret);
+        for (auto const& inst : test_instructions) {
+            EMIT(os_test, inst);
+        }
+        REQUIRE(os_test.str() == test);
+    }
+
     void TEST_RETURN_STATEMENT_NODE_WITH(
         Node const& symbols,
         NULL_symbols const& nulls,
@@ -90,29 +110,6 @@ struct ITA_Fixture
 
     credence::ir::ITA ita_;
 };
-
-std::string make_rvalue_queue_string(
-    ITA_Fixture::NULL_symbols const& nulls,
-    credence::util::AST_Node const& node)
-{
-    credence::RValue_Parser parser{ json::object() };
-    credence::RValue_Types rvalues{};
-    credence::RValue_Queue list{};
-    std::string test{};
-    for (auto const& s : nulls)
-        parser.symbols_.table_.emplace(s, credence::type::NULL_LITERAL);
-
-    if (node.JSON_type() == credence::util::AST_Node::Class::Array) {
-        for (auto const& item : node.array_range())
-            rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-                parser.from_rvalue(item).value));
-    } else {
-        rvalues.emplace_back(
-            rvalue_type_pointer_from_rvalue(parser.from_rvalue(node).value));
-    }
-    credence::rvalues_to_queue(rvalues, &list);
-    return credence::queue_of_rvalues_to_string(&list);
-}
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
 {
@@ -173,8 +170,10 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
     }
     std::string expected = R"ita(__main:
  BeginFunc ;
-PUSH (5:int:4);
-PUSH (2:int:4);
+_p1 = (2:int:4);
+_p2 = (5:int:4);
+PUSH _p2;
+PUSH _p1;
 CALL exp;
 POP 16;
 _t2 = RET;
@@ -187,7 +186,109 @@ LEAVE;
     CHECK(os_test.str() == expected);
 }
 
-TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: nested function call and recursion")
+TEST_CASE_FIXTURE(
+    ITA_Fixture,
+    "ir/ita.cc: function recursion and tail function calls")
+{
+    using namespace credence;
+    credence::util::AST_Node obj;
+    obj["symbols"] = credence::util::AST_Node::load(
+        "{\"x\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 16, "
+        "\"column\": 8, \"end_pos\": 17, \"end_column\": 9}, \"exp\": "
+        "{\"type\": \"function_definition\", \"line\": 6, \"start_pos\": 38, "
+        "\"column\": 1, \"end_pos\": 41, \"end_column\": 4}, \"main\": "
+        "{\"type\": \"function_definition\", \"line\": 1, \"start_pos\": 0, "
+        "\"column\": 1, \"end_pos\": 4, \"end_column\": 5}, \"y\": {\"type\": "
+        "\"lvalue\", \"line\": 6, \"start_pos\": 44, \"column\": 7, "
+        "\"end_pos\": 45, \"end_column\": 8}}");
+
+    obj["recursion"] = credence::util::AST_Node::load(
+        "  {\n      \"left\" : [{\n          \"node\" : \"lvalue\",\n          "
+        "\"root\" : \"x\"\n        }, {\n          \"node\" : \"lvalue\",\n    "
+        "      \"root\" : \"y\"\n        }],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : {\n              \"left\" : {\n            "
+        "    \"node\" : \"lvalue\",\n                \"root\" : \"x\"\n        "
+        "      },\n              \"node\" : \"relation_expression\",\n         "
+        "     \"right\" : {\n                \"left\" : {\n                  "
+        "\"node\" : \"number_literal\",\n                  \"root\" : 1\n      "
+        "          },\n                \"node\" : \"relation_expression\",\n   "
+        "             \"right\" : {\n                  \"left\" : {\n          "
+        "          \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"y\"\n                  },\n                  \"node\" : "
+        "\"relation_expression\",\n                  \"right\" : {\n           "
+        "         \"node\" : \"number_literal\",\n                    \"root\" "
+        ": 1\n                  },\n                  \"root\" : [\"==\"]\n    "
+        "            },\n                \"root\" : [\"||\"]\n              "
+        "},\n              \"root\" : [\"==\"]\n            },\n            "
+        "\"node\" : \"statement\",\n            \"right\" : [{\n               "
+        " \"left\" : [{\n                    \"left\" : {\n                    "
+        "  \"node\" : \"lvalue\",\n                      \"root\" : \"x\"\n    "
+        "                },\n                    \"node\" : "
+        "\"relation_expression\",\n                    \"right\" : {\n         "
+        "             \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"y\"\n                    },\n                    \"root\" : "
+        "[\"*\"]\n                  }],\n                \"node\" : "
+        "\"statement\",\n                \"root\" : \"return\"\n              "
+        "}, null],\n            \"root\" : \"if\"\n          }, {\n            "
+        "\"left\" : [{\n                \"left\" : {\n                  "
+        "\"node\" : \"lvalue\",\n                  \"root\" : \"exp\"\n        "
+        "        },\n                \"node\" : \"function_expression\",\n     "
+        "           \"right\" : [{\n                    \"left\" : {\n         "
+        "             \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"x\"\n                    },\n                    \"node\" : "
+        "\"relation_expression\",\n                    \"right\" : {\n         "
+        "             \"node\" : \"number_literal\",\n                      "
+        "\"root\" : 1\n                    },\n                    \"root\" : "
+        "[\"-\"]\n                  }, {\n                    \"left\" : {\n   "
+        "                   \"node\" : \"lvalue\",\n                      "
+        "\"root\" : \"y\"\n                    },\n                    "
+        "\"node\" : \"relation_expression\",\n                    \"right\" : "
+        "{\n                      \"node\" : \"number_literal\",\n             "
+        "         \"root\" : 1\n                    },\n                    "
+        "\"root\" : [\"-\"]\n                  }],\n                \"root\" : "
+        "\"exp\"\n              }],\n            \"node\" : \"statement\",\n   "
+        "         \"root\" : \"return\"\n          }],\n        \"node\" : "
+        "\"statement\",\n        \"root\" : \"block\"\n      },\n      "
+        "\"root\" : \"exp\"\n    }");
+
+    std::string expected = R"ita(__exp:
+ BeginFunc ;
+_t2 = y == (1:int:4);
+_t3 = (1:int:4) || _t2;
+_t4 = x == _t3;
+IF _t4 GOTO _L5;
+_L6:
+_t8 = x - (1:int:4);
+_p1 = _t8;
+_t9 = y - (1:int:4);
+_p2 = _t9;
+PUSH _p2;
+PUSH _p1;
+CALL exp;
+POP 16;
+_t10 = RET;
+RET _t10;
+LEAVE;
+_L5:
+_t7 = x * y;
+RET _t7;
+GOTO _L6;
+ EndFunc ;
+)ita";
+    auto os_test = std::ostringstream();
+    auto ita = ITA_hoisted(obj["symbols"]);
+    auto test_instructions =
+        ita.build_from_function_definition(obj["recursion"]);
+    for (auto const& inst : test_instructions) {
+        EMIT(os_test, inst);
+    }
+    CHECK(os_test.str() == expected);
+}
+
+TEST_CASE_FIXTURE(
+    ITA_Fixture,
+    "ir/ita.cc: nested function call and return rvalues")
 {
     using namespace credence;
     credence::util::AST_Node obj;
@@ -283,16 +384,24 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: nested function call and recursion")
 
     auto ita = ITA_hoisted(obj["symbols"]);
     auto definitions = obj["test"]["left"].to_deque();
-
-    std::cout << make_rvalue_queue_string(
-        { "x", "y", "exp" }, definitions[0]["right"]["left"][1]["left"][0]);
-
-    // TEST_BLOCK_STATEMENT_NODE_WITH(
-    //     obj["symbols"],
-    //     definitions[0]["right"],
-    //     "_t2 = (5:int:4) || (2:int:4);\nx = _t2;\n",
-    //     false,
-    //     false);
+    auto expected = R"ita(_p2 = (2:int:4);
+_p3 = (5:int:4);
+PUSH _p3;
+PUSH _p2;
+CALL exp;
+POP 16;
+_t2 = RET;
+_p1 = _t2;
+_p4 = (2:int:4);
+PUSH _p4;
+PUSH _p1;
+CALL exp;
+POP 16;
+_t3 = RET;
+x = _t3;
+)ita";
+    TEST_BLOCK_STATEMENT_NODE_WITH(
+        obj["symbols"], definitions[0]["right"], expected, false, false);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_block_statement")
@@ -1304,8 +1413,10 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: label and goto")
         "  \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
     std::string expected = R"ita(_L_ADD:
-PUSH (5:int:4);
-PUSH (2:int:4);
+_p1 = (2:int:4);
+_p2 = (5:int:4);
+PUSH _p2;
+PUSH _p1;
 CALL add;
 POP 16;
 _t2 = RET;
@@ -1502,17 +1613,19 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_rvalue_statement")
     std::deque<std::string> symbols = { "x",   "putchar", "getchar", "double",
                                         "exp", "puts",    "y" };
 
-    std::string expected_1 = R"ita(PUSH (5:int:4);
-PUSH (2:int:4);
+    std::string expected_1 = R"ita(_p1 = (2:int:4);
+_p2 = (5:int:4);
+PUSH _p2;
+PUSH _p1;
 CALL exp;
 POP 16;
 _t1 = RET;
 _t2 = _t1;
-_t3 = (5:int:4) + _t2;
-_t4 = (5:int:4) * _t3;
-_t5 = (2:int:4) ^ _t4;
-_t6 = ~ (4:int:4);
-_t7 = _t5 / _t6;
+_t3 = (2:int:4) ^ _t2;
+_t4 = ~ (4:int:4);
+_t5 = _t3 / _t4;
+_t6 = (5:int:4) + (5:int:4);
+_t7 = _t5 * _t6;
 )ita";
     std::string expected_2 = R"ita(y = (3:int:4);
 _t1 = y == (3:int:4);
@@ -1536,19 +1649,21 @@ _t5 = (1:int:4) + _t4;
 x = _t5;
 )ita";
     std::string expected_5 = R"ita(y = (3:int:4);
-PUSH (5:int:4);
+_p1 = (5:int:4);
+PUSH _p1;
 CALL putchar;
 POP 8;
 _t1 = RET;
-PUSH (1:int:4);
+_p2 = (1:int:4);
+PUSH _p2;
 CALL getchar;
 POP 8;
 _t2 = RET;
 _t3 = _t2;
-_t4 = (1:int:4) || _t3;
-_t5 = (1:int:4) + _t4;
-_t6 = (3:int:4) + _t5;
-x = (3:int:4) || _t6;
+_t4 = (3:int:4) + _t3;
+_t5 = (3:int:4) || _t4;
+_t6 = (1:int:4) || _t5;
+x = (1:int:4) + _t6;
 )ita";
     TEST_RVALUE_STATEMENT_NODE_WITH(obj, symbols, obj["test"], expected_1);
     TEST_RVALUE_STATEMENT_NODE_WITH(

@@ -659,7 +659,7 @@ void binary_operands_to_temporary_stack(
  *
  */
 ITA::Instructions rvalue_queue_to_temp_instructions(
-    RValue_Queue* queue,
+    RValue_Queue_PTR& queue,
     int* temporary)
 {
     using namespace detail;
@@ -990,7 +990,7 @@ rvalue_node_to_list_of_temp_instructions(
 {
     // clang-format on
     RValue_Parser parser{ details, symbols };
-    RValue_Queue list{};
+    auto list = make_rvalue_queue();
     std::vector<type::RValue::Type_Pointer> rvalues{};
 
     if (node.JSON_type() == util::AST_Node::Class::Array) {
@@ -1010,14 +1010,14 @@ rvalue_node_to_list_of_temp_instructions(
                             .value));
             }
         }
-        rvalues_to_queue(rvalues, &list);
+        rvalues_to_queue(rvalues, list);
     } else {
         auto rvalue_type_pointer = type::rvalue_type_pointer_from_rvalue(
             RValue_Parser::make_rvalue(node, details, symbols).value);
-        rvalues_to_queue(rvalue_type_pointer, &list);
+        rvalues_to_queue(rvalue_type_pointer, list);
     }
-    auto instructions = rvalue_queue_to_temp_instructions(&list, temporary);
-    return std::make_pair(instructions, list);
+    auto instructions = rvalue_queue_to_temp_instructions(list, temporary);
+    return std::make_pair(instructions, *list);
 }
 
 } // namespace ir

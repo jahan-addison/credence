@@ -70,9 +70,9 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_definition");
     Instructions instructions{};
-    Symbol_Table<> block_level{};
     auto name = node["root"].to_string();
     auto parameters = node["left"];
+    std::vector<std::string> p_lvalues{};
     auto block = node["right"];
 
     symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
@@ -83,19 +83,23 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
             m::match(ident["node"].to_string())(
                 m::pattern | "lvalue" =
                     [&] {
-                        block_level.set_symbol_by_name(
+                        p_lvalues.emplace_back(ident["root"].to_string());
+                        symbols_.set_symbol_by_name(
                             ident["root"].to_string(), type::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
                     [&] {
+                        p_lvalues.emplace_back(ident["root"].to_string());
                         auto size = ident["left"]["root"].to_int();
-                        block_level.set_symbol_by_name(
+                        symbols_.set_symbol_by_name(
                             ident["root"].to_string(),
                             { static_cast<type::Byte>('0'), { "byte", size } });
                     },
                 m::pattern | "indirect_lvalue" =
                     [&] {
-                        block_level.set_symbol_by_name(
+                        p_lvalues.emplace_back(
+                            ident["left"]["root"].to_string());
+                        symbols_.set_symbol_by_name(
                             ident["left"]["root"].to_string(),
                             type::WORD_LITERAL);
                     });
@@ -112,6 +116,12 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
     insert_instructions(instructions, block_instructions);
 
     instructions.emplace_back(make_quadruple(Instruction::FUNC_END, "", ""));
+
+    // clear parameter symbols from scope
+    for (auto const& name : p_lvalues) {
+        symbols_.remove_symbol_by_name(name);
+    }
+
     return instructions;
 }
 

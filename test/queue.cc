@@ -196,91 +196,92 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     parser.symbols_.table_.emplace("y", null);
 
     std::string complex_expected =
-        "(5:int:4) (5:int:4) exp (2:int:4) (5:int:4) PUSH PUSH CALL + * "
-        "(4:int:4) (2:int:4) ^ ~ / ";
+        "(5:int:4) (5:int:4) exp _p1 (2:int:4) = _p2 (5:int:4) = _p1 _p2 PUSH "
+        "PUSH CALL (4:int:4) (2:int:4) ^ ~ / + * ";
     std::string unary_expected = "(5:int:4) ~ ";
     std::string equal_expected = "x (5:int:4) (5:int:4) + = ";
     std::string unary_relation_expected = "(5:int:4) ~ (2:int:4) ^ ";
     std::string ternary_expected =
         "x (10:int:4) (1:int:4) (5:int:4) (4:int:4) < PUSH ?: = ";
     std::string function_expected =
-        "puts (1:int:4) (2:int:4) (3:int:4) PUSH PUSH PUSH CALL ";
+        "puts _p1 (1:int:4) = _p2 (2:int:4) = _p3 (3:int:4) = _p1 _p2 _p3 PUSH "
+        "PUSH PUSH CALL ";
     std::string evaluated_expected =
         "x (5:int:4) (5:int:4) * (6:int:4) (6:int:4) * + = ";
     std::string evaluated_expected_2 =
         "x (5:int:4) (6:int:4) + (5:int:4) (6:int:4) + * = ";
 
     std::vector<type::RValue::Type_Pointer> rvalues{};
-    RValue_Queue list{};
+    auto list = make_rvalue_queue();
     std::string test{};
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["complex"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == complex_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["unary"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == unary_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["equal"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == equal_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["unary_relation"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == unary_relation_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["ternary"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == ternary_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["function"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == function_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["evaluated"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == evaluated_expected);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["evaluated_2"]).value));
-    rvalues_to_queue(rvalues, &list);
-    test = queue_of_rvalues_to_string(&list);
+    rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
     CHECK(test == evaluated_expected_2);
     rvalues.clear();
-    list.clear();
+    list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
         parser.from_rvalue(obj["evaluated_3"]).value));
-    rvalues_to_queue(rvalues, &list);
+    rvalues_to_queue(rvalues, list);
     rvalues.clear();
-    list.clear();
+    list->clear();
 }

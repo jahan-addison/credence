@@ -19,12 +19,11 @@
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue
-#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <memory>            // for allocator, make_shared
+#include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
+#include <memory>            // for make_shared
 #include <simplejson.h>      // for JSON
 #include <string>            // for basic_string, string
 #include <string_view>       // for string_view
-#include <vector>            // for vector
 
 namespace credence {
 

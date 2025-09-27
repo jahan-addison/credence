@@ -17,9 +17,11 @@
 
 #include <credence/operators.h> // for Operator
 #include <credence/types.h>     // for RValue
-#include <list>                 // for list
+#include <deque>                // for deque
+#include <memory>               // for make_unique, unique_ptr
+#include <stack>                // for stack
 #include <string>               // for string
-#include <string_view>          // for string_view
+#include <string_view>          // for basic_string_view, string_view
 #include <variant>              // for variant
 #include <vector>               // for vector
 
@@ -40,26 +42,53 @@ namespace credence {
 using RValue_Queue_Item =
     std::variant<type::Operator, type::RValue::Type_Pointer>;
 
+using RValue_Operator_Stack = std::stack<type::Operator>;
+
 using RValue_Types = std::vector<type::RValue::Type_Pointer>;
 
 using RValue_Queue = std::deque<RValue_Queue_Item>;
 
-RValue_Queue* rvalues_to_queue(
-    RValue_Types const& rvalues,
-    RValue_Queue* rvalues_queue);
+using RValue_Queue_PTR = std::unique_ptr<RValue_Queue>;
 
-RValue_Queue* rvalues_to_queue(
+inline RValue_Queue_PTR make_rvalue_queue()
+{
+    return std::make_unique<RValue_Queue>();
+}
+
+void rvalues_to_queue(
+    RValue_Types const& rvalues,
+    RValue_Queue_PTR& rvalues_queue);
+
+void rvalues_to_queue(
     type::RValue::Type_Pointer const& rvalue,
-    RValue_Queue* rvalues_queue);
+    RValue_Queue_PTR& rvalues_queue);
 
 std::string rvalue_to_string(
     type::RValue::Type const& rvalue,
     bool separate = true);
 
-std::string queue_of_rvalues_to_string(RValue_Queue* rvalues_queue);
+std::string queue_of_rvalues_to_string(RValue_Queue_PTR const& rvalues_queue);
 
 std::string dump_value_type(
     type::RValue::Value,
     std::string_view separator = ":");
 
 } // namespace credence
+
+/**************************************************************************
+ *
+ *                      (+++++++++++)
+ *                 (++++)
+ *              (+++)
+ *            (+++)
+ *           (++)
+ *           [~]
+ *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
+ *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
+ *      [|  %___________________           | |~~~~~~~~            |
+ *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
+ *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
+ *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
+ *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *------------------------------------------------
+ ***************************************************************************/

@@ -65,8 +65,14 @@ class Symbol_Table
         addr_.insert_or_assign(name, std::move(entry));
     }
 
-    inline void set_symbol_by_name(std::string const& name,
-                                   Symbol_Table<>& symbol)
+    inline void remove_symbol_by_name(std::string const& name)
+    {
+        table_.erase(name);
+    }
+
+    inline void set_symbol_by_name(
+        std::string const& name,
+        Symbol_Table<> const& symbol)
     {
         table_.emplace(std::make_pair(name, symbol.get_symbol_by_name(name)));
     }

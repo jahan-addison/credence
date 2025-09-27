@@ -120,6 +120,11 @@ struct RValue
     using Unary = std::pair<type::Operator, RValue_Pointer>;
     using Relation = std::pair<type::Operator, std::vector<RValue_Pointer>>;
 
+    constexpr inline static LValue make_lvalue(std::string const& name)
+    {
+        return std::make_pair(name, WORD_LITERAL);
+    }
+
     using Function = std::pair<LValue, std::vector<RValue_Pointer>>;
     using Type = std::variant<
         std::monostate,

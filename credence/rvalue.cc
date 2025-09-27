@@ -16,23 +16,21 @@
 
 #include <credence/rvalue.h>
 
-#include <algorithm>            // for __any_of_fn, any_of
+#include <algorithm>            // for __any_of, any_of
 #include <credence/assert.h>    // for CREDENCE_ASSERT_NODE, CREDENCE_ASSERT
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for RValue, LITERAL_TYPE
 #include <credence/util.h>      // for unescape_string
-#include <deque>                // for operator==, _Deque_iterator
-#include <format>               // for format, format_string
-#include <functional>           // for identity
+#include <format>               // for format
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
-#include <memory>               // for shared_ptr, allocator, make_shared
+#include <memory>               // for make_shared
 #include <simplejson.h>         // for JSON, JSON_String
 #include <stdexcept>            // for runtime_error
-#include <string>               // for basic_string, operator==, char_traits
-#include <utility>              // for pair, make_pair, move
+#include <string>               // for basic_string, char_traits, operator==
+#include <utility>              // for make_pair, pair, move
 #include <variant>              // for monostate, variant
 #include <vector>               // for vector
 
