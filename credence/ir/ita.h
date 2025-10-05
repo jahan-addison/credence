@@ -316,7 +316,8 @@ class ITA
     Branch_Instructions build_from_switch_statement(Node const& node);
     Branch_Instructions build_from_case_statement(
         Node const& node,
-        std::string const& switch_label);
+        std::string const& switch_label,
+        Tail_Branch const& tail);
     Branch_Instructions build_from_while_statement(Node const& node);
     Branch_Instructions build_from_if_statement(Node const& node);
 
@@ -344,6 +345,7 @@ class ITA
         Instructions& branch_instructions,
         Quadruple const& label,
         Tail_Branch const& tail = std::nullopt);
+
     std::string build_from_branch_comparator_rvalue(
         Node const& block,
         Instructions& instructions);
@@ -431,8 +433,10 @@ class ITA
 
       public:
         std::stack<Tail_Branch> stack{};
-        static constexpr std::array<std::string_view, 4>
-            BRANCH_STATEMENTS = { "if", "while", "switch", "case" };
+        // clang-format off
+        static constexpr auto
+        BRANCH_STATEMENTS = { "if", "while", "case" };
+        // clang-format on
 
       private:
         Tail_Branch root_branch;

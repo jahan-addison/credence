@@ -371,9 +371,13 @@ std::string ITA::build_from_branch_comparator_rvalue(
     return temp_lvalue;
 }
 
+/**
+ * @brief Construct ita instructions from a case statement in a switch
+ */
 ITA::Branch_Instructions ITA::build_from_case_statement(
     Node const& node,
-    std::string const& switch_label)
+    std::string const& switch_label,
+    Tail_Branch const& tail)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "case");
@@ -382,19 +386,22 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
         make_statement_instructions();
     bool break_statement = false;
     auto jump = make_temporary();
-
     auto statements = node["right"].to_deque();
+    auto case_statement = make_block_statement(statements);
 
-    // the case predicate is always a constant literal
-    auto constant_literal =
+    auto condition =
         RValue_Parser::make_rvalue(node["left"], internal_symbols_, symbols_);
 
     predicate_instructions.emplace_back(make_quadruple(
         Instruction::JMP_E,
         switch_label,
-        rvalue_to_string(constant_literal.value, false),
+        rvalue_to_string(condition.value, false),
         std::get<1>(jump)));
-
+    if (branch.stack.size() > 2) {
+        auto jump = tail.value_or(branch.get_parent_branch(true).value());
+        branch_instructions.emplace_back(
+            make_quadruple(Instruction::GOTO, std::get<1>(jump), ""));
+    }
     branch_instructions.emplace_back(jump);
 
     // resolve all blocks in the statement
@@ -403,11 +410,11 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
         statements.pop_back();
     }
 
-    auto case_statement = make_block_statement(statements);
     insert_branch_block_instructions(case_statement, branch_instructions);
 
     if (break_statement)
-        if (!branch.last_instruction_is_jump(branch_instructions.back()))
+        if (branch_instructions.empty() or
+            !branch.last_instruction_is_jump(branch_instructions.back()))
             branch_instructions.emplace_back(make_quadruple(
                 Instruction::GOTO,
                 std::get<1>(branch.get_parent_branch().value()),
@@ -427,25 +434,28 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
         make_statement_instructions();
     auto predicate = node["left"];
     auto blocks = node["right"];
-
+    // get the parent label of the switch statement
+    auto tail = branch.get_parent_branch();
+    auto cases = std::stack<Tail_Branch>{};
     auto switch_label =
         build_from_branch_comparator_rvalue(predicate, predicate_instructions);
-    auto case_label_stack = std::stack<Tail_Branch>{};
+    branch.stack.push(tail);
     for (auto& statement : blocks.array_range()) {
-        branch.increment_branch_level();
-        case_label_stack.emplace(branch.stack.top());
+        auto start = make_temporary();
+        branch.stack.emplace(start);
         auto [jump_instructions, case_statements] =
-            build_from_case_statement(statement, switch_label);
+            build_from_case_statement(statement, switch_label, tail);
+        cases.emplace(branch.stack.top());
         insert_instructions(predicate_instructions, jump_instructions);
         insert_instructions(branch_instructions, case_statements);
-        branch.decrement_branch_level();
+        branch.stack.pop();
     }
-    while (!case_label_stack.empty()) {
-        auto label = case_label_stack.top();
+    while (!cases.empty()) {
+        auto label = cases.top();
         predicate_instructions.emplace_back(label.value());
-        case_label_stack.pop();
+        cases.pop();
     }
-
+    branch.stack.pop();
     return { predicate_instructions, branch_instructions };
 }
 
