@@ -42,7 +42,7 @@ namespace m = matchit;
 
 /**
  * @brief Instruction Tuple Abstraction or ITA of program flow,
- * control statements, and application scope in sets of 4-tuples
+ * control statements, and application runtime in sets of 4-tuples
  *
  * See README.md for details.
  */
@@ -154,7 +154,7 @@ class ITA
         bool indent = false)
     {
         ITA::Instruction op = std::get<ITA::Instruction>(ita);
-        std::array<ITA::Instruction, 5> lhs_instruction = {
+        constexpr std::array<ITA::Instruction, 5> lhs_instruction = {
             ITA::Instruction::GOTO,
             ITA::Instruction::PUSH,
             ITA::Instruction::LABEL,
@@ -215,17 +215,14 @@ class ITA
     }
 
   public:
-#ifdef __clang__
     static constexpr inline Quadruple make_temporary(
-#else
-    static inline Quadruple make_temporary(
-#endif
         int* temporary_size,
         std::string const& temp)
     {
         return make_quadruple(
             Instruction::VARIABLE,
-            std::string{ "_t" } + std::to_string(++(*temporary_size)),
+            std::string{ "_t" } +
+                util::to_constexpr_string<int>(++(*temporary_size)),
             temp);
     }
 
@@ -234,34 +231,23 @@ class ITA
         to.insert(to.end(), from.begin(), from.end());
     }
 
-#ifdef __clang__
     static constexpr inline Quadruple make_temporary(int* temporary_size)
-#else
-    static inline Quadruple make_temporary(int* temporary_size)
-#endif
     {
         return make_quadruple(
             Instruction::LABEL,
-            std::string{ "_L" } + std::to_string(++(*temporary_size)),
+            std::string{ "_L" } +
+                util::to_constexpr_string<int>(++(*temporary_size)),
             "");
     }
 
-#ifdef __clang__
     constexpr inline Quadruple make_temporary()
-#else
-    inline Quadruple make_temporary()
-#endif
     {
         return make_quadruple(
             Instruction::LABEL,
-            std::string{ "_L" } + std::to_string(++temporary),
+            std::string{ "_L" } + util::to_constexpr_string<int>(++temporary),
             "");
     }
-#ifdef __clang__
     static constexpr inline Quadruple make_quadruple(
-#else
-    static inline Quadruple make_quadruple(
-#endif
         Instruction op,
         std::string const& s1,
         std::string const& s2,
@@ -317,7 +303,7 @@ class ITA
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_block_statement(
     Node const& node,
-    bool root_scope = false);
+    bool root_function_scope = false);
   private:
     void build_statement_setup_branches(
         std::string_view type,
@@ -395,12 +381,6 @@ class ITA
         {
             return std::get<0>(inst) == Instruction::GOTO;
         }
-
-        constexpr inline static bool last_instruction_is_leave(
-            Quadruple const& inst)
-        {
-            return std::get<0>(inst) == Instruction::LEAVE;
-        }
         inline void increment_branch_level()
         {
             is_branching = true;
@@ -439,7 +419,8 @@ class ITA
         constexpr inline bool is_root_level() { return level == 1; }
         constexpr inline bool is_branch_level() { return level > 1; }
         constexpr inline void set_block_to_root() { block_level = root_branch; }
-        inline void set_root_branch(ITA& ita)
+        constexpr inline Tail_Branch get_root_branch() { return root_branch; }
+        constexpr inline void set_root_branch(ITA& ita)
         {
             if (level == 1) {
                 // _L1 label is reserved for function scope continuation
@@ -449,12 +430,12 @@ class ITA
         }
 
       public:
-        Tail_Branch root_branch;
         std::stack<Tail_Branch> stack{};
         static constexpr std::array<std::string_view, 4>
             BRANCH_STATEMENTS = { "if", "while", "switch", "case" };
 
       private:
+        Tail_Branch root_branch;
         Tail_Branch block_level;
         bool is_branching = false;
         int level = 1;
@@ -475,7 +456,6 @@ class ITA
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node internal_symbols_;
-    std::string peek_next;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };

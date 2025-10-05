@@ -16,13 +16,14 @@
 
 #pragma once
 
+#include <format>
 #include <iostream>
 #include <source_location>
 #include <string_view>
 
 namespace {
 
-void assert_impl(
+[[maybe_unused]] void assert_impl(
     bool condition,
     std::string_view message,
     std::source_location const& location = std::source_location::current())
@@ -37,7 +38,7 @@ void assert_impl(
 }
 
 template<typename T1, typename T2>
-void assert_equal_impl(
+[[maybe_unused]] void assert_equal_impl(
     [[maybe_unused]] const T1& actual,
     [[maybe_unused]] const T2& expected,
     [[maybe_unused]] const std::source_location location =

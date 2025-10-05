@@ -48,7 +48,6 @@ using AST_Node = AST::JSON;
 
 namespace fs = std::filesystem;
 
-namespace detail {
 template<typename T>
 constexpr std::string to_constexpr_string(T const& val)
 {
@@ -77,9 +76,6 @@ constexpr std::string to_constexpr_string(T const& val)
         return "unsupported_type";
     }
 }
-
-} // namespace detail
-
 template<typename... Args>
 constexpr std::string tuple_to_string(
     std::tuple<Args...> const& t,
@@ -93,7 +89,7 @@ constexpr std::string tuple_to_string(
                  if (!first) {
                      result += separator;
                  }
-                 result += detail::to_constexpr_string(elements);
+                 result += to_constexpr_string(elements);
                  first = false;
              })(),
              ...);

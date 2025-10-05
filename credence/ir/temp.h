@@ -126,7 +126,6 @@ void binary_operands_unbalanced_temporary_stack(
     ITA::Instructions& instructions,
     int* temporary);
 
-// clang-format off
 std::pair<std::string, ITA::Instructions>
 instruction_temporary_from_rvalue_operand(
     type::RValue::Type_Pointer& operand,
@@ -134,11 +133,9 @@ instruction_temporary_from_rvalue_operand(
 
 } // namespace detail
 
-ITA::Instructions
-rvalue_queue_to_temp_instructions(
+ITA::Instructions rvalue_queue_to_temp_instructions(
     RValue_Queue* queue,
     int* temporary);
-// clang-format on
 
 RValue_Instructions rvalue_node_to_list_of_temp_instructions(
     Symbol_Table<> const& symbols,

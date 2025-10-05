@@ -27,7 +27,6 @@ target_include_directories(
   Test_Suite PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
                     $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>)
 
-# enable compiler warnings
 if(NOT TEST_INSTALLED_VERSION)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES
                                               "GNU")
@@ -44,8 +43,6 @@ enable_testing()
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 
 doctest_discover_tests(Test_Suite)
-
-# ---- code coverage ----
 
 if(ENABLE_TEST_COVERAGE)
   target_compile_options(Test_Suite PUBLIC -O0 -g -fprofile-arcs

@@ -124,7 +124,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
 }
 
 /**
- * @brief Construct a set of ita instructions from a vector definition
+ * @brief Construct ita instructions from a vector definition
  */
 void ITA::build_from_vector_definition(Node const& node)
 {
@@ -159,7 +159,7 @@ void ITA::build_from_vector_definition(Node const& node)
 }
 
 /**
- * @brief Setup branch state and stack based on statement type
+ * @brief Setup branch state and label stack based on statement type
  */
 void ITA::build_statement_setup_branches(
     std::string_view type,
@@ -172,7 +172,7 @@ void ITA::build_statement_setup_branches(
 }
 
 /**
- * @brief Teardown branch state and jump to resume from stack
+ * @brief Teardown branch state and jump to resume from label on stack
  */
 void ITA::build_statement_teardown_branches(
     std::string_view type,
@@ -198,7 +198,7 @@ void ITA::build_statement_teardown_branches(
  */
 ITA::Instructions ITA::build_from_block_statement(
     Node const& node,
-    bool root_scope)
+    bool root_function_scope)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "block");
@@ -266,9 +266,9 @@ ITA::Instructions ITA::build_from_block_statement(
         build_statement_teardown_branches(statement_type, branches);
     }
 
-    if (root_scope) {
+    if (root_function_scope) {
         branch.teardown();
-        instructions.emplace_back(branch.root_branch.value());
+        instructions.emplace_back(branch.get_root_branch().value());
         instructions.emplace_back(make_quadruple(Instruction::LEAVE, "", ""));
     }
 
@@ -278,7 +278,7 @@ ITA::Instructions ITA::build_from_block_statement(
 
 /**
  * @brief Insert the jump statement at the top of the predicate instruction
- * set, and add the GOTO to resume at the end of the branch's instructions
+ * set, and push the GOTO to resume at the end of the branch instructions
  *
  * Note that generally the build_from_block_statement add
  * the GOTO, we add it here during stacks of branches
@@ -304,7 +304,7 @@ void ITA::insert_branch_jump_and_resume_instructions(
 }
 
 /**
- * @brief Construct block statement instructions for a branch
+ * @brief Construct block statement ita instructions for a branch
  */
 void ITA::insert_branch_block_instructions(
     Node const& block,
@@ -417,7 +417,7 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
 }
 
 /**
- * @brief Construct a set of ita instructions from a switch statement
+ * @brief Construct ita instructions from a switch statement
  */
 ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
 {
@@ -450,7 +450,7 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
 }
 
 /**
- * @brief Construct branch instructions from a while statement
+ * @brief Construct ita instructions from a while statement
  */
 ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 {
@@ -478,7 +478,7 @@ ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 }
 
 /**
- * @brief Construct branch instructions from an if statement
+ * @brief Construct ita instructions from an if statement
  */
 ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
 {
@@ -525,7 +525,7 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
 }
 
 /**
- * @brief Construct a set of ita instructions from a label statement
+ * @brief Construct ita instructions from a label statement
  */
 ITA::Instructions ITA::build_from_label_statement(Node const& node)
 {

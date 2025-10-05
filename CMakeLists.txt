@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.16...3.29)
 
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(FATAL_ERROR "Do not build in-source. Please remove CMakeCache.txt and the CMakeFiles/ directory. Then build out-of-source.")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# set(CMAKE_CXX_COMPILER "/opt/homebrew/bin/g++-15")
 
 project(
   credence
@@ -29,10 +34,10 @@ include(cmake/CPM.cmake)
 cpmaddpackage("gh:StableCoder/cmake-scripts#24.04")
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
-# Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake enables
-# sanitizers support using the the `USE_SANITIZER` flag available values are:
-# Address, Memory, MemoryWithOrigins, Undefined, Thread, Leak,
-# 'Address;Undefined'
+set_source_files_properties(doctest.h PROPERTIES SKIP_LINTING TRUE)
+
+# Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake
+# Address, Memory, MemoryWithOrigins, Undefined, Thread, Leak, 'Address;Undefined'
 if(USE_SANITIZER)
   include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
 endif()
@@ -40,38 +45,32 @@ endif()
 include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 
 # Include-what-you-use
-
-find_program(IWYU_EXECUTABLE include-what-you-use)
-if(IWYU_EXECUTABLE)
-  # Enable IWYU for C++ targets
-  if(APPLE)
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE
-        "${IWYU_EXECUTABLE};;-isysroot $(xcrun --sdk macosx --show-sdk-path)")
+if(IWYU)
+  find_program(IWYU_EXECUTABLE include-what-you-use)
+  if(IWYU_EXECUTABLE)
+    # Enable IWYU for C++ targets
+    if(APPLE)
+      set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE
+          "${IWYU_EXECUTABLE};;-isysroot $(xcrun --sdk macosx --show-sdk-path)")
+    else()
+      set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_EXECUTABLE};;")
+    endif()
+    message(STATUS "IWYU enabled for C++ targets.")
   else()
-    set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE "${IWYU_EXECUTABLE};;")
+    message(
+      WARNING "Include-What-You-Use executable not found. IWYU will not be run.")
   endif()
-  message(STATUS "IWYU enabled for C++ targets.")
-else()
-  message(
-    WARNING "Include-What-You-Use executable not found. IWYU will not be run.")
 endif()
 
-set_source_files_properties(doctest.h PROPERTIES SKIP_LINTING TRUE)
-
-if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
-  message(
-    FATAL_ERROR
-      "In-source builds not allowed. Please make a new directory (called a build directory) and run CMake from there."
-  )
-endif()
+###############
+# Dependencies
+###############
 
 # Add python-dev library to interface with python
 find_package(
   Python3
   COMPONENTS Interpreter Development
   REQUIRED)
-
-# Dependencies
 
 cpmaddpackage("gh:doctest/doctest@2.4.12")
 
@@ -114,7 +113,9 @@ cpmaddpackage(NAME matchit VERSION 1.0.1 GITHUB_REPOSITORY BowenFu/matchit.cpp)
 
 set(PYBIND11_FINDPYTHON ON)
 
+##############
 # Executables
+##############
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
@@ -124,8 +125,6 @@ file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/test/*.cc")
 
 add_executable(${PROJECT_NAME} ${sources} ${headers})
-
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 target_include_directories(
   ${PROJECT_NAME}
