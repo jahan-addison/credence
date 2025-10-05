@@ -4,9 +4,9 @@ main() {
   switch (x) {
     case 0:
       if (x >= 5) {
-        while (x > 1)
+        while (x > 1) {
           x--;
-
+        }
       }
     break;
     case 1:

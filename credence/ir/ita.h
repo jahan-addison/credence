@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <credence/assert.h>
+
 #include <algorithm>         // for __find, find
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
@@ -26,11 +28,11 @@
 #include <optional>          // for optional
 #include <ostream>           // for basic_ostream, operator<<, endl
 #include <sstream>           // for basic_ostringstream, ostream
+#include <stack>             // for stack
 #include <string>            // for basic_string, char_traits, allo...
 #include <string_view>       // for basic_string_view, string_view
 #include <tuple>             // for get, tuple, make_tuple
 #include <utility>           // for pair
-#include <vector>            // for vector
 
 namespace credence {
 
@@ -141,6 +143,8 @@ class ITA
         return os;
     }
 
+  public:
+    using Node = util::AST_Node;
     /**
      * @brief Emit a qaudruple tuple to a std::ostream
      */
@@ -267,6 +271,24 @@ class ITA
     }
 
   public:
+    static inline util::AST_Node make_block_statement(
+        std::deque<util::AST_Node> const& blocks)
+    {
+        auto block_statement = util::AST::object();
+        block_statement["node"] = util::AST_Node{ "statement" };
+        block_statement["root"] = util::AST_Node{ "block" };
+        block_statement["left"] = util::AST_Node{ blocks };
+
+        return block_statement;
+    }
+    static inline util::AST_Node make_block_statement(util::AST_Node block)
+    {
+        auto block_statement = util::AST::object();
+        block_statement["node"] = util::AST_Node{ "statement" };
+        block_statement["root"] = util::AST_Node{ "block" };
+        block_statement["left"].append(block);
+        return block_statement;
+    }
     inline std::string instruction_to_string(
         Instruction op) // not constexpr until C++23
     {
@@ -286,21 +308,31 @@ class ITA
     }
 
   public:
-    using Node = util::AST_Node;
     Instructions build_from_definitions(Node const& node);
-
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_function_definition(Node const& node);
     void build_from_vector_definition(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_block_statement(Node const& node, bool ret = false);
+    Instructions build_from_block_statement(
+    Node const& node,
+    bool root_scope = false);
+  private:
+    void build_statement_setup_branches(
+        std::string_view type,
+        Instructions& instructions);
+    void build_statement_teardown_branches(
+        std::string_view type,
+        Instructions& instructions);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Branch_Instructions build_from_switch_statement(Tail_Branch& block_level, Node const& node);
-    Branch_Instructions build_from_while_statement(Tail_Branch& block_level, Node const& node);
-    Branch_Instructions build_from_if_statement(Tail_Branch& block_level, Node const& node);
+    Branch_Instructions build_from_switch_statement(Node const& node);
+    Branch_Instructions build_from_case_statement(
+        Node const& node,
+        std::string const& switch_label);
+    Branch_Instructions build_from_while_statement(Node const& node);
+    Branch_Instructions build_from_if_statement(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_label_statement(Node const& node);
@@ -318,9 +350,14 @@ class ITA
 
   private:
     void insert_branch_block_instructions(
-        Node& block,
+        Node const& block,
         Instructions& branch_instructions);
-
+    void insert_branch_jump_and_resume_instructions(
+        Node const& block,
+        Instructions& predicate_instructions,
+        Instructions& branch_instructions,
+        Quadruple const& label,
+        Tail_Branch const& tail = std::nullopt);
     std::string build_from_branch_comparator_rvalue(
         Node const& block,
         Instructions& instructions);
@@ -338,12 +375,71 @@ class ITA
      * in order to enable continuation and passing of instructions
      *
      */
-    struct Branch
+    class Branch
     {
-        Tail_Branch root_branch;
-        Tail_Branch block_level;
+      public:
+        Branch() = delete;
+        explicit Branch(int* temporary)
+            : temporary(temporary)
+        {
+        }
+
+      public:
+        constexpr inline static bool is_branching_statement(std::string_view s)
+        {
+            return std::ranges::find(BRANCH_STATEMENTS, s) !=
+                   BRANCH_STATEMENTS.end();
+        }
+        constexpr inline static bool last_instruction_is_jump(
+            Quadruple const& inst)
+        {
+            return std::get<0>(inst) == Instruction::GOTO;
+        }
+
+        constexpr inline static bool last_instruction_is_leave(
+            Quadruple const& inst)
+        {
+            return std::get<0>(inst) == Instruction::LEAVE;
+        }
+        inline void increment_branch_level()
+        {
+            is_branching = true;
+            level++;
+            block_level = ITA::make_temporary(temporary);
+            stack.emplace(block_level);
+        }
+        inline void decrement_branch_level(bool not_branching = false)
+        {
+            CREDENCE_ASSERT(level > 1);
+            CREDENCE_ASSERT(!stack.empty());
+            level--;
+            if (not_branching)
+                is_branching = false;
+            stack.pop();
+        }
+        inline void teardown()
+        {
+            CREDENCE_ASSERT_EQUAL(level, 1);
+            is_branching = false;
+        }
+
+      public:
+        inline Tail_Branch get_parent_branch(bool last = false)
+        {
+            CREDENCE_ASSERT(root_branch.has_value());
+            if (last and stack.size() > 1) {
+                auto top = stack.top();
+                stack.pop();
+                auto previous = stack.top();
+                stack.emplace(top);
+                return previous;
+            } else
+                return stack.empty() ? root_branch : stack.top();
+        }
+        constexpr inline bool is_root_level() { return level == 1; }
+        constexpr inline bool is_branch_level() { return level > 1; }
         constexpr inline void set_block_to_root() { block_level = root_branch; }
-        constexpr inline void set_root_branch(ITA& ita)
+        inline void set_root_branch(ITA& ita)
         {
             if (level == 1) {
                 // _L1 label is reserved for function scope continuation
@@ -351,26 +447,31 @@ class ITA
                 set_block_to_root();
             }
         }
+
+      public:
+        Tail_Branch root_branch;
+        std::stack<Tail_Branch> stack{};
+        static constexpr std::array<std::string_view, 4>
+            BRANCH_STATEMENTS = { "if", "while", "switch", "case" };
+
+      private:
+        Tail_Branch block_level;
         bool is_branching = false;
         int level = 1;
+        int* temporary;
     };
-    Branch branch_state{};
-    constexpr void return_and_resume_instructions(
-        Instructions& instructions,
-        std::string_view from);
-    constexpr void return_and_resume_instructions();
-    void branch_continuation_passing(
-        Instructions& predicate,
-        Instructions& branch,
-        Tail_Branch& pass,
-        std::string const& to);
+
+  private:
+    Branch branch{ &temporary };
     inline Branch_Instructions make_statement_instructions()
     {
         return std::make_pair(Instructions{}, Instructions{});
     }
     // clang-format off
-    std::array<std::string_view, 3> BRANCH_STATEMENTS =
-        { "if", "while", "switch" };
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    inline void make_root_branch() {
+        branch.set_root_branch(*this);
+    }
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node internal_symbols_;

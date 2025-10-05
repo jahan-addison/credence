@@ -24,7 +24,6 @@
 #include <credence/types.h>   // for RValue, RValue_Type_Variant, WORD_LITERAL
 #include <credence/util.h>    // for AST_Node
 #include <format>             // for format
-#include <list>               // for list
 #include <matchit.h>          // for pattern, PatternHelper, PatternPipable
 #include <memory>             // for shared_ptr
 #include <simplejson.h>       // for JSON, object
@@ -109,9 +108,8 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
         Instruction::LABEL, std::format("__{}", node["root"].to_string()), ""));
 
     instructions.emplace_back(make_quadruple(Instruction::FUNC_START, "", ""));
-
-    branch_state.root_branch = make_temporary();
     temporary = 0;
+    branch.set_root_branch(*this);
     auto block_instructions = build_from_block_statement(block, true);
     insert_instructions(instructions, block_instructions);
 
@@ -161,68 +159,58 @@ void ITA::build_from_vector_definition(Node const& node)
 }
 
 /**
- * @brief Jump to resume ITA instructions from a branching tree.
+ * @brief Setup branch state and stack based on statement type
  */
-constexpr void ITA::return_and_resume_instructions(
-    Instructions& instructions,
-    std::string_view from)
+void ITA::build_statement_setup_branches(
+    std::string_view type,
+    Instructions& instructions)
 {
-    if (branch_state.is_branching) {
-        auto branching = std::ranges::find(BRANCH_STATEMENTS, from);
-        if (branching == BRANCH_STATEMENTS.end() and branch_state.level == 1) {
-            instructions.emplace_back(branch_state.block_level.value());
-            branch_state.block_level = make_temporary();
-        } else {
-            branch_state.is_branching = false;
-        }
+    if (branch.is_branching_statement(type)) {
+        branch.increment_branch_level();
+        instructions.emplace_back(branch.stack.top().value());
     }
 }
 
 /**
- * @brief Jump to LEAVE ITA instruction from end of a block statement
+ * @brief Teardown branch state and jump to resume from stack
  */
-constexpr void ITA::return_and_resume_instructions()
+void ITA::build_statement_teardown_branches(
+    std::string_view type,
+    Instructions& instructions)
 {
-    if (branch_state.is_branching)
-        branch_state.is_branching = false;
-}
-
-/**
- * @brief jump instructions for continuation and passing during branching
- */
-void ITA::branch_continuation_passing(
-    Instructions& predicate,
-    Instructions& branch,
-    Tail_Branch& pass,
-    [[maybe_unused]] std::string const& to = "")
-{
-    if (branch_state.is_branching or branch_state.level > 1) {
-        predicate.emplace_back(
-            make_quadruple(Instruction::GOTO, std::get<1>(pass.value()), ""));
+    if (branch.is_branching_statement(type)) {
+        bool lookbehind = type == "while";
+        if (instructions.empty() or
+            not branch.last_instruction_is_jump(instructions.back()))
+            instructions.emplace_back(make_quadruple(
+                Instruction::GOTO,
+                std::get<1>(branch.get_parent_branch(lookbehind).value()),
+                ""));
+        // if (type == "if")
+        branch.stack.pop();
+        branch.decrement_branch_level(true);
     }
-    if (!to.empty())
-        branch.emplace_back(make_quadruple(Instruction::GOTO, to, ""));
 }
 
 /**
+ *
  * @brief Construct a set of ita instructions from a block statement
  */
-ITA::Instructions ITA::build_from_block_statement(Node const& node, bool ret)
+ITA::Instructions ITA::build_from_block_statement(
+    Node const& node,
+    bool root_scope)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "block");
 
-    Instructions instructions{};
-    Instructions branches{};
-    branch_state.set_root_branch(*this);
+    auto [instructions, branches] = make_statement_instructions();
     auto statements = node["left"];
-    RValue_Parser parser{ internal_symbols_, symbols_ };
-    int index = 0;
+
     for (auto& statement : statements.array_range()) {
         auto statement_type = statement["root"].to_string();
-        // note: index + 1 is always safe on util::AST_NODE
-        peek_next = statements[index + 1]["root"].to_string();
-        return_and_resume_instructions(instructions, statement_type);
+
+        build_statement_setup_branches(statement_type, instructions);
+
         m::match(statement_type)(
             m::pattern | "auto" = [&] { build_from_auto_statement(statement); },
             m::pattern |
@@ -230,24 +218,21 @@ ITA::Instructions ITA::build_from_block_statement(Node const& node, bool ret)
             m::pattern | "if" =
                 [&] {
                     auto [jump_instructions, if_instructions] =
-                        build_from_if_statement(
-                            branch_state.block_level, statement);
+                        build_from_if_statement(statement);
                     insert_instructions(instructions, jump_instructions);
                     insert_instructions(branches, if_instructions);
                 },
             m::pattern | "switch" =
                 [&] {
                     auto [jump_instructions, switch_statements] =
-                        build_from_switch_statement(
-                            branch_state.block_level, statement);
+                        build_from_switch_statement(statement);
                     insert_instructions(instructions, jump_instructions);
                     insert_instructions(branches, switch_statements);
                 },
             m::pattern | "while" =
                 [&] {
                     auto [jump_instructions, while_instructions] =
-                        build_from_while_statement(
-                            branch_state.block_level, statement);
+                        build_from_while_statement(statement);
                     insert_instructions(instructions, jump_instructions);
                     insert_instructions(branches, while_instructions);
                 },
@@ -277,14 +262,62 @@ ITA::Instructions ITA::build_from_block_statement(Node const& node, bool ret)
                 }
 
         );
-        index++;
+
+        build_statement_teardown_branches(statement_type, branches);
     }
-    if (ret) {
-        return_and_resume_instructions();
+
+    if (root_scope) {
+        branch.teardown();
+        instructions.emplace_back(branch.root_branch.value());
         instructions.emplace_back(make_quadruple(Instruction::LEAVE, "", ""));
     }
+
     insert_instructions(instructions, branches);
     return instructions;
+}
+
+/**
+ * @brief Insert the jump statement at the top of the predicate instruction
+ * set, and add the GOTO to resume at the end of the branch's instructions
+ *
+ * Note that generally the build_from_block_statement add
+ * the GOTO, we add it here during stacks of branches
+ */
+void ITA::insert_branch_jump_and_resume_instructions(
+    Node const& block,
+    Instructions& predicate_instructions,
+    Instructions& branch_instructions,
+    Quadruple const& label,
+    Tail_Branch const& tail)
+{
+    predicate_instructions.emplace_back(make_quadruple(
+        Instruction::IF,
+        build_from_branch_comparator_rvalue(block, predicate_instructions),
+        instruction_to_string(Instruction::GOTO),
+        std::get<1>(label)));
+
+    if (branch.stack.size() > 2) {
+        auto jump = tail.value_or(branch.get_parent_branch(true).value());
+        branch_instructions.emplace_back(
+            make_quadruple(Instruction::GOTO, std::get<1>(jump), ""));
+    }
+}
+
+/**
+ * @brief Construct block statement instructions for a branch
+ */
+void ITA::insert_branch_block_instructions(
+    Node const& block,
+    Instructions& branch_instructions)
+{
+    if (block["root"].to_string() == "block") {
+        auto block_instructions = build_from_block_statement(block, false);
+        insert_instructions(branch_instructions, block_instructions);
+
+    } else {
+        auto block_statement = make_block_statement(block);
+        insert_branch_block_instructions(block_statement, branch_instructions);
+    }
 }
 
 /**
@@ -328,7 +361,6 @@ std::string ITA::build_from_branch_comparator_rvalue(
         m::pattern | type::RValue_Type_Variant::Function =
             [&] {
                 insert_instructions(instructions, comparator_instructions);
-                // instructions.pop_back();
                 auto rhs = std::format(
                     "{} RET", instruction_to_string(Instruction::CMP));
                 auto temp = make_temporary(&temporary, rhs);
@@ -339,44 +371,55 @@ std::string ITA::build_from_branch_comparator_rvalue(
     return temp_lvalue;
 }
 
-/**
- * @brief Construct block statement instructions for a branch
- */
-void ITA::insert_branch_block_instructions(
-    Node& block,
-    Instructions& branch_instructions)
+ITA::Branch_Instructions ITA::build_from_case_statement(
+    Node const& node,
+    std::string const& switch_label)
 {
-    if (block["root"].to_string() == "block") {
-        auto statement_type = block["left"][0]["root"].to_string();
-        auto branching = std::ranges::find(BRANCH_STATEMENTS, statement_type);
-        if (branching != BRANCH_STATEMENTS.end()) {
-            branch_state.is_branching = true;
-            branch_state.level++;
-        } else {
-            branch_state.is_branching = false;
-        }
-        auto block_instructions = build_from_block_statement(block, false);
-        if (branching != BRANCH_STATEMENTS.end())
-            branch_state.level--;
-        insert_instructions(branch_instructions, block_instructions);
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "case");
 
-    } else {
-        auto block_statement = util::AST::object();
-        block_statement["node"] = util::AST_Node{ "statement" };
-        block_statement["root"] = util::AST_Node{ "block" };
-        block_statement["left"].append(block);
-        auto block_instructions =
-            build_from_block_statement(block_statement, false);
-        insert_instructions(branch_instructions, block_instructions);
+    auto [predicate_instructions, branch_instructions] =
+        make_statement_instructions();
+    bool break_statement = false;
+    auto jump = make_temporary();
+
+    auto statements = node["right"].to_deque();
+
+    // the case predicate is always a constant literal
+    auto constant_literal =
+        RValue_Parser::make_rvalue(node["left"], internal_symbols_, symbols_);
+
+    predicate_instructions.emplace_back(make_quadruple(
+        Instruction::JMP_E,
+        switch_label,
+        rvalue_to_string(constant_literal.value, false),
+        std::get<1>(jump)));
+
+    branch_instructions.emplace_back(jump);
+
+    // resolve all blocks in the statement
+    if (statements.back()["root"].to_string() == "break") {
+        break_statement = true;
+        statements.pop_back();
     }
+
+    auto case_statement = make_block_statement(statements);
+    insert_branch_block_instructions(case_statement, branch_instructions);
+
+    if (break_statement)
+        if (!branch.last_instruction_is_jump(branch_instructions.back()))
+            branch_instructions.emplace_back(make_quadruple(
+                Instruction::GOTO,
+                std::get<1>(branch.get_parent_branch().value()),
+                ""));
+
+    return { predicate_instructions, branch_instructions };
 }
 
 /**
  * @brief Construct a set of ita instructions from a switch statement
  */
-ITA::Branch_Instructions ITA::build_from_switch_statement(
-    Tail_Branch& block_level,
-    Node const& node)
+ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "switch");
@@ -385,40 +428,23 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(
     auto predicate = node["left"];
     auto blocks = node["right"];
 
-    auto predicate_temp =
+    auto switch_label =
         build_from_branch_comparator_rvalue(predicate, predicate_instructions);
-
-    for (auto const& block : blocks.array_range()) {
-        CREDENCE_ASSERT_NODE(block["node"].to_string(), "statement");
-        CREDENCE_ASSERT_NODE(block["root"].to_string(), "case");
-
-        auto jump = make_temporary();
-        auto statements = block["right"].to_deque();
-
-        // the case predicate is always a constant literal
-        auto constant_literal = RValue_Parser::make_rvalue(
-            block["left"], internal_symbols_, symbols_);
-
-        predicate_instructions.emplace_back(make_quadruple(
-            Instruction::JMP_E,
-            predicate_temp,
-            rvalue_to_string(constant_literal.value, false),
-            std::get<1>(jump)));
-
-        branch_instructions.emplace_back(jump);
-
-        // resolve all blocks in the statement
-        insert_branch_block_instructions(
-            statements.front(), branch_instructions);
-        if (statements.size() > 1) {
-            // break statement
-            branch_instructions.emplace_back(make_quadruple(
-                Instruction::GOTO, std::get<1>(block_level.value()), ""));
-        }
+    auto case_label_stack = std::stack<Tail_Branch>{};
+    for (auto& statement : blocks.array_range()) {
+        branch.increment_branch_level();
+        case_label_stack.emplace(branch.stack.top());
+        auto [jump_instructions, case_statements] =
+            build_from_case_statement(statement, switch_label);
+        insert_instructions(predicate_instructions, jump_instructions);
+        insert_instructions(branch_instructions, case_statements);
+        branch.decrement_branch_level();
     }
-    // pass and continue to the next branch
-    branch_continuation_passing(
-        predicate_instructions, branch_instructions, block_level);
+    while (!case_label_stack.empty()) {
+        auto label = case_label_stack.top();
+        predicate_instructions.emplace_back(label.value());
+        case_label_stack.pop();
+    }
 
     return { predicate_instructions, branch_instructions };
 }
@@ -426,12 +452,39 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(
 /**
  * @brief Construct branch instructions from a while statement
  */
-ITA::Branch_Instructions ITA::build_from_while_statement(
-    [[maybe_unused]] Tail_Branch& block_level,
-    Node const& node)
+ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "while");
+
+    auto [predicate_instructions, branch_instructions] =
+        make_statement_instructions();
+    auto predicate = node["left"];
+    auto blocks = node["right"].to_deque();
+
+    auto tail = branch.get_parent_branch(true);
+    auto jump = make_temporary();
+    auto start = make_temporary();
+
+    branch.stack.emplace(start);
+
+    insert_branch_jump_and_resume_instructions(
+        predicate, predicate_instructions, branch_instructions, jump, tail);
+
+    branch_instructions.emplace_back(jump);
+    insert_branch_block_instructions(blocks.at(0), branch_instructions);
+
+    return { predicate_instructions, branch_instructions };
+}
+
+/**
+ * @brief Construct branch instructions from an if statement
+ */
+ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
+{
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
+    CREDENCE_ASSERT_NODE(node["root"].to_string(), "if");
+
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
 
@@ -441,87 +494,31 @@ ITA::Branch_Instructions ITA::build_from_while_statement(
     auto start = make_temporary();
     auto jump = make_temporary();
 
-    auto predicate_temp =
-        build_from_branch_comparator_rvalue(predicate, predicate_instructions);
-
-    predicate_instructions.push_back(start);
-    predicate_instructions.emplace_back(make_quadruple(
-        Instruction::IF,
-        predicate_temp,
-        instruction_to_string(Instruction::GOTO),
-        std::get<1>(jump)));
+    insert_branch_jump_and_resume_instructions(
+        predicate, predicate_instructions, branch_instructions, jump);
 
     branch_instructions.emplace_back(jump);
+    branch.stack.emplace(start);
 
     insert_branch_block_instructions(blocks.at(0), branch_instructions);
 
-    // pass and continue to the next branch
-    branch_continuation_passing(
-        predicate_instructions,
-        branch_instructions,
-        block_level,
-        std::get<1>(start));
-
-    return { predicate_instructions, branch_instructions };
-}
-
-/**
- * @brief Construct branch instructions from an if statement
- */
-ITA::Branch_Instructions ITA::build_from_if_statement(
-    Tail_Branch& block_level,
-    Node const& node)
-{
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "if");
-    auto [predicate_instructions, branch_instructions] =
-        make_statement_instructions();
-    RValue_Queue list{};
-    auto predicate = node["left"];
-    auto blocks = node["right"].to_deque();
-
-    auto predicate_temp =
-        build_from_branch_comparator_rvalue(predicate, predicate_instructions);
-
-    auto jump = make_temporary();
-
-    predicate_instructions.emplace_back(make_quadruple(
-        Instruction::IF,
-        predicate_temp,
-        instruction_to_string(Instruction::GOTO),
-        std::get<1>(jump)));
-
-    branch_instructions.emplace_back(jump);
-
-    insert_branch_block_instructions(blocks.at(0), branch_instructions);
-
+    // no else statement
     if (blocks.at(1).is_null())
-        if (blocks.size() == 1 or branch_state.level == 1)
-            predicate_instructions.push_back(block_level.value());
-
-    branch_continuation_passing(
-        predicate_instructions,
-        branch_instructions,
-        block_level,
-        std::get<1>(block_level.value()));
+        predicate_instructions.emplace_back(start);
 
     // else statement
     if (!blocks.at(1).is_null()) {
         auto else_label = make_temporary();
+        if (!branch.last_instruction_is_jump(branch_instructions.back()))
+            branch_instructions.emplace_back(make_quadruple(
+                Instruction::GOTO,
+                std::get<1>(branch.get_parent_branch().value()),
+                ""));
         predicate_instructions.emplace_back(
             make_quadruple(Instruction::GOTO, std::get<1>(else_label), ""));
-        predicate_instructions.push_back(block_level.value());
         branch_instructions.emplace_back(else_label);
         insert_branch_block_instructions(blocks.at(1), branch_instructions);
-
-        if (branch_state.level == 1)
-            predicate_instructions.push_back(block_level.value());
-
-        branch_continuation_passing(
-            predicate_instructions,
-            branch_instructions,
-            block_level,
-            std::get<1>(block_level.value()));
+        predicate_instructions.emplace_back(start);
     }
 
     return { predicate_instructions, branch_instructions };

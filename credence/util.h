@@ -49,24 +49,6 @@ using AST_Node = AST::JSON;
 namespace fs = std::filesystem;
 
 namespace detail {
-
-inline void make_assertion(
-    bool condition,
-    std::string_view message,
-    // clang-format off
-    std::source_location const& location =
-        std::source_location::current())
-{
-    // clang-format on
-    if (!condition) {
-        std::cerr << "Credence assertion: " << message << std::endl
-                  << "  File: " << location.file_name() << std::endl
-                  << "  Line: " << location.line() << std::endl
-                  << "  Function: " << location.function_name() << std::endl;
-        std::abort();
-    }
-}
-
 template<typename T>
 constexpr std::string to_constexpr_string(T const& val)
 {

@@ -8,3 +8,6 @@ exp(a) {
   return (a);
 }
 
+sub(x,y) {
+  return (x - y);
+}

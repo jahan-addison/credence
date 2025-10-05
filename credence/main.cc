@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include <credence/ir/ita.h>   // for build_from_definitions, emit_quadruple
-#include <credence/util.h>     // for read_file_from_path
-#include <cxxopts.hpp>         // for value, Options, OptionAdder, ParseResult
-#include <exception>           // for exception
+#include <credence/ir/ita.h> // for build_from_definitions, emit_quadruple
+#include <credence/util.h>   // for read_file_from_path
+#include <cxxopts.hpp>       // for value, Options, OptionAdder, ParseResult
+#include <exception>         // for exception
+#include <filesystem>
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
 #include <matchit.h>           // for match, pattern, PatternHelper, Patter...
 #include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
@@ -48,6 +49,7 @@ int main(int argc, const char* argv[])
             cxxopts::value<bool>()->default_value("false"))(
             "h,help", "Print usage")(
             "source-code", "B Source file", cxxopts::value<std::string>());
+
         options.parse_positional({ "source-code" });
 
         auto result = options.parse(argc, argv);
@@ -142,12 +144,16 @@ int main(int argc, const char* argv[])
 
         );
 
-    } catch (std::runtime_error const& e) {
-        std::cerr << "Credence :: " << e.what() << std::endl;
-        return 1;
     } catch (const cxxopts::exceptions::option_has_no_value&) {
         std::cout << "Credence :: See \"--help\" for usage overview"
                   << std::endl;
+    } catch (const std::filesystem::filesystem_error& e) {
+        std::cerr << "Credence :: Invalid file path: " << e.path1()
+                  << std::endl;
+        return 1;
+    } catch (std::runtime_error const& e) {
+        std::cerr << "Credence :: " << e.what() << std::endl;
+        return 1;
     } catch (const std::exception& e) {
         std::cerr << "Error :: " << e.what() << std::endl;
         return 1;

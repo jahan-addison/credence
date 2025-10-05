@@ -1,12 +1,10 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
-#include <algorithm>         // for max
 #include <credence/queue.h>  // for rvalues_to_queue, queue_of_rvalues_to_s...
 #include <credence/rvalue.h> // for RValue_Parser
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue, Type_
 #include <map>               // for map
-#include <memory>            // for allocator, make_shared
 #include <simplejson.h>      // for JSON
 #include <string>            // for operator==, basic_string, operator<<
 #include <utility>           // for pair
@@ -186,12 +184,41 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "               }\n                    },\n                    "
         "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
         ": [\"=\", null]\n                }");
+    obj["functions"] = credence::util::AST_Node::load(
+        "{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"exp\"\n                    },\n                    \"node\" : "
+        "\"function_expression\",\n                    \"right\" : [{\n        "
+        "                \"left\" : {\n                          \"node\" : "
+        "\"lvalue\",\n                          \"root\" : \"exp\"\n           "
+        "             },\n                        \"node\" : "
+        "\"function_expression\",\n                        \"right\" : [{\n    "
+        "                        \"node\" : \"number_literal\",\n              "
+        "              \"root\" : 1\n                          }, {\n          "
+        "                  \"node\" : \"number_literal\",\n                    "
+        "        \"root\" : 2\n                          }],\n                 "
+        "       \"root\" : \"exp\"\n                      }, {\n               "
+        "         \"left\" : {\n                          \"node\" : "
+        "\"lvalue\",\n                          \"root\" : \"sub\"\n           "
+        "             },\n                        \"node\" : "
+        "\"function_expression\",\n                        \"right\" : [{\n    "
+        "                        \"node\" : \"number_literal\",\n              "
+        "              \"root\" : 1\n                          }, {\n          "
+        "                  \"node\" : \"number_literal\",\n                    "
+        "        \"root\" : 2\n                          }],\n                 "
+        "       \"root\" : \"sub\"\n                      }],\n                "
+        "    \"root\" : \"exp\"\n                  },\n                  "
+        "\"root\" : [\"=\", null]\n                }");
 
     RValue_Parser parser{ obj };
     RValue::Value null = type::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);
     parser.symbols_.table_.emplace("exp", null);
+    parser.symbols_.table_.emplace("sub", null);
     parser.symbols_.table_.emplace("puts", null);
     parser.symbols_.table_.emplace("y", null);
 
@@ -210,6 +237,10 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "x (5:int:4) (5:int:4) * (6:int:4) (6:int:4) * + = ";
     std::string evaluated_expected_2 =
         "x (5:int:4) (6:int:4) + (5:int:4) (6:int:4) + * = ";
+    std::string functions_expected =
+        "x exp _p1 exp _p2 (1:int:4) = _p3 (2:int:4) = _p2 _p3 PUSH PUSH CALL "
+        "= _p4 sub _p5 (1:int:4) = _p6 (2:int:4) = _p5 _p6 PUSH PUSH CALL = "
+        "_p1 _p4 PUSH PUSH CALL = ";
 
     std::vector<type::RValue::Type_Pointer> rvalues{};
     auto list = make_rvalue_queue();
@@ -280,8 +311,10 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     list->clear();
 
     rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["evaluated_3"]).value));
+        parser.from_rvalue(obj["functions"]).value));
     rvalues_to_queue(rvalues, list);
+    test = queue_of_rvalues_to_string(list);
+    CHECK(test == functions_expected);
     rvalues.clear();
     list->clear();
 }

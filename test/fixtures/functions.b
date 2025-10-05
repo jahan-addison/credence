@@ -1,6 +1,7 @@
 main() {
   auto x, y;
   x = exp(exp(1,2), sub(1,2));
+  y = exp(exp(1,2), 2);
 }
 
 exp(x,y) {

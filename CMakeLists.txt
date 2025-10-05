@@ -91,7 +91,7 @@ cpmaddpackage(
   NAME
   simplejson
   VERSION
-  1.1.12
+  1.1.13
   GITHUB_REPOSITORY
   jahan-addison/simplejson
   OPTIONS
