@@ -32,10 +32,9 @@ enum class Operator;
 } // lines 31-31
 
 /****************************************************************************
- *  A set of functions that aid construction of 3- or 4- tuple temporaries
- *  and linear instructions from an rvalue stack. The rvalue stack should
- *  be ordered by operator precedence, thus constituting an IR that closely
- *  resembles a generic platform assembly language.
+ *  A set of functions that construct temporary lvalues "_tX" that aid in
+ *  breaking expressions into 3- or 4- tuples for linear instructions. The
+ *  rvalue stack should be ordered by operator precedence.
  *
  *  Example:
  *

@@ -19,7 +19,7 @@ The compiler works in 3 stages:
 There are a few differences between the compiler and B specification, namely:
 
 * Support for C++ style comments (i.e. `//`)
-* Boolean type coercion for all data types in conditionals
+* Boolean "truthy" coercion for all data types in conditionals
 * Switch statement condition must always be enclosed with `(` and `)`,
 * Uses C operator precedence
 * Constant literals must be exactly 1 byte
@@ -61,7 +61,7 @@ main() {
   z = add(x, sub(x, y)) - 2;
   if (x > y) {
     while(z > x) {
-      z = z - 1;
+      z--;
     }
   }
   x = 0;
@@ -98,8 +98,8 @@ __main:
     CALL add;
     POP 16;
     _t3 = RET;
-    _t4 = z - (2:int:4);
-    _t4 = _t4;
+    _t4 = _t3;
+    z = (2:int:4) - _t4;
 _L5:
     _t8 = x > y;
     IF _t8 GOTO _L7;
@@ -113,8 +113,7 @@ _L9:
     IF _t12 GOTO _L10;
     GOTO _L6;
 _L10:
-    _t13 = z - (1:int:4);
-    z = _t13;
+    z = --z;
     GOTO _L9;
  EndFunc ;
 __add:
@@ -131,7 +130,6 @@ __sub:
 _L1:
     LEAVE;
  EndFunc ;
-
 
 ```
 

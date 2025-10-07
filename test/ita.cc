@@ -111,6 +111,159 @@ struct ITA_Fixture
     credence::ir::ITA ita_;
 };
 
+TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: integration test")
+{
+    using namespace credence;
+    credence::util::AST_Node obj;
+    auto internal_symbols = credence::util::AST_Node::load(
+        "{\n  \"arg\" : {\n    \"column\" : 6,\n    \"end_column\" : 9,\n    "
+        "\"end_pos\" : 8,\n    \"line\" : 1,\n    \"start_pos\" : 5,\n    "
+        "\"type\" : \"lvalue\"\n  },\n  \"exp\" : {\n    \"column\" : 1,\n    "
+        "\"end_column\" : 4,\n    \"end_pos\" : 52,\n    \"line\" : 6,\n    "
+        "\"start_pos\" : 49,\n    \"type\" : \"function_definition\"\n  },\n  "
+        "\"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n    "
+        "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
+        "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    \"column\" "
+        ": 8,\n    \"end_column\" : 9,\n    \"end_pos\" : 20,\n    \"line\" : "
+        "2,\n    \"start_pos\" : 19,\n    \"type\" : \"lvalue\"\n  },\n  \"y\" "
+        ": {\n    \"column\" : 7,\n    \"end_column\" : 8,\n    \"end_pos\" : "
+        "56,\n    \"line\" : 6,\n    \"start_pos\" : 55,\n    \"type\" : "
+        "\"lvalue\"\n  }\n}");
+    obj["ir"] = credence::util::AST_Node::load(
+        " {\n      \"left\" : [null],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"x\"\n              }, {\n   "
+        "             \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"y\"\n              }, {\n                \"node\" : \"lvalue\",\n   "
+        "             \"root\" : \"z\"\n              }],\n            "
+        "\"node\" : \"statement\",\n            \"root\" : \"auto\"\n          "
+        "}, {\n            \"left\" : [[{\n                  \"left\" : {\n    "
+        "                \"node\" : \"lvalue\",\n                    \"root\" "
+        ": \"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 5\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"y\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 1\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }], [{\n                  \"left\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"z\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"left\" : {\n         "
+        "               \"node\" : \"lvalue\",\n                        "
+        "\"root\" : \"add\"\n                      },\n                      "
+        "\"node\" : \"function_expression\",\n                      \"right\" "
+        ": [{\n                          \"node\" : \"lvalue\",\n              "
+        "            \"root\" : \"x\"\n                        }, {\n          "
+        "                \"left\" : {\n                            \"node\" : "
+        "\"lvalue\",\n                            \"root\" : \"sub\"\n         "
+        "                 },\n                          \"node\" : "
+        "\"function_expression\",\n                          \"right\" : [{\n  "
+        "                            \"node\" : \"lvalue\",\n                  "
+        "            \"root\" : \"x\"\n                            }, {\n      "
+        "                        \"node\" : \"lvalue\",\n                      "
+        "        \"root\" : \"y\"\n                            }],\n           "
+        "               \"root\" : \"sub\"\n                        }],\n      "
+        "                \"root\" : \"add\"\n                    },\n          "
+        "          \"node\" : \"relation_expression\",\n                    "
+        "\"right\" : {\n                      \"node\" : \"number_literal\",\n "
+        "                     \"root\" : 2\n                    },\n           "
+        "         \"root\" : [\"-\"]\n                  },\n                  "
+        "\"root\" : [\"=\", null]\n                }]],\n            \"node\" "
+        ": \"statement\",\n            \"root\" : \"rvalue\"\n          }, {\n "
+        "           \"left\" : {\n              \"left\" : {\n                "
+        "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n            "
+        "  },\n              \"node\" : \"relation_expression\",\n             "
+        " \"right\" : {\n                \"node\" : \"lvalue\",\n              "
+        "  \"root\" : \"y\"\n              },\n              \"root\" : "
+        "[\">\"]\n            },\n            \"node\" : \"statement\",\n      "
+        "      \"right\" : [{\n                \"left\" : [{\n                 "
+        "   \"left\" : {\n                      \"left\" : {\n                 "
+        "       \"node\" : \"lvalue\",\n                        \"root\" : "
+        "\"z\"\n                      },\n                      \"node\" : "
+        "\"relation_expression\",\n                      \"right\" : {\n       "
+        "                 \"node\" : \"lvalue\",\n                        "
+        "\"root\" : \"x\"\n                      },\n                      "
+        "\"root\" : [\">\"]\n                    },\n                    "
+        "\"node\" : \"statement\",\n                    \"right\" : [{\n       "
+        "                 \"left\" : [{\n                            \"left\" "
+        ": [[{\n                                  \"node\" : "
+        "\"post_inc_dec_expression\",\n                                  "
+        "\"right\" : {\n                                    \"node\" : "
+        "\"lvalue\",\n                                    \"root\" : \"z\"\n   "
+        "                               },\n                                  "
+        "\"root\" : [\"--\"]\n                                }]],\n           "
+        "                 \"node\" : \"statement\",\n                          "
+        "  \"root\" : \"rvalue\"\n                          }],\n              "
+        "          \"node\" : \"statement\",\n                        \"root\" "
+        ": \"block\"\n                      }],\n                    \"root\" "
+        ": \"while\"\n                  }],\n                \"node\" : "
+        "\"statement\",\n                \"root\" : \"block\"\n              "
+        "}, null],\n            \"root\" : \"if\"\n          }, {\n            "
+        "\"left\" : [[{\n                  \"left\" : {\n                    "
+        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n        "
+        "          },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 0\n                  },\n                  \"root\" : "
+        "[\"=\", null]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
+        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
+        "},\n      \"root\" : \"main\"\n    }");
+
+    auto os_test = std::ostringstream();
+    auto ita = ITA_hoisted(internal_symbols);
+    ita.symbols_.table_.emplace("sub", type::NULL_LITERAL);
+    ita.symbols_.table_.emplace("add", type::NULL_LITERAL);
+    auto test_instructions = ita.build_from_function_definition(obj["ir"]);
+    for (auto const& inst : test_instructions) {
+        EMIT(os_test, inst);
+    }
+    std::string expected = R"ita(__main:
+ BeginFunc ;
+x = (5:int:4);
+y = (1:int:4);
+_p1 = x;
+_p3 = x;
+_p4 = y;
+PUSH _p4;
+PUSH _p3;
+CALL sub;
+POP 16;
+_t2 = RET;
+_p2 = _t2;
+PUSH _p2;
+PUSH _p1;
+CALL add;
+POP 16;
+_t3 = RET;
+_t4 = _t3;
+z = (2:int:4) - _t4;
+_L5:
+_t8 = x > y;
+IF _t8 GOTO _L7;
+_L6:
+x = (0:int:4);
+_L1:
+LEAVE;
+_L7:
+_L9:
+_t12 = z > x;
+IF _t12 GOTO _L10;
+GOTO _L6;
+_L10:
+z = --z;
+GOTO _L9;
+ EndFunc ;
+)ita";
+    CHECK(os_test.str() == expected);
+}
+
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
 {
     using namespace credence;
@@ -923,10 +1076,10 @@ GOTO _L7;
     auto expected_2 = R"ita(x = (5:int:4);
 _t2 = CMP x;
 JMP_E _t2 (0:int:4) _L4;
-JMP_E _t2 (1:int:4) _L15;
-JMP_E _t2 (2:int:4) _L17;
-_L16:
-_L14:
+JMP_E _t2 (1:int:4) _L14;
+JMP_E _t2 (2:int:4) _L16;
+_L15:
+_L13:
 _L3:
 y = (10:int:4);
 _L1:
@@ -943,13 +1096,13 @@ _t12 = x > (1:int:4);
 IF _t12 GOTO _L10;
 GOTO _L6;
 _L10:
-_t13 = -- x;
+x = --x;
 GOTO _L9;
-_L15:
+_L14:
 y = (2:int:4);
-_L17:
+_L16:
 x = (5:int:4);
-GOTO _L16;
+GOTO _L15;
 )ita";
 
     auto expected_3 = R"ita(x = (10:int:4);
@@ -963,10 +1116,10 @@ LEAVE;
 _L4:
 _t6 = CMP x;
 JMP_E _t6 (5:int:4) _L8;
-JMP_E _t6 (6:int:4) _L15;
-JMP_E _t6 (7:int:4) _L17;
-_L16:
-_L14:
+JMP_E _t6 (6:int:4) _L14;
+JMP_E _t6 (7:int:4) _L16;
+_L15:
+_L13:
 _L7:
 GOTO _L3;
 _L8:
@@ -977,15 +1130,15 @@ y = (8:int:4);
 x = (2:int:4);
 GOTO _L7;
 _L10:
-_t13 = -- x;
+x = --x;
 GOTO _L9;
 GOTO _L3;
-_L15:
+_L14:
 y = (2:int:4);
 GOTO _L3;
-_L17:
+_L16:
 x = (5:int:4);
-GOTO _L16;
+GOTO _L15;
 )ita";
 
     TEST_BLOCK_STATEMENT_NODE_WITH(
@@ -1333,7 +1486,7 @@ y = (100:int:4);
 _L6:
 _t9 = x > (0:int:4);
 IF _t9 GOTO _L8;
-GOTO _L16;
+GOTO _L14;
 _L7:
 x = (2:int:4);
 _L2:
@@ -1344,17 +1497,17 @@ _t13 = x >= (0:int:4);
 IF _t13 GOTO _L11;
 GOTO _L7;
 _L11:
-_t14 = -- x;
-_t15 = -- y;
-x = _t15;
+x = --x;
+y = --y;
+x = y;
 GOTO _L10;
-_L16:
-_t17 = ++ x;
+_L14:
+x = ++x;
 y = (5:int:4);
-_t18 = x + y;
-_t19 = x + x;
-_t20 = _t18 * _t19;
-x = _t20;
+_t15 = x + y;
+_t16 = x + x;
+_t17 = _t15 * _t16;
+x = _t17;
 GOTO _L7;
 )ita";
     auto expected_2 = R"ita(x = (1:int:4);
@@ -1362,20 +1515,20 @@ y = (10:int:4);
 _L3:
 _t6 = x >= (0:int:4);
 IF _t6 GOTO _L4;
-_L9:
-_t12 = x <= (100:int:4);
-IF _t12 GOTO _L10;
+_L7:
+_t10 = x <= (100:int:4);
+IF _t10 GOTO _L8;
 x = (2:int:4);
 _L2:
 LEAVE;
 _L4:
-_t7 = -- x;
-_t8 = -- y;
-x = _t8;
+x = --x;
+y = --y;
+x = y;
 GOTO _L3;
-_L10:
-_t13 = ++ x;
-GOTO _L9;
+_L8:
+x = ++x;
+GOTO _L7;
 )ita";
     std::string expected_3 = R"ita(x = (100:int:4);
 y = (100:int:4);
@@ -1383,12 +1536,12 @@ _L3:
 _t6 = x == (100:int:4);
 IF _t6 GOTO _L5;
 _L4:
-_t17 = ++ x;
+x = ++x;
 y = (5:int:4);
-_t18 = x + y;
-_t19 = x + x;
-_t20 = _t18 * _t19;
-x = _t20;
+_t15 = x + y;
+_t16 = x + x;
+_t17 = _t15 * _t16;
+x = _t17;
 _L2:
 LEAVE;
 _L5:
@@ -1403,9 +1556,9 @@ _t14 = x >= (0:int:4);
 IF _t14 GOTO _L12;
 GOTO _L8;
 _L12:
-_t15 = -- x;
-_t16 = -- y;
-x = _t16;
+x = --x;
+y = --y;
+x = y;
 GOTO _L11;
 )ita";
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while"], expected);
@@ -1769,31 +1922,31 @@ LEAVE;
 _L5:
 y = x;
 _L7:
-_t10 = ! y;
-IF _t10 GOTO _L9;
+y = !y;
+IF y GOTO _L9;
 _L8:
-_t21 = (2:int:4) + (2:int:4);
-x = _t21;
+_t19 = (2:int:4) + (2:int:4);
+x = _t19;
 GOTO _L4;
 _L9:
+_L10:
+_t13 = x > y;
+IF _t13 GOTO _L12;
 _L11:
-_t14 = x > y;
-IF _t14 GOTO _L13;
-_L12:
-_t20 = (1:int:4) + (1:int:4);
-x = _t20;
+_t18 = (1:int:4) + (1:int:4);
+x = _t18;
 GOTO _L8;
-_L13:
+_L12:
+_L14:
+x = !x;
+IF x GOTO _L16;
 _L15:
-_t18 = ! x;
-IF _t18 GOTO _L17;
+_t17 = (3:int:4) + (3:int:4);
+x = _t17;
+GOTO _L11;
 _L16:
-_t19 = (3:int:4) + (3:int:4);
-x = _t19;
-GOTO _L12;
-_L17:
 x = y;
-GOTO _L16;
+GOTO _L15;
 )ita";
 
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["if"], expected);

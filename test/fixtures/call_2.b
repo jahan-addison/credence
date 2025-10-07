@@ -1,15 +1,10 @@
 main() {
-  auto x, y, z;
-  x = 5;
-  y = 1;
+  auto x,y,z;
+  x = 1;
+  y = 2;
   z = add(x, sub(x, y)) - 2;
-  if (x > y) {
-    while(z > x) {
-      z--;
-    }
-  }
-  x = 0;
 }
+
 
 add(x,y) {
   return(x + y);
@@ -18,3 +13,4 @@ add(x,y) {
 sub(x,y) {
   return(x - y);
 }
+

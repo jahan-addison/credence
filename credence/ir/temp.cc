@@ -37,10 +37,9 @@
 #include <vector>               // for vector
 
 /****************************************************************************
- *  A set of functions that aid construction of 3- or 4- tuple temporaries
- *  and linear instructions from an rvalue stack. The rvalue stack should
- *  be ordered by operator precedence, thus constituting an IR that closely
- *  resembles a generic platform assembly language.
+ *  A set of functions that construct temporary lvalues "_tX" that aid in
+ *  breaking expressions into 3- or 4- tuples for linear instructions. The
+ *  rvalue stack should be ordered by operator precedence.
  *
  *  Example:
  *
@@ -235,6 +234,7 @@ instruction_temporary_from_rvalue_operand(
             },
             [&](RValue::Unary& s) {
                 auto op = s.first;
+                auto rhs_rvalue = s.second;
                 auto unwrap_rhs_type =
                     type::rvalue_type_pointer_from_rvalue(s.second->value);
                 auto rhs = instruction_temporary_from_rvalue_operand(
@@ -286,7 +286,7 @@ instruction_temporary_from_rvalue_operand(
 }
 
 /**
- * @brief Construct temporary instructions from assignment operator
+ * @brief Construct temporary lvalues from assignment operator
  */
 void assignment_operands_to_temporary_stack(
     detail::Operand_Stack& operand_stack,
@@ -344,7 +344,7 @@ void assignment_operands_to_temporary_stack(
 }
 
 /**
- * @brief Construct temporary instructions from function call
+ * @brief Construct temporary lvalues from function call
  */
 void function_call_operands_to_temporary_instructions(
     detail::Operand_Stack& operand_stack,
@@ -397,7 +397,7 @@ void function_call_operands_to_temporary_instructions(
             ""));
     auto call_return = ITA::make_temporary(temporary, "RET");
     instructions.emplace_back(call_return);
-    if (operand_stack.size() > 1) {
+    if (operand_stack.size() >= 1) {
         temporary_stack.emplace(std::get<1>(call_return));
     }
     *param_on_stack = 0;
@@ -475,19 +475,31 @@ void unary_operand_to_temporary_stack(
                 m::match(std::cmp_equal(tss, 0))(
                     m::pattern | true =
                         [&] {
-                            // No temporary stack available, so push the newest
-                            // temporary as an lvalue operand on the main stack
-                            auto operand_temp = ITA::make_temporary(
-                                temporary,
-                                std::format(
-                                    "{} {}",
+                            // If the operand is an lvalue, use it, otherwise
+                            // create a temporary and assign it the unary rvalue
+                            if (is_rvalue_type_pointer_variant(
+                                    operand1, RValue_Type_Variant::LValue)) {
+                                auto unary = ITA::make_quadruple(
+                                    ITA::Instruction::VARIABLE,
+                                    rvalue_to_string(*operand1, false),
                                     operator_to_string(op),
-                                    rhs.first));
-                            type::RValue::LValue temp_lvalue = std::make_pair(
-                                std::get<1>(operand_temp), type::NULL_LITERAL);
-                            operand_stack.emplace(
-                                rvalue_type_pointer_from_rvalue(temp_lvalue));
-                            instructions.emplace_back(operand_temp);
+                                    rhs.first);
+                                instructions.emplace_back(unary);
+                            } else {
+                                auto operand_temp = ITA::make_temporary(
+                                    temporary,
+                                    std::format(
+                                        "{} {}",
+                                        operator_to_string(op),
+                                        rhs.first));
+                                type::RValue::LValue temp_lvalue =
+                                    std::make_pair(
+                                        std::get<1>(operand_temp),
+                                        type::NULL_LITERAL);
+                                operand_stack.emplace(
+                                    rvalue_type_pointer_from_rvalue(
+                                        temp_lvalue));
+                            }
                         },
                     m::pattern | m::_ =
                         [&] {

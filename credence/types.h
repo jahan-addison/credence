@@ -148,7 +148,7 @@ inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
     return std::make_shared<RValue::Type>(rvalue_type);
 }
 
-constexpr inline size_t get_type_of_rvalue(RValue const& rvalue)
+inline size_t get_type_of_rvalue(RValue const& rvalue)
 {
     if (rvalue.value.index() ==
         detail::type_variant(RValue_Type_Variant::RValue_Pointer)) {
@@ -167,15 +167,19 @@ constexpr inline T get_raw_value_from_rvalue_type(
     return std::get<T>(std::get<RValue::Value>(*type).first);
 }
 
-constexpr inline RValue_Type_Variant get_rvalue_type_as_variant(
-    RValue const& rvalue)
+inline RValue_Type_Variant get_rvalue_type_as_variant(RValue const& rvalue)
 {
     return static_cast<RValue_Type_Variant>(get_type_of_rvalue(rvalue));
 }
 
-constexpr inline bool is_rvalue_variant(
-    RValue const& rvalue,
+inline bool is_rvalue_type_pointer_variant(
+    RValue::Type_Pointer const& rvalue,
     RValue_Type_Variant type)
+{
+    return rvalue->index() == detail::type_variant(type);
+}
+
+inline bool is_rvalue_variant(RValue const& rvalue, RValue_Type_Variant type)
 {
     return get_type_of_rvalue(rvalue) == detail::type_variant(type);
 }
