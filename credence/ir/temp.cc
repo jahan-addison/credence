@@ -492,13 +492,9 @@ void unary_operand_to_temporary_stack(
                                         "{} {}",
                                         operator_to_string(op),
                                         rhs.first));
-                                type::RValue::LValue temp_lvalue =
-                                    std::make_pair(
-                                        std::get<1>(operand_temp),
-                                        type::NULL_LITERAL);
-                                operand_stack.emplace(
-                                    rvalue_type_pointer_from_rvalue(
-                                        temp_lvalue));
+                                instructions.emplace_back(operand_temp);
+                                temporary_stack.emplace(
+                                    std::get<1>(operand_temp));
                             }
                         },
                     m::pattern | m::_ =
@@ -924,6 +920,15 @@ ITA::Instructions rvalue_queue_to_temp_instructions(
                                 op,
                                 temporary);
                             break;
+                        case Operator::U_PLUS:
+                            unary_operand_to_temporary_stack(
+                                operand_stack,
+                                temporary_stack,
+                                instructions,
+                                op,
+                                temporary);
+                            break;
+
                         // lvalue and address operators
                         case Operator::U_CALL:
                             function_call_operands_to_temporary_instructions(

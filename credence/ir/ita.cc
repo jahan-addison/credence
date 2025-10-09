@@ -405,7 +405,8 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     branch_instructions.emplace_back(jump);
 
     // resolve all blocks in the statement
-    if (statements.back()["root"].to_string() == "break") {
+    if (!statements.empty() and
+        statements.back()["root"].to_string() == "break") {
         break_statement = true;
         statements.pop_back();
     }

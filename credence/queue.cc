@@ -285,8 +285,8 @@ std::string dump_value_type(
                    << separator << type.second.second;
             },
             [&](char i) {
-                os << i << LITERAL_TYPE.at("char").first << separator
-                   << LITERAL_TYPE.at("char").second;
+                os << i << separator << LITERAL_TYPE.at("char").first
+                   << separator << LITERAL_TYPE.at("char").second;
             },
             [&]([[maybe_unused]] std::string const& s) {
                 if (s == "__WORD_") {

@@ -125,6 +125,13 @@ struct RValue
         return std::make_pair(name, WORD_LITERAL);
     }
 
+    constexpr inline static LValue make_lvalue(
+        std::string const& name,
+        Value_Type const& value)
+    {
+        return std::make_pair(name, value);
+    }
+
     using Function = std::pair<LValue, std::vector<RValue_Pointer>>;
     using Type = std::variant<
         std::monostate,

@@ -36,6 +36,8 @@
 
 namespace credence {
 
+namespace m = matchit;
+
 /**
  * @brief Throw program flow error
  */
@@ -66,48 +68,47 @@ void RValue_Parser::error(
 type::RValue RValue_Parser::from_rvalue(Node const& node)
 {
 
-    using namespace matchit;
     auto rvalue = type::RValue{};
     bool is_unary =
         std::ranges::any_of(unary_types_, [&](std::string const& str) {
             return str == node["node"].to_string();
         });
-    match(node["node"].to_string())(
+    m::match(node["node"].to_string())(
         // cppcheck-suppress syntaxError
-        pattern | "constant_literal" =
+        m::pattern | "constant_literal" =
             [&] { rvalue.value = from_constant_expression(node); },
-        pattern | "number_literal" =
+        m::pattern | "number_literal" =
             [&] { rvalue.value = from_constant_expression(node); },
-        pattern | "string_literal" =
+        m::pattern | "string_literal" =
             [&] { rvalue.value = from_constant_expression(node); },
-        pattern |
+        m::pattern |
             "lvalue" = [&] { rvalue.value = from_lvalue_expression(node); },
-        pattern | "vector_lvalue" =
+        m::pattern | "vector_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
-        pattern | "function_expression" =
+        m::pattern | "function_expression" =
             [&] {
                 rvalue.value = std::make_shared<type::RValue>(
                     from_function_expression(node));
             },
-        pattern | "evaluated_expression" =
+        m::pattern | "evaluated_expression" =
             [&] {
                 rvalue.value = std::make_shared<type::RValue>(
                     from_evaluated_expression(node));
             },
 
-        pattern | "relation_expression" =
+        m::pattern | "relation_expression" =
             [&] {
                 rvalue.value = std::make_shared<type::RValue>(
                     from_relation_expression(node));
             },
-        pattern | "indirect_lvalue" =
+        m::pattern | "indirect_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
-        pattern | "assignment_expression" =
+        m::pattern | "assignment_expression" =
             [&] {
                 rvalue.value = std::make_shared<type::RValue>(
                     from_assignment_expression(node));
             },
-        pattern | _ =
+        m::pattern | m::_ =
             [&] {
                 if (is_unary) {
                     rvalue.value = std::make_shared<type::RValue>(
@@ -180,21 +181,22 @@ type::RValue RValue_Parser::from_relation_expression(Node const& node)
  */
 type::RValue RValue_Parser::from_unary_expression(Node const& node)
 {
-    using namespace matchit;
     using namespace type;
+    // todo: turn assertions into better error messages
+    CREDENCE_ASSERT_NODE(node["node"].to_string(), "unary_expression");
     std::map<std::string, Operator> const other_unary = {
-        { "!", Operator::U_NOT },
-        { "~", Operator::U_ONES_COMPLEMENT },
-        { "*", Operator::U_INDIRECTION },
-        { "-", Operator::U_MINUS },
+        { "!", Operator::U_NOT },         { "~", Operator::U_ONES_COMPLEMENT },
+        { "*", Operator::U_INDIRECTION }, { "-", Operator::U_MINUS },
+        { "+", Operator::U_PLUS },
 
     };
     RValue rvalue{};
-
+    CREDENCE_ASSERT(node["root"].JSON_type() == util::AST_Node::Class::Array);
+    CREDENCE_ASSERT(node["root"].to_deque().size() >= 1);
     auto op = node["root"].to_deque().front().to_string();
 
-    match(node["node"].to_string())(
-        pattern | "pre_inc_dec_expression" =
+    m::match(node["node"].to_string())(
+        m::pattern | "pre_inc_dec_expression" =
             [&] {
                 if (op == "++") {
                     auto rhs = std::make_shared<type::RValue>(
@@ -207,7 +209,7 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
                     rvalue.value = std::make_pair(Operator::PRE_DEC, rhs);
                 }
             },
-        pattern | "post_inc_dec_expression" =
+        m::pattern | "post_inc_dec_expression" =
             [&] {
                 if (op == "++") {
                     auto rhs = std::make_shared<type::RValue>(
@@ -221,14 +223,13 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
                         std::make_pair(Operator::POST_DEC, std::move(rhs));
                 }
             },
-        pattern | "address_of_expression" =
+        m::pattern | "address_of_expression" =
             [&] {
                 CREDENCE_ASSERT_EQUAL(op, "&");
                 auto rhs = shared_ptr_from_rvalue(node["left"]);
                 rvalue.value = std::make_pair(Operator::U_ADDR_OF, rhs);
             },
-        // otherwise:
-        pattern | _ =
+        m::pattern | m::_ =
             [&] {
                 auto rhs = shared_ptr_from_rvalue(node["left"]);
                 rvalue.value = std::make_pair(other_unary.at(op), rhs);
@@ -247,11 +248,10 @@ type::RValue RValue_Parser::from_assignment_expression(Node const& node)
 
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
-    if (!is_symbol(left_child_node)) {
+    if (!is_symbol(left_child_node))
         error(
             "identifier of assignment not declared with 'auto' or 'extern'",
             left_child_node["root"].to_string());
-    }
 
     auto lhs = from_lvalue_expression(left_child_node);
     auto rhs = shared_ptr_from_rvalue(right_child_node);
@@ -266,7 +266,6 @@ type::RValue RValue_Parser::from_assignment_expression(Node const& node)
  */
 type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
 {
-    using namespace matchit;
     auto constant_type = node["node"].to_string();
 
     if (!symbols_.is_defined(node["root"].to_string()) and
@@ -287,27 +286,26 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
                     "auto or extern, or meant to call a function?",
                     name);
             else
-                symbols_.set_symbol_by_name(
-                    name, { "__WORD__", type::LITERAL_TYPE.at("word") });
+                symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
         }
     }
     type::RValue::LValue lvalue{};
-    match(node["node"].to_string())(
-        pattern | "lvalue" =
+    m::match(node["node"].to_string())(
+        m::pattern | "lvalue" =
             [&] {
-                lvalue = std::make_pair(
+                lvalue = type::RValue::make_lvalue(
                     node["root"].to_string(),
                     symbols_.get_symbol_by_name(node["root"].to_string()));
             },
-        pattern | "vector_lvalue" =
+        m::pattern | "vector_lvalue" =
             [&] {
-                lvalue = std::make_pair(
+                lvalue = type::RValue::make_lvalue(
                     node["root"].to_string(),
                     symbols_.get_symbol_by_name(node["root"].to_string()));
             },
-        pattern | "indirect_lvalue" =
+        m::pattern | "indirect_lvalue" =
             [&] {
-                lvalue = std::make_pair(
+                lvalue = type::RValue::make_lvalue(
                     node["left"]["root"].to_string(),
                     symbols_.get_symbol_by_name(
                         node["left"]["root"].to_string()));
@@ -320,13 +318,13 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
  */
 type::RValue::Value RValue_Parser::from_constant_expression(Node const& node)
 {
-    using namespace matchit;
-    auto constant_type = node["node"].to_string();
-    return match(constant_type)(
-        pattern |
+    return m::match(node["node"].to_string())(
+        m::pattern |
             "constant_literal" = [&] { return from_constant_literal(node); },
-        pattern | "number_literal" = [&] { return from_number_literal(node); },
-        pattern | "string_literal" = [&] { return from_string_literal(node); });
+        m::pattern |
+            "number_literal" = [&] { return from_number_literal(node); },
+        m::pattern |
+            "string_literal" = [&] { return from_string_literal(node); });
 }
 
 /**

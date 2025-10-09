@@ -66,6 +66,7 @@ enum class Operator
     U_ONES_COMPLEMENT,
 
     U_MINUS,
+    U_PLUS,
     B_TERNARY,
     B_ASSIGN,
 
@@ -98,6 +99,7 @@ constexpr auto OPERATOR_PRECEDENCE =
           { Operator::PRE_DEC, { Associativity::RIGHT_TO_LEFT, 2 } },
           { Operator::U_PUSH, { Associativity::RIGHT_TO_LEFT, 2 } },
           { Operator::U_MINUS, { Associativity::RIGHT_TO_LEFT, 2 } },
+          { Operator::U_PLUS, { Associativity::RIGHT_TO_LEFT, 2 } },
           { Operator::U_NOT, { Associativity::RIGHT_TO_LEFT, 2 } },
           { Operator::U_ADDR_OF, { Associativity::RIGHT_TO_LEFT, 2 } },
           { Operator::U_INDIRECTION, { Associativity::RIGHT_TO_LEFT, 2 } },
@@ -256,8 +258,13 @@ constexpr std::ostream& operator<<(std::ostream& os, Operator const& op)
         case Operator::U_ADDR_OF:
             os << "&";
             break;
+
+        // other unary
         case Operator::U_MINUS:
             os << "-";
+            break;
+        case Operator::U_PLUS:
+            os << "+";
             break;
 
         // relational operators

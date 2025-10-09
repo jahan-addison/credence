@@ -19,12 +19,13 @@ The compiler works in 3 stages:
 There are a few differences between the compiler and B specification, namely:
 
 * Support for C++ style comments (i.e. `//`)
-* Boolean "truthy" coercion for all data types in conditionals
-* Switch statement condition must always be enclosed with `(` and `)`,
 * Uses C operator precedence
-* Constant literals must be exactly 1 byte
 * Logical operators behave more like C (i.e. `||` and `&&`)
 * Bitwise operators behave more like C (i.e. `|` and `&`)
+* Boolean "truthy" coercion for all data types in conditionals
+* Switch statement condition must always be enclosed with `(` and `)`
+* Binary operators may not be used directly after the assignment `=` operator
+* Constant literals must be exactly 1 byte
 
 ## Usage
 

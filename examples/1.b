@@ -10,12 +10,12 @@ main () {
    auto j,s[20],t[20];
    reread(); /* get command line */
    getstr(s); /* put into s */
-   j = getarg(t,s,0); /* skip H* name */
+   j = getarg(t,s,0); /* skip H name */
    j = getarg(t,s,j); /* filel */
    openr( 5,t );
    getarg(t,s,j); /* file2 */
    openw( 6,t );
-   while( putchar( getchar() ) != '*e' ) ; /* copy contents */
+   // while( putchar( getchar() ) != '*e' ) ;
    }
 
 
@@ -26,20 +26,27 @@ main () {
    provides a simple illustration of the switch and case state-
    ments. */
 
+char(a,b) {
+}
+
+printf(s) {
+   return(s);
+}
+
 convert(s,v) {
 
-   auto m,i,j,c,sign;
+   auto m,i,j,c,sign,C;
 
-   i = O; /* vector index '/
-   j =-1; /* character index */
+   i = 0; /* vector index '/
+   j = 1; /* character index */
 
 init: /* initialize to convert an integer */
-   m = 0; /* the integer value '/
+   m = 0; /* the integer value */
    sign = 0; /* sign = 1 if the integer is negative */
 
 loop: /* convert an integer */
 
-   switch (C = char(s,++j)){
+   switch (C = char(s,++j)) {
 
    case '-':
       if(sign) goto syntax;
@@ -48,18 +55,18 @@ loop: /* convert an integer */
    case ' ':
       goto loop;
 
-   case  '*e':
+   case  '\0':
    case ',':  /* delimiter . . . store converted value */
 
-      v[i++] = sign?(-m):m;
-      if( c == '*e' ) return(i);
+      //v[i++] = sign?(-m):m;
+      if( c == '0' ) return(i);
       goto init;
       }
 
 /* none of the above cases . . . if a digit, add to m */
 
    if ( '0' <= c & c <= '9' ){
-      m = 10*m + c- '0';
+      m = 10*m + c - '0';
       goto loop;
       }
 
@@ -67,5 +74,5 @@ loop: /* convert an integer */
 
 syntax:
    printf("bad syntax*n");
-   return(-1 );
+   return(-1);
    }
