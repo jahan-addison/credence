@@ -74,6 +74,7 @@ class RValue_Parser
 
   public:
     using Node = util::AST_Node;
+    using Parameters = std::vector<type::RValue::RValue_Pointer>;
     type::RValue from_rvalue(Node const& node);
 
     inline type::RValue::RValue_Pointer shared_ptr_from_rvalue(Node const& node)

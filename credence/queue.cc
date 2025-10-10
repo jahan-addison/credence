@@ -164,10 +164,8 @@ void rvalue_pointer_to_queue_in_place(
                 RValue_Operator_Stack operator_stack{};
                 auto lhs = rvalue_type_pointer_from_rvalue(s.first);
 
+                rvalues_queue->emplace_back(lhs);
                 std::deque<RValue::Type_Pointer> parameters{};
-
-                rvalue_pointer_to_queue_in_place(
-                    lhs, rvalues_queue, operator_stack, parameter_size);
 
                 for (auto const& parameter : s.second) {
                     auto param =
@@ -285,18 +283,18 @@ std::string dump_value_type(
                    << separator << type.second.second;
             },
             [&](char i) {
-                os << i << separator << LITERAL_TYPE.at("char").first
-                   << separator << LITERAL_TYPE.at("char").second;
+                os << "'" << i << "'" << separator
+                   << LITERAL_TYPE.at("char").first << separator
+                   << LITERAL_TYPE.at("char").second;
             },
             [&]([[maybe_unused]] std::string const& s) {
-                if (s == "__WORD_") {
+                if (s == "__WORD__") {
                     // pointer
-                    os << "__WORD_" << separator
+                    os << "__WORD__" << separator
                        << LITERAL_TYPE.at("word").first << separator
                        << LITERAL_TYPE.at("word").second;
                 } else {
                     os << std::get<std::string>(type.first) << separator
-                       << "string" << separator
                        << std::get<std::string>(type.first).size();
                 }
             },

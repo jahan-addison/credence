@@ -440,7 +440,7 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
     auto cases = std::stack<Tail_Branch>{};
     auto switch_label =
         build_from_branch_comparator_rvalue(predicate, predicate_instructions);
-    branch.stack.push(tail);
+    branch.stack.emplace(tail);
     for (auto& statement : blocks.array_range()) {
         auto start = make_temporary();
         branch.stack.emplace(start);

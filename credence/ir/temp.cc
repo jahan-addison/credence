@@ -388,13 +388,14 @@ void function_call_operands_to_temporary_instructions(
         instructions.emplace_back(
             ITA::make_quadruple(ITA::Instruction::CALL, rhs.first, ""));
     }
-    instructions.emplace_back(
-        ITA::make_quadruple(
-            ITA::Instruction::POP,
-            std::to_string(
-                (*param_on_stack) * type::LITERAL_TYPE.at("word").second),
-            "",
-            ""));
+    if (*param_on_stack > 0)
+        instructions.emplace_back(
+            ITA::make_quadruple(
+                ITA::Instruction::POP,
+                std::to_string(
+                    (*param_on_stack) * type::LITERAL_TYPE.at("word").second),
+                "",
+                ""));
     auto call_return = ITA::make_temporary(temporary, "RET");
     instructions.emplace_back(call_return);
     if (operand_stack.size() >= 1) {
@@ -485,6 +486,7 @@ void unary_operand_to_temporary_stack(
                                     operator_to_string(op),
                                     rhs.first);
                                 instructions.emplace_back(unary);
+                                operand_stack.emplace(operand1);
                             } else {
                                 auto operand_temp = ITA::make_temporary(
                                     temporary,

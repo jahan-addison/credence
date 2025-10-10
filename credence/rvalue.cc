@@ -126,14 +126,18 @@ type::RValue RValue_Parser::from_rvalue(Node const& node)
 type::RValue RValue_Parser::from_function_expression(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_expression");
+    CREDENCE_ASSERT(node["right"].to_deque().size() >= 1);
     type::RValue rvalue{};
-    std::vector<type::RValue::RValue_Pointer> parameters{};
-
-    for (auto& param : node["right"].array_range()) {
-        parameters.emplace_back(shared_ptr_from_rvalue(param));
-    }
+    auto param_node = node["right"].to_deque();
+    Parameters parameters{};
+    // if the size of parameters is 1 and its only
+    // param is "null", (i.e. [null]) it's empty
+    if (!param_node.empty() and not param_node.front().is_null())
+        for (auto& param : param_node) {
+            parameters.emplace_back(shared_ptr_from_rvalue(param));
+        }
     auto lhs = from_lvalue_expression(node["left"]);
-    rvalue.value = std::make_pair(lhs, std::move(parameters));
+    rvalue.value = std::make_pair(lhs, parameters);
     return rvalue;
 }
 
@@ -191,7 +195,8 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
 
     };
     RValue rvalue{};
-    CREDENCE_ASSERT(node["root"].JSON_type() == util::AST_Node::Class::Array);
+    if (node["root"].JSON_type() != util::AST_Node::Class::Array)
+        return rvalue;
     CREDENCE_ASSERT(node["root"].to_deque().size() >= 1);
     auto op = node["root"].to_deque().front().to_string();
 
