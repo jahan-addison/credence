@@ -20,10 +20,11 @@
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <memory>            // for make_shared
+#include <memory>            // for allocator, make_shared
 #include <simplejson.h>      // for JSON
 #include <string>            // for basic_string, string
 #include <string_view>       // for string_view
+#include <vector>            // for vector
 
 namespace credence {
 
@@ -107,6 +108,9 @@ class RValue_Parser
   CREDENCE_PRIVATE_UNLESS_TESTED:
     type::RValue from_relation_expression(Node const& node);
 
+  private:
+    type::RValue from_ternary_expression(Node const& node);
+
   CREDENCE_PRIVATE_UNLESS_TESTED:
     type::RValue from_unary_expression(Node const& node);
 
@@ -127,8 +131,9 @@ class RValue_Parser
   private:
     // clang-format on
     void error(std::string_view message, std::string_view symbol_name);
-    std::array<std::string, 8> const unary_types_ = { "pre_inc_dec_expression",
+    const std::array<std::string, 5> unary_types_ = { "pre_inc_dec_expression",
                                                       "post_inc_dec_expression",
+                                                      "indirect_lvalue",
                                                       "address_of_expression",
                                                       "unary_expression" };
     // clang-format off

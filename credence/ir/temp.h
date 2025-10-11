@@ -23,13 +23,14 @@
 #include <credence/util.h>   // for AST_Node
 #include <cstddef>           // for size_t
 #include <stack>             // for stack
-#include <string>            // for basic_string, string
+#include <string>            // for string
 #include <utility>           // for pair
+#include <variant>           // for variant
 namespace credence {
 namespace type {
 enum class Operator;
 }
-} // lines 31-31
+} // lines 30-30
 
 /****************************************************************************
  *  A set of functions that construct temporary lvalues "_tX" that aid in

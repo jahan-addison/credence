@@ -19,12 +19,13 @@ The compiler works in 3 stages:
 There are a few differences between the compiler and B specification, namely:
 
 * Support for C++ style comments (i.e. `//`)
-* Uses C operator precedence
+* Goto and labels are not fully supported, use functions and control structures
 * Logical operators behave more like C (i.e. `||` and `&&`)
 * Bitwise operators behave more like C (i.e. `|` and `&`)
+* Uses C operator precedence
 * Boolean "truthy" coercion for all data types in conditionals
 * Switch statement condition must always be enclosed with `(` and `)`
-* Binary operators may not be used directly after the assignment `=` operator
+* Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte
 
 ## Usage
@@ -199,10 +200,11 @@ make install
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `simplejson++` - [lightweight memory safe json library](https://github.com/jahan-addison/simplejson)
+* `simplejson++` - [Lightweight memory safe json library](https://github.com/jahan-addison/simplejson)
 * `chakram` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/chakram)
-* `cxxopts` - lightweight commandline parser
-* `matchit` - pattern matching
+* `cxxopts` - Lightweight commandline parser
+* `matchit` - Pattern matching
+* `cpptrace` - Stack traces for runtime errors until C++23
 * `eternal` - `constexpr` lookup tables
 * `pybind11`
 

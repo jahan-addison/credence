@@ -15,24 +15,56 @@
  */
 
 #pragma once
-
+#include <cpptrace/cpptrace.hpp>
+#include <cpptrace/formatting.hpp>
 #include <format>
 #include <iostream>
-#include <source_location>
 #include <string_view>
+
+#ifndef CREDENCE_TEST
+#define credence_error(message)  do {    \
+  credence_cpptrace_stack_trace(1,2);    \
+  throw std::runtime_error(message);     \
+} while(0)
+#else
+#define credence_error(message)  do {    \
+  throw std::runtime_error(message);     \
+} while(0)
+#endif
+
+#define CREDENCE_TRY_CATCH_BLOCK cpptrace::try_catch
+#define CREDENCE_TRY CPPTRACE_TRY
+#define CREDENCE_CATCH(param) CPPTRACE_CATCH(param)
+
+#define CREDENCE_ASSERT(condition)                      \
+        ::assert_impl(condition, "")
+#define CREDENCE_ASSERT_MESSAGE(condition, message)     \
+        ::assert_impl(condition, message);
+#define CREDENCE_ASSERT_EQUAL(actual, expected)         \
+        ::assert_equal_impl(actual, expected)
+#define CREDENCE_ASSERT_NODE(actual, expected)          \
+        ::assert_equal_impl(actual, expected)
+
+namespace credence {
+
+inline void credence_cpptrace_stack_trace(int skip = 2, int depth = 3)
+{
+    cpptrace::formatter{}
+        .header("Credence Stack trace: ")
+        .addresses(cpptrace::formatter::address_mode::object)
+        .snippets(true)
+        .print(cpptrace::generate_trace(skip, depth));
+}
+
+} // namespace credence
 
 namespace {
 
-[[maybe_unused]] void assert_impl(
-    bool condition,
-    std::string_view message,
-    std::source_location const& location = std::source_location::current())
+[[maybe_unused]] void assert_impl(bool condition, std::string_view message)
 {
     if (!condition) {
-        std::cerr << "Credence Assertion: " << message << std::endl
-                  << "  File: " << location.file_name() << std::endl
-                  << "  Line: " << location.line() << std::endl
-                  << "  Function: " << location.function_name() << std::endl;
+        std::cerr << "Credence Assertion :: " << message << std::endl;
+        credence::credence_cpptrace_stack_trace();
         std::abort();
     }
 }
@@ -40,43 +72,14 @@ namespace {
 template<typename T1, typename T2>
 [[maybe_unused]] void assert_equal_impl(
     [[maybe_unused]] const T1& actual,
-    [[maybe_unused]] const T2& expected,
-    [[maybe_unused]] const std::source_location location =
-        std::source_location::current())
+    [[maybe_unused]] const T2& expected)
 {
-#ifndef DEBUG
     if (actual != expected) {
         std::cerr << std::format(
-            "Credence Assertion: `actual == expected`\n"
-            "  File: {}:{}\n"
-            "  Function: {}\n"
-            "  Actual:   {}\n"
-            "  Expected: {}\n",
-            location.file_name(),
-            location.line(),
-            location.function_name(),
-            actual,
-            expected);
+            "Credence Assertion: {} == {}\n", actual, expected);
+        credence::credence_cpptrace_stack_trace();
         std::abort();
     }
-#endif
 }
 
 } // namespace
-
-#ifndef DEBUG
-#define CREDENCE_ASSERT(condition) ((void)0)
-#define CREDENCE_ASSERT_MESSAGE(condition, message) ((void)0)
-#define CREDENCE_ASSERT_EQUAL(lhs, rhs) ((void)0)
-#define CREDENCE_ASSERT_NODE(lhs, rhs) ((void)0)
-#else
-#define CREDENCE_ASSERT(condition)                                              \
-        ::assert_impl(condition, "", std::source_location::current())
-#define CREDENCE_ASSERT_MESSAGE(condition, message)                             \
-        ::assert_impl(condition, message, std::source_location::current());
-#define CREDENCE_ASSERT_EQUAL(actual, expected)  \
-        ::assert_equal_impl(actual, expected)
-#define CREDENCE_ASSERT_NODE(actual, expected)   \
-        ::assert_equal_impl(actual, expected)
-
-#endif

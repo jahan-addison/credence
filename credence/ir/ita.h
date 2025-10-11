@@ -15,24 +15,27 @@
  */
 #pragma once
 
-#include <credence/assert.h>
-
-#include <algorithm>         // for __find, find
+#include <algorithm>         // for copy
 #include <array>             // for array
+#include <credence/assert.h> // for CREDENCE_ASSERT, assert_equal_impl, CRE...
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue
-#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <deque>             // for deque
+#include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
+#include <deque>             // for operator==, _Deque_iterator, deque
+#include <functional>        // for identity
+#include <initializer_list>  // for initializer_list
 #include <iomanip>           // for operator<<, setw
-#include <matchit.h>         // for pattern, Or, Wildcard, PatternH...
-#include <optional>          // for optional
-#include <ostream>           // for basic_ostream, operator<<, endl
-#include <sstream>           // for basic_ostringstream, ostream
+#include <matchit.h>         // for pattern, Or, Wildcard, PatternHelper
+#include <optional>          // for nullopt, optional
+#include <ranges>            // for __find_fn, find
+#include <simplejson.h>      // for JSON, object
+#include <sstream>           // for basic_ostream, operator<<, ostream, bas...
 #include <stack>             // for stack
-#include <string>            // for basic_string, char_traits, allo...
-#include <string_view>       // for basic_string_view, string_view
-#include <tuple>             // for get, tuple, make_tuple
-#include <utility>           // for pair
+#include <string>            // for allocator, char_traits, operator<<, string
+#include <string_view>       // for operator==, string_view
+#include <tuple>             // for tuple, get, make_tuple
+#include <utility>           // for move, make_pair, pair
+#include <vector>            // for vector
 
 namespace credence {
 

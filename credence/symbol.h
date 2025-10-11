@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <credence/assert.h>
 #include <credence/types.h>
 #include <credence/util.h>
 #include <format>
@@ -26,12 +27,14 @@
 #include <utility>
 
 namespace credence {
+
 /**
  * @brief Symbol table template class
  *
  * Constructs a symbol table from a template data structure
- *
  * An example table may be a map to `std::array<std::string, 5>':
+ *
+ *  Example:
  *
  *    Name
  *     |
@@ -41,6 +44,8 @@ namespace credence {
  *
  *  Default:
  *
+ *    Name
+ *     |
  *   ------------------------
  *   | Value | Type | Size |
  *   ------------------------
@@ -65,11 +70,6 @@ class Symbol_Table
         addr_.insert_or_assign(name, std::move(entry));
     }
 
-    inline void remove_symbol_by_name(std::string const& name)
-    {
-        table_.erase(name);
-    }
-
     inline void set_symbol_by_name(
         std::string const& name,
         Symbol_Table<> const& symbol)
@@ -77,13 +77,24 @@ class Symbol_Table
         table_.emplace(std::make_pair(name, symbol.get_symbol_by_name(name)));
     }
 
-    constexpr T get_symbol_by_name(std::string const& name) const
+    inline void remove_symbol_by_name(std::string const& name)
     {
+        table_.erase(name);
+    }
+
+    inline T get_symbol_by_name(std::string const& name) const
+    {
+        CREDENCE_ASSERT_MESSAGE(
+            table_.find(name) != table_.end(),
+            std::format("symbol not found `{}`", name));
         return table_.at(name);
     }
 
-    constexpr Pointer get_pointer_by_name(std::string const& name) const
+    inline Pointer get_pointer_by_name(std::string const& name) const
     {
+        CREDENCE_ASSERT_MESSAGE(
+            addr_.find(name) != addr_.end(),
+            std::format("address symbol not found `{}`", name));
         return addr_.at(name);
     }
 

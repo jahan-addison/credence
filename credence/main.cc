@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <credence/assert.h> // for credence_cpptrace_stack_trace
 #include <credence/ir/ita.h> // for build_from_definitions, emit_quadruple
 #include <credence/util.h>   // for read_file_from_path
 #include <cxxopts.hpp>       // for value, Options, OptionAdder, ParseResult
@@ -152,13 +153,15 @@ int main(int argc, const char* argv[])
                   << std::endl;
         return 1;
     } catch (std::runtime_error const& e) {
-        std::cerr << "Credence :: " << e.what() << std::endl;
+        std::cerr << std::endl << "Credence :: " << e.what() << std::endl;
         return 1;
     } catch (const std::exception& e) {
         std::cerr << "Error :: " << e.what() << std::endl;
+        credence::credence_cpptrace_stack_trace();
         return 1;
     } catch (...) {
         std::cerr << "Unknown exception occurred: " << std::endl;
+        credence::credence_cpptrace_stack_trace();
         return 1;
     }
 

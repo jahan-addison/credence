@@ -33,7 +33,6 @@ class JSON;
 // access specifier macros for Doctest unit tests
 #define CREDENCE_PUBLIC public
 #ifdef DOCTEST_LIBRARY_INCLUDED
-#define CREDENCE_TEST
 #define CREDENCE_PRIVATE_UNLESS_TESTED public
 #else
 #define CREDENCE_PRIVATE_UNLESS_TESTED private

@@ -37,6 +37,12 @@ namespace ir {
 
 /**
  * @brief Construct a set of ita instructions from a set of definitions
+ *   Definition grammar:
+ *
+ *     definition : function_definition
+ *         | vector_definition
+
+ *  Note that vector definitions are scanned first
  */
 ITA::Instructions ITA::build_from_definitions(Node const& node)
 {
@@ -44,11 +50,9 @@ ITA::Instructions ITA::build_from_definitions(Node const& node)
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "definitions");
     Instructions instructions{};
     auto definitions = node["left"];
-    // vector definitions
     for (auto& definition : definitions.array_range())
         if (definition["node"].to_string() == "vector_definition")
             build_from_vector_definition(definition);
-    // function definitions
     for (auto& definition : definitions.array_range()) {
         m::match(definition["node"].to_string())(
             // cppcheck-suppress syntaxError
@@ -479,10 +483,13 @@ ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 
     branch.stack.emplace(start);
 
+    predicate_instructions.emplace_back(start);
+
     insert_branch_jump_and_resume_instructions(
         predicate, predicate_instructions, branch_instructions, jump, tail);
 
     branch_instructions.emplace_back(jump);
+
     insert_branch_block_instructions(blocks.at(0), branch_instructions);
 
     return { predicate_instructions, branch_instructions };

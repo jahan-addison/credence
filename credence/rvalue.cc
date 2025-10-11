@@ -16,22 +16,24 @@
 
 #include <credence/rvalue.h>
 
-#include <algorithm>            // for __any_of, any_of
-#include <credence/assert.h>    // for CREDENCE_ASSERT_NODE, CREDENCE_ASSERT
+#include <credence/assert.h>    // for assert_equal_impl, CREDENCE_ASSERT_NODE
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for RValue, LITERAL_TYPE
-#include <credence/util.h>      // for unescape_string
-#include <format>               // for format
+#include <credence/types.h>     // for RValue, LITERAL_TYPE, WORD_LITERAL
+#include <credence/util.h>      // for unescape_string, AST_Node
+#include <deque>                // for operator==, _Deque_iterator
+#include <format>               // for format, format_string
+#include <functional>           // for identity
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
-#include <memory>               // for make_shared
+#include <memory>               // for shared_ptr, allocator, make_shared
+#include <ranges>               // for __find_fn, find
 #include <simplejson.h>         // for JSON, JSON_String
 #include <stdexcept>            // for runtime_error
-#include <string>               // for basic_string, char_traits, operator==
-#include <utility>              // for make_pair, pair, move
-#include <variant>              // for monostate, variant
+#include <string>               // for basic_string, operator==, char_traits
+#include <utility>              // for pair, make_pair, move
+#include <variant>              // for variant
 #include <vector>               // for vector
 
 namespace credence {
@@ -47,7 +49,7 @@ void RValue_Parser::error(
 {
     auto symbol = symbol_name.data();
     if (internal_symbols_.has_key(symbol)) {
-        throw std::runtime_error(
+        credence_error(
             std::format(
                 "Runtime error :: \"{}\" {}\n\t"
                 "on line {} in column {} :: {}",
@@ -57,7 +59,7 @@ void RValue_Parser::error(
                 internal_symbols_[symbol]["column"].to_int(),
                 internal_symbols_[symbol]["end_column"].to_int()));
     } else {
-        throw std::runtime_error(
+        credence_error(
             std::format("Runtime error :: \"{}\" {}", symbol, message));
     }
 }
@@ -69,11 +71,11 @@ type::RValue RValue_Parser::from_rvalue(Node const& node)
 {
 
     auto rvalue = type::RValue{};
-    bool is_unary =
-        std::ranges::any_of(unary_types_, [&](std::string const& str) {
-            return str == node["node"].to_string();
-        });
-    m::match(node["node"].to_string())(
+    auto rvalue_type = node["node"].to_string();
+    auto is_unary =
+        std::ranges::find(unary_types_, rvalue_type) != unary_types_.end();
+
+    m::match(rvalue_type)(
         // cppcheck-suppress syntaxError
         m::pattern | "constant_literal" =
             [&] { rvalue.value = from_constant_expression(node); },
@@ -95,11 +97,15 @@ type::RValue RValue_Parser::from_rvalue(Node const& node)
                 rvalue.value = std::make_shared<type::RValue>(
                     from_evaluated_expression(node));
             },
-
         m::pattern | "relation_expression" =
             [&] {
                 rvalue.value = std::make_shared<type::RValue>(
                     from_relation_expression(node));
+            },
+        m::pattern | "ternary_expression" =
+            [&] {
+                rvalue.value = std::make_shared<type::RValue>(
+                    from_ternary_expression(node));
             },
         m::pattern | "indirect_lvalue" =
             [&] { rvalue.value = from_lvalue_expression(node); },
@@ -114,7 +120,8 @@ type::RValue RValue_Parser::from_rvalue(Node const& node)
                     rvalue.value = std::make_shared<type::RValue>(
                         from_unary_expression(node));
                 } else {
-                    rvalue.value = std::monostate();
+                    credence_error(
+                        std::format("Invalid rvalue type `{}`", rvalue_type));
                 }
             });
     return rvalue;
@@ -153,23 +160,37 @@ type::RValue RValue_Parser::from_evaluated_expression(Node const& node)
 }
 
 /**
+ * @brief Ternary relation rvalue
+ */
+type::RValue RValue_Parser::from_ternary_expression(Node const& node)
+{
+    type::RValue rvalue{};
+    Parameters blocks{};
+    auto conditional = node["left"];
+    auto ternary = node["right"];
+    if (node["root"].to_deque().size() == 0)
+        return rvalue;
+    auto op = node["root"].to_deque().front().to_string();
+    blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
+    blocks.emplace_back(shared_ptr_from_rvalue(ternary["root"]));
+    blocks.emplace_back(shared_ptr_from_rvalue(ternary["left"]));
+    blocks.emplace_back(shared_ptr_from_rvalue(ternary["right"]));
+    rvalue.value =
+        std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
+    return rvalue;
+}
+
+/**
  * @brief Relation to sum type of operator and chain of rvalues
  */
 type::RValue RValue_Parser::from_relation_expression(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "relation_expression");
     type::RValue rvalue{};
-    std::vector<type::RValue::RValue_Pointer> blocks{};
+    Parameters blocks{};
     if (node.has_key("right") and
         node["right"]["node"].to_string() == "ternary_expression") {
-        auto ternary = node["right"];
-        auto op = node["root"].to_deque().front().to_string();
-        blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
-        blocks.emplace_back(shared_ptr_from_rvalue(ternary["root"]));
-        blocks.emplace_back(shared_ptr_from_rvalue(ternary["left"]));
-        blocks.emplace_back(shared_ptr_from_rvalue(ternary["right"]));
-        rvalue.value =
-            std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
+        rvalue = from_ternary_expression(node);
     } else {
         auto op = node["root"].to_deque().front().to_string();
         blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
@@ -186,8 +207,12 @@ type::RValue RValue_Parser::from_relation_expression(Node const& node)
 type::RValue RValue_Parser::from_unary_expression(Node const& node)
 {
     using namespace type;
-    // todo: turn assertions into better error messages
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "unary_expression");
+    auto unary_type = node["node"].to_string();
+
+    CREDENCE_ASSERT_MESSAGE(
+        std::ranges::find(unary_types_, unary_type) != unary_types_.end(),
+        std::format("Invalid unary expression type `{}`", unary_type));
+
     std::map<std::string, Operator> const other_unary = {
         { "!", Operator::U_NOT },         { "~", Operator::U_ONES_COMPLEMENT },
         { "*", Operator::U_INDIRECTION }, { "-", Operator::U_MINUS },
@@ -195,12 +220,15 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
 
     };
     RValue rvalue{};
+
     if (node["root"].JSON_type() != util::AST_Node::Class::Array)
         return rvalue;
+
     CREDENCE_ASSERT(node["root"].to_deque().size() >= 1);
+
     auto op = node["root"].to_deque().front().to_string();
 
-    m::match(node["node"].to_string())(
+    m::match(unary_type)(
         m::pattern | "pre_inc_dec_expression" =
             [&] {
                 if (op == "++") {

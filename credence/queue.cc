@@ -16,17 +16,16 @@
 
 #include <credence/queue.h>
 
-#include <credence/operators.h> // for Operator, get_precedence, is_le...
-#include <credence/types.h>     // for RValue, rvalue_type_pointer_fro...
+#include <credence/operators.h> // for Operator, get_precedence, is_left_as...
+#include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
 #include <credence/util.h>      // for overload
-#include <format>               // for format
+#include <format>               // for format, format_string
 #include <mapbox/eternal.hpp>   // for element, map
-#include <memory>               // for shared_ptr, allocator
-#include <ostream>              // for operator<<, basic_ostream
-#include <sstream>              // for basic_ostringstream, ostringstream
+#include <memory>               // for shared_ptr, __shared_ptr_access, all...
+#include <sstream>              // for basic_ostream, basic_ostringstream
 #include <stack>                // for stack
 #include <utility>              // for pair
-#include <variant>              // for get, visit, monostate
+#include <variant>              // for get, visit, monostate, variant
 
 namespace credence {
 

@@ -15,6 +15,7 @@ target_link_libraries(
   Test_Suite
   doctest::doctest
   Python3::Python
+  cpptrace::cpptrace
   pybind11::headers
   matchit
   cxxopts::cxxopts
@@ -27,15 +28,14 @@ target_include_directories(
   Test_Suite PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
                     $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>)
 
-if(NOT TEST_INSTALLED_VERSION)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES
-                                              "GNU")
-    target_compile_options(Test_Suite PUBLIC -DDEBUG -Wall -Wpedantic -Wextra
-                                             -Werror)
-  elseif(MSVC)
-    target_compile_options(Test_Suite PUBLIC /W4 /WX)
-    target_compile_definitions(Test_Suite PUBLIC DOCTEST_CONFIG_USE_STD_HEADERS)
-  endif()
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES
+                                            "GNU")
+  target_compile_options(Test_Suite PUBLIC -DCREDENCE_TEST -DDEBUG -Wall -Wpedantic -Wextra
+                                            -Werror)
+elseif(MSVC)
+  target_compile_options(Test_Suite PUBLIC /W4 /WX)
+  target_compile_definitions(Test_Suite PUBLIC DOCTEST_CONFIG_USE_STD_HEADERS)
 endif()
 
 enable_testing()

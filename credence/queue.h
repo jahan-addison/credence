@@ -15,13 +15,14 @@
  */
 #pragma once
 
+#include <algorithm>            // for copy, max
 #include <credence/operators.h> // for Operator
 #include <credence/types.h>     // for RValue
 #include <deque>                // for deque
 #include <memory>               // for make_unique, unique_ptr
 #include <stack>                // for stack
 #include <string>               // for string
-#include <string_view>          // for basic_string_view, string_view
+#include <string_view>          // for string_view
 #include <variant>              // for variant
 #include <vector>               // for vector
 

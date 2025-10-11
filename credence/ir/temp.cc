@@ -16,6 +16,7 @@
 
 #include <credence/ir/temp.h>
 
+#include <algorithm>            // for copy
 #include <credence/ir/ita.h>    // for ITA
 #include <credence/operators.h> // for Operator, operator_to_string
 #include <credence/queue.h>     // for rvalue_to_string, rvalues_to_queue
@@ -23,17 +24,17 @@
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
 #include <credence/util.h>      // for AST_Node, overload
-#include <deque>                // for deque
-#include <format>               // for format
+#include <deque>                // for deque, operator==, _Deque_iterator
+#include <format>               // for format, format_string
 #include <mapbox/eternal.hpp>   // for element, map
-#include <matchit.h>            // for Ds, Meet, _, Wildcard, pattern, ds
-#include <memory>               // for shared_ptr
+#include <matchit.h>            // for Ds, Meet, _, pattern, ds, match, Wil...
+#include <memory>               // for shared_ptr, __shared_ptr_access, uni...
 #include <simplejson.h>         // for JSON
-#include <string>               // for basic_string, string, to_string
-#include <string_view>          // for basic_string_view
-#include <tuple>                // for get, tuple
+#include <string>               // for basic_string, allocator, string, to_...
+#include <string_view>          // for basic_string_view, operator<=>
+#include <tuple>                // for tuple, get
 #include <utility>              // for pair, make_pair, cmp_equal
-#include <variant>              // for visit, monostate, variant
+#include <variant>              // for variant, visit, monostate
 #include <vector>               // for vector
 
 /****************************************************************************
