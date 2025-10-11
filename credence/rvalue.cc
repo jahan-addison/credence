@@ -30,7 +30,6 @@
 #include <memory>               // for shared_ptr, allocator, make_shared
 #include <ranges>               // for __find_fn, find
 #include <simplejson.h>         // for JSON, JSON_String
-#include <stdexcept>            // for runtime_error
 #include <string>               // for basic_string, operator==, char_traits
 #include <utility>              // for pair, make_pair, move
 #include <variant>              // for variant
@@ -72,8 +71,6 @@ type::RValue RValue_Parser::from_rvalue(Node const& node)
 
     auto rvalue = type::RValue{};
     auto rvalue_type = node["node"].to_string();
-    auto is_unary =
-        std::ranges::find(unary_types_, rvalue_type) != unary_types_.end();
 
     m::match(rvalue_type)(
         // cppcheck-suppress syntaxError
@@ -116,7 +113,8 @@ type::RValue RValue_Parser::from_rvalue(Node const& node)
             },
         m::pattern | m::_ =
             [&] {
-                if (is_unary) {
+                if (std::ranges::find(unary_types_, rvalue_type) !=
+                    unary_types_.end()) {
                     rvalue.value = std::make_shared<type::RValue>(
                         from_unary_expression(node));
                 } else {

@@ -5,6 +5,73 @@ The intermediate representation (IR) is formalized as a linear four-tuple, named
 Its construction is governed by two interacting stacks: an operand stack and a temporary stack. The operand stack is derived from an [r-value queue](https://github.com/jahan-addison/credence/blob/master/credence/queue.cc) associated with a block scope of expressions, ordered according to operator precedence. The temporary stack serves to decouple mutual recursion, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary construction is provided [here](https://github.com/jahan-addison/credence/blob/edc637f9d41fa4a52a49351f273d8203030b559c/credence/ir/temp.cc#L521).
 
 
+## Instructions
+
+The instruction set:
+
+```C++
+    enum class Instruction
+    {
+        FUNC_START,
+        FUNC_END,
+        LABEL,
+        GOTO,
+        IF,
+        JMP_E,
+        PUSH,
+        POP,
+        CALL,
+        CMP,
+        VARIABLE,
+        RETURN,
+        LEAVE,
+        EOL,
+        NOOP
+    };
+```
+
+## Labels
+
+#### _L{integer}
+
+Local scoped labels:
+
+* **Note**: `_L1` is reserved for the root function scope
+
+```asm
+_L2:
+    _t5 = x > y;
+    IF _t5 GOTO _L4;
+_L3:
+    x = (0:int:4);
+_L1:
+    LEAVE;
+_L4:
+    x = x - 1;
+    GOTO _L2;
+```
+
+
+#### __{string}
+
+Symbolic labels that are global scope and added in the symbol table:
+
+* **Note** `__main` is the reserved main function
+
+```asm
+__main:
+ BeginFunc ;
+    x = (5:int:4);
+    y = (1:int:4);
+    LEAVE;
+ EndFunc ;
+```
+
+## Branching
+
+See the branch state machine object for details [here](https://github.com/jahan-addison/credence/blob/99d882fb813fe6964092f7ed7ac2f07b30c86cf8/credence/ir/ita.h#L369).
+
+
 ## Example:
 
 B Code:

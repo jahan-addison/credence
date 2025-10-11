@@ -7,7 +7,7 @@ main() {
    sign = 0; /* sign = 1 if the integer is negative */
    loop = 1;
    while(loop == 1) {
-      switch (C = char(s,++j)) { // evaluated expression disappeared
+      switch ((C = char(s,++j))) {
          case '-':
             if (sign) {
                loop = 0;

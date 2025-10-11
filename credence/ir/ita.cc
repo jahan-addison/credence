@@ -27,7 +27,6 @@
 #include <matchit.h>          // for pattern, PatternHelper, PatternPipable
 #include <memory>             // for shared_ptr
 #include <simplejson.h>       // for JSON, object
-#include <stdexcept>          // for runtime_error
 #include <utility>            // for pair, get, make_pair, cmp_not_equal
 #include <variant>            // for get, monostate, variant
 
@@ -146,9 +145,9 @@ void ITA::build_from_vector_definition(Node const& node)
         if (std::cmp_not_equal(
                 left_child_node["root"].to_int(),
                 right_child_node.to_deque().size())) {
-            throw std::runtime_error(
+            credence_error(
                 "Error: invalid vector definition, "
-                "size of vector and rvalue "
+                "size of vector and value "
                 "entries do not match");
         }
         std::vector<type::RValue::Value> values_at{};
@@ -370,6 +369,12 @@ std::string ITA::build_from_branch_comparator_rvalue(
                 auto temp = make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
+            },
+        m::pattern | m::_ =
+            [&] {
+                insert_instructions(instructions, comparator_instructions);
+                temp_lvalue =
+                    std::get<1>(instructions[instructions.size() - 1]);
             });
 
     return temp_lvalue;
@@ -572,7 +577,7 @@ ITA::Instructions ITA::build_from_goto_statement(Node const& node)
     auto statement = node["left"];
     auto label = statement.to_deque().front().to_string();
     if (!parser.is_defined(label)) {
-        throw std::runtime_error(
+        credence_error(
             std::format("Error: label \"{}\" does not exist", label));
     }
 
@@ -627,7 +632,7 @@ void ITA::build_from_extrn_statement(Node const& node)
         if (globals_.is_defined(name)) {
             symbols_.set_symbol_by_name(name, globals_);
         } else {
-            throw std::runtime_error(
+            credence_error(
                 std::format(
                     "Error: global symbol \"{}\" not defined for "
                     "extrn statement",

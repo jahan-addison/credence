@@ -16,23 +16,18 @@
 
 #pragma once
 
-#include <filesystem> // for path
-#include <fstream>    // for basic_ifstream
-#include <iostream>
-#include <ostream>      // for operator<<
-#include <simplejson.h> // for JSON
-#include <source_location>
+#include <filesystem>  // for path
+#include <fstream>     // for basic_ifstream
 #include <sstream>     // for basic_stringstream, stri...
 #include <string>      // for char_traits, string, all...
 #include <string_view> // for basic_string_view, strin...
 #include <tuple>       // for apply, tuple
 namespace json {
 class JSON;
-} // lines 31-31
+}
 
-// access specifier macros for Doctest unit tests
 #define CREDENCE_PUBLIC public
-#ifdef DOCTEST_LIBRARY_INCLUDED
+#ifdef CREDENCE_TEST
 #define CREDENCE_PRIVATE_UNLESS_TESTED public
 #else
 #define CREDENCE_PRIVATE_UNLESS_TESTED private

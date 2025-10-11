@@ -19,12 +19,13 @@
 #include <cpptrace/formatting.hpp>
 #include <format>
 #include <iostream>
+#include <stdexcept>
 #include <string_view>
 
 #ifndef CREDENCE_TEST
-#define credence_error(message)  do {    \
-  credence_cpptrace_stack_trace(1,2);    \
-  throw std::runtime_error(message);     \
+#define credence_error(message)  do {           \
+  credence::credence_cpptrace_stack_trace(1,2); \
+  throw std::runtime_error(message);            \
 } while(0)
 #else
 #define credence_error(message)  do {    \

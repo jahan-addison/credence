@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h> // for credence_cpptrace_stack_trace
-#include <credence/ir/ita.h> // for build_from_definitions, emit_quadruple
-#include <credence/util.h>   // for read_file_from_path
-#include <cxxopts.hpp>       // for value, Options, OptionAdder, ParseResult
-#include <exception>         // for exception
-#include <filesystem>
+#include <credence/assert.h>   // for credence_cpptrace_stack_trace
+#include <credence/ir/ita.h>   // for ITA
+#include <credence/util.h>     // for AST_Node, read_file_from_path
+#include <cxxopts.hpp>         // for value, Options, ParseResult, OptionAdder
+#include <exception>           // for exception
+#include <filesystem>          // for filesystem_error, operator<<
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
-#include <matchit.h>           // for match, pattern, PatternHelper, Patter...
+#include <matchit.h>           // for pattern, match, PatternHelper, Patter...
 #include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
 #include <pybind11/cast.h>     // for object_api::operator(), object::cast
 #include <pybind11/embed.h>    // for scoped_interpreter
 #include <pybind11/pybind11.h> // for error_already_set::what, module, module_
-#include <pybind11/pytypes.h>  // for object, error_already_set, object_api
+#include <pybind11/pytypes.h>  // for object, object_api, error_already_set
+#include <simplejson.h>        // for JSON, operator<<
 #include <stdexcept>           // for runtime_error
-#include <string>              // for char_traits, basic_string, string
+#include <stdlib.h>            // for exit
+#include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
 int main(int argc, const char* argv[])
@@ -99,7 +101,7 @@ int main(int argc, const char* argv[])
                 py::object ast_as_json = get_ast_call(source);
 
                 if (ast_as_json.is_none())
-                    throw std::runtime_error("could not construct ast");
+                    credence_error("could not construct ast");
 
                 ast["root"] = credence::util::AST_Node::load(
                     ast_as_json.cast<std::string>());
