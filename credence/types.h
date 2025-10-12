@@ -15,22 +15,26 @@
  */
 #pragma once
 
-#include <credence/operators.h>
-#include <list>
-#include <map>
-#include <mapbox/eternal.hpp>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <variant>
-#include <vector>
+#include <credence/operators.h> // for Operator
+#include <cstddef>              // for size_t
+#include <mapbox/eternal.hpp>   // for map
+#include <memory>               // for shared_ptr, make_shared
+#include <string>               // for basic_string, string
+#include <string_view>          // for basic_string_view, string_view
+#include <type_traits>          // for is_constructible_v, underlying_type_t
+#include <utility>              // for pair, make_pair
+#include <variant>              // for get, monostate, variant
+#include <vector>               // for vector
+
+namespace credence {
+namespace type {
+struct RValue;
+}
+}
 
 namespace credence {
 
 namespace type {
-
-struct RValue;
 
 enum class RValue_Type_Variant : size_t
 {

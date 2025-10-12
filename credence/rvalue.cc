@@ -21,26 +21,22 @@
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for RValue, LITERAL_TYPE, WORD_LITERAL
 #include <credence/util.h>      // for unescape_string, AST_Node
-#include <deque>                // for operator==, _Deque_iterator
 #include <format>               // for format, format_string
-#include <functional>           // for identity
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
 #include <memory>               // for shared_ptr, allocator, make_shared
-#include <ranges>               // for __find_fn, find
 #include <simplejson.h>         // for JSON, JSON_String
 #include <string>               // for basic_string, operator==, char_traits
 #include <utility>              // for pair, make_pair, move
 #include <variant>              // for variant
-#include <vector>               // for vector
 
 namespace credence {
 
 namespace m = matchit;
 
 /**
- * @brief Throw program flow error
+ * @brief Throw rvalue parser error
  */
 void RValue_Parser::error(
     std::string_view message,
@@ -50,8 +46,8 @@ void RValue_Parser::error(
     if (internal_symbols_.has_key(symbol)) {
         credence_error(
             std::format(
-                "Runtime error :: \"{}\" {}\n\t"
-                "on line {} in column {} :: {}",
+                ">>> Runtime error :: \"{}\" {}\n"
+                ">>>    on line {} in column {} :: {}",
                 symbol,
                 message,
                 internal_symbols_[symbol]["line"].to_int(),
@@ -59,7 +55,7 @@ void RValue_Parser::error(
                 internal_symbols_[symbol]["end_column"].to_int()));
     } else {
         credence_error(
-            std::format("Runtime error :: \"{}\" {}", symbol, message));
+            std::format(">>> Runtime error :: \"{}\" {}", symbol, message));
     }
 }
 
@@ -211,13 +207,12 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
         std::ranges::find(unary_types_, unary_type) != unary_types_.end(),
         std::format("Invalid unary expression type `{}`", unary_type));
 
+    RValue rvalue{};
     std::map<std::string, Operator> const other_unary = {
         { "!", Operator::U_NOT },         { "~", Operator::U_ONES_COMPLEMENT },
         { "*", Operator::U_INDIRECTION }, { "-", Operator::U_MINUS },
         { "+", Operator::U_PLUS },
-
     };
-    RValue rvalue{};
 
     if (node["root"].JSON_type() != util::AST_Node::Class::Array)
         return rvalue;

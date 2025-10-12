@@ -69,7 +69,7 @@ class RValue_Parser
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
     {
-        auto rvalue = RValue_Parser(internals, symbols, globals);
+        auto rvalue = RValue_Parser{ internals, symbols, globals };
         return rvalue.from_rvalue(node);
     }
 

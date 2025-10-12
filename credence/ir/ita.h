@@ -204,17 +204,26 @@ class ITA
     }
 
   public:
+    /**
+     * @brief Emission functions
+     */
+    static inline void emit(
+        std::ostream& os,
+        Instructions const& instructions,
+        bool indent = true)
+    {
+        for (auto const& i : instructions)
+            ITA::emit_to(os, i, indent);
+    }
     inline void emit(std::ostream& os)
     {
-        for (auto const& i : instructions_) {
+        for (auto const& i : instructions_)
             ITA::emit_to(os, i);
-        }
     }
     inline void emit(std::ostream& os, bool indent)
     {
-        for (auto const& i : instructions_) {
+        for (auto const& i : instructions_)
             ITA::emit_to(os, i, indent);
-        }
     }
 
   public:
@@ -297,6 +306,14 @@ class ITA
     }
 
   public:
+  public:
+    static inline Instructions make_ITA_instructions(
+        Node const& internal_symbols,
+        Node const& node)
+    {
+        auto ita = ITA{ internal_symbols };
+        return ita.build_from_definitions(node);
+    }
     Instructions build_from_definitions(Node const& node);
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -466,6 +483,15 @@ class ITA
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };
+
+// clang-format on
+
+inline ITA::Instructions make_ITA_instructions(
+    util::AST_Node const& internals_symbols,
+    util::AST_Node const& definitions)
+{
+    return ITA::make_ITA_instructions(internals_symbols, definitions);
+}
 
 } // namespace ir
 

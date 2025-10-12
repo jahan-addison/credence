@@ -16,12 +16,13 @@
 
 #pragma once
 
-#include <filesystem>  // for path
-#include <fstream>     // for basic_ifstream
-#include <sstream>     // for basic_stringstream, stri...
-#include <string>      // for char_traits, string, all...
-#include <string_view> // for basic_string_view, strin...
+#include <filesystem>  // for filesystem
+#include <fstream>     // for ostream
+#include <stddef.h>    // for size_t
+#include <string>      // for basic_string, string
+#include <string_view> // for basic_string_view, string_view
 #include <tuple>       // for apply, tuple
+#include <type_traits> // for is_same_v, is_convertible_v
 namespace json {
 class JSON;
 }
@@ -37,13 +38,32 @@ namespace credence {
 
 namespace util {
 
+namespace fs = std::filesystem;
+
+////////////////////
+// Visitor Pattern
+////////////////////
+
 namespace AST = json;
 using AST_Node = AST::JSON;
 
-namespace fs = std::filesystem;
+// The overload pattern
+// (std::variant visitor)
+
+template<class... Ts>
+struct overload : Ts...
+{
+    using Ts::operator()...;
+};
+template<class... Ts>
+overload(Ts...) -> overload<Ts...>;
+
+//////////////////
+// String Helpers
+//////////////////
 
 template<typename T>
-constexpr std::string to_constexpr_string(T const& val)
+constexpr inline std::string to_constexpr_string(T const& val)
 {
     if constexpr (std::is_same_v<T, int>) {
         std::string s;
@@ -70,37 +90,6 @@ constexpr std::string to_constexpr_string(T const& val)
         return "unsupported_type";
     }
 }
-template<typename... Args>
-constexpr std::string tuple_to_string(
-    std::tuple<Args...> const& t,
-    std::string_view separator = ", ")
-{
-    std::string result{};
-    std::apply(
-        [&](const auto&... elements) {
-            bool first = true;
-            (([&] {
-                 if (!first) {
-                     result += separator;
-                 }
-                 result += to_constexpr_string(elements);
-                 first = false;
-             })(),
-             ...);
-        },
-        t);
-    result += ")";
-    return result;
-}
-
-// The overload pattern
-template<class... Ts>
-struct overload : Ts...
-{
-    using Ts::operator()...;
-};
-template<class... Ts>
-overload(Ts...) -> overload<Ts...>;
 
 constexpr std::string unescape_string(std::string_view escaped_str)
 {
@@ -142,19 +131,39 @@ constexpr std::string unescape_string(std::string_view escaped_str)
     return unescaped_str;
 }
 
-/**
- * @brief read a file from a fs::path
- */
-inline std::string read_file_from_path(std::string_view path)
+template<typename... Args>
+constexpr std::string tuple_to_string(
+    std::tuple<Args...> const& t,
+    std::string_view separator = ", ")
 {
-    std::ifstream f(path.data(), std::ios::in | std::ios::binary);
-    const auto sz = fs::file_size(path);
-
-    std::string result(sz, '\0');
-    f.read(result.data(), sz);
-
+    std::string result{};
+    std::apply(
+        [&](const auto&... elements) {
+            bool first = true;
+            (([&] {
+                 if (!first) {
+                     result += separator;
+                 }
+                 result += to_constexpr_string(elements);
+                 first = false;
+             })(),
+             ...);
+        },
+        t);
+    result += ")";
     return result;
 }
+
+////////////////
+// File helpers
+////////////////
+
+void write_file_to_path_from_stringstream(
+    std::string_view file_name,
+    std::ostringstream const& oss,
+    std::string_view ext = "bo");
+
+std::string read_file_from_path(std::string_view path);
 
 } // namespace util
 

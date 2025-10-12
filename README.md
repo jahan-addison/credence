@@ -38,7 +38,8 @@ Usage:
   -a, --ast-loader arg   AST Loader [json, python] (default: python)
   -t, --target arg       Target [ir, syntax, ast, arm64, x86_64, z80]
                          (default: ir)
-  -d, --debug            Enable debugging
+  -d, --debug            Dump symbol table
+  -o, --output arg       Output file (default: stdout)
   -h, --help             Print usage
       --source-code arg  B Source file
 ```

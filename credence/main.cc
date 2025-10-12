@@ -23,13 +23,13 @@
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
 #include <matchit.h>           // for pattern, match, PatternHelper, Patter...
 #include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
+#include <ostream>             // for basic_ostream, operator<<, endl
 #include <pybind11/cast.h>     // for object_api::operator(), object::cast
 #include <pybind11/embed.h>    // for scoped_interpreter
 #include <pybind11/pybind11.h> // for error_already_set::what, module, module_
 #include <pybind11/pytypes.h>  // for object, object_api, error_already_set
 #include <simplejson.h>        // for JSON, operator<<
 #include <stdexcept>           // for runtime_error
-#include <stdlib.h>            // for exit
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
@@ -48,8 +48,11 @@ int main(int argc, const char* argv[])
             "Target [ir, syntax, ast, arm64, x86_64, z80]",
             cxxopts::value<std::string>()->default_value("ir"))(
             "d,debug",
-            "Enable debugging",
+            "Dump symbol table",
             cxxopts::value<bool>()->default_value("false"))(
+            "o,output",
+            "Output file",
+            cxxopts::value<std::string>()->default_value("stdout"))(
             "h,help", "Print usage")(
             "source-code", "B Source file", cxxopts::value<std::string>());
 
@@ -67,8 +70,12 @@ int main(int argc, const char* argv[])
         credence::util::AST_Node hoisted;
 
         auto type = result["ast-loader"].as<std::string>();
+        auto target = result["target"].as<std::string>();
+        auto output = result["output"].as<std::string>();
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
+
+        std::ostringstream out_to{};
 
         if (type == "python") {
             py::scoped_interpreter guard{};
@@ -124,28 +131,30 @@ int main(int argc, const char* argv[])
             return 1;
         }
 
-        m::match(result["target"].as<std::string>())(
+        m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    credence::ir::ITA ita{ hoisted };
-                    ita.build_from_definitions(ast["root"]);
-                    ita.emit(std::cout, true);
+                    auto ita_instructions = credence::ir::make_ITA_instructions(
+                        hoisted, ast["root"]);
+                    credence::ir::ITA::emit(out_to, ita_instructions);
                 },
             m::pattern | "ast" =
                 [&]() {
                     if (!ast.is_null()) {
-                        std::cout << ast["root"] << std::endl;
+                        out_to << ast["root"] << std::endl;
                     }
                 },
             m::pattern | "syntax" =
                 [&]() {
                     if (!syntax_tree.empty()) {
-                        std::cout << syntax_tree << std::endl;
+                        out_to << syntax_tree << std::endl;
                     }
-                }
+                });
 
-        );
+        // emit to file or stdout
+        credence::util::write_file_to_path_from_stringstream(
+            output, out_to, target == "ast" ? "json" : "bo");
 
     } catch (const cxxopts::exceptions::option_has_no_value&) {
         std::cout << "Credence :: See \"--help\" for usage overview"
