@@ -622,18 +622,18 @@ CALL char;
 POP 16;
 _t6 = RET;
 C = _t6;
-JMP_E C ('-':char:1) _L8;
-JMP_E C (''':char:1) _L15;
-JMP_E C ('0':char:1) _L17;
-JMP_E C (',':char:1) _L19;
+JMP_E C ('45':char:1) _L8;
+JMP_E C ('39':char:1) _L15;
+JMP_E C ('48':char:1) _L17;
+JMP_E C ('44':char:1) _L19;
 _L18:
 _L16:
 _L14:
 _L7:
 _L24:
-_t27 = c <= ('9':char:1);
+_t27 = c <= ('57':char:1);
 _t28 = c && _t27;
-_t29 = ('0':char:1) <= _t28;
+_t29 = ('48':char:1) <= _t28;
 IF _t29 GOTO _L26;
 _L25:
 GOTO _L4;
@@ -657,7 +657,7 @@ _L17:
 GOTO _L4;
 _L19:
 _L20:
-_t23 = c == ('0':char:1);
+_t23 = c == ('48':char:1);
 IF _t23 GOTO _L22;
 _L21:
 GOTO _L18;
@@ -666,7 +666,7 @@ RET i ;
 GOTO _L21;
 GOTO _L4;
 _L26:
-_t30 = c - ('0':char:1);
+_t30 = c - ('48':char:1);
 _t31 = m + _t30;
 _t32 = (10:int:4) * _t31;
 m = _t32;
@@ -679,7 +679,7 @@ LEAVE;
  EndFunc ;
 __error:
  BeginFunc ;
-_p1 = (bad syntax*n:12);
+_p1 = ("bad syntax*n":12);
 PUSH _p1;
 CALL printf;
 POP 8;
@@ -2590,7 +2590,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: label and goto")
         "\"statement\",\n            \"root\" : \"goto\"\n          }],\n      "
         "  \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    std::string expected = R"ita(_L_ADD:
+    std::string expected = R"ita(__LADD:
 _p1 = (2:int:4);
 _p2 = (5:int:4);
 PUSH _p2;
@@ -2600,7 +2600,7 @@ POP 16;
 _t2 = RET;
 x = _t2;
 y = (10:int:4);
-GOTO ADD;
+GOTO __LADD;
 )ita";
     TEST_BLOCK_STATEMENT_NODE_WITH(
         obj["symbols"], obj["test"], expected, false, false);

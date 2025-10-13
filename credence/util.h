@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cctype>      // for toupper
 #include <filesystem>  // for filesystem
 #include <fstream>     // for ostream
 #include <stddef.h>    // for size_t
@@ -61,6 +62,15 @@ overload(Ts...) -> overload<Ts...>;
 //////////////////
 // String Helpers
 //////////////////
+
+inline std::string capitalize(const char* str)
+{
+    auto s = std::string{ str };
+    if (!s.empty())
+        s[0] =
+            static_cast<char>(std::toupper(static_cast<unsigned char>(s[0])));
+    return s;
+}
 
 template<typename T>
 constexpr inline std::string to_constexpr_string(T const& val)

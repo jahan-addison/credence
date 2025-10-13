@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h>   // for credence_cpptrace_stack_trace
-#include <credence/ir/ita.h>   // for ITA
-#include <credence/util.h>     // for AST_Node, read_file_from_path
-#include <cxxopts.hpp>         // for value, Options, ParseResult, OptionAdder
-#include <exception>           // for exception
-#include <filesystem>          // for filesystem_error, operator<<
-#include <iostream>            // for basic_ostream, operator<<, endl, cerr
-#include <matchit.h>           // for pattern, match, PatternHelper, Patter...
-#include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
-#include <ostream>             // for basic_ostream, operator<<, endl
-#include <pybind11/cast.h>     // for object_api::operator(), object::cast
-#include <pybind11/embed.h>    // for scoped_interpreter
-#include <pybind11/pybind11.h> // for error_already_set::what, module, module_
-#include <pybind11/pytypes.h>  // for object, object_api, error_already_set
-#include <simplejson.h>        // for JSON, operator<<
-#include <stdexcept>           // for runtime_error
-#include <string>              // for char_traits, string, basic_string
-#include <string_view>         // for operator<<, string_view
+#include <credence/assert.h>    // for credence_cpptrace_stack_trace
+#include <credence/ir/ita.h>    // for ITA
+#include <credence/ir/normal.h> // for ITA_Normalize
+#include <credence/util.h>      // for AST_Node, read_file_from_path
+#include <cxxopts.hpp>          // for value, Options, ParseResult, OptionAdder
+#include <exception>            // for exception
+#include <filesystem>           // for filesystem_error, operator<<
+#include <iostream>             // for basic_ostream, operator<<, endl, cerr
+#include <matchit.h>            // for pattern, match, PatternHelper, Patter...
+#include <memory>               // for allocator, shared_ptr, __shared_ptr_a...
+#include <pybind11/cast.h>      // for object_api::operator(), object::cast
+#include <pybind11/embed.h>     // for scoped_interpreter
+#include <pybind11/pybind11.h>  // for error_already_set::what, module, module_
+#include <pybind11/pytypes.h>   // for object, object_api, error_already_set
+#include <simplejson.h>         // for JSON, operator<<
+#include <stdexcept>            // for runtime_error
+#include <string>               // for char_traits, string, basic_string
+#include <string_view>          // for operator<<, string_view
 
 int main(int argc, const char* argv[])
 {
@@ -114,13 +114,9 @@ int main(int argc, const char* argv[])
                     ast_as_json.cast<std::string>());
             } catch (py::error_already_set const& e) {
                 auto error_message = std::string_view{ e.what() };
-#ifndef DEBUG
-                std::cerr << "Credence :: "
+                std::cerr << "Credence :: " << "\033[33m"
                           << error_message.substr(0, error_message.find("At:"))
-                          << std::endl;
-#else
-                std::cerr << "Credence :: " << error_message << std::endl;
-#endif
+                          << "\033[0m" << std::endl;
                 return 1;
             }
 
@@ -137,7 +133,10 @@ int main(int argc, const char* argv[])
                 [&]() {
                     auto ita_instructions = credence::ir::make_ITA_instructions(
                         hoisted, ast["root"]);
-                    credence::ir::ITA::emit(out_to, ita_instructions);
+                    auto normalized_instructions =
+                        credence::ir::ITA_Normalize::to_normal_form(
+                            hoisted, ita_instructions);
+                    credence::ir::ITA::emit(out_to, normalized_instructions);
                 },
             m::pattern | "ast" =
                 [&]() {
@@ -164,7 +163,10 @@ int main(int argc, const char* argv[])
                   << std::endl;
         return 1;
     } catch (std::runtime_error const& e) {
-        std::cerr << std::endl << "Credence :: " << e.what() << std::endl;
+        auto what = credence::util::capitalize(e.what());
+        std::cerr << std::endl
+                  << "Credence Error :: " << "\033[31m" << what << "\033[0m"
+                  << std::endl;
         return 1;
     } catch (const std::exception& e) {
         std::cerr << "Error :: " << e.what() << std::endl;

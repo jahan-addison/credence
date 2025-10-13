@@ -36,6 +36,8 @@ namespace ir {
 
 /**
  * @brief Construct a set of ita instructions from a set of definitions
+ *   A set of definitions constitute a B program
+ *
  *   Definition grammar:
  *
  *     definition : function_definition
@@ -48,18 +50,16 @@ ITA::Instructions ITA::build_from_definitions(Node const& node)
 
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "definitions");
     Instructions instructions{};
-    auto definitions = node["left"];
-    for (auto& definition : definitions.array_range())
+    auto definitions = node["left"].array_range();
+    for (auto& definition : definitions)
         if (definition["node"].to_string() == "vector_definition")
             build_from_vector_definition(definition);
-    for (auto& definition : definitions.array_range()) {
-        m::match(definition["node"].to_string())(
-            // cppcheck-suppress syntaxError
-            m::pattern | "function_definition" = [&] {
-                auto function_instructions =
-                    build_from_function_definition(definition);
-                insert_instructions(instructions, function_instructions);
-            });
+    for (auto& definition : definitions) {
+        if (definition["node"].to_string() == "function_definition") {
+            auto function_instructions =
+                build_from_function_definition(definition);
+            insert_instructions(instructions, function_instructions);
+        }
     }
     insert_instructions(instructions_, instructions);
     return instructions;
@@ -83,6 +83,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
         !parameters.to_deque().front().is_null()) {
         for (auto& ident : parameters.array_range()) {
             m::match(ident["node"].to_string())(
+                // cppcheck-suppress syntaxError
                 m::pattern | "lvalue" =
                     [&] {
                         p_lvalues.emplace_back(ident["root"].to_string());
@@ -118,10 +119,8 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
 
     instructions.emplace_back(make_quadruple(Instruction::FUNC_END, "", ""));
 
-    // clear parameter symbols from scope
-    for (auto const& name : p_lvalues) {
-        symbols_.remove_symbol_by_name(name);
-    }
+    // clear symbols from scope
+    symbols_.clear();
 
     return instructions;
 }
@@ -560,7 +559,7 @@ ITA::Instructions ITA::build_from_label_statement(Node const& node)
     RValue_Parser parser{ internal_symbols_, symbols_ };
     auto label = statement.to_deque().front().to_string();
     instructions.emplace_back(
-        make_quadruple(Instruction::LABEL, std::format("_L_{}", label), ""));
+        make_quadruple(Instruction::LABEL, std::format("__L{}", label), ""));
     return instructions;
 }
 
@@ -576,12 +575,12 @@ ITA::Instructions ITA::build_from_goto_statement(Node const& node)
     RValue_Parser parser{ internal_symbols_, symbols_ };
     auto statement = node["left"];
     auto label = statement.to_deque().front().to_string();
-    if (!parser.is_defined(label)) {
+    if (!parser.is_defined(label))
         credence_error(
             std::format("Error: label \"{}\" does not exist", label));
-    }
 
-    instructions.emplace_back(make_quadruple(Instruction::GOTO, label, ""));
+    instructions.emplace_back(
+        make_quadruple(Instruction::GOTO, std::format("__L{}", label), ""));
     return instructions;
 }
 
@@ -654,18 +653,45 @@ void ITA::build_from_auto_statement(Node const& node)
         m::match(ident["node"].to_string())(
             m::pattern | "lvalue" =
                 [&] {
+                    auto name = ident["root"].to_string();
+#ifndef CREDENCE_TEST
+                    if (symbols_.is_defined(name))
+                        credence_error(
+                            std::format(
+                                "identifier `{}` is already defined in auto "
+                                "declaration",
+                                name));
+#endif
                     symbols_.set_symbol_by_name(
                         ident["root"].to_string(), type::NULL_LITERAL);
                 },
             m::pattern | "vector_lvalue" =
                 [&] {
                     auto size = ident["left"]["root"].to_int();
+                    auto name = ident["root"].to_string();
+#ifndef CREDENCE_TEST
+                    if (symbols_.is_defined(name))
+                        credence_error(
+                            std::format(
+                                "identifier `{}` is already defined in auto "
+                                "declaration",
+                                name));
+#endif
                     symbols_.set_symbol_by_name(
                         ident["root"].to_string(),
                         { static_cast<type::Byte>('0'), { "byte", size } });
                 },
             m::pattern | "indirect_lvalue" =
                 [&] {
+                    auto name = ident["left"]["root"].to_string();
+#ifndef CREDENCE_TEST
+                    if (symbols_.is_defined(name))
+                        credence_error(
+                            std::format(
+                                "identifier `{}` is already defined in auto "
+                                "declaration",
+                                name));
+#endif
                     symbols_.set_symbol_by_name(
                         ident["left"]["root"].to_string(), type::WORD_LITERAL);
                 });

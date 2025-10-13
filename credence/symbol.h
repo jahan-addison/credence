@@ -80,6 +80,12 @@ class Symbol_Table
         table_.erase(name);
     }
 
+    inline void clear()
+    {
+        addr_.clear();
+        table_.clear();
+    }
+
     inline T get_symbol_by_name(std::string const& name) const
     {
         CREDENCE_ASSERT_MESSAGE(

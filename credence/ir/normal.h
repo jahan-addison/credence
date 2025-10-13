@@ -18,43 +18,51 @@
 #include <credence/ir/ita.h> // for ITA
 #include <credence/symbol.h> // for Symbol_Table
 #include <deque>             // for deque
-#include <memory>            // for unique_ptr, make_unique
+#include <map>               // for map
+#include <memory>            // for unique_ptr
+#include <optional>          // for optional
+#include <set>               // for set
 #include <string>            // for basic_string, string
 #include <utility>           // for pair
+#include <variant>           // for variant
 #include <vector>            // for vector
 
 namespace credence {
 
 namespace ir {
 
-class ITA_Parser
+class ITA_Normalize
 {
   public:
-    ITA_Parser() = delete;
-    ITA_Parser(ITA_Parser&) = delete;
+    ITA_Normalize() = delete;
+    ITA_Normalize(ITA_Normalize&) = delete;
 
   public:
-    explicit ITA_Parser(
-        ITA::Instructions&& instructions,
-        ITA::Node const& hoisted_symbols)
-        : instructions_(std::make_unique<ITA::Instructions>(instructions))
-        , hoisted_symbols_(hoisted_symbols)
+    explicit ITA_Normalize(
+        ITA::Node const& symbols,
+        ITA::Instructions const& instructions)
+        : instructions_(instructions)
+        , hoisted_symbols_(symbols)
     {
-        instruction_location = 0;
     }
 
   public:
     using Label = std::string;
+    using Type = std::string;
     using Address = std::size_t;
-    using LValue = std::pair<std::string, std::string>;
+    using LValue = std::pair<std::string, Type>;
     using RValue = std::string;
-    using Parameters = std::vector<std::string>;
-    using Labels = std::vector<Label>;
+    using Parameters = std::set<std::string>;
+    using Labels = std::set<Label>;
+    using Locals = std::set<std::string>;
 
   public:
-    static ITA::Instructions instructions_pruning_in_place(
+    ITA::Instructions from_ita_instructions();
+
+  public:
+    static ITA::Instructions to_normal_form(
+        ITA::Node const& symbols,
         ITA::Instructions const& instructions);
-    void from_ita_instructions();
 
   private:
     void from_ita_vector();
@@ -64,15 +72,17 @@ class ITA_Parser
     struct Function_Definition
     {
         Labels labels;
+        Locals locals;
         Parameters parameters;
-        int max_depth = 50;
-        unsigned long size;
+        static constexpr int max_depth{ 50 };
+        unsigned int allocation{ 0 };
 
-        std::deque<LValue> stack;
+        std::deque<std::variant<LValue, RValue>> stack;
         ITA::Instructions instructions{};
     };
     using Function_PTR = std::unique_ptr<Function_Definition>;
-    using Functions = std::vector<Function_PTR>;
+    using Functions = std::map<std::string, Function_PTR>;
+    using Stack_Frame = std::optional<Function_PTR*>;
 
   private:
     struct Vector_Definition
@@ -82,23 +92,23 @@ class ITA_Parser
         {
         }
         std::vector<RValue> data{};
-        int decay_index = 0;
-        unsigned long size;
+        int decay_index{ 0 };
+        unsigned long size{ 0 };
+        static constexpr int max_size{ 1000 };
     };
-    using Vector_PTR = std::unique_ptr<Vector_Definition>;
-    using Vectors = std::vector<Vector_PTR>;
+    using Vectors = std::map<std::string, std::unique_ptr<Vector_Definition>>;
 
   public:
-    Symbol_Table<LValue, Address> symbols_table{};
+    Symbol_Table<LValue, Address> symbol_table{};
 
   private:
-    unsigned int instruction_location;
-    std::unique_ptr<ITA::Instructions> instructions_;
+    size_t instruction_index{ 0 };
+    ITA::Instructions instructions_;
     ITA::Node hoisted_symbols_;
 
-  private:
-    Functions functions_{};
-    Labels labels_{};
+  public:
+    Functions functions{};
+    Labels labels{};
 };
 
 } // namespace ir

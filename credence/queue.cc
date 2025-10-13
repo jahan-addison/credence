@@ -282,7 +282,7 @@ std::string dump_value_type(
                    << separator << type.second.second;
             },
             [&](char i) {
-                os << "'" << i << "'" << separator
+                os << "'" << static_cast<unsigned int>(i) << "'" << separator
                    << LITERAL_TYPE.at("char").first << separator
                    << LITERAL_TYPE.at("char").second;
             },
@@ -293,8 +293,8 @@ std::string dump_value_type(
                        << LITERAL_TYPE.at("word").first << separator
                        << LITERAL_TYPE.at("word").second;
                 } else {
-                    os << std::get<std::string>(type.first) << separator
-                       << std::get<std::string>(type.first).size();
+                    os << "\"" << std::get<std::string>(type.first) << "\""
+                       << separator << std::get<std::string>(type.first).size();
                 }
             },
         },
@@ -306,7 +306,10 @@ std::string dump_value_type(
 /**
  * @brief Rvalue type to string of unwrapped data
  */
-std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
+std::string rvalue_to_string(
+    type::RValue::Type const& rvalue,
+    bool separate,
+    std::string_view separator)
 {
     using namespace credence::type;
     auto oss = std::ostringstream();
@@ -318,16 +321,19 @@ std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
             [&](RValue::Value const& s) { oss << dump_value_type(s) << space; },
             [&](RValue::Value_Pointer const& s) {
                 for (auto const& value : s) {
-                    oss << dump_value_type(value) << space;
+                    oss << dump_value_type(value, separator) << space;
                 }
             },
             [&](RValue::LValue const& s) { oss << s.first << space; },
             [&](RValue::Unary const& s) {
-                oss << s.first << rvalue_to_string(s.second->value) << space;
+                oss << s.first
+                    << rvalue_to_string(s.second->value, true, separator)
+                    << space;
             },
             [&](RValue::Relation const& s) {
                 for (auto const& relation : s.second) {
-                    oss << rvalue_to_string(relation->value) << space;
+                    oss << rvalue_to_string(relation->value, true, separator)
+                        << space;
                 }
             },
             [&](RValue::Function const& s) { oss << s.first.first << space; },
@@ -339,7 +345,9 @@ std::string rvalue_to_string(type::RValue::Type const& rvalue, bool separate)
 /**
  * @brief Queue to string of operators and operands in reverse-polish notation
  */
-std::string queue_of_rvalues_to_string(RValue_Queue_PTR const& rvalues_queue)
+std::string queue_of_rvalues_to_string(
+    RValue_Queue_PTR const& rvalues_queue,
+    std::string_view separator)
 {
     using namespace type;
     auto oss = std::ostringstream();
@@ -349,7 +357,7 @@ std::string queue_of_rvalues_to_string(RValue_Queue_PTR const& rvalues_queue)
                                oss << type::operator_to_string(op) << " ";
                            },
                             [&](type::RValue::Type_Pointer const& s) {
-                                oss << rvalue_to_string(*s);
+                                oss << rvalue_to_string(*s, true, separator);
                             }
 
             },

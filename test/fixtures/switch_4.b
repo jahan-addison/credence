@@ -32,6 +32,7 @@ char(a,b) {
 }
 
 error() {
+   auto m;
    printf("bad syntax*n");
    return(-1);
 }

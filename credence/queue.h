@@ -66,9 +66,12 @@ void rvalues_to_queue(
 
 std::string rvalue_to_string(
     type::RValue::Type const& rvalue,
-    bool separate = true);
+    bool separate = true,
+    std::string_view separator = ":");
 
-std::string queue_of_rvalues_to_string(RValue_Queue_PTR const& rvalues_queue);
+std::string queue_of_rvalues_to_string(
+    RValue_Queue_PTR const& rvalues_queue,
+    std::string_view separator = ":");
 
 std::string dump_value_type(
     type::RValue::Value,
