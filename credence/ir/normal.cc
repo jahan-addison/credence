@@ -1,6 +1,6 @@
 #include <credence/ir/normal.h>
 
-#include <credence/assert.h> // for CREDENCE_ASSERT, credence_error
+#include <credence/assert.h> // for CREDENCE_ASSERT, credence_runtime_error
 #include <credence/ir/ita.h> // for ITA
 #include <format>            // for format
 #include <limits>            // for numeric_limits
@@ -32,10 +32,12 @@ ITA::Instructions ITA_Normalize::from_ita_instructions()
                     CREDENCE_ASSERT(instructions_.size() > 2);
                     std::string label =
                         get<1>(instructions_.at(instruction_index - 1));
+
                     if (labels.contains(label))
-                        credence_error(
-                            std::format(
-                                "the function `{}` is already defined", label));
+                        credence_runtime_error(
+                            std::format("function symbol is already defined"),
+                            label.substr(2),
+                            hoisted_symbols_);
                     functions[label] = std::make_unique<Function_Definition>(
                         Function_Definition{});
                     labels.emplace(label);
@@ -64,9 +66,12 @@ ITA::Instructions ITA_Normalize::from_ita_instructions()
                     auto bytes =
                         std::string{ rhs.begin() + search, rhs.end() - 1 };
                     auto rhs_t_size = std::stoul(bytes);
+
                     if (rhs_t_size > std::numeric_limits<unsigned int>::max())
-                        credence_error(
-                            std::format("`{}` exceeds maximum size", rhs));
+                        credence_runtime_error(
+                            std::format("exceeds maximum size ({})", rhs),
+                            lhs,
+                            hoisted_symbols_);
                     if (stack_frame.has_value()) {
                         auto frame = stack_frame.value()->get();
                         if (!frame->locals.contains(lhs)) {
@@ -79,13 +84,16 @@ ITA::Instructions ITA_Normalize::from_ita_instructions()
             m::pattern | ITA::Instruction::LABEL =
                 [&] {
                     auto label = get<1>(instruction);
+
                     if (stack_frame.has_value()) {
                         auto frame = stack_frame.value()->get();
                         if (frame->labels.contains(label) != false)
-                            credence_error(
+                            credence_runtime_error(
                                 std::format(
-                                    "symbolic label `{}` is already defined",
-                                    label));
+                                    "symbol of symbolic label is already "
+                                    "defined"),
+                                label,
+                                hoisted_symbols_);
                         frame->labels.emplace(label);
                     }
                 },

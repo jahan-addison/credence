@@ -36,30 +36,6 @@ namespace credence {
 namespace m = matchit;
 
 /**
- * @brief Throw rvalue parser error
- */
-void RValue_Parser::error(
-    std::string_view message,
-    std::string_view symbol_name)
-{
-    auto symbol = symbol_name.data();
-    if (internal_symbols_.has_key(symbol)) {
-        credence_error(
-            std::format(
-                ">>> Runtime error :: \"{}\" {}\n"
-                ">>>    on line {} in column {} :: {}",
-                symbol,
-                message,
-                internal_symbols_[symbol]["line"].to_int(),
-                internal_symbols_[symbol]["column"].to_int(),
-                internal_symbols_[symbol]["end_column"].to_int()));
-    } else {
-        credence_error(
-            std::format(">>> Runtime error :: \"{}\" {}", symbol, message));
-    }
-}
-
-/**
  * @brief Parse rvalue ast node into type::RValue struct type pointer
  */
 type::RValue RValue_Parser::from_rvalue(Node const& node)
@@ -275,9 +251,10 @@ type::RValue RValue_Parser::from_assignment_expression(Node const& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
     if (!is_symbol(left_child_node))
-        error(
-            "identifier of assignment not declared with 'auto' or 'extern'",
-            left_child_node["root"].to_string());
+        credence_runtime_error(
+            "identifier of assignment not declared with 'auto' or 'extrn'",
+            left_child_node["root"].to_string(),
+            internal_symbols_);
 
     auto lhs = from_lvalue_expression(left_child_node);
     auto rhs = shared_ptr_from_rvalue(right_child_node);
@@ -307,10 +284,11 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
-                error(
+                credence_runtime_error(
                     "identifier not defined, did you forget to declare with "
-                    "auto or extern, or meant to call a function?",
-                    name);
+                    "auto or extrn? No symbol found",
+                    name,
+                    internal_symbols_);
             else
                 symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
         }
@@ -360,11 +338,13 @@ type::RValue::Value RValue_Parser::from_indirect_identifier(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "indirect_lvalue");
     CREDENCE_ASSERT(node.has_key("left"));
-    if (!is_symbol(node["left"])) {
-        error(
-            "indirect identifier not declared with 'auto' or 'extern'",
-            node["root"].to_string());
-    }
+    if (!is_symbol(node["left"]))
+        credence_runtime_error(
+            "indirect identifier not defined, did you forget to declare with "
+            "auto or extrn? No symbol found",
+            node["root"].to_string(),
+            internal_symbols_);
+
     return symbols_.get_symbol_by_name(node["left"]["root"].to_string());
 }
 
@@ -375,11 +355,13 @@ type::RValue::Value RValue_Parser::from_vector_idenfitier(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_lvalue");
 
-    if (!is_symbol(node)) {
-        error(
-            "vector not declared with 'auto' or 'extern'",
-            node["root"].to_string());
-    }
+    if (!is_symbol(node))
+        credence_runtime_error(
+            "vector not defined, did you forget to declare with "
+            "auto or extrn? No symbol found",
+            node["root"].to_string(),
+            internal_symbols_);
+
     return symbols_.get_symbol_by_name(node["root"].to_string());
 }
 

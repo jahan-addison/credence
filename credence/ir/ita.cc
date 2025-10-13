@@ -119,7 +119,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
 
     instructions.emplace_back(make_quadruple(Instruction::FUNC_END, "", ""));
 
-    // clear symbols from scope
+    // clear symbols from stack frame
     symbols_.clear();
 
     return instructions;
@@ -144,10 +144,12 @@ void ITA::build_from_vector_definition(Node const& node)
         if (std::cmp_not_equal(
                 left_child_node["root"].to_int(),
                 right_child_node.to_deque().size())) {
-            credence_error(
-                "Error: invalid vector definition, "
-                "size of vector and value "
-                "entries do not match");
+            credence_runtime_error(
+                "invalid vector definition, "
+                "size of vector and assignment "
+                "entries do not match",
+                name,
+                internal_symbols_);
         }
         std::vector<type::RValue::Value> values_at{};
         for (auto& child_node : right_child_node.array_range()) {
@@ -631,11 +633,8 @@ void ITA::build_from_extrn_statement(Node const& node)
         if (globals_.is_defined(name)) {
             symbols_.set_symbol_by_name(name, globals_);
         } else {
-            credence_error(
-                std::format(
-                    "Error: global symbol \"{}\" not defined for "
-                    "extrn statement",
-                    name));
+            credence_runtime_error(
+                "symbol not defined in global scope", name, internal_symbols_);
         }
     }
 }
@@ -656,11 +655,11 @@ void ITA::build_from_auto_statement(Node const& node)
                     auto name = ident["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        credence_error(
-                            std::format(
-                                "identifier `{}` is already defined in auto "
-                                "declaration",
-                                name));
+                        credence_runtime_error(
+                            "identifier is already defined in auto declaration",
+                            name,
+                            internal_symbols_);
+
 #endif
                     symbols_.set_symbol_by_name(
                         ident["root"].to_string(), type::NULL_LITERAL);
@@ -671,11 +670,11 @@ void ITA::build_from_auto_statement(Node const& node)
                     auto name = ident["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        credence_error(
-                            std::format(
-                                "identifier `{}` is already defined in auto "
-                                "declaration",
-                                name));
+                        credence_runtime_error(
+                            "identifier is already defined in auto declaration",
+                            name,
+                            internal_symbols_);
+
 #endif
                     symbols_.set_symbol_by_name(
                         ident["root"].to_string(),
@@ -686,11 +685,11 @@ void ITA::build_from_auto_statement(Node const& node)
                     auto name = ident["left"]["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        credence_error(
-                            std::format(
-                                "identifier `{}` is already defined in auto "
-                                "declaration",
-                                name));
+                        credence_runtime_error(
+                            "identifier is already defined in auto declaration",
+                            name,
+                            internal_symbols_);
+
 #endif
                     symbols_.set_symbol_by_name(
                         ident["left"]["root"].to_string(), type::WORD_LITERAL);

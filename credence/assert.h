@@ -19,6 +19,7 @@
 #include <cpptrace/formatting.hpp>
 #include <format>
 #include <iostream>
+#include <simplejson.h>
 #include <stdexcept>
 #include <string_view>
 
@@ -33,6 +34,9 @@
 } while(0)
 #endif
 
+#define credence_runtime_error(message, symbol, symbols) \
+::credence_runtime_error_impl(message, symbol, symbols)
+
 #define CREDENCE_TRY_CATCH_BLOCK cpptrace::try_catch
 #define CREDENCE_TRY CPPTRACE_TRY
 #define CREDENCE_CATCH(param) CPPTRACE_CATCH(param)
@@ -40,7 +44,7 @@
 #define CREDENCE_ASSERT(condition)                      \
         ::assert_impl(condition, "")
 #define CREDENCE_ASSERT_MESSAGE(condition, message)     \
-        ::assert_impl(condition, message);
+        ::assert_impl(condition, message)
 #define CREDENCE_ASSERT_EQUAL(actual, expected)         \
         ::assert_equal_impl(actual, expected)
 #define CREDENCE_ASSERT_NODE(actual, expected)          \
@@ -60,6 +64,28 @@ inline void credence_cpptrace_stack_trace(int skip = 2, int depth = 3)
 } // namespace credence
 
 namespace {
+
+inline void credence_runtime_error_impl(
+    std::string_view message,
+    std::string_view symbol_name,
+    json::JSON symbols)
+{
+    auto symbol = symbol_name.data();
+    if (symbols.has_key(symbol)) {
+        credence_error(
+            std::format(
+                ">>> Runtime error :: \"{}\" {}\n"
+                ">>>    on line {} column {}:{}",
+                symbol,
+                message,
+                symbols[symbol]["line"].to_int(),
+                symbols[symbol]["column"].to_int(),
+                symbols[symbol]["end_column"].to_int()));
+    } else {
+        credence_error(
+            std::format(">>> Runtime error :: \"{}\" {}", symbol, message));
+    }
+}
 
 [[maybe_unused]] void assert_impl(bool condition, std::string_view message)
 {

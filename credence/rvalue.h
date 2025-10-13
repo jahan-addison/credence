@@ -130,7 +130,6 @@ class RValue_Parser
 
   private:
     // clang-format on
-    void error(std::string_view message, std::string_view symbol_name);
     const std::array<std::string, 5> unary_types_ = { "pre_inc_dec_expression",
                                                       "post_inc_dec_expression",
                                                       "indirect_lvalue",
