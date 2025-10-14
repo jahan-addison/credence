@@ -477,14 +477,12 @@ class ITA
     inline void make_root_branch() {
         branch.set_root_branch(*this);
     }
-
   CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node internal_symbols_;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
+    // clang-format on
 };
-
-// clang-format on
 
 inline ITA::Instructions make_ITA_instructions(
     util::AST_Node const& internals_symbols,

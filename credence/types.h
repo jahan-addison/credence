@@ -153,6 +153,13 @@ struct RValue
     Type value;
 };
 
+inline auto make_rvalue_value_type(
+    Value const& value,
+    Type_Size const& type_size)
+{
+    return std::make_pair(value, type_size);
+}
+
 inline RValue::Type_Pointer rvalue_type_pointer_from_rvalue(
     type::RValue::Type rvalue_type) // not constexpr until C++23
 {

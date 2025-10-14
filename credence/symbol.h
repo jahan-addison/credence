@@ -58,14 +58,15 @@ class Symbol_Table
     ~Symbol_Table() = default;
 
   public:
-    inline void set_symbol_by_name(std::string const& name, T const entry)
+    inline void set_symbol_by_name(std::string const& name, T const& entry)
     {
-        table_.insert_or_assign(name, std::move(entry));
+        table_.insert_or_assign(name, entry);
     }
 
+    // cppcheck-suppress passedByValue
     inline void set_symbol_by_name(std::string const& name, Pointer entry)
     {
-        addr_.insert_or_assign(name, std::move(entry));
+        addr_.insert_or_assign(name, entry);
     }
 
     inline void set_symbol_by_name(
@@ -85,6 +86,8 @@ class Symbol_Table
         addr_.clear();
         table_.clear();
     }
+
+    inline constexpr std::size_t size() { return table_.size(); }
 
     inline T get_symbol_by_name(std::string const& name) const
     {

@@ -131,6 +131,15 @@ instruction_temporary_from_rvalue_operand(
     type::RValue::Type_Pointer& operand,
     int* temporary_size);
 
+constexpr inline bool is_in_place_unary_operator(type::Operator op)
+{
+    const auto unary_types = { type::Operator::PRE_DEC,
+                               type::Operator::POST_DEC,
+                               type::Operator::PRE_INC,
+                               type::Operator::POST_INC };
+    return std::ranges::find(unary_types, op) != unary_types.end();
+}
+
 } // namespace detail
 
 ITA::Instructions rvalue_queue_to_temp_instructions(

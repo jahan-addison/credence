@@ -679,7 +679,7 @@ LEAVE;
  EndFunc ;
 __error:
  BeginFunc ;
-_p1 = ("bad syntax*n":12);
+_p1 = ("bad syntax*n":string:12);
 PUSH _p1;
 CALL printf;
 POP 8;
@@ -2389,31 +2389,31 @@ LEAVE;
 _L5:
 y = x;
 _L7:
-y = !y;
-IF y GOTO _L9;
+_t10 = ! y;
+IF _t10 GOTO _L9;
 _L8:
-_t19 = (2:int:4) + (2:int:4);
-x = _t19;
+_t21 = (2:int:4) + (2:int:4);
+x = _t21;
 GOTO _L4;
 _L9:
-_L10:
-_t13 = x > y;
-IF _t13 GOTO _L12;
 _L11:
-_t18 = (1:int:4) + (1:int:4);
-x = _t18;
-GOTO _L8;
+_t14 = x > y;
+IF _t14 GOTO _L13;
 _L12:
-_L14:
-x = !x;
-IF x GOTO _L16;
+_t20 = (1:int:4) + (1:int:4);
+x = _t20;
+GOTO _L8;
+_L13:
 _L15:
-_t17 = (3:int:4) + (3:int:4);
-x = _t17;
-GOTO _L11;
+_t18 = ! x;
+IF _t18 GOTO _L17;
 _L16:
+_t19 = (3:int:4) + (3:int:4);
+x = _t19;
+GOTO _L12;
+_L17:
 x = y;
-GOTO _L15;
+GOTO _L16;
 )ita";
 
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["if"], expected);

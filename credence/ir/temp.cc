@@ -480,7 +480,8 @@ void unary_operand_to_temporary_stack(
                             // If the operand is an lvalue, use it, otherwise
                             // create a temporary and assign it the unary rvalue
                             if (is_rvalue_type_pointer_variant(
-                                    operand1, RValue_Type_Variant::LValue)) {
+                                    operand1, RValue_Type_Variant::LValue) and
+                                is_in_place_unary_operator(op)) {
                                 auto unary = ITA::make_quadruple(
                                     ITA::Instruction::VARIABLE,
                                     rvalue_to_string(*operand1, false),

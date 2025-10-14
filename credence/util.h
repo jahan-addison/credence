@@ -72,6 +72,13 @@ inline std::string capitalize(const char* str)
     return s;
 }
 
+constexpr inline bool contains_substring(
+    std::string_view lhs,
+    std::string_view rhs)
+{
+    return lhs.find(rhs) != std::string_view::npos;
+}
+
 template<typename T>
 constexpr inline std::string to_constexpr_string(T const& val)
 {

@@ -1,5 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
+#include <format>
+
 #include <credence/ir/ita.h>    // for ITA
 #include <credence/ir/normal.h> // for Normalize
 #include <credence/util.h>      // for AST_Node
@@ -12,7 +14,7 @@ inline auto make_node()
     return credence::util::AST::object();
 }
 
-TEST_CASE("rvalue.cc: Normalize::normalize")
+TEST_CASE("normal.cc: Normalization::to_normal_form_ita")
 {
     auto symbols = LOAD_JSON_FROM_STRING(
         "{\"m\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 17, "
@@ -360,16 +362,67 @@ _L26:
  EndFunc ;
 )ita";
     std::ostringstream out_to{};
-    auto instructions = credence::ir::make_ITA_instructions(symbols, ast);
-    auto normalize = credence::ir::ITA_Normalize{ symbols, instructions };
-    instructions = normalize.from_ita_instructions();
+    auto normalize = credence::ir::Normalization{
+        symbols, credence::ir::make_ITA_instructions(symbols, ast)
+    };
+    auto instructions = normalize.from_ita_instructions();
 
     credence::ir::ITA::emit(
         out_to, normalize.functions.at("__main")->instructions);
 
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(normalize.functions.at("__main")->allocation == 24);
+    REQUIRE(normalize.functions.at("__main")->allocation == 36);
     REQUIRE(normalize.functions.size() == 4);
     REQUIRE(normalize.functions.at("__main")->labels.size() == 21);
-    REQUIRE(normalize.functions.at("__main")->locals.size() == 6);
+    REQUIRE(normalize.functions.at("__main")->locals.size() == 7);
+
+    REQUIRE(normalize.symbols_.size() == 7);
+}
+
+TEST_CASE("normal.cc: Normalization::get_rvalue_symbol_type_size")
+{
+    auto [test1_1, test1_2, test1_3] =
+        credence::ir::Normalization::get_rvalue_symbol_type_size("(10:int:4)");
+    auto [test2_1, test2_2, test2_3] =
+        credence::ir::Normalization::get_rvalue_symbol_type_size(
+            std::format("(10.005:float:{})", sizeof(float)));
+    auto [test3_1, test3_2, test3_3] =
+        credence::ir::Normalization::get_rvalue_symbol_type_size(
+            std::format("(10.000000000000000005:double:{})", sizeof(double)));
+    auto [test4_1, test4_2, test4_3] =
+        credence::ir::Normalization::get_rvalue_symbol_type_size(
+            std::format("('0':byte:{})", sizeof(char)));
+    auto [test5_1, test5_2, test5_3] =
+        credence::ir::Normalization::get_rvalue_symbol_type_size(
+            std::format("(__WORD__:word:{})", sizeof(void*)));
+    auto [test6_1, test6_2, test6_3] =
+        credence::ir::Normalization::get_rvalue_symbol_type_size(
+            std::format(
+                "(\"hello this is a very long string\":string:{})",
+                std::string{ "hello this is a very long string" }.size()));
+
+    REQUIRE(test1_1 == "10");
+    REQUIRE(test1_2 == "int");
+    REQUIRE(test1_3 == 4UL);
+
+    REQUIRE(test2_1 == "10.005");
+    REQUIRE(test2_2 == "float");
+    REQUIRE(test2_3 == sizeof(float));
+
+    REQUIRE(test3_1 == "10.000000000000000005");
+    REQUIRE(test3_2 == "double");
+    REQUIRE(test3_3 == sizeof(double));
+
+    REQUIRE(test4_1 == "'0'");
+    REQUIRE(test4_2 == "byte");
+    REQUIRE(test4_3 == 1UL);
+
+    REQUIRE(test5_1 == "__WORD__");
+    REQUIRE(test5_2 == "word");
+    REQUIRE(test5_3 == sizeof(void*));
+
+    REQUIRE(test6_1 == "hello this is a very long string");
+    REQUIRE(test6_2 == "string");
+    REQUIRE(
+        test6_3 == std::string{ "hello this is a very long string" }.size());
 }

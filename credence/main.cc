@@ -16,7 +16,7 @@
 
 #include <credence/assert.h>    // for credence_cpptrace_stack_trace
 #include <credence/ir/ita.h>    // for ITA
-#include <credence/ir/normal.h> // for ITA_Normalize
+#include <credence/ir/normal.h> // for Normalization
 #include <credence/util.h>      // for AST_Node, read_file_from_path
 #include <cxxopts.hpp>          // for value, Options, ParseResult, OptionAdder
 #include <exception>            // for exception
@@ -75,8 +75,6 @@ int main(int argc, const char* argv[])
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
 
-        std::ostringstream out_to{};
-
         if (type == "python") {
             py::scoped_interpreter guard{};
             try {
@@ -127,16 +125,17 @@ int main(int argc, const char* argv[])
             return 1;
         }
 
+        std::ostringstream out_to{};
+
         m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    auto ita_instructions = credence::ir::make_ITA_instructions(
-                        hoisted, ast["root"]);
-                    auto normalized_instructions =
-                        credence::ir::ITA_Normalize::to_normal_form(
-                            hoisted, ita_instructions);
-                    credence::ir::ITA::emit(out_to, normalized_instructions);
+                    auto normalized_ita_instructions =
+                        credence::ir::Normalization::to_normal_form_ita(
+                            hoisted, ast["root"]);
+                    credence::ir::ITA::emit(
+                        out_to, normalized_ita_instructions);
                 },
             m::pattern | "ast" =
                 [&]() {

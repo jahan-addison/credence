@@ -294,7 +294,8 @@ std::string dump_value_type(
                        << LITERAL_TYPE.at("word").second;
                 } else {
                     os << "\"" << std::get<std::string>(type.first) << "\""
-                       << separator << std::get<std::string>(type.first).size();
+                       << separator << "string" << separator
+                       << std::get<std::string>(type.first).size();
                 }
             },
         },
