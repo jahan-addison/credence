@@ -130,11 +130,10 @@ class RValue_Parser
 
   private:
     // clang-format on
-    const std::array<std::string, 5> unary_types_ = { "pre_inc_dec_expression",
-                                                      "post_inc_dec_expression",
-                                                      "indirect_lvalue",
-                                                      "address_of_expression",
-                                                      "unary_expression" };
+    const std::array<std::string, 6> unary_types_ = {
+        "pre_inc_dec_expression", "post_inc_dec_expression", "indirect_lvalue",
+        "unary_indirection",      "address_of_expression",   "unary_expression"
+    };
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node internal_symbols_;

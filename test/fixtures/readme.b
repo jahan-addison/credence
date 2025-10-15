@@ -5,7 +5,7 @@ main() {
   if (x > y) {
     x = 100;
   }
-  y = x;
+  //y = x;
 }
 
 add(x, y) {

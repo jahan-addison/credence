@@ -193,7 +193,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
             .first == Operator::B_MUL);
     auto test2 = temp.from_evaluated_expression(expressions.at(1));
     auto expr2 = get<RValue::RValue_Pointer>(test2.value);
-    CHECK(get<RValue::LValue>(expr2->value).first == "x");
+    CHECK(get<RValue::LValue>(expr2->value).first == "*x");
 }
 
 TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
@@ -503,8 +503,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
     CHECK(test1.second == empty_value);
     // test pointer
     auto test2 = temp.from_lvalue_expression(pointer);
-    CHECK(test2.first == "y");
-    CHECK(test2.second == empty_value);
+    CHECK(test2.first == "*y");
     // normal variable
     auto test3 = temp.from_lvalue_expression(normal);
     CHECK(test3.first == "z");

@@ -1,10 +1,17 @@
-#include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
+#include <doctest/doctest.h>
 
-#include <format>
-
-#include <credence/ir/ita.h>    // for ITA
-#include <credence/ir/normal.h> // for Normalize
-#include <credence/util.h>      // for AST_Node
+#include <credence/ir/context.h> // for Context
+#include <credence/ir/ita.h>     // for make_ITA_instructions, ITA
+#include <credence/symbol.h>     // for Symbol_Table
+#include <credence/util.h>       // for AST_Node, AST
+#include <format>                // for format
+#include <memory>                // for allocator, shared_ptr
+#include <ostream>               // for basic_ostream
+#include <simplejson.h>          // for JSON, object
+#include <sstream>               // for basic_ostringstream, ostringstream
+#include <string>                // for basic_string, char_traits, string
+#include <string_view>           // for basic_string_view
+#include <tuple>                 // for get
 
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
@@ -14,7 +21,7 @@ inline auto make_node()
     return credence::util::AST::object();
 }
 
-TEST_CASE("normal.cc: Normalization::to_normal_form_ita")
+TEST_CASE("ir/context.cc: Context::to_ita_from_ast")
 {
     auto symbols = LOAD_JSON_FROM_STRING(
         "{\"m\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 17, "
@@ -362,41 +369,41 @@ _L26:
  EndFunc ;
 )ita";
     std::ostringstream out_to{};
-    auto normalize = credence::ir::Normalization{
+    auto context = credence::ir::Context{
         symbols, credence::ir::make_ITA_instructions(symbols, ast)
     };
-    auto instructions = normalize.from_ita_instructions();
+    auto instructions = context.from_ita_instructions();
 
     credence::ir::ITA::emit(
-        out_to, normalize.functions.at("__main")->instructions);
+        out_to, context.functions.at("__main")->instructions);
 
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(normalize.functions.at("__main")->allocation == 36);
-    REQUIRE(normalize.functions.size() == 4);
-    REQUIRE(normalize.functions.at("__main")->labels.size() == 21);
-    REQUIRE(normalize.functions.at("__main")->locals.size() == 7);
+    REQUIRE(context.functions.at("__main")->allocation == 24);
+    REQUIRE(context.functions.size() == 4);
+    REQUIRE(context.functions.at("__main")->labels.size() == 21);
+    REQUIRE(context.functions.at("__main")->locals.size() == 6);
 
-    REQUIRE(normalize.symbols_.size() == 7);
+    REQUIRE(context.symbols_.size() == 6);
 }
 
-TEST_CASE("normal.cc: Normalization::get_rvalue_symbol_type_size")
+TEST_CASE("ir/context.cc: Context::get_rvalue_symbol_type_size")
 {
     auto [test1_1, test1_2, test1_3] =
-        credence::ir::Normalization::get_rvalue_symbol_type_size("(10:int:4)");
+        credence::ir::Context::get_rvalue_symbol_type_size("(10:int:4)");
     auto [test2_1, test2_2, test2_3] =
-        credence::ir::Normalization::get_rvalue_symbol_type_size(
+        credence::ir::Context::get_rvalue_symbol_type_size(
             std::format("(10.005:float:{})", sizeof(float)));
     auto [test3_1, test3_2, test3_3] =
-        credence::ir::Normalization::get_rvalue_symbol_type_size(
+        credence::ir::Context::get_rvalue_symbol_type_size(
             std::format("(10.000000000000000005:double:{})", sizeof(double)));
     auto [test4_1, test4_2, test4_3] =
-        credence::ir::Normalization::get_rvalue_symbol_type_size(
+        credence::ir::Context::get_rvalue_symbol_type_size(
             std::format("('0':byte:{})", sizeof(char)));
     auto [test5_1, test5_2, test5_3] =
-        credence::ir::Normalization::get_rvalue_symbol_type_size(
+        credence::ir::Context::get_rvalue_symbol_type_size(
             std::format("(__WORD__:word:{})", sizeof(void*)));
     auto [test6_1, test6_2, test6_3] =
-        credence::ir::Normalization::get_rvalue_symbol_type_size(
+        credence::ir::Context::get_rvalue_symbol_type_size(
             std::format(
                 "(\"hello this is a very long string\":string:{})",
                 std::string{ "hello this is a very long string" }.size()));

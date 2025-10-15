@@ -309,10 +309,9 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
             },
         m::pattern | "indirect_lvalue" =
             [&] {
+                auto indirect_lvalue = node["left"]["root"].to_string();
                 lvalue = type::RValue::make_lvalue(
-                    node["left"]["root"].to_string(),
-                    symbols_.get_symbol_by_name(
-                        node["left"]["root"].to_string()));
+                    std::format("*{}", node["left"]["root"].to_string()));
             });
     return lvalue;
 }

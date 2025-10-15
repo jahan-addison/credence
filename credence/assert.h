@@ -34,8 +34,13 @@
 } while(0)
 #endif
 
-#define credence_runtime_error(message, symbol, symbols) \
-::credence_runtime_error_impl(message, symbol, symbols)
+#ifndef CREDENCE_TEST
+#define credence_runtime_error(message, symbol, symbols)     \
+    ::credence_runtime_error_impl(message, symbol, symbols)
+#else
+#define credence_runtime_error(message, symbol, symbols)     \
+    throw std::runtime_error(message)
+#endif
 
 #define CREDENCE_TRY_CATCH_BLOCK cpptrace::try_catch
 #define CREDENCE_TRY CPPTRACE_TRY
@@ -74,8 +79,8 @@ inline void credence_runtime_error_impl(
     if (symbols.has_key(symbol)) {
         credence_error(
             std::format(
-                ">>> Runtime error :: \"{}\" {}\n"
-                ">>>    on line {} column {}:{}",
+                ">>> Runtime error :: on \"{}\" {}\n"
+                ">>>    from line {} column {}:{}",
                 symbol,
                 message,
                 symbols[symbol]["line"].to_int(),

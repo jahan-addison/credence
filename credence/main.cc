@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h>    // for credence_cpptrace_stack_trace
-#include <credence/ir/ita.h>    // for ITA
-#include <credence/ir/normal.h> // for Normalization
-#include <credence/util.h>      // for AST_Node, read_file_from_path
-#include <cxxopts.hpp>          // for value, Options, ParseResult, OptionAdder
-#include <exception>            // for exception
-#include <filesystem>           // for filesystem_error, operator<<
-#include <iostream>             // for basic_ostream, operator<<, endl, cerr
-#include <matchit.h>            // for pattern, match, PatternHelper, Patter...
-#include <memory>               // for allocator, shared_ptr, __shared_ptr_a...
-#include <pybind11/cast.h>      // for object_api::operator(), object::cast
-#include <pybind11/embed.h>     // for scoped_interpreter
-#include <pybind11/pybind11.h>  // for error_already_set::what, module, module_
-#include <pybind11/pytypes.h>   // for object, object_api, error_already_set
-#include <simplejson.h>         // for JSON, operator<<
-#include <stdexcept>            // for runtime_error
-#include <string>               // for char_traits, string, basic_string
-#include <string_view>          // for operator<<, string_view
+#include <credence/assert.h>     // for credence_cpptrace_stack_trace
+#include <credence/ir/context.h> // for Context
+#include <credence/ir/ita.h>     // for ITA
+#include <credence/util.h>       // for AST_Node, read_file_from_path
+#include <cxxopts.hpp>           // for value, Options, ParseResult, OptionAdder
+#include <exception>             // for exception
+#include <filesystem>            // for filesystem_error, operator<<
+#include <iostream>              // for basic_ostream, operator<<, endl, cerr
+#include <matchit.h>             // for pattern, match, PatternHelper, Patter...
+#include <memory>                // for allocator, shared_ptr, __shared_ptr_a...
+#include <pybind11/cast.h>       // for object_api::operator(), object::cast
+#include <pybind11/embed.h>      // for scoped_interpreter
+#include <pybind11/pybind11.h>   // for error_already_set::what, module, module_
+#include <pybind11/pytypes.h>    // for object, object_api, error_already_set
+#include <simplejson.h>          // for JSON, operator<<
+#include <stdexcept>             // for runtime_error
+#include <string>                // for char_traits, string, basic_string
+#include <string_view>           // for operator<<, string_view
 
 int main(int argc, const char* argv[])
 {
@@ -131,11 +131,9 @@ int main(int argc, const char* argv[])
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    auto normalized_ita_instructions =
-                        credence::ir::Normalization::to_normal_form_ita(
-                            hoisted, ast["root"]);
-                    credence::ir::ITA::emit(
-                        out_to, normalized_ita_instructions);
+                    auto instructions = credence::ir::Context::to_ita_from_ast(
+                        hoisted, ast["root"]);
+                    credence::ir::ITA::emit(out_to, instructions);
                 },
             m::pattern | "ast" =
                 [&]() {
