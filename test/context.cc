@@ -374,14 +374,13 @@ _L26:
     };
     auto instructions = context.from_ita_instructions();
 
-    credence::ir::ITA::emit(
-        out_to, context.functions.at("__main")->instructions);
+    credence::ir::ITA::emit(out_to, context.functions.at("main")->instructions);
 
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(context.functions.at("__main")->allocation == 24);
+    REQUIRE(context.functions.at("main")->allocation == 24);
     REQUIRE(context.functions.size() == 4);
-    REQUIRE(context.functions.at("__main")->labels.size() == 21);
-    REQUIRE(context.functions.at("__main")->locals.size() == 6);
+    REQUIRE(context.functions.at("main")->labels.size() == 21);
+    REQUIRE(context.functions.at("main")->locals.size() == 6);
 
     REQUIRE(context.symbols_.size() == 6);
 }

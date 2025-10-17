@@ -57,6 +57,9 @@ class Symbol_Table
     Symbol_Table() = default;
     ~Symbol_Table() = default;
 
+    auto begin() const { return table_.begin(); }
+    auto end() const { return table_.end(); }
+
   public:
     inline void set_symbol_by_name(std::string const& name, T const& entry)
     {

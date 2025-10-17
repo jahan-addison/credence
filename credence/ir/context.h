@@ -62,7 +62,7 @@ class Context
     using RValue = std::string;
     using RValue_Reference = std::variant<LValue, RValue>;
     using Temporary = std::pair<LValue, RValue>;
-    using Parameters = std::set<std::string>;
+    using Parameters = std::vector<std::string>;
     using Labels = std::set<Label>;
     using Locals = std::set<std::string>;
 
@@ -108,7 +108,7 @@ class Context
         ITA::Node const& ast);
 
   private:
-    struct Function_Definition
+    struct Function
     {
         Label symbol{};
         Labels labels;
@@ -117,15 +117,25 @@ class Context
         static constexpr int max_depth{ 50 };
         unsigned int allocation{ 0 };
 
+        void set_parameters_from_symbolic_label(Label const& label);
+
+        static constexpr std::string get_label_as_human_readable(
+            std::string_view label)
+        {
+            return std::string{ label.begin() + 2,
+                                label.begin() + label.find_first_of("(") };
+        }
+
         std::map<LValue, RValue> temporary;
         std::deque<RValue_Reference> stack;
         ITA::Instructions instructions{};
     };
-    using Function_PTR = std::shared_ptr<Function_Definition>;
+    using Function_PTR = std::shared_ptr<Function>;
     using Functions = std::map<std::string, Function_PTR>;
     using Stack_Frame = std::optional<Function_PTR>;
 
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
+
     inline Function_PTR get_stack_frame()
     {
         CREDENCE_ASSERT(is_stack_frame());
@@ -133,9 +143,9 @@ class Context
     }
 
   private:
-    struct Vector_Definition
+    struct Vector
     {
-        explicit Vector_Definition(int size_of)
+        explicit Vector(int size_of)
             : size(size_of)
         {
         }
@@ -144,10 +154,11 @@ class Context
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
     };
-    using Vectors = std::map<std::string, std::unique_ptr<Vector_Definition>>;
+    using Vectors = std::map<std::string, std::unique_ptr<Vector>>;
 
   private:
     void context_frame_error(std::string_view message, std::string_view symbol);
+    using Binary_Expression = std::tuple<std::string, std::string, std::string>;
     using RValue_Data_Type =
         std::tuple<Context::RValue, Context::Type, Context::Size>;
 
@@ -158,21 +169,20 @@ class Context
     void from_label_ita_instruction(ITA::Quadruple const& instruction);
     void from_variable_ita_instruction(ITA::Quadruple const& instruction);
 
-  CREDENCE_PRIVATE_UNLESS_TESTED:
+ CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue_Data_Type from_rvalue_unary_expression(
         LValue const& lvalue,
         RValue& rvalue,
         std::string_view unary_operator);
-    void from_symbol_reassignment(
-      LValue const& lhs,
-      LValue const& rhs);
-    void from_temporary_assignment(
-      LValue const& lhs,
-      LValue const& rhs);
+    void from_symbol_reassignment(LValue const& lhs, LValue const& rhs);
+    RValue from_temporary(LValue const& lvalue);
+    Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
+    void from_temporary_assignment(LValue const& lhs, LValue const& rhs);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
-    RValue_Data_Type static get_rvalue_symbol_type_size(std::string const& datatype);
+    RValue_Data_Type static get_rvalue_symbol_type_size(
+        std::string const& datatype);
 
-  CREDENCE_PRIVATE_UNLESS_TESTED:
+   CREDENCE_PRIVATE_UNLESS_TESTED:
     Symbol_Table<RValue_Data_Type, LValue> symbols_{};
     Symbol_Table<LValue, Address> address_table_{};
     // clang-format on

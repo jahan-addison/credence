@@ -72,9 +72,20 @@ inline std::string capitalize(const char* str)
     return s;
 }
 
-constexpr inline bool contains_substring(
-    std::string_view lhs,
-    std::string_view rhs)
+constexpr inline std::size_t substring_count_of(
+    std::string_view text,
+    std::string_view sub)
+{
+    std::size_t count = 0UL;
+    std::size_t index = 0UL;
+    while ((index = text.find(sub, index)) != std::string_view::npos) {
+        count++;
+        index += sub.size();
+    }
+    return count;
+}
+
+constexpr inline bool contains(std::string_view lhs, std::string_view rhs)
 {
     return lhs.find(rhs) != std::string_view::npos;
 }

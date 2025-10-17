@@ -16,18 +16,15 @@
 #pragma once
 
 #include <algorithm>         // for copy
-#include <array>             // for array
 #include <credence/assert.h> // for CREDENCE_ASSERT, assert_equal_impl, CRE...
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <deque>             // for operator==, _Deque_iterator, deque
-#include <functional>        // for identity
 #include <initializer_list>  // for initializer_list
 #include <iomanip>           // for operator<<, setw
 #include <matchit.h>         // for pattern, Or, Wildcard, PatternHelper
 #include <optional>          // for nullopt, optional
-#include <ranges>            // for __find_fn, find
 #include <simplejson.h>      // for JSON, object
 #include <sstream>           // for basic_ostream, operator<<, ostream, bas...
 #include <stack>             // for stack
@@ -86,6 +83,7 @@ class ITA
     using Quadruple =
         std::tuple<Instruction, std::string, std::string, std::string>;
     using Instructions = std::deque<Quadruple>;
+    using Parameters = std::vector<std::string>;
     using Tail_Branch = std::optional<Quadruple>;
     using Branch_Comparator = std::pair<std::string, Instructions>;
     using Branch_Instructions = std::pair<Instructions, Instructions>;
@@ -157,7 +155,7 @@ class ITA
         bool indent = false)
     {
         ITA::Instruction op = std::get<ITA::Instruction>(ita);
-        constexpr std::array<ITA::Instruction, 5> lhs_instruction = {
+        const std::initializer_list<ITA::Instruction> lhs_instruction = {
             ITA::Instruction::GOTO,
             ITA::Instruction::PUSH,
             ITA::Instruction::LABEL,
@@ -261,8 +259,8 @@ class ITA
     }
     static constexpr inline Quadruple make_quadruple(
         Instruction op,
-        std::string const& s1,
-        std::string const& s2,
+        std::string const& s1 = "",
+        std::string const& s2 = "",
         std::string const& s3 = "")
     {
         return std::make_tuple(op, s1, s2, s3);
@@ -315,10 +313,14 @@ class ITA
         return ita.build_from_definitions(node);
     }
     Instructions build_from_definitions(Node const& node);
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_function_definition(Node const& node);
     void build_from_vector_definition(Node const& node);
+    std::string build_function_label_from_parameters(
+        std::string_view name,
+        Parameters const& parameters);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_block_statement(
@@ -475,6 +477,7 @@ class ITA
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     inline void make_root_branch() {
+        temporary = 0;
         branch.set_root_branch(*this);
     }
   CREDENCE_PRIVATE_UNLESS_TESTED:

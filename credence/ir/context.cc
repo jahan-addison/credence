@@ -20,17 +20,6 @@ namespace ir {
 
 namespace m = matchit;
 
-inline void Context::context_frame_error(
-    std::string_view message,
-    [[maybe_unused]] std::string_view symbol)
-{
-    credence_runtime_error(
-        std::format(
-            "{} in function \"{}\"", message, get_stack_frame()->symbol),
-        symbol,
-        hoisted_symbols_);
-}
-
 ITA::Instructions Context::from_ita_instructions()
 {
     using std::get;
@@ -42,20 +31,19 @@ ITA::Instructions Context::from_ita_instructions()
          instruction_index++) {
         auto instruction = instructions_.at(instruction_index);
         m::match(get<ITA::Instruction>(instruction))(
+            // TODO: follow jumps
             m::pattern | ITA::Instruction::FUNC_START =
                 [&] { from_func_start_ita_instruction(); },
             m::pattern | ITA::Instruction::FUNC_END =
                 [&] { from_func_end_ita_instruction(instruction); },
             m::pattern | ITA::Instruction::VARIABLE =
                 [&] { from_variable_ita_instruction(instruction); },
-
             m::pattern | ITA::Instruction::LABEL =
                 [&] { from_label_ita_instruction(instruction); },
             m::pattern | ITA::Instruction::GOTO =
                 [&] {
-                    if (last_instruction == ITA::Instruction::GOTO) {
+                    if (last_instruction == ITA::Instruction::GOTO)
                         skip = true;
-                    }
                 });
         if (!skip or get<0>(instruction) != ITA::Instruction::GOTO) {
             context_instructions.emplace_back(instruction);
@@ -129,34 +117,59 @@ void Context::from_variable_ita_instruction(ITA::Quadruple const& instruction)
 void Context::from_func_start_ita_instruction()
 {
     CREDENCE_ASSERT(instructions_.size() > 2);
-    std::string label = get<1>(instructions_.at(instruction_index - 1));
+    std::string label = Function::get_label_as_human_readable(
+        get<1>(instructions_.at(instruction_index - 1)));
 
     if (labels.contains(label))
         context_frame_error(
-            std::format("function symbol is already defined"), label.substr(2));
+            std::format("function symbol is already defined"), label);
 
-    functions[label] =
-        std::make_shared<Function_Definition>(Function_Definition{});
+    functions[label] = std::make_shared<Function>(Function{});
 
     labels.emplace(label);
     stack_frame = functions[label];
+    stack_frame.value()->set_parameters_from_symbolic_label(
+        get<1>(instructions_.at(instruction_index - 1)));
+    for (auto const& parameter : stack_frame.value()->parameters)
+        symbols_.set_symbol_by_name(
+            parameter, { "__WORD__", "word", sizeof(void*) });
+
     stack_frame.value()->symbol = label;
+}
+
+void Context::Function::set_parameters_from_symbolic_label(Label const& label)
+{
+    std::string parameter;
+    auto search =
+        std::string_view{ label.begin() + label.find_first_of("(") + 1,
+                          label.begin() + label.find_first_of(")") };
+
+    if (!search.empty())
+        for (auto it = search.begin(); it <= search.end(); it++) {
+            auto slice = *it;
+            if (slice != ',' and it != search.end())
+                parameter += slice;
+            else {
+                parameters.emplace_back(parameter);
+                parameter = "";
+            }
+        }
 }
 
 void Context::from_func_end_ita_instruction(ITA::Quadruple const& instruction)
 {
     CREDENCE_ASSERT(instructions_.size() > 2);
-    if (is_stack_frame())
+    if (is_stack_frame()) {
         get_stack_frame()->instructions.emplace_back(instruction);
+        for (auto const& parameter : stack_frame.value()->parameters)
+            symbols_.remove_symbol_by_name(parameter);
+    }
     stack_frame = std::nullopt;
 }
 
 Context::RValue_Data_Type Context::get_rvalue_symbol_type_size(
     RValue const& rvalue)
 {
-    if (rvalue.starts_with("_t"))
-        return { rvalue, "word", sizeof(void*) };
-
     size_t search = rvalue.find_last_of(":");
     auto bytes = std::string{ rvalue.begin() + search + 1, rvalue.end() - 1 };
     auto type_search = rvalue.substr(0, search - 1).find_last_of(":") + 1;
@@ -188,9 +201,10 @@ Context::RValue_Data_Type Context::from_rvalue_unary_expression(
                 if (!symbols_.is_pointer(rvalue))
                     context_frame_error(
                         std::format(
-                            "indirection on invalid lvalue, right-hand-side is "
+                            "indirection on invalid lvalue, "
+                            "right-hand-side is "
                             "not "
-                            "a pointer (`{}`)",
+                            "a pointer ({})",
                             rvalue),
                         lvalue);
                 LValue indirect_lvalue = symbols_.get_pointer_by_name(rvalue);
@@ -204,9 +218,10 @@ Context::RValue_Data_Type Context::from_rvalue_unary_expression(
                 if (!symbols_.is_defined(rvalue))
                     context_frame_error(
                         std::format(
-                            "invalid pointer assignment, right-hand-side is "
+                            "invalid pointer assignment, right-hand-side "
+                            "is "
                             "not "
-                            "initialized (`{}`)",
+                            "initialized ({})",
                             rvalue),
                         lvalue);
                 symbols_.set_symbol_by_name(lvalue, rvalue);
@@ -231,6 +246,34 @@ Context::RValue_Data_Type Context::from_rvalue_unary_expression(
             m::_ = [&] { return symbols_.get_symbol_by_name(lvalue); });
 }
 
+Context::Binary_Expression Context::from_rvalue_binary_expression(
+    RValue const& rvalue)
+{
+    auto lhs = rvalue.find_first_of(" ");
+    auto rhs = rvalue.find_last_of(" ");
+    auto lhs_lvalue = std::string{ rvalue.begin(), rvalue.begin() + lhs };
+    auto rhs_lvalue = std::string{ rvalue.begin() + 1 + rhs, rvalue.end() };
+    auto binary_operator =
+        std::string{ rvalue.begin() + lhs + 1, rvalue.begin() + rhs };
+
+    return { lhs_lvalue, rhs_lvalue, binary_operator };
+}
+
+Context::RValue Context::from_temporary(LValue const& lvalue)
+{
+    auto rvalue = util::contains(lvalue, "_t")
+                      ? get_stack_frame()->temporary[lvalue]
+                      : lvalue;
+    if (util::contains(rvalue, "_t") and util::contains(rvalue, " ")) {
+        auto expression = from_rvalue_binary_expression(rvalue);
+        auto lhs = from_temporary(std::get<0>(expression));
+        auto rhs = from_temporary(std::get<1>(expression));
+        return std::string{ lhs + " " + std::get<2>(expression) + " " + rhs };
+    } else {
+        return rvalue;
+    }
+}
+
 void Context::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
 {
     auto rvalue = get_stack_frame()->temporary.at(rhs);
@@ -238,7 +281,8 @@ void Context::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
         auto unary_type = get_unary(rvalue);
         auto unary_lvalue = get_unary_lvalue(rvalue);
         from_rvalue_unary_expression(lhs, unary_lvalue, unary_type);
-    }
+    } else
+        symbols_.set_symbol_by_name(lhs, { rvalue, "word", sizeof(void*) });
 }
 
 void Context::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
@@ -263,7 +307,7 @@ void Context::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
 Context::RValue_Data_Type Context::from_integral_unary_expression(
     RValue const& lvalue)
 {
-    std::initializer_list<std::string_view> integral_unary = {
+    const std::initializer_list<std::string_view> integral_unary = {
         "int", "double", "float", "long"
     };
     if (!symbols_.is_defined(lvalue))
@@ -290,6 +334,17 @@ ITA::Instructions Context::to_ita_from_ast(
     auto instructions = make_ITA_instructions(symbols, ast);
     auto context = Context{ symbols, instructions };
     return context.from_ita_instructions();
+}
+
+inline void Context::context_frame_error(
+    std::string_view message,
+    [[maybe_unused]] std::string_view symbol)
+{
+    credence_runtime_error(
+        std::format(
+            "{} in function \"{}\"", message, get_stack_frame()->symbol),
+        symbol,
+        hoisted_symbols_);
 }
 
 } // namespace ir

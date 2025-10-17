@@ -364,7 +364,7 @@ void function_call_operands_to_temporary_instructions(
             std::format(
                 "{} {}", operator_to_string(op), std::get<1>(temp_rhs)));
         instructions.emplace_back(
-            ITA::make_quadruple(ITA::Instruction::CALL, rhs, ""));
+            ITA::make_quadruple(ITA::Instruction::CALL, rhs));
         temporary_stack.emplace(rhs);
     } else {
         if (temporary_stack.size() == 1 and operand_stack.size() < 1) {
@@ -376,7 +376,7 @@ void function_call_operands_to_temporary_instructions(
                 std::format(
                     "{} {}", operator_to_string(op), std::get<1>(temp_rhs)));
             instructions.emplace_back(
-                ITA::make_quadruple(ITA::Instruction::CALL, rhs, ""));
+                ITA::make_quadruple(ITA::Instruction::CALL, rhs));
             temporary_stack.emplace(rhs);
         }
         if (operand_stack.size() < 1)
@@ -387,7 +387,7 @@ void function_call_operands_to_temporary_instructions(
             instruction_temporary_from_rvalue_operand(operand, temporary);
         ITA::insert_instructions(instructions, rhs.second);
         instructions.emplace_back(
-            ITA::make_quadruple(ITA::Instruction::CALL, rhs.first, ""));
+            ITA::make_quadruple(ITA::Instruction::CALL, rhs.first));
     }
     if (*param_on_stack > 0)
         instructions.emplace_back(

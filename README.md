@@ -83,7 +83,7 @@ ITA:
 
 
 ```asm
-__main:
+__main():
  BeginFunc ;
     x = (5:int:4);
     y = (1:int:4);
@@ -112,6 +112,7 @@ _L1:
     LEAVE;
 _L7:
 _L9:
+_L11:
     _t12 = z > x;
     IF _t12 GOTO _L10;
     GOTO _L6;
@@ -119,20 +120,21 @@ _L10:
     z = --z;
     GOTO _L9;
  EndFunc ;
-__add:
+__add(x,y):
  BeginFunc ;
     _t2 = x + y;
     RET _t2;
 _L1:
     LEAVE;
  EndFunc ;
-__sub:
+__sub(x,y):
  BeginFunc ;
     _t2 = x - y;
     RET _t2;
 _L1:
     LEAVE;
  EndFunc ;
+
 
 ```
 

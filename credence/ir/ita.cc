@@ -74,7 +74,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
     Instructions instructions{};
     auto name = node["root"].to_string();
     auto parameters = node["left"];
-    std::vector<std::string> p_lvalues{};
+    Parameters parameter_lvalues{};
     auto block = node["right"];
 
     symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
@@ -86,13 +86,15 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
                 // cppcheck-suppress syntaxError
                 m::pattern | "lvalue" =
                     [&] {
-                        p_lvalues.emplace_back(ident["root"].to_string());
+                        parameter_lvalues.emplace_back(
+                            ident["root"].to_string());
                         symbols_.set_symbol_by_name(
                             ident["root"].to_string(), type::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
                     [&] {
-                        p_lvalues.emplace_back(ident["root"].to_string());
+                        parameter_lvalues.emplace_back(
+                            ident["root"].to_string());
                         auto size = ident["left"]["root"].to_int();
                         symbols_.set_symbol_by_name(
                             ident["root"].to_string(),
@@ -100,7 +102,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
                     },
                 m::pattern | "indirect_lvalue" =
                     [&] {
-                        p_lvalues.emplace_back(
+                        parameter_lvalues.emplace_back(
                             ident["left"]["root"].to_string());
                         symbols_.set_symbol_by_name(
                             ident["left"]["root"].to_string(),
@@ -108,21 +110,42 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
                     });
         }
     }
-    instructions.emplace_back(make_quadruple(
-        Instruction::LABEL, std::format("__{}", node["root"].to_string()), ""));
 
-    instructions.emplace_back(make_quadruple(Instruction::FUNC_START, "", ""));
-    temporary = 0;
-    branch.set_root_branch(*this);
+    auto label = build_function_label_from_parameters(
+        node["root"].to_string(), parameter_lvalues);
+
+    instructions.emplace_back(make_quadruple(Instruction::LABEL, label));
+    instructions.emplace_back(make_quadruple(Instruction::FUNC_START));
+
+    make_root_branch();
+
     auto block_instructions = build_from_block_statement(block, true);
+
     insert_instructions(instructions, block_instructions);
 
-    instructions.emplace_back(make_quadruple(Instruction::FUNC_END, "", ""));
+    instructions.emplace_back(make_quadruple(Instruction::FUNC_END));
 
-    // clear symbols from stack frame
+    // clear symbols from function scope
     symbols_.clear();
 
     return instructions;
+}
+
+std::string ITA::build_function_label_from_parameters(
+    std::string_view name,
+    Parameters const& parameters)
+{
+    auto label = std::format("__{}", name);
+    label.append("(");
+    if (!parameters.empty()) {
+        for (auto it = parameters.begin(); it != parameters.end(); it++) {
+            label.append(*it);
+            if (it != parameters.end() - 1)
+                label.append(",");
+        }
+    }
+    label.append(")");
+    return label;
 }
 
 /**
@@ -273,7 +296,7 @@ ITA::Instructions ITA::build_from_block_statement(
     if (root_function_scope) {
         branch.teardown();
         instructions.emplace_back(branch.get_root_branch().value());
-        instructions.emplace_back(make_quadruple(Instruction::LEAVE, "", ""));
+        instructions.emplace_back(make_quadruple(Instruction::LEAVE));
     }
 
     insert_instructions(instructions, branches);
@@ -303,7 +326,7 @@ void ITA::insert_branch_jump_and_resume_instructions(
     if (branch.stack.size() > 2) {
         auto jump = tail.value_or(branch.get_parent_branch(true).value());
         branch_instructions.emplace_back(
-            make_quadruple(Instruction::GOTO, std::get<1>(jump), ""));
+            make_quadruple(Instruction::GOTO, std::get<1>(jump)));
     }
 }
 
@@ -410,7 +433,7 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     if (branch.stack.size() > 2) {
         auto jump = tail.value_or(branch.get_parent_branch(true).value());
         branch_instructions.emplace_back(
-            make_quadruple(Instruction::GOTO, std::get<1>(jump), ""));
+            make_quadruple(Instruction::GOTO, std::get<1>(jump)));
     }
     branch_instructions.emplace_back(jump);
 
@@ -539,7 +562,7 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
                 std::get<1>(branch.get_parent_branch().value()),
                 ""));
         predicate_instructions.emplace_back(
-            make_quadruple(Instruction::GOTO, std::get<1>(else_label), ""));
+            make_quadruple(Instruction::GOTO, std::get<1>(else_label)));
         branch_instructions.emplace_back(else_label);
         insert_branch_block_instructions(blocks.at(1), branch_instructions);
         predicate_instructions.emplace_back(start);
@@ -613,7 +636,7 @@ ITA::Instructions ITA::build_from_return_statement(Node const& node)
     } else {
         auto last = instructions[instructions.size() - 1];
         instructions.emplace_back(
-            make_quadruple(Instruction::RETURN, std::get<1>(last), ""));
+            make_quadruple(Instruction::RETURN, std::get<1>(last)));
     }
 
     return instructions;

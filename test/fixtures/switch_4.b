@@ -1,5 +1,6 @@
-main() {
-   auto m,i,j,c,sign,C,s;
+// do rest of instructions
+convert(s,v) {
+   auto m,i,j,c,sign,C;
    auto loop;
    i = 0; /* vector index */
    j = 1; /* character index */
@@ -18,7 +19,7 @@ main() {
             break;
          case '0':
          case ',':  /* delimiter . . . store converted value */
-            //v[i++] = sign?(-m):m;
+            v[i++] = sign?(-m):m;
             if( c == '0' ) return(i);
       }
       /* none of the above cases . . . if a digit, add to m */

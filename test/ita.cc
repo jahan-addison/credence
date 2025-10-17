@@ -599,7 +599,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: integration test")
         "\"line\": 39, \"start_pos\": 844, \"column\": 1, \"end_pos\": 850, "
         "\"end_column\": 7}}");
 
-    std::string expected = R"ita(__main:
+    std::string expected = R"ita(__main():
  BeginFunc ;
 i = (0:int:4);
 j = (1:int:4);
@@ -672,12 +672,12 @@ _t32 = (10:int:4) * _t31;
 m = _t32;
 GOTO _L25;
  EndFunc ;
-__char:
+__char(a,b):
  BeginFunc ;
 _L1:
 LEAVE;
  EndFunc ;
-__error:
+__error():
  BeginFunc ;
 _p1 = ("bad syntax*n":string:12);
 PUSH _p1;
@@ -689,14 +689,14 @@ RET _t3;
 _L1:
 LEAVE;
  EndFunc ;
-__printf:
+__printf(s):
  BeginFunc ;
 RET s ;
 _L1:
 LEAVE;
  EndFunc ;
 )ita";
-    auto expected_2 = R"ita(__main:
+    auto expected_2 = R"ita(__main():
  BeginFunc ;
 x = (5:int:4);
 y = (1:int:4);
@@ -773,20 +773,20 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_definitions")
         "},\n      \"root\" : \"number\"\n    }],\n  \"node\" : \"program\",\n "
         " \"root\" : \"definitions\"\n}");
 
-    std::string expected = R"ita(__main:
+    std::string expected = R"ita(__main():
  BeginFunc ;
 CALL number;
 _t2 = RET;
 _L1:
 LEAVE;
  EndFunc ;
-__ret:
+__ret(x):
  BeginFunc ;
 RET x ;
 _L1:
 LEAVE;
  EndFunc ;
-__number:
+__number():
  BeginFunc ;
 _p1 = (5:int:4);
 PUSH _p1;
@@ -836,7 +836,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
         "},\n      \"root\" : \"main\"\n    }");
 
-    std::string expected = R"ita(__main:
+    std::string expected = R"ita(__main():
  BeginFunc ;
 _p1 = (2:int:4);
 _p2 = (5:int:4);
@@ -911,7 +911,7 @@ TEST_CASE_FIXTURE(
         "\"statement\",\n        \"root\" : \"block\"\n      },\n      "
         "\"root\" : \"exp\"\n    }");
 
-    std::string expected = R"ita(__exp:
+    std::string expected = R"ita(__exp(x,y):
  BeginFunc ;
 _L2:
 _t5 = y == (1:int:4);
@@ -1949,19 +1949,81 @@ TEST_CASE_FIXTURE(
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    auto expected = R"ita(_t3 = (5:int:4) + (5:int:4);
-_t4 = (3:int:4) + (3:int:4);
-_t5 = _t3 * _t4;
-x = _t5;
+    auto expected = R"ita(_t2 = (5:int:4) + (5:int:4);
+_t3 = (3:int:4) + (3:int:4);
+_t4 = _t2 * _t3;
+x = _t4;
 y = (100:int:4);
+_L5:
+_t8 = x > (0:int:4);
+IF _t8 GOTO _L7;
+GOTO _L13;
 _L6:
-_t9 = x > (0:int:4);
-IF _t9 GOTO _L8;
-GOTO _L14;
-_L7:
 x = (2:int:4);
-_L2:
+_L1:
 LEAVE;
+_L7:
+_L9:
+_L11:
+_t12 = x >= (0:int:4);
+IF _t12 GOTO _L10;
+GOTO _L6;
+_L10:
+x = --x;
+y = --y;
+x = y;
+GOTO _L9;
+_L13:
+x = ++x;
+y = (5:int:4);
+_t14 = x + y;
+_t15 = x + x;
+_t16 = _t14 * _t15;
+x = _t16;
+GOTO _L6;
+)ita";
+    auto expected_2 = R"ita(x = (1:int:4);
+y = (10:int:4);
+_L2:
+_L4:
+_t5 = x >= (0:int:4);
+IF _t5 GOTO _L3;
+_L6:
+_L8:
+_t9 = x <= (100:int:4);
+IF _t9 GOTO _L7;
+x = (2:int:4);
+_L1:
+LEAVE;
+_L3:
+x = --x;
+y = --y;
+x = y;
+GOTO _L2;
+_L7:
+x = ++x;
+GOTO _L6;
+)ita";
+    std::string expected_3 = R"ita(x = (100:int:4);
+y = (100:int:4);
+_L2:
+_t5 = x == (100:int:4);
+IF _t5 GOTO _L4;
+_L3:
+x = ++x;
+y = (5:int:4);
+_t14 = x + y;
+_t15 = x + x;
+_t16 = _t14 * _t15;
+x = _t16;
+_L1:
+LEAVE;
+_L4:
+_L6:
+_t9 = x > (5:int:4);
+IF _t9 GOTO _L8;
+_L7:
+GOTO _L3;
 _L8:
 _L10:
 _L12:
@@ -1973,68 +2035,6 @@ x = --x;
 y = --y;
 x = y;
 GOTO _L10;
-_L14:
-x = ++x;
-y = (5:int:4);
-_t15 = x + y;
-_t16 = x + x;
-_t17 = _t15 * _t16;
-x = _t17;
-GOTO _L7;
-)ita";
-    auto expected_2 = R"ita(x = (1:int:4);
-y = (10:int:4);
-_L3:
-_L5:
-_t6 = x >= (0:int:4);
-IF _t6 GOTO _L4;
-_L7:
-_L9:
-_t10 = x <= (100:int:4);
-IF _t10 GOTO _L8;
-x = (2:int:4);
-_L2:
-LEAVE;
-_L4:
-x = --x;
-y = --y;
-x = y;
-GOTO _L3;
-_L8:
-x = ++x;
-GOTO _L7;
-)ita";
-    std::string expected_3 = R"ita(x = (100:int:4);
-y = (100:int:4);
-_L3:
-_t6 = x == (100:int:4);
-IF _t6 GOTO _L5;
-_L4:
-x = ++x;
-y = (5:int:4);
-_t15 = x + y;
-_t16 = x + x;
-_t17 = _t15 * _t16;
-x = _t17;
-_L2:
-LEAVE;
-_L5:
-_L7:
-_t10 = x > (5:int:4);
-IF _t10 GOTO _L9;
-_L8:
-GOTO _L4;
-_L9:
-_L11:
-_L13:
-_t14 = x >= (0:int:4);
-IF _t14 GOTO _L12;
-GOTO _L8;
-_L12:
-x = --x;
-y = --y;
-x = y;
-GOTO _L11;
 )ita";
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while"], expected);
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while_2"], expected_2);
@@ -2334,86 +2334,86 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: if and else branching")
         "}, null],\n            \"root\" : \"if\"\n          }],\n        "
         "\"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    auto expected = R"ita(_t3 = (5:int:4) + (5:int:4);
-_t4 = (3:int:4) + (3:int:4);
-_t5 = _t3 * _t4;
-x = _t5;
+    auto expected = R"ita(_t2 = (5:int:4) + (5:int:4);
+_t3 = (3:int:4) + (3:int:4);
+_t4 = _t2 * _t3;
+x = _t4;
+_L5:
+_t8 = x <= (5:int:4);
+IF _t8 GOTO _L7;
+GOTO _L9;
 _L6:
-_t9 = x <= (5:int:4);
-IF _t9 GOTO _L8;
-GOTO _L10;
-_L7:
-_t11 = (5:int:4) || (2:int:4);
-x = _t11;
-_L2:
+_t10 = (5:int:4) || (2:int:4);
+x = _t10;
+_L1:
 LEAVE;
-_L8:
+_L7:
 x = (1:int:4);
-GOTO _L7;
-_L10:
+GOTO _L6;
+_L9:
 x = (8:int:4);
-GOTO _L7;
+GOTO _L6;
 )ita";
 
-    auto expected_2 = R"ita(_t3 = (5:int:4) + (5:int:4);
-_t4 = (3:int:4) + (3:int:4);
-_t5 = _t3 * _t4;
-x = _t5;
+    auto expected_2 = R"ita(_t2 = (5:int:4) + (5:int:4);
+_t3 = (3:int:4) + (3:int:4);
+_t4 = _t2 * _t3;
+x = _t4;
+_L5:
+_t8 = x <= (5:int:4);
+IF _t8 GOTO _L7;
 _L6:
-_t9 = x <= (5:int:4);
-IF _t9 GOTO _L8;
-_L7:
+_L9:
+_t12 = x > (5:int:4);
+IF _t12 GOTO _L11;
 _L10:
-_t13 = x > (5:int:4);
-IF _t13 GOTO _L12;
-_L11:
-_t14 = (5:int:4) || (2:int:4);
-x = _t14;
-_L2:
+_t13 = (5:int:4) || (2:int:4);
+x = _t13;
+_L1:
 LEAVE;
-_L8:
+_L7:
 x = (1:int:4);
-GOTO _L7;
-_L12:
+GOTO _L6;
+_L11:
 x = (10:int:4);
-GOTO _L11;
+GOTO _L10;
 )ita";
 
     auto expected_3 = R"ita(x = (5:int:4);
-_L3:
-_t6 = CMP x;
-IF _t6 GOTO _L5;
-_L4:
 _L2:
+_t5 = CMP x;
+IF _t5 GOTO _L4;
+_L3:
+_L1:
 LEAVE;
-_L5:
+_L4:
 y = x;
+_L6:
+_t9 = ! y;
+IF _t9 GOTO _L8;
 _L7:
-_t10 = ! y;
-IF _t10 GOTO _L9;
-_L8:
-_t21 = (2:int:4) + (2:int:4);
-x = _t21;
-GOTO _L4;
-_L9:
-_L11:
-_t14 = x > y;
-IF _t14 GOTO _L13;
-_L12:
-_t20 = (1:int:4) + (1:int:4);
+_t20 = (2:int:4) + (2:int:4);
 x = _t20;
-GOTO _L8;
-_L13:
-_L15:
-_t18 = ! x;
-IF _t18 GOTO _L17;
-_L16:
-_t19 = (3:int:4) + (3:int:4);
+GOTO _L3;
+_L8:
+_L10:
+_t13 = x > y;
+IF _t13 GOTO _L12;
+_L11:
+_t19 = (1:int:4) + (1:int:4);
 x = _t19;
-GOTO _L12;
-_L17:
+GOTO _L7;
+_L12:
+_L14:
+_t17 = ! x;
+IF _t17 GOTO _L16;
+_L15:
+_t18 = (3:int:4) + (3:int:4);
+x = _t18;
+GOTO _L11;
+_L16:
 x = y;
-GOTO _L16;
+GOTO _L15;
 )ita";
 
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["if"], expected);
