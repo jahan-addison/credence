@@ -16,6 +16,7 @@
 #pragma once
 
 #include <algorithm>         // for remove_if, __any_of, __find_if, any_of
+#include <array>             // for array
 #include <cctype>            // for isspace
 #include <credence/assert.h> // for CREDENCE_ASSERT
 #include <credence/ir/ita.h> // for ITA
@@ -40,16 +41,12 @@ namespace ir {
 
 class Context
 {
-  public:
-    Context() = delete;
-    Context(Context&) = delete;
 
   public:
-    explicit Context(
-        ITA::Node const& hoisted_symbols,
-        ITA::Instructions const& instructions)
-        : instructions_(instructions)
-        , hoisted_symbols_(hoisted_symbols)
+    Context() = delete;
+    ~Context() = default;
+    explicit Context(ITA::Node const& hoisted_symbols)
+        : hoisted_symbols_(hoisted_symbols)
     {
     }
 
@@ -60,91 +57,43 @@ class Context
     using Size = std::size_t;
     using LValue = std::string;
     using RValue = std::string;
-    using RValue_Reference = std::variant<LValue, RValue>;
+    using IR_Context = std::pair<std::unique_ptr<Context>, ITA::Instructions>;
+    using Address_Table = Symbol_Table<Label, Address>;
+    using Symbolic_Stack = std::deque<RValue>;
     using Temporary = std::pair<LValue, RValue>;
     using Parameters = std::vector<std::string>;
     using Labels = std::set<Label>;
     using Locals = std::set<std::string>;
 
-    constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
-                                          "+",  "~",  "!", "~" };
-
-    inline bool is_unary(std::string_view rvalue)
-    {
-        return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
-            return rvalue.starts_with(x) or rvalue.ends_with(x);
-        });
-    }
-    constexpr inline std::string_view get_unary(std::string_view rvalue)
-    {
-        auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
-            return rvalue.find(op) != std::string_view::npos;
-        });
-        if (it == UNARY_TYPES.end())
-            return "";
-        return *it;
-    }
-    inline std::string get_unary_lvalue(std::string& lvalue)
-    {
-        std::string_view unary_chracters = "+-*&+~!";
-        lvalue.erase(
-            std::remove_if(
-                lvalue.begin(),
-                lvalue.end(),
-                [&](char ch) {
-                    return ::isspace(ch) or
-                           unary_chracters.find(ch) != std::string_view::npos;
-                }),
-            lvalue.end());
-        return lvalue;
-    }
-
-  public:
-    ITA::Instructions from_ita_instructions();
-
-  public:
-    static ITA::Instructions to_ita_from_ast(
-        ITA::Node const& symbols,
-        ITA::Node const& ast);
-
   private:
     struct Function
     {
-        Label symbol{};
-        Labels labels;
-        Locals locals;
-        Parameters parameters;
-        static constexpr int max_depth{ 50 };
-        unsigned int allocation{ 0 };
-
+        explicit Function(Label const& label)
+        {
+            set_parameters_from_symbolic_label(label);
+        }
         void set_parameters_from_symbolic_label(Label const& label);
-
-        static constexpr std::string get_label_as_human_readable(
+        static constexpr Label get_label_as_human_readable(
             std::string_view label)
         {
-            return std::string{ label.begin() + 2,
-                                label.begin() + label.find_first_of("(") };
+            return Label{ label.begin() + 2,
+                          label.begin() + label.find_first_of("(") };
         }
-
-        std::map<LValue, RValue> temporary;
-        std::deque<RValue_Reference> stack;
-        ITA::Instructions instructions{};
+        Label symbol{};
+        Labels labels{};
+        Locals locals{};
+        Parameters parameters{};
+        Address_Table label_address{};
+        static constexpr int max_depth{ 1000 };
+        std::array<Address, 2> address_location{};
+        unsigned int allocation{ 0 };
+        std::map<LValue, RValue> temporary{};
     };
-    using Function_PTR = std::shared_ptr<Function>;
-    using Functions = std::map<std::string, Function_PTR>;
-    using Stack_Frame = std::optional<Function_PTR>;
-
-    constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
-
-    inline Function_PTR get_stack_frame()
-    {
-        CREDENCE_ASSERT(is_stack_frame());
-        return stack_frame.value();
-    }
 
   private:
     struct Vector
     {
+        Vector() = delete;
         explicit Vector(int size_of)
             : size(size_of)
         {
@@ -154,18 +103,46 @@ class Context
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
     };
-    using Vectors = std::map<std::string, std::unique_ptr<Vector>>;
 
   private:
-    void context_frame_error(std::string_view message, std::string_view symbol);
+    using Function_PTR = std::shared_ptr<Function>;
+    using Functions = std::map<std::string, Function_PTR>;
+    using Vectors = std::map<std::string, std::unique_ptr<Vector>>;
+    using Stack_Frame = std::optional<Function_PTR>;
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
-    using RValue_Data_Type =
-        std::tuple<Context::RValue, Context::Type, Context::Size>;
+    using RValue_Data_Type = std::tuple<RValue, Type, Size>;
+
+  public:
+    void build_context_from_ita_instructions(ITA::Instructions& instructions);
+    static IR_Context from_ast_to_symbolic_ita(
+        ITA::Node const& symbols,
+        ITA::Node const& ast);
+
+  public:
+    constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
+                                          "+",  "~",  "!", "~" };
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void from_func_start_ita_instruction();
-    void from_func_end_ita_instruction(ITA::Quadruple const& instruction);
+    constexpr bool is_unary(std::string_view rvalue);
+    constexpr std::string_view get_unary(std::string_view rvalue);
+    constexpr LValue get_unary_lvalue(std::string& lvalue);
+
+    void context_frame_error(std::string_view message, std::string_view symbol);
+
+    constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
+
+    inline Function_PTR get_stack_frame()
+    {
+        CREDENCE_ASSERT(is_stack_frame());
+        return stack_frame.value();
+    }
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void from_func_start_ita_instruction(ITA::Instructions const& instructions);
+    void from_func_end_ita_instruction();
+    void from_push_instruction(ITA::Quadruple const& instruction);
+    void from_pop_instruction(ITA::Quadruple const& instruction);
     void from_label_ita_instruction(ITA::Quadruple const& instruction);
     void from_variable_ita_instruction(ITA::Quadruple const& instruction);
 
@@ -184,16 +161,16 @@ class Context
 
    CREDENCE_PRIVATE_UNLESS_TESTED:
     Symbol_Table<RValue_Data_Type, LValue> symbols_{};
-    Symbol_Table<LValue, Address> address_table_{};
     // clang-format on
 
   private:
     Stack_Frame stack_frame{ std::nullopt };
-    size_t instruction_index{ 0 };
-    ITA::Instructions instructions_;
+    Address instruction_index{ 0 };
     ITA::Node hoisted_symbols_;
 
   public:
+    Address_Table table{};
+    Symbolic_Stack stack{};
     Functions functions{};
     Labels labels{};
 };

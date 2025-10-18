@@ -25,7 +25,6 @@ The instruction set:
         VARIABLE,
         RETURN,
         LEAVE,
-        EOL,
         NOOP
     };
 ```

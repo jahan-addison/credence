@@ -131,9 +131,11 @@ int main(int argc, const char* argv[])
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    auto instructions = credence::ir::Context::to_ita_from_ast(
-                        hoisted, ast["root"]);
-                    credence::ir::ITA::emit(out_to, instructions);
+                    credence::ir::ITA::emit(
+                        out_to,
+                        credence::ir::Context::from_ast_to_symbolic_ita(
+                            hoisted, ast["root"])
+                            .second);
                 },
             m::pattern | "ast" =
                 [&]() {

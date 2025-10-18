@@ -21,7 +21,7 @@ inline auto make_node()
     return credence::util::AST::object();
 }
 
-TEST_CASE("ir/context.cc: Context::to_ita_from_ast")
+TEST_CASE("ir/context.cc: Context::from_ast_to_symbolic_ita")
 {
     auto symbols = LOAD_JSON_FROM_STRING(
         "{\"m\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 17, "
@@ -298,7 +298,8 @@ TEST_CASE("ir/context.cc: Context::to_ita_from_ast")
         "\"root\" : \"printf\"\n    }],\n  \"node\" : \"program\",\n  \"root\" "
         ": \"definitions\"\n}\n");
 
-    auto expected_switch_main_function = R"ita( BeginFunc ;
+    std::string expected_switch_main_function = R"ita(__main():
+ BeginFunc ;
     i = (0:int:4);
     j = (1:int:4);
     m = (0:int:4);
@@ -348,7 +349,7 @@ _L11:
     _t13 = RET;
     GOTO _L10;
 _L15:
-    GOTO _L14;
+    GOTO _L4;
 _L17:
     GOTO _L4;
 _L19:
@@ -367,22 +368,55 @@ _L26:
     m = _t32;
     GOTO _L25;
  EndFunc ;
+__char(a,b):
+ BeginFunc ;
+_L1:
+    LEAVE;
+ EndFunc ;
+__error():
+ BeginFunc ;
+    _p1 = ("bad syntax*n":string:12);
+    PUSH _p1;
+    CALL printf;
+    POP 8;
+    _t2 = RET;
+    _t3 = - (1:int:4);
+    RET _t3;
+_L1:
+    LEAVE;
+ EndFunc ;
+__printf(s):
+ BeginFunc ;
+    RET s ;
+_L1:
+    LEAVE;
+ EndFunc ;
 )ita";
     std::ostringstream out_to{};
-    auto context = credence::ir::Context{
-        symbols, credence::ir::make_ITA_instructions(symbols, ast)
-    };
-    auto instructions = context.from_ita_instructions();
-
-    credence::ir::ITA::emit(out_to, context.functions.at("main")->instructions);
-
+    auto symbolic_context =
+        credence::ir::Context::from_ast_to_symbolic_ita(symbols, ast);
+    auto context = std::move(symbolic_context.first);
+    credence::ir::ITA::emit(out_to, symbolic_context.second);
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(context.functions.at("main")->allocation == 24);
-    REQUIRE(context.functions.size() == 4);
-    REQUIRE(context.functions.at("main")->labels.size() == 21);
-    REQUIRE(context.functions.at("main")->locals.size() == 6);
-
-    REQUIRE(context.symbols_.size() == 6);
+    REQUIRE(context->functions.at("main")->address_location[0] == 2);
+    REQUIRE(context->functions.at("main")->address_location[1] == 68);
+    REQUIRE(context->functions.at("main")->allocation == 24);
+    REQUIRE(context->functions.size() == 4);
+    REQUIRE(context->functions.at("main")->labels.size() == 19);
+    REQUIRE(context->functions.at("main")->locals.size() == 6);
+    REQUIRE(context->symbols_.size() == 6);
+    out_to.str("");
+    credence::ir::ITA::emit_to(
+        out_to,
+        symbolic_context
+            .second[context->functions.at("main")->address_location[0]]);
+    REQUIRE(out_to.str() == "i = (0:int:4);\n");
+    out_to.str("");
+    credence::ir::ITA::emit_to(
+        out_to,
+        symbolic_context
+            .second[context->functions.at("main")->address_location[1]]);
+    REQUIRE(out_to.str() == "GOTO _L25;\n");
 }
 
 TEST_CASE("ir/context.cc: Context::get_rvalue_symbol_type_size")

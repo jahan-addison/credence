@@ -20,22 +20,24 @@ namespace ir {
 
 namespace m = matchit;
 
-ITA::Instructions Context::from_ita_instructions()
+void Context::build_context_from_ita_instructions(
+    ITA::Instructions& instructions)
 {
-    using std::get;
     bool skip = false;
-    ITA::Instructions context_instructions{};
     ITA::Instruction last_instruction = ITA::Instruction::NOOP;
 
-    for (instruction_index = 0; instruction_index < instructions_.size();
+    for (instruction_index = 0; instruction_index < instructions.size();
          instruction_index++) {
-        auto instruction = instructions_.at(instruction_index);
-        m::match(get<ITA::Instruction>(instruction))(
-            // TODO: follow jumps
+        auto instruction = instructions.at(instruction_index);
+        m::match(std::get<ITA::Instruction>(instruction))(
             m::pattern | ITA::Instruction::FUNC_START =
-                [&] { from_func_start_ita_instruction(); },
+                [&] { from_func_start_ita_instruction(instructions); },
             m::pattern | ITA::Instruction::FUNC_END =
-                [&] { from_func_end_ita_instruction(instruction); },
+                [&] { from_func_end_ita_instruction(); },
+            m::pattern | ITA::Instruction::PUSH =
+                [&] { from_push_instruction(instruction); },
+            m::pattern | ITA::Instruction::POP =
+                [&] { from_pop_instruction(instruction); },
             m::pattern | ITA::Instruction::VARIABLE =
                 [&] { from_variable_ita_instruction(instruction); },
             m::pattern | ITA::Instruction::LABEL =
@@ -45,22 +47,17 @@ ITA::Instructions Context::from_ita_instructions()
                     if (last_instruction == ITA::Instruction::GOTO)
                         skip = true;
                 });
-        if (!skip or get<0>(instruction) != ITA::Instruction::GOTO) {
-            context_instructions.emplace_back(instruction);
-            if (is_stack_frame())
-                get_stack_frame()->instructions.emplace_back(instruction);
-        } else {
+        if (skip) {
+            instructions.erase(instructions.begin() + instruction_index);
             skip = false;
         }
         last_instruction = std::get<ITA::Instruction>(instruction);
     }
-
-    return context_instructions;
 }
 
 void Context::from_label_ita_instruction(ITA::Quadruple const& instruction)
 {
-    auto label = get<1>(instruction);
+    Label label = std::get<1>(instruction);
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
         if (frame->labels.contains(label) != false)
@@ -70,33 +67,34 @@ void Context::from_label_ita_instruction(ITA::Quadruple const& instruction)
                     "defined"),
                 label);
         frame->labels.emplace(label);
+        frame->label_address.set_symbol_by_name(label, instruction_index);
     }
 }
 
 void Context::from_variable_ita_instruction(ITA::Quadruple const& instruction)
 {
-    CREDENCE_ASSERT(instructions_.size() > 2);
-    LValue lhs = get<1>(instruction);
-    RValue rhs =
-        is_unary(get<2>(instruction)) and not get<3>(instruction).empty()
-            ? get<3>(instruction)
-            : get<2>(instruction);
+    LValue lhs = std::get<1>(instruction);
+    RValue rhs = is_unary(std::get<2>(instruction)) and
+                         not std::get<3>(instruction).empty()
+                     ? std::get<3>(instruction)
+                     : std::get<2>(instruction);
 
     auto frame = get_stack_frame();
 
     if (lhs.starts_with("_t") or lhs.starts_with("_p")) {
-        frame->temporary[lhs] = get<2>(instruction);
+        frame->temporary[lhs] = std::get<2>(instruction);
     } else if (rhs.starts_with("_t") and is_stack_frame()) {
         from_temporary_assignment(lhs, rhs);
-    } else if (hoisted_symbols_.has_key(get<2>(instruction))) {
-        from_symbol_reassignment(lhs, get<2>(instruction));
+    } else if (hoisted_symbols_.has_key(std::get<2>(instruction))) {
+        from_symbol_reassignment(lhs, std::get<2>(instruction));
     } else {
         RValue_Data_Type rvalue_symbol =
-            is_unary(get<2>(instruction))
-                ? from_rvalue_unary_expression(lhs, rhs, get<2>(instruction))
+            is_unary(std::get<2>(instruction))
+                ? from_rvalue_unary_expression(
+                      lhs, rhs, std::get<2>(instruction))
                 : get_rvalue_symbol_type_size(rhs);
 
-        Size size = get<2>(rvalue_symbol);
+        Size size = std::get<2>(rvalue_symbol);
 
         if (size > std::numeric_limits<unsigned int>::max())
             context_frame_error(
@@ -107,34 +105,43 @@ void Context::from_variable_ita_instruction(ITA::Quadruple const& instruction)
             symbols_.set_symbol_by_name(lhs, rvalue_symbol);
         } else {
             //  resize stack frame allocation on reassignment
-            frame->allocation -= get<2>(symbols_.get_symbol_by_name(lhs));
+            frame->allocation -= std::get<2>(symbols_.get_symbol_by_name(lhs));
             symbols_.set_symbol_by_name(lhs, rvalue_symbol);
             frame->allocation += size;
         }
     }
 }
 
-void Context::from_func_start_ita_instruction()
+void Context::from_func_start_ita_instruction(
+    ITA::Instructions const& instructions)
 {
-    CREDENCE_ASSERT(instructions_.size() > 2);
-    std::string label = Function::get_label_as_human_readable(
-        get<1>(instructions_.at(instruction_index - 1)));
-
+    auto symbolic_label = std::get<1>(instructions.at(instruction_index - 1));
+    auto label = Function::get_label_as_human_readable(symbolic_label);
+    table.set_symbol_by_name(symbolic_label, instruction_index - 1);
     if (labels.contains(label))
         context_frame_error(
             std::format("function symbol is already defined"), label);
 
-    functions[label] = std::make_shared<Function>(Function{});
+    functions[label] = std::make_shared<Function>(Function{ symbolic_label });
+    functions[label]->address_location[0] = instruction_index + 1;
 
     labels.emplace(label);
     stack_frame = functions[label];
-    stack_frame.value()->set_parameters_from_symbolic_label(
-        get<1>(instructions_.at(instruction_index - 1)));
     for (auto const& parameter : stack_frame.value()->parameters)
         symbols_.set_symbol_by_name(
             parameter, { "__WORD__", "word", sizeof(void*) });
 
     stack_frame.value()->symbol = label;
+}
+
+void Context::from_func_end_ita_instruction()
+{
+    if (is_stack_frame()) {
+        get_stack_frame()->address_location[1] = instruction_index - 1;
+        for (auto const& parameter : stack_frame.value()->parameters)
+            symbols_.remove_symbol_by_name(parameter);
+    }
+    stack_frame = std::nullopt;
 }
 
 void Context::Function::set_parameters_from_symbolic_label(Label const& label)
@@ -156,15 +163,22 @@ void Context::Function::set_parameters_from_symbolic_label(Label const& label)
         }
 }
 
-void Context::from_func_end_ita_instruction(ITA::Quadruple const& instruction)
+void Context::from_push_instruction(ITA::Quadruple const& instruction)
 {
-    CREDENCE_ASSERT(instructions_.size() > 2);
-    if (is_stack_frame()) {
-        get_stack_frame()->instructions.emplace_back(instruction);
-        for (auto const& parameter : stack_frame.value()->parameters)
-            symbols_.remove_symbol_by_name(parameter);
+    RValue operand = std::get<1>(instruction);
+    if (is_stack_frame())
+        stack.emplace_back(operand);
+}
+
+void Context::from_pop_instruction(ITA::Quadruple const& instruction)
+{
+    auto operand = std::stoul(std::get<1>(instruction));
+    auto pop_size = operand / sizeof(void*);
+    CREDENCE_ASSERT(!stack.empty());
+    for (std::size_t i = pop_size; i > 0; i--) {
+        if (is_stack_frame())
+            stack.pop_back();
     }
-    stack_frame = std::nullopt;
 }
 
 Context::RValue_Data_Type Context::get_rvalue_symbol_type_size(
@@ -298,9 +312,9 @@ void Context::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
     } else {
         auto symbol = symbols_.get_symbol_by_name(rhs);
         if (symbols_.is_defined(lhs))
-            frame->allocation -= get<2>(symbols_.get_symbol_by_name(lhs));
+            frame->allocation -= std::get<2>(symbols_.get_symbol_by_name(lhs));
         symbols_.set_symbol_by_name(lhs, symbol);
-        frame->allocation += get<2>(symbol);
+        frame->allocation += std::get<2>(symbol);
     }
 }
 
@@ -320,20 +334,54 @@ Context::RValue_Data_Type Context::from_integral_unary_expression(
     if (std::ranges::find(integral_unary, std::get<1>(symbol)) ==
         integral_unary.end())
         context_frame_error(
-            "invalid numeric unary expression on lvalue, lvalue is not an "
+            "invalid numeric unary expression on lvalue, lvalue is not a "
             "numeric type",
             lvalue);
 
     return symbols_.get_symbol_by_name(lvalue);
 }
 
-ITA::Instructions Context::to_ita_from_ast(
+Context::IR_Context Context::from_ast_to_symbolic_ita(
     ITA::Node const& symbols,
     ITA::Node const& ast)
 {
     auto instructions = make_ITA_instructions(symbols, ast);
-    auto context = Context{ symbols, instructions };
-    return context.from_ita_instructions();
+    auto context = std::make_unique<Context>(Context{ symbols });
+
+    context->build_context_from_ita_instructions(instructions);
+
+    return std::make_pair(std::move(context), instructions);
+}
+
+constexpr inline bool Context::is_unary(std::string_view rvalue)
+{
+    return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
+        return rvalue.starts_with(x) or rvalue.ends_with(x);
+    });
+}
+
+constexpr inline std::string_view Context::get_unary(std::string_view rvalue)
+{
+    auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
+        return rvalue.find(op) != std::string_view::npos;
+    });
+    if (it == UNARY_TYPES.end())
+        return "";
+    return *it;
+}
+constexpr inline Context::LValue Context::get_unary_lvalue(std::string& lvalue)
+{
+    std::string_view unary_chracters = "+-*&+~!";
+    lvalue.erase(
+        std::remove_if(
+            lvalue.begin(),
+            lvalue.end(),
+            [&](char ch) {
+                return ::isspace(ch) or
+                       unary_chracters.find(ch) != std::string_view::npos;
+            }),
+        lvalue.end());
+    return lvalue;
 }
 
 inline void Context::context_frame_error(

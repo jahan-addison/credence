@@ -75,7 +75,6 @@ class ITA
         VARIABLE,
         RETURN,
         LEAVE,
-        EOL,
         NOOP
     };
 
@@ -133,9 +132,6 @@ class ITA
                 break;
             case ITA::Instruction::GOTO:
                 os << "GOTO";
-                break;
-            case ITA::Instruction::EOL:
-                os << ";";
                 break;
             default:
                 os << "null";
