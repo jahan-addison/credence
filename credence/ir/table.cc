@@ -1,4 +1,4 @@
-#include <credence/ir/context.h>
+#include <credence/ir/table.h>
 
 #include <algorithm>         // for __find, find
 #include <credence/assert.h> // for credence_runtime_error, CREDENC...
@@ -20,8 +20,11 @@ namespace ir {
 
 namespace m = matchit;
 
-void Context::build_context_from_ita_instructions(
-    ITA::Instructions& instructions)
+/**
+ * @brief Construct table and apply a pre-
+ * selection pass on a set of ITA instructions
+ */
+void Table::from_ita_instructions(ITA::Instructions& instructions)
 {
     bool skip = false;
     ITA::Instruction last_instruction = ITA::Instruction::NOOP;
@@ -55,13 +58,16 @@ void Context::build_context_from_ita_instructions(
     }
 }
 
-void Context::from_label_ita_instruction(ITA::Quadruple const& instruction)
+/**
+ * @brief add label and label instruction address entry from LABEL instruction
+ */
+void Table::from_label_ita_instruction(ITA::Quadruple const& instruction)
 {
     Label label = std::get<1>(instruction);
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
         if (frame->labels.contains(label) != false)
-            context_frame_error(
+            construct_error(
                 std::format(
                     "symbol of symbolic label is already "
                     "defined"),
@@ -71,7 +77,17 @@ void Context::from_label_ita_instruction(ITA::Quadruple const& instruction)
     }
 }
 
-void Context::from_variable_ita_instruction(ITA::Quadruple const& instruction)
+/**
+ * @brief Deconstruct assignment instructions into
+ * each type and populate function frame stack table
+ *
+ *  * LValues that begin with `_t` or `_p` are temporaries or parameters
+ *  * Ressignments reallocate the frame stack size and update table
+ *
+ *  * Assign symbols to the table and allocate them as a local on the
+ *  * frame stack
+ */
+void Table::from_variable_ita_instruction(ITA::Quadruple const& instruction)
 {
     LValue lhs = std::get<1>(instruction);
     RValue rhs = is_unary(std::get<2>(instruction)) and
@@ -97,7 +113,7 @@ void Context::from_variable_ita_instruction(ITA::Quadruple const& instruction)
         Size size = std::get<2>(rvalue_symbol);
 
         if (size > std::numeric_limits<unsigned int>::max())
-            context_frame_error(
+            construct_error(
                 std::format("exceeds maximum byte size ({})", rhs), lhs);
         if (!frame->locals.contains(lhs)) {
             frame->allocation += size;
@@ -112,14 +128,18 @@ void Context::from_variable_ita_instruction(ITA::Quadruple const& instruction)
     }
 }
 
-void Context::from_func_start_ita_instruction(
+/**
+ * @brief Set function definition label as current frame stack,
+ *  Set instruction address location on the frame
+ */
+void Table::from_func_start_ita_instruction(
     ITA::Instructions const& instructions)
 {
     auto symbolic_label = std::get<1>(instructions.at(instruction_index - 1));
     auto label = Function::get_label_as_human_readable(symbolic_label);
-    table.set_symbol_by_name(symbolic_label, instruction_index - 1);
+    address_table.set_symbol_by_name(symbolic_label, instruction_index - 1);
     if (labels.contains(label))
-        context_frame_error(
+        construct_error(
             std::format("function symbol is already defined"), label);
 
     functions[label] = std::make_shared<Function>(Function{ symbolic_label });
@@ -134,7 +154,7 @@ void Context::from_func_start_ita_instruction(
     stack_frame.value()->symbol = label;
 }
 
-void Context::from_func_end_ita_instruction()
+void Table::from_func_end_ita_instruction()
 {
     if (is_stack_frame()) {
         get_stack_frame()->address_location[1] = instruction_index - 1;
@@ -144,7 +164,12 @@ void Context::from_func_end_ita_instruction()
     stack_frame = std::nullopt;
 }
 
-void Context::Function::set_parameters_from_symbolic_label(Label const& label)
+/**
+ * @brief Parse ITA function parameters into locals on the frame stack
+ *
+ * e.g. `__convert(s,v) = s,v`
+ */
+void Table::Function::set_parameters_from_symbolic_label(Label const& label)
 {
     std::string parameter;
     auto search =
@@ -163,14 +188,20 @@ void Context::Function::set_parameters_from_symbolic_label(Label const& label)
         }
 }
 
-void Context::from_push_instruction(ITA::Quadruple const& instruction)
+/**
+ * @brief Push an RValue operand onto the symbolic frame stack
+ */
+void Table::from_push_instruction(ITA::Quadruple const& instruction)
 {
     RValue operand = std::get<1>(instruction);
     if (is_stack_frame())
         stack.emplace_back(operand);
 }
 
-void Context::from_pop_instruction(ITA::Quadruple const& instruction)
+/**
+ * @brief Pop off the top of the symbolic frame stack based on operand size
+ */
+void Table::from_pop_instruction(ITA::Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
@@ -181,8 +212,12 @@ void Context::from_pop_instruction(ITA::Quadruple const& instruction)
     }
 }
 
-Context::RValue_Data_Type Context::get_rvalue_symbol_type_size(
-    RValue const& rvalue)
+/**
+ * @brief Parse RValue::Value_Type into a 3-tuple of value, type, and size
+ *
+ * e.g. (10:int:4) -> 10, "int", 4UL
+ */
+Table::RValue_Data_Type Table::get_rvalue_symbol_type_size(RValue const& rvalue)
 {
     size_t search = rvalue.find_last_of(":");
     auto bytes = std::string{ rvalue.begin() + search + 1, rvalue.end() - 1 };
@@ -197,7 +232,10 @@ Context::RValue_Data_Type Context::get_rvalue_symbol_type_size(
     return { value, type, std::stoul(bytes) };
 }
 
-Context::RValue_Data_Type Context::from_rvalue_unary_expression(
+/**
+ * @brief Parse the unary rvalue types into their operator and lvalue
+ */
+Table::RValue_Data_Type Table::from_rvalue_unary_expression(
     LValue const& lvalue,
     RValue& rvalue,
     std::string_view unary_operator)
@@ -213,7 +251,7 @@ Context::RValue_Data_Type Context::from_rvalue_unary_expression(
         m::pattern | "*" =
             [&] {
                 if (!symbols_.is_pointer(rvalue))
-                    context_frame_error(
+                    construct_error(
                         std::format(
                             "indirection on invalid lvalue, "
                             "right-hand-side is "
@@ -223,14 +261,13 @@ Context::RValue_Data_Type Context::from_rvalue_unary_expression(
                         lvalue);
                 LValue indirect_lvalue = symbols_.get_pointer_by_name(rvalue);
                 if (!symbols_.is_defined(indirect_lvalue))
-                    context_frame_error(
-                        "invalid indirection assignment", lvalue);
+                    construct_error("invalid indirection assignment", lvalue);
                 return symbols_.get_symbol_by_name(indirect_lvalue);
             },
         m::pattern | "&" =
             [&] {
                 if (!symbols_.is_defined(rvalue))
-                    context_frame_error(
+                    construct_error(
                         std::format(
                             "invalid pointer assignment, right-hand-side "
                             "is "
@@ -260,7 +297,11 @@ Context::RValue_Data_Type Context::from_rvalue_unary_expression(
             m::_ = [&] { return symbols_.get_symbol_by_name(lvalue); });
 }
 
-Context::Binary_Expression Context::from_rvalue_binary_expression(
+/**
+ * @brief Parse ITA binary expression into
+ * its operator and operands in the table
+ */
+Table::Binary_Expression Table::from_rvalue_binary_expression(
     RValue const& rvalue)
 {
     auto lhs = rvalue.find_first_of(" ");
@@ -273,7 +314,11 @@ Context::Binary_Expression Context::from_rvalue_binary_expression(
     return { lhs_lvalue, rhs_lvalue, binary_operator };
 }
 
-Context::RValue Context::from_temporary(LValue const& lvalue)
+/**
+ * @brief Recursively resolve and return the
+ * rvalue of a temporary lvalue in the table
+ */
+Table::RValue Table::from_temporary(LValue const& lvalue)
 {
     auto rvalue = util::contains(lvalue, "_t")
                       ? get_stack_frame()->temporary[lvalue]
@@ -288,7 +333,10 @@ Context::RValue Context::from_temporary(LValue const& lvalue)
     }
 }
 
-void Context::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
+/**
+ * @brief Construct table entry for a temporary lvalue assignment
+ */
+void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
 {
     auto rvalue = get_stack_frame()->temporary.at(rhs);
     if (is_unary(rvalue)) {
@@ -299,11 +347,15 @@ void Context::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
         symbols_.set_symbol_by_name(lhs, { rvalue, "word", sizeof(void*) });
 }
 
-void Context::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
+/**
+ * @brief Reallocate and store updated local
+ * for a symbol reassignment in the stack frame
+ */
+void Table::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
 {
     auto frame = get_stack_frame();
     if (!symbols_.is_defined(rhs))
-        context_frame_error(
+        construct_error(
             "invalid lvalue assignment, right-hand-side is not initialized",
             rhs);
     if (symbols_.is_pointer(rhs)) {
@@ -318,14 +370,17 @@ void Context::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
     }
 }
 
-Context::RValue_Data_Type Context::from_integral_unary_expression(
+/**
+ * @brief Parse numeric ITA unary expressions
+ */
+Table::RValue_Data_Type Table::from_integral_unary_expression(
     RValue const& lvalue)
 {
     const std::initializer_list<std::string_view> integral_unary = {
         "int", "double", "float", "long"
     };
     if (!symbols_.is_defined(lvalue))
-        context_frame_error(
+        construct_error(
             "invalid numeric unary expression, lvalue symbol is not "
             "initialized",
             lvalue);
@@ -333,7 +388,7 @@ Context::RValue_Data_Type Context::from_integral_unary_expression(
     auto symbol = symbols_.get_symbol_by_name(lvalue);
     if (std::ranges::find(integral_unary, std::get<1>(symbol)) ==
         integral_unary.end())
-        context_frame_error(
+        construct_error(
             "invalid numeric unary expression on lvalue, lvalue is not a "
             "numeric type",
             lvalue);
@@ -341,26 +396,33 @@ Context::RValue_Data_Type Context::from_integral_unary_expression(
     return symbols_.get_symbol_by_name(lvalue);
 }
 
-Context::IR_Context Context::from_ast_to_symbolic_ita(
-    ITA::Node const& symbols,
-    ITA::Node const& ast)
+/**
+ * @brief Parse ITA::Node ast and symbols to a table instructions pair
+ */
+Table::ITA_Table Table::from_ast(ITA::Node const& symbols, ITA::Node const& ast)
 {
     auto instructions = make_ITA_instructions(symbols, ast);
-    auto context = std::make_unique<Context>(Context{ symbols });
+    auto table = std::make_unique<Table>(Table{ symbols });
 
-    context->build_context_from_ita_instructions(instructions);
+    table->from_ita_instructions(instructions);
 
-    return std::make_pair(std::move(context), instructions);
+    return std::make_pair(std::move(table), instructions);
 }
 
-constexpr inline bool Context::is_unary(std::string_view rvalue)
+/**
+ * @brief is ITA unary
+ */
+constexpr inline bool Table::is_unary(std::string_view rvalue)
 {
     return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
         return rvalue.starts_with(x) or rvalue.ends_with(x);
     });
 }
 
-constexpr inline std::string_view Context::get_unary(std::string_view rvalue)
+/**
+ * @brief Get unary operator from ITA rvalue string
+ */
+constexpr inline std::string_view Table::get_unary(std::string_view rvalue)
 {
     auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
         return rvalue.find(op) != std::string_view::npos;
@@ -369,7 +431,11 @@ constexpr inline std::string_view Context::get_unary(std::string_view rvalue)
         return "";
     return *it;
 }
-constexpr inline Context::LValue Context::get_unary_lvalue(std::string& lvalue)
+
+/**
+ * @brief Get unary lvalue from ITA rvalue string
+ */
+constexpr inline Table::LValue Table::get_unary_lvalue(std::string& lvalue)
 {
     std::string_view unary_chracters = "+-*&+~!";
     lvalue.erase(
@@ -384,7 +450,10 @@ constexpr inline Context::LValue Context::get_unary_lvalue(std::string& lvalue)
     return lvalue;
 }
 
-inline void Context::context_frame_error(
+/**
+ * @brief Raise runtime construction error with stack frame symbol
+ */
+inline void Table::construct_error(
     std::string_view message,
     [[maybe_unused]] std::string_view symbol)
 {

@@ -736,6 +736,175 @@ ITA::Instructions ITA::build_from_rvalue_statement(Node const& node)
         .first;
 }
 
+/**
+ * @brief Emit a single qaudrupl-tuple to a std::ostream
+ *   If indent is true indent with a tab for formatting
+ */
+void ITA::emit_to(std::ostream& os, ITA::Quadruple const& ita, bool indent)
+{ // not constexpr until C++23
+    ITA::Instruction op = std::get<ITA::Instruction>(ita);
+    const std::initializer_list<ITA::Instruction> lhs_instruction = {
+        ITA::Instruction::GOTO,
+        ITA::Instruction::PUSH,
+        ITA::Instruction::LABEL,
+        ITA::Instruction::POP,
+        ITA::Instruction::CALL
+    };
+    if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
+        if (op == ITA::Instruction::LABEL) {
+            os << std::get<1>(ita) << ":" << std::endl;
+        } else {
+            if (indent)
+                os << "    ";
+            os << op << " " << std::get<1>(ita) << ";" << std::endl;
+        }
+    } else {
+        if (indent) {
+            if (op != ITA::Instruction::FUNC_START and
+                op != ITA::Instruction::FUNC_END)
+                os << "    ";
+        }
+        m::match(op)(
+            m::pattern | ITA::Instruction::RETURN =
+                [&] {
+                    os << op << " " << std::get<1>(ita) << ";" << std::endl;
+                },
+            m::pattern |
+                ITA::Instruction::LEAVE = [&] { os << op << ";" << std::endl; },
+            m::pattern | m::or_(ITA::Instruction::IF, ITA::Instruction::JMP_E) =
+                [&] {
+                    os << op << " " << std::get<1>(ita) << " "
+                       << std::get<2>(ita) << " " << std::get<3>(ita) << ";"
+                       << std::endl;
+                },
+            m::pattern | m::_ =
+                [&] {
+                    os << std::get<1>(ita) << " " << op << " "
+                       << std::get<2>(ita) << std::get<3>(ita) << ";"
+                       << std::endl;
+                    if (indent and op == ITA::Instruction::FUNC_END)
+                        os << std::endl << std::endl;
+                }
+
+        );
+    }
+}
+
+/**
+ * @brief Create a statement AST from an rvalue statement or others
+ */
+inline util::AST_Node ITA::make_block_statement(
+    std::deque<util::AST_Node> const& blocks)
+{
+    auto block_statement = util::AST::object();
+    block_statement["node"] = util::AST_Node{ "statement" };
+    block_statement["root"] = util::AST_Node{ "block" };
+    block_statement["left"] = util::AST_Node{ blocks };
+
+    return block_statement;
+}
+
+/**
+ * @brief Create a statement AST from an rvalue statement or others
+ */
+inline util::AST_Node ITA::make_block_statement(util::AST_Node block)
+{
+    auto block_statement = util::AST::object();
+    block_statement["node"] = util::AST_Node{ "statement" };
+    block_statement["root"] = util::AST_Node{ "block" };
+    block_statement["left"].append(block);
+    return block_statement;
+}
+/**
+ * @brief Use operator<< to implement nstruction symbol to string
+ */
+inline std::string ITA::instruction_to_string(
+    Instruction op) // not constexpr until C++23
+{
+    std::ostringstream os;
+    os << op;
+    return os.str();
+}
+
+/**
+ * @brief Use std::ostringstream to implement qaudruple-tuple to string
+ */
+inline std::string ITA::quadruple_to_string(
+    ITA::Quadruple const& ita) // not constexpr until C++23
+{
+    std::ostringstream os;
+    os << std::setw(2) << std::get<1>(ita) << std::get<0>(ita)
+       << std::get<2>(ita) << std::get<3>(ita);
+
+    return os.str();
+}
+
+/**
+ * @brief Check if AST node is a branch statement node
+ */
+constexpr inline bool ITA::Branch::is_branching_statement(std::string_view s)
+{
+    return std::ranges::find(BRANCH_STATEMENTS, s) != BRANCH_STATEMENTS.end();
+}
+
+/**
+ * @brief Check if a Quadruple instruction is Instruction::GOTO
+ */
+constexpr inline bool ITA::Branch::last_instruction_is_jump(
+    Quadruple const& inst)
+{
+    return std::get<0>(inst) == Instruction::GOTO;
+}
+
+/**
+ * @brief Increment branch level, create return label and add to branch stack
+ */
+inline void ITA::Branch::increment_branch_level()
+{
+    is_branching = true;
+    level++;
+    block_level = ITA::make_temporary(temporary);
+    stack.emplace(block_level);
+}
+
+/**
+ * @brief Decrement branch level and pop branch label off the stack
+ */
+inline void ITA::Branch::decrement_branch_level(bool not_branching)
+{
+    CREDENCE_ASSERT(level > 1);
+    CREDENCE_ASSERT(!stack.empty());
+    level--;
+    if (not_branching)
+        is_branching = false;
+    stack.pop();
+}
+
+/**
+ * @brief Set branching to false, branching is complete
+ */
+inline void ITA::Branch::teardown()
+{
+    CREDENCE_ASSERT_EQUAL(level, 1);
+    is_branching = false;
+}
+
+/**
+ * @brief Get a parent branch or the root branch label from the stack
+ */
+inline ITA::Tail_Branch ITA::Branch::get_parent_branch(bool last)
+{
+    CREDENCE_ASSERT(root_branch.has_value());
+    if (last and stack.size() > 1) {
+        auto top = stack.top();
+        stack.pop();
+        auto previous = stack.top();
+        stack.emplace(top);
+        return previous;
+    } else
+        return stack.empty() ? root_branch : stack.top();
+}
+
 } // namespace ir
 
 } // namespace credence

@@ -53,6 +53,7 @@ class ITA
     ITA(ITA const&) = delete;
     ITA& operator=(ITA const&) = delete;
 #endif
+    ~ITA() = default;
     explicit ITA() = default;
     explicit ITA(util::AST_Node const& internal_symbols)
         : internal_symbols_(internal_symbols)
@@ -82,6 +83,7 @@ class ITA
     using Quadruple =
         std::tuple<Instruction, std::string, std::string, std::string>;
     using Instructions = std::deque<Quadruple>;
+    using Node = util::AST_Node;
     using Parameters = std::vector<std::string>;
     using Tail_Branch = std::optional<Quadruple>;
     using Branch_Comparator = std::pair<std::string, Instructions>;
@@ -141,86 +143,56 @@ class ITA
     }
 
   public:
-    using Node = util::AST_Node;
     /**
-     * @brief Emit a qaudruple tuple to a std::ostream
+     * @brief Insert instructions from one std::deque into another
      */
-    static void emit_to(
-        std::ostream& os,
-        ITA::Quadruple const& ita,
-        bool indent = false)
+    static inline void insert_instructions(
+        Instructions& to,
+        Instructions const& from)
     {
-        ITA::Instruction op = std::get<ITA::Instruction>(ita);
-        const std::initializer_list<ITA::Instruction> lhs_instruction = {
-            ITA::Instruction::GOTO,
-            ITA::Instruction::PUSH,
-            ITA::Instruction::LABEL,
-            ITA::Instruction::POP,
-            ITA::Instruction::CALL
-        };
-        if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
-            if (op == ITA::Instruction::LABEL) {
-                os << std::get<1>(ita) << ":" << std::endl;
-            } else {
-                if (indent)
-                    os << "    ";
-                os << op << " " << std::get<1>(ita) << ";" << std::endl;
-            }
-        } else {
-            if (indent) {
-                if (op != ITA::Instruction::FUNC_START and
-                    op != ITA::Instruction::FUNC_END)
-                    os << "    ";
-            }
-            m::match(op)(
-                m::pattern | ITA::Instruction::RETURN =
-                    [&] {
-                        os << op << " " << std::get<1>(ita) << ";" << std::endl;
-                    },
-                m::pattern | ITA::Instruction::LEAVE =
-                    [&] { os << op << ";" << std::endl; },
-                m::pattern |
-                    m::or_(ITA::Instruction::IF, ITA::Instruction::JMP_E) =
-                    [&] {
-                        os << op << " " << std::get<1>(ita) << " "
-                           << std::get<2>(ita) << " " << std::get<3>(ita) << ";"
-                           << std::endl;
-                    },
-                m::pattern | m::_ =
-                    [&] {
-                        os << std::get<1>(ita) << " " << op << " "
-                           << std::get<2>(ita) << std::get<3>(ita) << ";"
-                           << std::endl;
-                    }
-
-            );
-        }
+        to.insert(to.end(), from.begin(), from.end());
     }
 
   public:
+    static void emit_to(
+        std::ostream& os,
+        ITA::Quadruple const& ita,
+        bool indent = false);
     /**
-     * @brief Emission functions
+     * @brief Emit a std::deque of instructions to a std::ostream
+     *   If indent is true indent with a tab for formatting
      */
     static inline void emit(
         std::ostream& os,
         Instructions const& instructions,
-        bool indent = true)
+        bool indent = true) // not constexpr until C++23
     {
         for (auto const& i : instructions)
-            ITA::emit_to(os, i, indent);
+            emit_to(os, i, indent);
     }
+    /**
+     * @brief Emit ITA::instructions_ field to an std::ostream
+     */
     inline void emit(std::ostream& os)
-    {
+    { // not constexpr until C++23
         for (auto const& i : instructions_)
-            ITA::emit_to(os, i);
+            emit_to(os, i);
     }
+    /**
+     * @brief Emit ITA::instructions_ field to an std::ostream
+     *   If indent is true indent with a tab for formatting
+     */
     inline void emit(std::ostream& os, bool indent)
-    {
+    { // not constexpr until C++23
         for (auto const& i : instructions_)
             ITA::emit_to(os, i, indent);
     }
 
   public:
+    /**
+     * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
+     * size Set as a Instruction::VARIABLE instruction with the right-hamd-side
+     */
     static constexpr inline Quadruple make_temporary(
         int* temporary_size,
         std::string const& temp)
@@ -231,12 +203,22 @@ class ITA
                 util::to_constexpr_string<int>(++(*temporary_size)),
             temp);
     }
-
-    static inline void insert_instructions(Instructions& to, Instructions& from)
+    /**
+     * @brief Create a temporary (e.g. _L5) label from the
+     * current temporary size Set as a Instruction::LABEL
+     */
+    constexpr inline Quadruple make_temporary()
     {
-        to.insert(to.end(), from.begin(), from.end());
+        return make_quadruple(
+            Instruction::LABEL,
+            std::string{ "_L" } + util::to_constexpr_string<int>(++temporary),
+            "");
     }
 
+    /**
+     * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
+     * size Set as a standlone Instruction::LABEL instruction
+     */
     static constexpr inline Quadruple make_temporary(int* temporary_size)
     {
         return make_quadruple(
@@ -246,13 +228,9 @@ class ITA
             "");
     }
 
-    constexpr inline Quadruple make_temporary()
-    {
-        return make_quadruple(
-            Instruction::LABEL,
-            std::string{ "_L" } + util::to_constexpr_string<int>(++temporary),
-            "");
-    }
+    /**
+     * @brief Create a qaudruple-tuple from 4 operands, 3 optional
+     */
     static constexpr inline Quadruple make_quadruple(
         Instruction op,
         std::string const& s1 = "",
@@ -263,51 +241,25 @@ class ITA
     }
 
   public:
-    static inline util::AST_Node make_block_statement(
-        std::deque<util::AST_Node> const& blocks)
-    {
-        auto block_statement = util::AST::object();
-        block_statement["node"] = util::AST_Node{ "statement" };
-        block_statement["root"] = util::AST_Node{ "block" };
-        block_statement["left"] = util::AST_Node{ blocks };
-
-        return block_statement;
-    }
-    static inline util::AST_Node make_block_statement(util::AST_Node block)
-    {
-        auto block_statement = util::AST::object();
-        block_statement["node"] = util::AST_Node{ "statement" };
-        block_statement["root"] = util::AST_Node{ "block" };
-        block_statement["left"].append(block);
-        return block_statement;
-    }
-    inline std::string instruction_to_string(
-        Instruction op) // not constexpr until C++23
-    {
-        std::ostringstream os;
-        os << op;
-        return os.str();
-    }
-
-    inline std::string quadruple_to_string(
-        Quadruple const& ita) // not constexpr until C++23
-    {
-        std::ostringstream os;
-        os << std::setw(2) << std::get<1>(ita) << std::get<0>(ita)
-           << std::get<2>(ita) << std::get<3>(ita);
-
-        return os.str();
-    }
+    static util::AST_Node make_block_statement(
+        std::deque<util::AST_Node> const& blocks);
+    static util::AST_Node make_block_statement(util::AST_Node block);
+    std::string instruction_to_string(Instruction op);
+    std::string quadruple_to_string(Quadruple const& ita);
 
   public:
-  public:
-    static inline Instructions make_ITA_instructions(
-        Node const& internal_symbols,
-        Node const& node)
+    /**
+     * @brief ITA::Instructions factory method
+     */
+    static inline ITA::Instructions make_ITA_instructions(
+        ITA::Node const& internal_symbols,
+        ITA::Node const& node)
     {
         auto ita = ITA{ internal_symbols };
         return ita.build_from_definitions(node);
     }
+
+  public:
     Instructions build_from_definitions(Node const& node);
 
     // clang-format off
@@ -378,83 +330,48 @@ class ITA
   private:
     /**
      * @brief An object of branch state during ITA construction,
-     * in order to enable continuation and passing of instructions
-     *
+     * including a return label stack and passing of instructions
      */
     class Branch
     {
       public:
         Branch() = delete;
+        ~Branch() = default;
         explicit Branch(int* temporary)
             : temporary(temporary)
         {
         }
 
       public:
-        constexpr inline static bool is_branching_statement(std::string_view s)
-        {
-            return std::ranges::find(BRANCH_STATEMENTS, s) !=
-                   BRANCH_STATEMENTS.end();
-        }
-        constexpr inline static bool last_instruction_is_jump(
-            Quadruple const& inst)
-        {
-            return std::get<0>(inst) == Instruction::GOTO;
-        }
-        inline void increment_branch_level()
-        {
-            is_branching = true;
-            level++;
-            block_level = ITA::make_temporary(temporary);
-            stack.emplace(block_level);
-        }
-        inline void decrement_branch_level(bool not_branching = false)
-        {
-            CREDENCE_ASSERT(level > 1);
-            CREDENCE_ASSERT(!stack.empty());
-            level--;
-            if (not_branching)
-                is_branching = false;
-            stack.pop();
-        }
-        inline void teardown()
-        {
-            CREDENCE_ASSERT_EQUAL(level, 1);
-            is_branching = false;
-        }
+        static constexpr auto BRANCH_STATEMENTS = { "if", "while", "case" };
 
       public:
-        inline Tail_Branch get_parent_branch(bool last = false)
-        {
-            CREDENCE_ASSERT(root_branch.has_value());
-            if (last and stack.size() > 1) {
-                auto top = stack.top();
-                stack.pop();
-                auto previous = stack.top();
-                stack.emplace(top);
-                return previous;
-            } else
-                return stack.empty() ? root_branch : stack.top();
-        }
-        constexpr inline bool is_root_level() { return level == 1; }
-        constexpr inline bool is_branch_level() { return level > 1; }
-        constexpr inline void set_block_to_root() { block_level = root_branch; }
-        constexpr inline Tail_Branch get_root_branch() { return root_branch; }
+        constexpr static bool is_branching_statement(std::string_view s);
+        constexpr static bool last_instruction_is_jump(Quadruple const& inst);
+
+      public:
+        /**
+         * @brief Construct root branch label and set to root block
+         */
         constexpr inline void set_root_branch(ITA& ita)
         {
             if (level == 1) {
-                // _L1 label is reserved for function scope continuation
+                // _L1 label is reserved for function scope resume
                 root_branch = ita.make_temporary();
                 set_block_to_root();
             }
         }
+        void increment_branch_level();
+        void decrement_branch_level(bool not_branching = false);
+        void teardown();
+        Tail_Branch get_parent_branch(bool last = false);
+        constexpr inline bool is_root_level() { return level == 1; }
+        constexpr inline bool is_branch_level() { return level > 1; }
+        constexpr inline void set_block_to_root() { block_level = root_branch; }
+        constexpr inline Tail_Branch get_root_branch() { return root_branch; }
 
       public:
         std::stack<Tail_Branch> stack{};
-        // clang-format off
-        static constexpr auto
-        BRANCH_STATEMENTS = { "if", "while", "case" };
-        // clang-format on
 
       private:
         Tail_Branch root_branch;
@@ -472,16 +389,17 @@ class ITA
     }
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    inline void make_root_branch() {
+    inline void make_root_branch()
+    {
         temporary = 0;
         branch.set_root_branch(*this);
     }
-  CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node internal_symbols_;
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
-    // clang-format on
 };
+
+// clang-format on
 
 inline ITA::Instructions make_ITA_instructions(
     util::AST_Node const& internals_symbols,

@@ -1,17 +1,17 @@
 #include <doctest/doctest.h>
 
-#include <credence/ir/context.h> // for Context
-#include <credence/ir/ita.h>     // for make_ITA_instructions, ITA
-#include <credence/symbol.h>     // for Symbol_Table
-#include <credence/util.h>       // for AST_Node, AST
-#include <format>                // for format
-#include <memory>                // for allocator, shared_ptr
-#include <ostream>               // for basic_ostream
-#include <simplejson.h>          // for JSON, object
-#include <sstream>               // for basic_ostringstream, ostringstream
-#include <string>                // for basic_string, char_traits, string
-#include <string_view>           // for basic_string_view
-#include <tuple>                 // for get
+#include <credence/ir/ita.h>   // for make_ITA_instructions, ITA
+#include <credence/ir/table.h> // for Table
+#include <credence/symbol.h>   // for Symbol_Table
+#include <credence/util.h>     // for AST_Node, AST
+#include <format>              // for format
+#include <memory>              // for allocator, shared_ptr
+#include <ostream>             // for basic_ostream
+#include <simplejson.h>        // for JSON, object
+#include <sstream>             // for basic_ostringstream, ostringstream
+#include <string>              // for basic_string, char_traits, string
+#include <string_view>         // for basic_string_view
+#include <tuple>               // for get
 
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
@@ -21,7 +21,7 @@ inline auto make_node()
     return credence::util::AST::object();
 }
 
-TEST_CASE("ir/context.cc: Context::from_ast_to_symbolic_ita")
+TEST_CASE("ir/table.cc: Table::from_ast")
 {
     auto symbols = LOAD_JSON_FROM_STRING(
         "{\"m\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 17, "
@@ -368,11 +368,15 @@ _L26:
     m = _t32;
     GOTO _L25;
  EndFunc ;
+
+
 __char(a,b):
  BeginFunc ;
 _L1:
     LEAVE;
  EndFunc ;
+
+
 __error():
  BeginFunc ;
     _p1 = ("bad syntax*n":string:12);
@@ -385,16 +389,19 @@ __error():
 _L1:
     LEAVE;
  EndFunc ;
+
+
 __printf(s):
  BeginFunc ;
     RET s ;
 _L1:
     LEAVE;
  EndFunc ;
+
+
 )ita";
     std::ostringstream out_to{};
-    auto symbolic_context =
-        credence::ir::Context::from_ast_to_symbolic_ita(symbols, ast);
+    auto symbolic_context = credence::ir::Table::from_ast(symbols, ast);
     auto context = std::move(symbolic_context.first);
     credence::ir::ITA::emit(out_to, symbolic_context.second);
     REQUIRE(out_to.str() == expected_switch_main_function);
@@ -419,24 +426,24 @@ _L1:
     REQUIRE(out_to.str() == "GOTO _L25;\n");
 }
 
-TEST_CASE("ir/context.cc: Context::get_rvalue_symbol_type_size")
+TEST_CASE("ir/context.cc: Table::get_rvalue_symbol_type_size")
 {
     auto [test1_1, test1_2, test1_3] =
-        credence::ir::Context::get_rvalue_symbol_type_size("(10:int:4)");
+        credence::ir::Table::get_rvalue_symbol_type_size("(10:int:4)");
     auto [test2_1, test2_2, test2_3] =
-        credence::ir::Context::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_rvalue_symbol_type_size(
             std::format("(10.005:float:{})", sizeof(float)));
     auto [test3_1, test3_2, test3_3] =
-        credence::ir::Context::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_rvalue_symbol_type_size(
             std::format("(10.000000000000000005:double:{})", sizeof(double)));
     auto [test4_1, test4_2, test4_3] =
-        credence::ir::Context::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_rvalue_symbol_type_size(
             std::format("('0':byte:{})", sizeof(char)));
     auto [test5_1, test5_2, test5_3] =
-        credence::ir::Context::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_rvalue_symbol_type_size(
             std::format("(__WORD__:word:{})", sizeof(void*)));
     auto [test6_1, test6_2, test6_3] =
-        credence::ir::Context::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_rvalue_symbol_type_size(
             std::format(
                 "(\"hello this is a very long string\":string:{})",
                 std::string{ "hello this is a very long string" }.size()));

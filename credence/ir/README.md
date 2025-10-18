@@ -71,6 +71,11 @@ __main():
 See the branch state machine object for details [here](https://github.com/jahan-addison/credence/blob/99d882fb813fe6964092f7ed7ac2f07b30c86cf8/credence/ir/ita.h#L369).
 
 
+## Table
+
+The `Table` provides a function, symbolic label, and address table for the ITA instruction sets Including instruction location maps, stack frame and stack allocation sizes, and vector definition allocations as a pre-selection pass for platform code generation.
+
+
 ## Example:
 
 B Code:
@@ -139,6 +144,8 @@ _L10:
     z = --z;
     GOTO _L9;
  EndFunc ;
+
+
 __add(x,y):
  BeginFunc ;
     _t2 = x + y;
@@ -146,6 +153,8 @@ __add(x,y):
 _L1:
     LEAVE;
  EndFunc ;
+
+
 __sub(x,y):
  BeginFunc ;
     _t2 = x - y;

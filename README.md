@@ -120,6 +120,8 @@ _L10:
     z = --z;
     GOTO _L9;
  EndFunc ;
+
+
 __add(x,y):
  BeginFunc ;
     _t2 = x + y;
@@ -127,6 +129,8 @@ __add(x,y):
 _L1:
     LEAVE;
  EndFunc ;
+
+
 __sub(x,y):
  BeginFunc ;
     _t2 = x - y;

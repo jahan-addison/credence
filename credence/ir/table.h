@@ -39,13 +39,37 @@ namespace credence {
 
 namespace ir {
 
-class Context
+/**
+ * @brief A function, symbolic label, and address table for ITA
+ * instruction sets. Provides instruction location maps, stack
+ * frame and stack allocation sizes as a pre-selection pass for
+ * platform code generation:
+ *
+ *  - Table::Address_Table address_table
+ *      * Instruction address table to functions in the ITA
+ *
+ *  - Table::Symbolic_Stack stack
+ *      * Symbolic stack for ITA::Instruction::CALL
+ *
+ *  - Table::Functions functions
+ *      * Function definition map of local labels,
+ *      * stack allocation, and depth size
+ *
+ *  - Table::Vectors vectors
+ *      * Vector definition map of vectors
+ *      * (arrays) in the global scope
+ *
+ *  - Table::Labels labels
+ *      * A set of labels for ITA::Instruction::GOTO jumps
+ *
+ */
+class Table
 {
 
   public:
-    Context() = delete;
-    ~Context() = default;
-    explicit Context(ITA::Node const& hoisted_symbols)
+    Table() = delete;
+    ~Table() = default;
+    explicit Table(ITA::Node const& hoisted_symbols)
         : hoisted_symbols_(hoisted_symbols)
     {
     }
@@ -57,7 +81,7 @@ class Context
     using Size = std::size_t;
     using LValue = std::string;
     using RValue = std::string;
-    using IR_Context = std::pair<std::unique_ptr<Context>, ITA::Instructions>;
+    using ITA_Table = std::pair<std::unique_ptr<Table>, ITA::Instructions>;
     using Address_Table = Symbol_Table<Label, Address>;
     using Symbolic_Stack = std::deque<RValue>;
     using Temporary = std::pair<LValue, RValue>;
@@ -66,6 +90,9 @@ class Context
     using Locals = std::set<std::string>;
 
   private:
+    /**
+     * Symbolic ITA function stack frame allocation
+     */
     struct Function
     {
         explicit Function(Label const& label)
@@ -91,6 +118,9 @@ class Context
     };
 
   private:
+    /**
+     * Symbolic ITA vector definition and allocation
+     */
     struct Vector
     {
         Vector() = delete;
@@ -106,17 +136,16 @@ class Context
 
   private:
     using Function_PTR = std::shared_ptr<Function>;
+    using Vector_PTR = std::shared_ptr<Vector>;
     using Functions = std::map<std::string, Function_PTR>;
-    using Vectors = std::map<std::string, std::unique_ptr<Vector>>;
+    using Vectors = std::map<std::string, Vector_PTR>;
     using Stack_Frame = std::optional<Function_PTR>;
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
     using RValue_Data_Type = std::tuple<RValue, Type, Size>;
 
   public:
-    void build_context_from_ita_instructions(ITA::Instructions& instructions);
-    static IR_Context from_ast_to_symbolic_ita(
-        ITA::Node const& symbols,
-        ITA::Node const& ast);
+    void from_ita_instructions(ITA::Instructions& instructions);
+    static ITA_Table from_ast(ITA::Node const& symbols, ITA::Node const& ast);
 
   public:
     constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
@@ -128,7 +157,7 @@ class Context
     constexpr std::string_view get_unary(std::string_view rvalue);
     constexpr LValue get_unary_lvalue(std::string& lvalue);
 
-    void context_frame_error(std::string_view message, std::string_view symbol);
+    void construct_error(std::string_view message, std::string_view symbol);
 
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
 
@@ -169,11 +198,20 @@ class Context
     ITA::Node hoisted_symbols_;
 
   public:
-    Address_Table table{};
+    Address_Table address_table{};
     Symbolic_Stack stack{};
     Functions functions{};
+    Vectors vectors{};
     Labels labels{};
 };
+
+inline void emit_ita_instructions_from_ast(
+    std::ostream& os,
+    ITA::Node const& symbols,
+    ITA::Node const& ast)
+{
+    ITA::emit(os, Table::from_ast(symbols, ast).second);
+}
 
 } // namespace ir
 

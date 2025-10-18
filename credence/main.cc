@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h>     // for credence_cpptrace_stack_trace
-#include <credence/ir/context.h> // for Context
-#include <credence/ir/ita.h>     // for ITA
-#include <credence/util.h>       // for AST_Node, read_file_from_path
-#include <cxxopts.hpp>           // for value, Options, ParseResult, OptionAdder
-#include <exception>             // for exception
-#include <filesystem>            // for filesystem_error, operator<<
-#include <iostream>              // for basic_ostream, operator<<, endl, cerr
-#include <matchit.h>             // for pattern, match, PatternHelper, Patter...
-#include <memory>                // for allocator, shared_ptr, __shared_ptr_a...
-#include <pybind11/cast.h>       // for object_api::operator(), object::cast
-#include <pybind11/embed.h>      // for scoped_interpreter
-#include <pybind11/pybind11.h>   // for error_already_set::what, module, module_
-#include <pybind11/pytypes.h>    // for object, object_api, error_already_set
-#include <simplejson.h>          // for JSON, operator<<
-#include <stdexcept>             // for runtime_error
-#include <string>                // for char_traits, string, basic_string
-#include <string_view>           // for operator<<, string_view
+#include <credence/assert.h>   // for credence_cpptrace_stack_trace
+#include <credence/ir/ita.h>   // for ITA
+#include <credence/ir/table.h> // for Table
+#include <credence/util.h>     // for AST_Node, read_file_from_path
+#include <cxxopts.hpp>         // for value, Options, ParseResult, OptionAdder
+#include <exception>           // for exception
+#include <filesystem>          // for filesystem_error, operator<<
+#include <iostream>            // for basic_ostream, operator<<, endl, cerr
+#include <matchit.h>           // for pattern, match, PatternHelper, Patter...
+#include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
+#include <pybind11/cast.h>     // for object_api::operator(), object::cast
+#include <pybind11/embed.h>    // for scoped_interpreter
+#include <pybind11/pybind11.h> // for error_already_set::what, module, module_
+#include <pybind11/pytypes.h>  // for object, object_api, error_already_set
+#include <simplejson.h>        // for JSON, operator<<
+#include <stdexcept>           // for runtime_error
+#include <string>              // for char_traits, string, basic_string
+#include <string_view>         // for operator<<, string_view
 
 int main(int argc, const char* argv[])
 {
@@ -67,7 +67,7 @@ int main(int argc, const char* argv[])
 
         std::string syntax_tree;
         credence::util::AST_Node ast;
-        credence::util::AST_Node hoisted;
+        credence::util::AST_Node symbols;
 
         auto type = result["ast-loader"].as<std::string>();
         auto target = result["target"].as<std::string>();
@@ -83,16 +83,15 @@ int main(int argc, const char* argv[])
 
                 py::object symbol_table_call = python_module.attr(
                     "get_source_program_symbol_table_as_json");
-                py::object symbols = symbol_table_call(source);
+                py::object syntax_symbols = symbol_table_call(source);
                 py::object get_ast_call;
-
-                hoisted =
-                    credence::util::AST_Node::load(symbols.cast<std::string>());
+                symbols = credence::util::AST_Node::load(
+                    syntax_symbols.cast<std::string>());
 
                 if (result["debug"].count())
                     std::cout << "*** Symbol Table:" << std::endl
-                              << symbols.cast<std::string>() << std::endl;
-
+                              << syntax_symbols.cast<std::string>()
+                              << std::endl;
                 if (result["target"].as<std::string>() == "syntax") {
                     auto get_source_ast =
                         python_module.attr("parse_source_program_as_string");
@@ -100,6 +99,7 @@ int main(int argc, const char* argv[])
                         get_source_ast(source, py::arg("pretty") = true)
                             .cast<std::string>();
                 }
+
                 get_ast_call =
                     python_module.attr("get_source_program_ast_as_json");
 
@@ -131,11 +131,8 @@ int main(int argc, const char* argv[])
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    credence::ir::ITA::emit(
-                        out_to,
-                        credence::ir::Context::from_ast_to_symbolic_ita(
-                            hoisted, ast["root"])
-                            .second);
+                    credence::ir::emit_ita_instructions_from_ast(
+                        out_to, symbols, ast["root"]);
                 },
             m::pattern | "ast" =
                 [&]() {
