@@ -205,6 +205,7 @@ void rvalue_pointer_to_queue_in_place(
                 rvalue_pointer_to_queue_in_place(
                     rhs, rvalues_queue, operator_stack, parameter_size);
                 operator_stack.emplace(op1);
+
                 _balance_queue(rvalues_queue, operator_stack);
                 _associativity_operator_precedence(
                     op1, rvalues_queue, operator_stack);

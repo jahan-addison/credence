@@ -27,7 +27,8 @@
 namespace credence {
 
 /**
- * @brief Symbol table template class
+ * @brief
+ * Symbol table template class
  *
  * Constructs a symbol table from a template data structure
  * An example table may be a map to `std::array<std::string, 5>':
@@ -70,13 +71,6 @@ class Symbol_Table
     inline void set_symbol_by_name(std::string const& name, Pointer entry)
     {
         addr_.insert_or_assign(name, entry);
-    }
-
-    inline void set_symbol_by_name(
-        std::string const& name,
-        Symbol_Table<> const& symbol)
-    {
-        table_.emplace(std::make_pair(name, symbol.get_symbol_by_name(name)));
     }
 
     inline void remove_symbol_by_name(std::string const& name)

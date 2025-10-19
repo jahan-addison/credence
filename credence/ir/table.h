@@ -40,10 +40,10 @@ namespace credence {
 namespace ir {
 
 /**
- * @brief A function, symbolic label, and address table for ITA
- * instruction sets. Provides instruction location maps, stack
- * frame and stack allocation sizes as a pre-selection pass for
- * platform code generation:
+ * @brief
+ * A function, symbolic label, and address table for ITA instruction
+ * sets. Provides instruction location maps, stack frame and stack allocation
+ * sizes as a pre-selection pass for platform code generation
  *
  *  - Table::Address_Table address_table
  *      * Instruction address table to functions in the ITA
@@ -74,6 +74,14 @@ class Table
     {
     }
 
+    explicit Table(
+        ITA::Node const& hoisted_symbols,
+        ITA::Instructions& instructions)
+        : instructions(instructions)
+        , hoisted_symbols_(hoisted_symbols)
+    {
+    }
+
   public:
     using Label = std::string;
     using Type = std::string;
@@ -81,7 +89,7 @@ class Table
     using Size = std::size_t;
     using LValue = std::string;
     using RValue = std::string;
-    using ITA_Table = std::pair<std::unique_ptr<Table>, ITA::Instructions>;
+    using ITA_Table = std::unique_ptr<Table>;
     using Address_Table = Symbol_Table<Label, Address>;
     using Symbolic_Stack = std::deque<RValue>;
     using Temporary = std::pair<LValue, RValue>;
@@ -96,8 +104,8 @@ class Table
     struct Function
     {
         explicit Function(Label const& label)
+            : symbol(label)
         {
-            set_parameters_from_symbolic_label(label);
         }
         void set_parameters_from_symbolic_label(Label const& label);
         static constexpr Label get_label_as_human_readable(
@@ -105,6 +113,11 @@ class Table
         {
             return Label{ label.begin() + 2,
                           label.begin() + label.find_first_of("(") };
+        }
+        constexpr inline bool is_parameter(RValue parameter)
+        {
+            return std::ranges::find(parameters, parameter) !=
+                   std::ranges::end(parameters);
         }
         Label symbol{};
         Labels labels{};
@@ -124,11 +137,11 @@ class Table
     struct Vector
     {
         Vector() = delete;
-        explicit Vector(int size_of)
+        explicit Vector(Address size_of)
             : size(size_of)
         {
         }
-        std::vector<RValue> data{};
+        std::map<Address, RValue> data{};
         int decay_index{ 0 };
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
@@ -144,7 +157,7 @@ class Table
     using RValue_Data_Type = std::tuple<RValue, Type, Size>;
 
   public:
-    void from_ita_instructions(ITA::Instructions& instructions);
+    ITA::Instructions from_ita_instructions();
     static ITA_Table from_ast(ITA::Node const& symbols, ITA::Node const& ast);
 
   public:
@@ -167,6 +180,9 @@ class Table
         return stack_frame.value();
     }
 
+    private:
+    void build_symbols_from_vector_definitions();
+
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void from_func_start_ita_instruction(ITA::Instructions const& instructions);
     void from_func_end_ita_instruction();
@@ -181,7 +197,11 @@ class Table
         RValue& rvalue,
         std::string_view unary_operator);
     void from_symbol_reassignment(LValue const& lhs, LValue const& rhs);
+    void from_pointer_assignment(LValue const& lhs, LValue const& rhs);
+    void vector_out_of_range_check(RValue const& rvalue);
     RValue from_temporary(LValue const& lvalue);
+    RValue from_lvalue_offset(RValue const& rvalue);
+    RValue from_pointer_offset(RValue const& rvalue);
     Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
     void from_temporary_assignment(LValue const& lhs, LValue const& rhs);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
@@ -193,6 +213,7 @@ class Table
     // clang-format on
 
   private:
+    ITA::Instructions instructions{};
     Stack_Frame stack_frame{ std::nullopt };
     Address instruction_index{ 0 };
     ITA::Node hoisted_symbols_;
@@ -210,7 +231,7 @@ inline void emit_ita_instructions_from_ast(
     ITA::Node const& symbols,
     ITA::Node const& ast)
 {
-    ITA::emit(os, Table::from_ast(symbols, ast).second);
+    ITA::emit(os, Table::from_ast(symbols, ast)->from_ita_instructions());
 }
 
 } // namespace ir

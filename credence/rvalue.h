@@ -29,7 +29,8 @@
 namespace credence {
 
 /**
- * @brief LL(1) top-down Parser of expression ast nodes to
+ * @brief
+ * LL(1) top-down Parser of expression ast nodes to
  * type::RValue data structures.
  *
  * See types.h for details.

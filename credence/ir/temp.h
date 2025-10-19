@@ -30,7 +30,7 @@ namespace credence {
 namespace type {
 enum class Operator;
 }
-} // lines 30-30
+}
 
 /****************************************************************************
  *  A set of functions that construct temporary lvalues "_tX" that aid in

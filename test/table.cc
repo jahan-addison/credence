@@ -402,31 +402,28 @@ _L1:
 )ita";
     std::ostringstream out_to{};
     auto symbolic_context = credence::ir::Table::from_ast(symbols, ast);
-    auto context = std::move(symbolic_context.first);
-    credence::ir::ITA::emit(out_to, symbolic_context.second);
+    auto instructions = symbolic_context->from_ita_instructions();
+    auto table = std::move(symbolic_context);
+    credence::ir::ITA::emit(out_to, instructions);
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(context->functions.at("main")->address_location[0] == 2);
-    REQUIRE(context->functions.at("main")->address_location[1] == 68);
-    REQUIRE(context->functions.at("main")->allocation == 24);
-    REQUIRE(context->functions.size() == 4);
-    REQUIRE(context->functions.at("main")->labels.size() == 19);
-    REQUIRE(context->functions.at("main")->locals.size() == 6);
-    REQUIRE(context->symbols_.size() == 6);
+    REQUIRE(table->functions.at("main")->address_location[0] == 2);
+    REQUIRE(table->functions.at("main")->address_location[1] == 68);
+    REQUIRE(table->functions.at("main")->allocation == 24);
+    REQUIRE(table->functions.size() == 4);
+    REQUIRE(table->functions.at("main")->labels.size() == 19);
+    REQUIRE(table->functions.at("main")->locals.size() == 6);
+    REQUIRE(table->symbols_.size() == 6);
     out_to.str("");
     credence::ir::ITA::emit_to(
-        out_to,
-        symbolic_context
-            .second[context->functions.at("main")->address_location[0]]);
+        out_to, instructions[table->functions.at("main")->address_location[0]]);
     REQUIRE(out_to.str() == "i = (0:int:4);\n");
     out_to.str("");
     credence::ir::ITA::emit_to(
-        out_to,
-        symbolic_context
-            .second[context->functions.at("main")->address_location[1]]);
+        out_to, instructions[table->functions.at("main")->address_location[1]]);
     REQUIRE(out_to.str() == "GOTO _L25;\n");
 }
 
-TEST_CASE("ir/context.cc: Table::get_rvalue_symbol_type_size")
+TEST_CASE("ir/table.cc: Table::get_rvalue_symbol_type_size")
 {
     auto [test1_1, test1_2, test1_3] =
         credence::ir::Table::get_rvalue_symbol_type_size("(10:int:4)");

@@ -499,8 +499,7 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
     temp.symbols_.table_["z"] = empty_value;
     // test vector
     auto test1 = temp.from_lvalue_expression(vector);
-    CHECK(test1.first == "x");
-    CHECK(test1.second == empty_value);
+    CHECK(test1.first == "x[50]");
     // test pointer
     auto test2 = temp.from_lvalue_expression(pointer);
     CHECK(test2.first == "*y");

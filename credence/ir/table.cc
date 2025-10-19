@@ -21,13 +21,14 @@ namespace ir {
 namespace m = matchit;
 
 /**
- * @brief Construct table and apply a pre-
- * selection pass on a set of ITA instructions
+ * @brief Construct table and pre-selection pass on a set of ITA instructions
  */
-void Table::from_ita_instructions(ITA::Instructions& instructions)
+ITA::Instructions Table::from_ita_instructions()
 {
     bool skip = false;
     ITA::Instruction last_instruction = ITA::Instruction::NOOP;
+
+    build_symbols_from_vector_definitions();
 
     for (instruction_index = 0; instruction_index < instructions.size();
          instruction_index++) {
@@ -55,6 +56,22 @@ void Table::from_ita_instructions(ITA::Instructions& instructions)
             skip = false;
         }
         last_instruction = std::get<ITA::Instruction>(instruction);
+    }
+    return instructions;
+}
+
+void Table::build_symbols_from_vector_definitions()
+{
+    auto keys = hoisted_symbols_.dump_keys();
+    for (LValue const& key : keys) {
+        auto symbol_type = hoisted_symbols_[key]["type"].to_string();
+        if (symbol_type == "vector_definition" or
+            symbol_type == "vector_lvalue") {
+            symbols_.set_symbol_by_name(key, { key, "word", sizeof(void*) });
+            auto size = static_cast<std::size_t>(
+                hoisted_symbols_[key]["size"].to_int());
+            vectors[key] = std::make_shared<Vector>(Vector{ size });
+        }
     }
 }
 
@@ -104,28 +121,97 @@ void Table::from_variable_ita_instruction(ITA::Quadruple const& instruction)
     } else if (hoisted_symbols_.has_key(std::get<2>(instruction))) {
         from_symbol_reassignment(lhs, std::get<2>(instruction));
     } else {
-        RValue_Data_Type rvalue_symbol =
-            is_unary(std::get<2>(instruction))
-                ? from_rvalue_unary_expression(
-                      lhs, rhs, std::get<2>(instruction))
-                : get_rvalue_symbol_type_size(rhs);
-
-        Size size = std::get<2>(rvalue_symbol);
-
-        if (size > std::numeric_limits<unsigned int>::max())
-            construct_error(
-                std::format("exceeds maximum byte size ({})", rhs), lhs);
-        if (!frame->locals.contains(lhs)) {
-            frame->allocation += size;
-            frame->locals.emplace(lhs);
-            symbols_.set_symbol_by_name(lhs, rvalue_symbol);
+        if (util::contains(lhs, "[") or
+            util::contains(std::get<2>(instruction), "[")) {
+            from_pointer_assignment(lhs, rhs);
         } else {
-            //  resize stack frame allocation on reassignment
-            frame->allocation -= std::get<2>(symbols_.get_symbol_by_name(lhs));
-            symbols_.set_symbol_by_name(lhs, rvalue_symbol);
-            frame->allocation += size;
+            RValue_Data_Type rvalue_symbol =
+                is_unary(std::get<2>(instruction))
+                    ? from_rvalue_unary_expression(
+                          lhs, rhs, std::get<2>(instruction))
+                    : get_rvalue_symbol_type_size(rhs);
+
+            Size size = std::get<2>(rvalue_symbol);
+
+            if (size > std::numeric_limits<unsigned int>::max())
+                construct_error(
+                    std::format("exceeds maximum byte size ({})", rhs), lhs);
+            if (!frame->locals.contains(lhs)) {
+                frame->allocation += size;
+                frame->locals.emplace(lhs);
+                symbols_.set_symbol_by_name(lhs, rvalue_symbol);
+            } else {
+                //  resize stack frame allocation on reassignment
+                frame->allocation -=
+                    std::get<2>(symbols_.get_symbol_by_name(lhs));
+                symbols_.set_symbol_by_name(lhs, rvalue_symbol);
+                frame->allocation += size;
+            }
         }
     }
+}
+
+void Table::from_pointer_assignment(LValue const& lvalue, RValue const& rvalue)
+{
+    if (util::contains(lvalue, "[")) {
+        auto symbol = from_lvalue_offset(lvalue);
+        vector_out_of_range_check(lvalue);
+    }
+    if (util::contains(rvalue, "[")) {
+        auto symbol = from_lvalue_offset(rvalue);
+        vector_out_of_range_check(rvalue);
+    }
+}
+
+void Table::vector_out_of_range_check(RValue const& rvalue)
+{
+    auto lvalue = from_lvalue_offset(rvalue);
+    auto offset = from_pointer_offset(rvalue);
+    if (!vectors.contains(lvalue))
+        construct_error(
+            std::format(
+                "invalid vector assignment, vector lvalue \"{}\" does not "
+                "exist",
+                lvalue),
+            rvalue);
+    if (util::is_numeric(offset)) {
+        auto global_symbol = hoisted_symbols_[lvalue];
+        auto ul_offset = std::stoul(offset);
+        if (!vectors.contains(lvalue))
+            construct_error(
+                std::format(
+                    "invalid vector assignment, right-hand-side does not "
+                    "exist \"{}\"",
+                    lvalue),
+                rvalue);
+        if (ul_offset > vectors[lvalue]->size - 1)
+            construct_error(
+                std::format(
+                    "invalid out-of-range vector assignment \"{}\" at index "
+                    "\"{}\"",
+                    lvalue,
+                    ul_offset),
+                rvalue);
+
+    } else {
+        auto stack_frame = get_stack_frame();
+        if (!symbols_.is_defined(offset) or
+            not stack_frame->is_parameter(offset))
+            construct_error(
+                std::format("invalid vector offset \"{}\"", offset), rvalue);
+    }
+}
+
+inline Table::RValue Table::from_pointer_offset(RValue const& rvalue)
+{
+    return std::string{ rvalue.begin() + rvalue.find_first_of("[") + 1,
+                        rvalue.begin() + rvalue.find_first_of("]") };
+}
+
+inline Table::RValue Table::from_lvalue_offset(RValue const& rvalue)
+{
+    return std::string{ rvalue.begin(),
+                        rvalue.begin() + rvalue.find_first_of("[") };
 }
 
 /**
@@ -142,16 +228,16 @@ void Table::from_func_start_ita_instruction(
         construct_error(
             std::format("function symbol is already defined"), label);
 
-    functions[label] = std::make_shared<Function>(Function{ symbolic_label });
+    functions[label] = std::make_shared<Function>(Function{ label });
     functions[label]->address_location[0] = instruction_index + 1;
-
+    functions[label]->set_parameters_from_symbolic_label(symbolic_label);
     labels.emplace(label);
     stack_frame = functions[label];
-    for (auto const& parameter : stack_frame.value()->parameters)
+    for (auto const& parameter : stack_frame.value()->parameters) {
         symbols_.set_symbol_by_name(
             parameter, { "__WORD__", "word", sizeof(void*) });
-
-    stack_frame.value()->symbol = label;
+        functions[label]->locals.emplace(parameter);
+    }
 }
 
 void Table::from_func_end_ita_instruction()
@@ -402,11 +488,7 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
 Table::ITA_Table Table::from_ast(ITA::Node const& symbols, ITA::Node const& ast)
 {
     auto instructions = make_ITA_instructions(symbols, ast);
-    auto table = std::make_unique<Table>(Table{ symbols });
-
-    table->from_ita_instructions(instructions);
-
-    return std::make_pair(std::move(table), instructions);
+    return std::make_unique<Table>(Table{ symbols, instructions });
 }
 
 /**

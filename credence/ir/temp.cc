@@ -316,13 +316,12 @@ void assignment_operands_to_temporary_stack(
                 auto lhs_rvalue = rvalue_to_string(*operand_stack.top(), false);
                 operand_stack.pop();
                 if (instructions.size() > 1) {
-                    // clang-format off
                     auto last = instructions[instructions.size() - 1];
                     instructions.emplace_back(
-                        ITA::make_quadruple(ITA::Instruction::VARIABLE,
+                        ITA::make_quadruple(
+                            ITA::Instruction::VARIABLE,
                             lhs_rvalue,
                             std::get<1>(last)));
-                    // clang-format on
                 }
             },
         m::pattern | m::ds(m::_ >= 2, m::_ == 0) =

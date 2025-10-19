@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>   // for all_of
 #include <cctype>      // for toupper
 #include <filesystem>  // for filesystem
 #include <fstream>     // for ostream
@@ -83,6 +84,13 @@ constexpr inline std::size_t substring_count_of(
         index += sub.size();
     }
     return count;
+}
+
+constexpr bool is_numeric(std::string_view s)
+{
+    return !s.empty() && std::all_of(s.begin(), s.end(), [](unsigned char c) {
+        return std::isdigit(c);
+    });
 }
 
 constexpr inline bool contains(std::string_view lhs, std::string_view rhs)

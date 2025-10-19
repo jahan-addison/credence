@@ -79,7 +79,7 @@ inline void credence_runtime_error_impl(
     if (symbols.has_key(symbol)) {
         credence_error(
             std::format(
-                ">>> Runtime error :: on \"{}\" {}\n"
+                ">>> Runtime error :: on \"{}\" :: {}\n"
                 ">>>    from line {} column {}:{}",
                 symbol,
                 message,

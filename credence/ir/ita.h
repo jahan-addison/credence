@@ -41,7 +41,8 @@ namespace ir {
 namespace m = matchit;
 
 /**
- * @brief Instruction Tuple Abstraction or ITA of program flow,
+ * @brief
+ * Instruction Tuple Abstraction or ITA of program flow,
  * control statements, and application runtime in sets of 4-tuples
  *
  * See README.md for details.
@@ -84,6 +85,7 @@ class ITA
         std::tuple<Instruction, std::string, std::string, std::string>;
     using Instructions = std::deque<Quadruple>;
     using Node = util::AST_Node;
+    using Vector_Decay_Ref = std::vector<type::RValue::Value>;
     using Parameters = std::vector<std::string>;
     using Tail_Branch = std::optional<Quadruple>;
     using Branch_Comparator = std::pair<std::string, Instructions>;

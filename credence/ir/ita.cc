@@ -154,35 +154,32 @@ std::string ITA::build_function_label_from_parameters(
 void ITA::build_from_vector_definition(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_definition");
-    CREDENCE_ASSERT(node.has_key("left"));
+    CREDENCE_ASSERT(node.has_key("right"));
     auto name = node["root"].to_string();
-    auto left_child_node = node["left"];
+    // zero-th index
+    auto size = node.has_key("left") ? node["left"]["root"].to_int() : 0;
     auto right_child_node = node["right"];
-    if (right_child_node.to_deque().empty()) {
+    Vector_Decay_Ref values_at{};
+
+    if (std::cmp_not_equal(size, right_child_node.to_deque().size() - 1))
+        credence_runtime_error(
+            std::format(
+                "invalid vector definition, right-hand-side allocation of "
+                "\"{}\" items is out of range; expected \"{}\" items ",
+                right_child_node.to_deque().size() - 1,
+                size),
+            name,
+            internal_symbols_);
+
+    globals_.set_symbol_by_name(name, values_at);
+    for (auto& child_node : right_child_node.array_range()) {
         auto rvalue = RValue_Parser::make_rvalue(
-            left_child_node, internal_symbols_, symbols_);
+            child_node, internal_symbols_, symbols_, globals_);
         auto datatype = std::get<type::RValue::Value>(rvalue.value);
-        symbols_.set_symbol_by_name(name, datatype);
-    } else {
-        if (std::cmp_not_equal(
-                left_child_node["root"].to_int(),
-                right_child_node.to_deque().size())) {
-            credence_runtime_error(
-                "invalid vector definition, "
-                "size of vector and assignment "
-                "entries do not match",
-                name,
-                internal_symbols_);
-        }
-        std::vector<type::RValue::Value> values_at{};
-        for (auto& child_node : right_child_node.array_range()) {
-            auto rvalue = RValue_Parser::make_rvalue(
-                child_node, internal_symbols_, symbols_);
-            auto datatype = std::get<type::RValue::Value>(rvalue.value);
-            values_at.emplace_back(datatype);
-        }
-        symbols_.set_symbol_by_name(name, values_at);
+        values_at.emplace_back(datatype);
     }
+
+    globals_.set_symbol_by_name(name, values_at);
 }
 
 /**
@@ -654,7 +651,8 @@ void ITA::build_from_extrn_statement(Node const& node)
     for (auto& ident : left_child_node.array_range()) {
         auto name = ident["root"].to_string();
         if (globals_.is_defined(name)) {
-            symbols_.set_symbol_by_name(name, globals_);
+            auto global_symbol = globals_.get_pointer_by_name(name);
+            symbols_.set_symbol_by_name(name, global_symbol);
         } else {
             credence_runtime_error(
                 "symbol not defined in global scope", name, internal_symbols_);

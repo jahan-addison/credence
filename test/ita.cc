@@ -1089,13 +1089,16 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
         " }");
 
     auto vectors = obj["test"].to_deque();
-    auto ita = ITA_hoisted(obj["symbols"]);
+    auto ita = ITA_hoisted(obj);
 
     CHECK_THROWS(ita.build_from_extrn_statement(obj["test"]));
 
-    ita.globals_.table_.emplace("a", credence::type::NULL_LITERAL);
-    ita.globals_.table_.emplace("b", credence::type::NULL_LITERAL);
-    ita.globals_.table_.emplace("c", credence::type::NULL_LITERAL);
+    ita.globals_.addr_.emplace(
+        "a", credence::type::Value_Pointer{ credence::type::NULL_LITERAL });
+    ita.globals_.addr_.emplace(
+        "b", credence::type::Value_Pointer{ credence::type::NULL_LITERAL });
+    ita.globals_.addr_.emplace(
+        "c", credence::type::Value_Pointer{ credence::type::NULL_LITERAL });
 
     CHECK_NOTHROW(ita.build_from_extrn_statement(obj["test"]));
 
@@ -1125,34 +1128,29 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_vector_definition")
         "1, \"end_pos\": 128, \"end_column\": 5}}");
 
     obj["test"] = LOAD_JSON_FROM_STRING(
-        "[{\n      \"left\" : {\n        \"node\" : \"string_literal\",\n      "
-        "  \"root\" : \"\\\"orld\\\"\"\n      },\n      \"node\" : "
-        "\"vector_definition\",\n      \"right\" : [],\n      \"root\" : "
-        "\"c\"\n    }, {\n      \"left\" : {\n        \"node\" : "
-        "\"number_literal\",\n        \"root\" : 2\n      },\n      \"node\" : "
-        "\"vector_definition\",\n      \"right\" : [{\n          \"node\" : "
-        "\"string_literal\",\n          \"root\" : \"\\\"too bad\\\"\"\n       "
-        " }, {\n          \"node\" : \"string_literal\",\n          \"root\" : "
-        "\"\\\"tough luck\\\"\"\n        }]\n    }]");
+        "{\n      \"left\" : {\n        \"node\" : \"number_literal\",\n       "
+        " \"root\" : 5\n      },\n      \"node\" : \"vector_definition\",\n    "
+        "  \"right\" : [{\n          \"node\" : \"string_literal\",\n          "
+        "\"root\" : \"\\\"too bad\\\"\"\n        }, {\n          \"node\" : "
+        "\"string_literal\",\n          \"root\" : \"\\\"tough luck\\\"\"\n    "
+        "    }, {\n          \"node\" : \"string_literal\",\n          "
+        "\"root\" : \"\\\"sorry, Charlie\\\"\"\n        }, {\n          "
+        "\"node\" : \"string_literal\",\n          \"root\" : \"\\\"that's the "
+        "breaks\\\"\"\n        }, {\n          \"node\" : "
+        "\"string_literal\",\n          \"root\" : \"\\\"what a shame\\\"\"\n  "
+        "      }, {\n          \"node\" : \"string_literal\",\n          "
+        "\"root\" : \"\\\"some days you can't win\\\"\"\n        }],\n      "
+        "\"root\" : \"mess\"\n    }");
 
-    auto vectors = obj["test"].to_deque();
+    auto vector = obj["test"];
     auto ita = ITA_hoisted(obj["symbols"]);
-    ita.build_from_vector_definition(vectors.at(0));
-    CHECK(ita.symbols_.is_defined(vectors.at(0)["root"].to_string()) == true);
-    auto symbol =
-        ita.symbols_.get_symbol_by_name(vectors.at(0)["root"].to_string());
-    auto [value, type] = symbol;
-    CHECK(std::get<std::string>(value) == "orld");
-    CHECK(type.first == "string");
-    CHECK(type.second == sizeof(char) * 4);
-    ita.build_from_vector_definition(vectors.at(1));
-    CHECK(ita.symbols_.is_defined(vectors.at(1)["root"].to_string()) == true);
-    CHECK(ita.symbols_.is_pointer(vectors.at(1)["root"].to_string()) == true);
+    ita.build_from_vector_definition(vector);
+    CHECK(ita.globals_.is_defined(vector["root"].to_string()) == true);
     auto vector_of_strings =
-        ita.symbols_.get_pointer_by_name(vectors.at(1)["root"].to_string());
-    CHECK(vector_of_strings.size() == 2);
+        ita.globals_.get_pointer_by_name(vector["root"].to_string());
     CHECK(std::get<std::string>(vector_of_strings.at(0).first) == "too bad");
     CHECK(std::get<std::string>(vector_of_strings.at(1).first) == "tough luck");
+    CHECK(vector_of_strings.size() == 6);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_return_statement")

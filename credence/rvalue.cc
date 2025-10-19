@@ -285,10 +285,7 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
                 credence_runtime_error(
-                    "identifier not defined, did you forget to declare with "
-                    "auto or extrn? No symbol found",
-                    name,
-                    internal_symbols_);
+                    "identifier does not exist", name, internal_symbols_);
             else
                 symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
         }
@@ -297,19 +294,32 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
     m::match(node["node"].to_string())(
         m::pattern | "lvalue" =
             [&] {
-                lvalue = type::RValue::make_lvalue(
-                    node["root"].to_string(),
-                    symbols_.get_symbol_by_name(node["root"].to_string()));
+                auto name = node["root"].to_string();
+                if (symbols_.is_pointer(name))
+                    lvalue = type::RValue::make_lvalue(name);
+                else
+                    lvalue = type::RValue::make_lvalue(
+                        name, symbols_.get_symbol_by_name(name));
             },
         m::pattern | "vector_lvalue" =
             [&] {
-                lvalue = type::RValue::make_lvalue(
-                    node["root"].to_string(),
-                    symbols_.get_symbol_by_name(node["root"].to_string()));
+                auto offset_rvalue = node["left"]["root"];
+                if (offset_rvalue.JSON_type() ==
+                    util::AST_Node::Class::Integral) {
+                    lvalue = type::RValue::make_lvalue(
+                        std::format(
+                            "{}[{}]",
+                            node["root"].to_string(),
+                            offset_rvalue.to_int()));
+                } else
+                    lvalue = type::RValue::make_lvalue(
+                        std::format(
+                            "{}[{}]",
+                            node["root"].to_string(),
+                            offset_rvalue.to_string()));
             },
         m::pattern | "indirect_lvalue" =
             [&] {
-                auto indirect_lvalue = node["left"]["root"].to_string();
                 lvalue = type::RValue::make_lvalue(
                     std::format("*{}", node["left"]["root"].to_string()));
             });
