@@ -58,7 +58,7 @@ struct ITA_Fixture
         return ita;
     }
 
-    void TEST_DEFINITIONS_WITH(Node const& node, std::string_view test)
+    inline void TEST_DEFINITIONS_WITH(Node const& node, std::string_view test)
     {
         auto os_test = std::ostringstream();
         auto ita = ITA_hoisted(definitions_symbols);
@@ -70,7 +70,7 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
-    void TEST_DEFINITIONS_WITH(
+    inline void TEST_DEFINITIONS_WITH(
         Node const& node,
         std::string_view test,
         Node const& symbols)
@@ -84,7 +84,7 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
-    void TEST_FUNCTION_DEFINITION_WITH(
+    inline void TEST_FUNCTION_DEFINITION_WITH(
         Node const& node,
         std::string_view test,
         NULL_symbols const& nulls = {})
@@ -100,7 +100,7 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
-    void TEST_BLOCK_STATEMENT_NODE_WITH(
+    inline void TEST_BLOCK_STATEMENT_NODE_WITH(
         Node const& symbols,
         Node const& node,
         std::string_view test,
@@ -118,7 +118,7 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
-    void TEST_BLOCK_STATEMENT_NODE_WITH(
+    inline void TEST_BLOCK_STATEMENT_NODE_WITH(
         Node const& symbols,
         Node const& node,
         std::string_view test,
@@ -139,7 +139,7 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
-    void TEST_RETURN_STATEMENT_NODE_WITH(
+    inline void TEST_RETURN_STATEMENT_NODE_WITH(
         Node const& symbols,
         NULL_symbols const& nulls,
         Node const& node,
@@ -156,7 +156,7 @@ struct ITA_Fixture
         REQUIRE(os_test.str() == test);
     }
 
-    void TEST_RVALUE_STATEMENT_NODE_WITH(
+    inline void TEST_RVALUE_STATEMENT_NODE_WITH(
         Node const& symbols,
         NULL_symbols const& nulls,
         Node const& node,

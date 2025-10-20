@@ -60,6 +60,8 @@ class Symbol_Table
 
     auto begin() const { return table_.begin(); }
     auto end() const { return table_.end(); }
+    auto end_t() { return addr_.end(); }
+    auto begin_t() { return addr_.begin(); }
 
   public:
     inline void set_symbol_by_name(std::string const& name, T const& entry)

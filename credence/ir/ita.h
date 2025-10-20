@@ -169,8 +169,13 @@ class ITA
         Instructions const& instructions,
         bool indent = true) // not constexpr until C++23
     {
-        for (auto const& i : instructions)
-            emit_to(os, i, indent);
+        for (auto i = instructions.begin(); i < instructions.end(); i++) {
+            if (i == instructions.end() - 1 and indent) {
+                emit_to(os, *i, false);
+                os << std::endl;
+            } else
+                emit_to(os, *i, indent);
+        }
     }
     /**
      * @brief Emit ITA::instructions_ field to an std::ostream
@@ -398,6 +403,7 @@ class ITA
     }
     util::AST_Node internal_symbols_;
     Symbol_Table<> symbols_{};
+  public:
     Symbol_Table<> globals_{};
 };
 

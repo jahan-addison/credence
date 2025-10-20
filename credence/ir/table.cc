@@ -3,6 +3,7 @@
 #include <algorithm>         // for __find, find
 #include <credence/assert.h> // for credence_runtime_error, CREDENC...
 #include <credence/ir/ita.h> // for ITA, make_ITA_instructions
+#include <credence/queue.h>  // for rvalue_to_string
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for LITERAL_TYPE
 #include <format>            // for format
@@ -23,7 +24,7 @@ namespace m = matchit;
 /**
  * @brief Construct table and pre-selection pass on a set of ITA instructions
  */
-ITA::Instructions Table::from_ita_instructions()
+ITA::Instructions Table::build_from_ita_instructions()
 {
     bool skip = false;
     ITA::Instruction last_instruction = ITA::Instruction::NOOP;
@@ -35,11 +36,16 @@ ITA::Instructions Table::from_ita_instructions()
         auto instruction = instructions.at(instruction_index);
         m::match(std::get<ITA::Instruction>(instruction))(
             m::pattern | ITA::Instruction::FUNC_START =
-                [&] { from_func_start_ita_instruction(instructions); },
+                [&] {
+                    from_func_start_ita_instruction(
+                        std::get<1>(instructions.at(instruction_index - 1)));
+                },
             m::pattern | ITA::Instruction::FUNC_END =
                 [&] { from_func_end_ita_instruction(); },
             m::pattern | ITA::Instruction::PUSH =
                 [&] { from_push_instruction(instruction); },
+            m::pattern | ITA::Instruction::CALL =
+                [&] { from_call_ita_instruction(std::get<1>(instruction)); },
             m::pattern | ITA::Instruction::POP =
                 [&] { from_pop_instruction(instruction); },
             m::pattern | ITA::Instruction::VARIABLE =
@@ -60,6 +66,9 @@ ITA::Instructions Table::from_ita_instructions()
     return instructions;
 }
 
+/**
+ * @brief Construct table of vector symbols and size allocation
+ */
 void Table::build_symbols_from_vector_definitions()
 {
     auto keys = hoisted_symbols_.dump_keys();
@@ -67,12 +76,43 @@ void Table::build_symbols_from_vector_definitions()
         auto symbol_type = hoisted_symbols_[key]["type"].to_string();
         if (symbol_type == "vector_definition" or
             symbol_type == "vector_lvalue") {
-            symbols_.set_symbol_by_name(key, { key, "word", sizeof(void*) });
+            if (!symbols_.is_defined(key))
+                symbols_.set_symbol_by_name(
+                    key, { key, "word", sizeof(void*) });
             auto size = static_cast<std::size_t>(
                 hoisted_symbols_[key]["size"].to_int());
-            vectors[key] = std::make_shared<Vector>(Vector{ size });
+            if (!vectors.contains(key))
+                vectors[key] = std::make_shared<Vector>(Vector{ size });
         }
     }
+}
+
+/**
+ * @brief Set vector globals from an ITA constructor
+ */
+void Table::set_globals(Symbol_Table<>& globals)
+{
+    for (auto i = globals.begin_t(); i != globals.end_t(); i++) {
+        auto symbol = *i;
+        vectors[symbol.first] =
+            std::make_shared<Vector>(Vector{ symbol.second.size() });
+        for (auto const& item : symbol.second) {
+            vectors[symbol.first]->data.emplace_back(
+                get_rvalue_symbol_type_size(rvalue_to_string(item)));
+        }
+    }
+}
+
+/**
+ * @brief Ensure CALL right-hand-side is a valid symbol
+ */
+void Table::from_call_ita_instruction(Label const& label)
+{
+    if (!labels.contains(label) and not hoisted_symbols_.has_key(label))
+        construct_error(
+            std::format(
+                "function call failed, \"{}\" identifier is not a function",
+                label));
 }
 
 /**
@@ -83,7 +123,7 @@ void Table::from_label_ita_instruction(ITA::Quadruple const& instruction)
     Label label = std::get<1>(instruction);
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
-        if (frame->labels.contains(label) != false)
+        if (frame->labels.contains(label))
             construct_error(
                 std::format(
                     "symbol of symbolic label is already "
@@ -117,7 +157,7 @@ void Table::from_variable_ita_instruction(ITA::Quadruple const& instruction)
     if (lhs.starts_with("_t") or lhs.starts_with("_p")) {
         frame->temporary[lhs] = std::get<2>(instruction);
     } else if (rhs.starts_with("_t") and is_stack_frame()) {
-        from_temporary_assignment(lhs, rhs);
+        from_temporary_reassignment(lhs, rhs);
     } else if (hoisted_symbols_.has_key(std::get<2>(instruction))) {
         from_symbol_reassignment(lhs, std::get<2>(instruction));
     } else {
@@ -132,7 +172,6 @@ void Table::from_variable_ita_instruction(ITA::Quadruple const& instruction)
                     : get_rvalue_symbol_type_size(rhs);
 
             Size size = std::get<2>(rvalue_symbol);
-
             if (size > std::numeric_limits<unsigned int>::max())
                 construct_error(
                     std::format("exceeds maximum byte size ({})", rhs), lhs);
@@ -151,20 +190,26 @@ void Table::from_variable_ita_instruction(ITA::Quadruple const& instruction)
     }
 }
 
+/**
+ * @brief Out-of-range boundary check on left-
+ * hand-side and right-hand-side of assignment
+ */
 void Table::from_pointer_assignment(LValue const& lvalue, RValue const& rvalue)
 {
-    if (util::contains(lvalue, "[")) {
-        auto symbol = from_lvalue_offset(lvalue);
-        vector_out_of_range_check(lvalue);
-    }
-    if (util::contains(rvalue, "[")) {
-        auto symbol = from_lvalue_offset(rvalue);
-        vector_out_of_range_check(rvalue);
-    }
+    if (util::contains(lvalue, "["))
+        from_boundary_out_of_range(lvalue);
+    if (util::contains(rvalue, "["))
+        from_boundary_out_of_range(rvalue);
 }
 
-void Table::vector_out_of_range_check(RValue const& rvalue)
+/**
+ * @brief Check the boundary of a vector or pointer offset by its allocation
+ * size
+ */
+void Table::from_boundary_out_of_range(RValue const& rvalue)
 {
+    CREDENCE_ASSERT(util::contains(rvalue, "["));
+    CREDENCE_ASSERT(util::contains(rvalue, "]"));
     auto lvalue = from_lvalue_offset(rvalue);
     auto offset = from_pointer_offset(rvalue);
     if (!vectors.contains(lvalue))
@@ -177,6 +222,12 @@ void Table::vector_out_of_range_check(RValue const& rvalue)
     if (util::is_numeric(offset)) {
         auto global_symbol = hoisted_symbols_[lvalue];
         auto ul_offset = std::stoul(offset);
+        if (ul_offset > Vector::max_size)
+            construct_error(
+                std::format(
+                    "invalid rvalue, integer offset \"{}\" is buffer-overflow",
+                    ul_offset),
+                rvalue);
         if (!vectors.contains(lvalue))
             construct_error(
                 std::format(
@@ -195,51 +246,41 @@ void Table::vector_out_of_range_check(RValue const& rvalue)
 
     } else {
         auto stack_frame = get_stack_frame();
-        if (!symbols_.is_defined(offset) or
+        if (!symbols_.is_defined(offset) and
             not stack_frame->is_parameter(offset))
             construct_error(
                 std::format("invalid vector offset \"{}\"", offset), rvalue);
     }
 }
 
-inline Table::RValue Table::from_pointer_offset(RValue const& rvalue)
-{
-    return std::string{ rvalue.begin() + rvalue.find_first_of("[") + 1,
-                        rvalue.begin() + rvalue.find_first_of("]") };
-}
-
-inline Table::RValue Table::from_lvalue_offset(RValue const& rvalue)
-{
-    return std::string{ rvalue.begin(),
-                        rvalue.begin() + rvalue.find_first_of("[") };
-}
-
 /**
  * @brief Set function definition label as current frame stack,
  *  Set instruction address location on the frame
  */
-void Table::from_func_start_ita_instruction(
-    ITA::Instructions const& instructions)
+void Table::from_func_start_ita_instruction(Label const& label)
 {
-    auto symbolic_label = std::get<1>(instructions.at(instruction_index - 1));
-    auto label = Function::get_label_as_human_readable(symbolic_label);
-    address_table.set_symbol_by_name(symbolic_label, instruction_index - 1);
-    if (labels.contains(label))
+    Label human_label = Function::get_label_as_human_readable(label);
+    address_table.set_symbol_by_name(label, instruction_index - 1);
+    if (labels.contains(human_label))
         construct_error(
-            std::format("function symbol is already defined"), label);
+            std::format("function symbol is already defined"), human_label);
 
-    functions[label] = std::make_shared<Function>(Function{ label });
-    functions[label]->address_location[0] = instruction_index + 1;
-    functions[label]->set_parameters_from_symbolic_label(symbolic_label);
-    labels.emplace(label);
-    stack_frame = functions[label];
+    functions[human_label] =
+        std::make_shared<Function>(Function{ human_label });
+    functions[human_label]->address_location[0] = instruction_index + 1;
+    functions[human_label]->set_parameters_from_symbolic_label(label);
+    labels.emplace(human_label);
+    stack_frame = functions[human_label];
     for (auto const& parameter : stack_frame.value()->parameters) {
         symbols_.set_symbol_by_name(
             parameter, { "__WORD__", "word", sizeof(void*) });
-        functions[label]->locals.emplace(parameter);
+        functions[human_label]->locals.emplace(parameter);
     }
 }
 
+/**
+ * @brief End of function, reset stack frame and clear local symbols
+ */
 void Table::from_func_end_ita_instruction()
 {
     if (is_stack_frame()) {
@@ -253,7 +294,7 @@ void Table::from_func_end_ita_instruction()
 /**
  * @brief Parse ITA function parameters into locals on the frame stack
  *
- * e.g. `__convert(s,v) = s,v`
+ * e.g. `__convert(s,v) = (s,v)`
  */
 void Table::Function::set_parameters_from_symbolic_label(Label const& label)
 {
@@ -291,7 +332,7 @@ void Table::from_pop_instruction(ITA::Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
-    CREDENCE_ASSERT(!stack.empty());
+    CREDENCE_ASSERT(pop_size <= stack.size());
     for (std::size_t i = pop_size; i > 0; i--) {
         if (is_stack_frame())
             stack.pop_back();
@@ -305,6 +346,8 @@ void Table::from_pop_instruction(ITA::Quadruple const& instruction)
  */
 Table::RValue_Data_Type Table::get_rvalue_symbol_type_size(RValue const& rvalue)
 {
+    CREDENCE_ASSERT(util::substring_count_of(rvalue, ":") == 2);
+
     size_t search = rvalue.find_last_of(":");
     auto bytes = std::string{ rvalue.begin() + search + 1, rvalue.end() - 1 };
     auto type_search = rvalue.substr(0, search - 1).find_last_of(":") + 1;
@@ -342,7 +385,7 @@ Table::RValue_Data_Type Table::from_rvalue_unary_expression(
                             "indirection on invalid lvalue, "
                             "right-hand-side is "
                             "not "
-                            "a pointer ({})",
+                            "a pointer \"{}\"",
                             rvalue),
                         lvalue);
                 LValue indirect_lvalue = symbols_.get_pointer_by_name(rvalue);
@@ -404,33 +447,39 @@ Table::Binary_Expression Table::from_rvalue_binary_expression(
  * @brief Recursively resolve and return the
  * rvalue of a temporary lvalue in the table
  */
-Table::RValue Table::from_temporary(LValue const& lvalue)
+Table::RValue Table::from_temporary_lvalue(LValue const& lvalue)
 {
     auto rvalue = util::contains(lvalue, "_t")
                       ? get_stack_frame()->temporary[lvalue]
                       : lvalue;
     if (util::contains(rvalue, "_t") and util::contains(rvalue, " ")) {
         auto expression = from_rvalue_binary_expression(rvalue);
-        auto lhs = from_temporary(std::get<0>(expression));
-        auto rhs = from_temporary(std::get<1>(expression));
+        auto lhs = from_temporary_lvalue(std::get<0>(expression));
+        auto rhs = from_temporary_lvalue(std::get<1>(expression));
         return std::string{ lhs + " " + std::get<2>(expression) + " " + rhs };
     } else {
-        return rvalue;
+        if (util::contains(rvalue, "_t"))
+            return from_temporary_lvalue(rvalue);
+        else
+            return rvalue;
     }
 }
 
 /**
  * @brief Construct table entry for a temporary lvalue assignment
  */
-void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
+void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
 {
-    auto rvalue = get_stack_frame()->temporary.at(rhs);
-    if (is_unary(rvalue)) {
-        auto unary_type = get_unary(rvalue);
-        auto unary_lvalue = get_unary_lvalue(rvalue);
-        from_rvalue_unary_expression(lhs, unary_lvalue, unary_type);
-    } else
-        symbols_.set_symbol_by_name(lhs, { rvalue, "word", sizeof(void*) });
+    if (is_unary(rhs)) {
+        auto unary_type = get_unary(rhs);
+        auto unary_lvalue = get_unary_rvalue_reference(rhs);
+        auto unary_rvalue =
+            from_rvalue_unary_expression(rhs, unary_lvalue, unary_type);
+        symbols_.set_symbol_by_name(
+            lhs, { rhs, std::get<1>(unary_rvalue), std::get<2>(unary_rvalue) });
+    } else {
+        symbols_.set_symbol_by_name(lhs, { rhs, "word", sizeof(void*) });
+    }
 }
 
 /**
@@ -449,8 +498,15 @@ void Table::from_symbol_reassignment(LValue const& lhs, LValue const& rhs)
         frame->allocation += type::LITERAL_TYPE.at("word").second;
     } else {
         auto symbol = symbols_.get_symbol_by_name(rhs);
-        if (symbols_.is_defined(lhs))
-            frame->allocation -= std::get<2>(symbols_.get_symbol_by_name(lhs));
+        if (symbols_.is_defined(lhs)) {
+            if (symbols_.is_pointer(lhs))
+                frame->allocation -= std::get<2>(symbols_.get_symbol_by_name(
+                    symbols_.get_pointer_by_name(lhs)));
+            else
+
+                frame->allocation -=
+                    std::get<2>(symbols_.get_symbol_by_name(lhs));
+        }
         symbols_.set_symbol_by_name(lhs, symbol);
         frame->allocation += std::get<2>(symbol);
     }
@@ -465,71 +521,41 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
     const std::initializer_list<std::string_view> integral_unary = {
         "int", "double", "float", "long"
     };
-    if (!symbols_.is_defined(lvalue))
+    auto rvalue = get_unary_rvalue_reference(lvalue);
+    if (!symbols_.is_defined(rvalue) and
+        not get_stack_frame()->temporary.contains(rvalue))
         construct_error(
-            "invalid numeric unary expression, lvalue symbol is not "
-            "initialized",
+            std::format(
+                "invalid numeric unary expression, lvalue symbol \"{}\" is not "
+                "initialized",
+                rvalue),
             lvalue);
 
-    auto symbol = symbols_.get_symbol_by_name(lvalue);
-    if (std::ranges::find(integral_unary, std::get<1>(symbol)) ==
-        integral_unary.end())
+    auto symbol = get_stack_frame()->temporary.contains(rvalue)
+                      ? lvalue
+                      : std::get<1>(symbols_.get_symbol_by_name(rvalue));
+    if (std::ranges::find(integral_unary, symbol) == integral_unary.end() and
+        not get_stack_frame()->temporary.contains(rvalue))
         construct_error(
-            "invalid numeric unary expression on lvalue, lvalue is not a "
-            "numeric type",
+            std::format(
+                "invalid numeric unary expression on lvalue, lvalue \"{}\" is "
+                "not a "
+                "numeric type",
+                symbol),
             lvalue);
 
-    return symbols_.get_symbol_by_name(lvalue);
+    return symbols_.get_symbol_by_name(rvalue);
 }
 
 /**
  * @brief Parse ITA::Node ast and symbols to a table instructions pair
  */
-Table::ITA_Table Table::from_ast(ITA::Node const& symbols, ITA::Node const& ast)
+Table::ITA_Table Table::build_from_ast(
+    ITA::Node const& symbols,
+    ITA::Node const& ast)
 {
     auto instructions = make_ITA_instructions(symbols, ast);
     return std::make_unique<Table>(Table{ symbols, instructions });
-}
-
-/**
- * @brief is ITA unary
- */
-constexpr inline bool Table::is_unary(std::string_view rvalue)
-{
-    return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
-        return rvalue.starts_with(x) or rvalue.ends_with(x);
-    });
-}
-
-/**
- * @brief Get unary operator from ITA rvalue string
- */
-constexpr inline std::string_view Table::get_unary(std::string_view rvalue)
-{
-    auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
-        return rvalue.find(op) != std::string_view::npos;
-    });
-    if (it == UNARY_TYPES.end())
-        return "";
-    return *it;
-}
-
-/**
- * @brief Get unary lvalue from ITA rvalue string
- */
-constexpr inline Table::LValue Table::get_unary_lvalue(std::string& lvalue)
-{
-    std::string_view unary_chracters = "+-*&+~!";
-    lvalue.erase(
-        std::remove_if(
-            lvalue.begin(),
-            lvalue.end(),
-            [&](char ch) {
-                return ::isspace(ch) or
-                       unary_chracters.find(ch) != std::string_view::npos;
-            }),
-        lvalue.end());
-    return lvalue;
 }
 
 /**
@@ -537,13 +563,17 @@ constexpr inline Table::LValue Table::get_unary_lvalue(std::string& lvalue)
  */
 inline void Table::construct_error(
     std::string_view message,
-    [[maybe_unused]] std::string_view symbol)
+    [[maybe_unused]] RValue_Reference symbol)
 {
+#ifdef CREDENCE_TEST
+    throw std::runtime_error(message.data());
+#else
     credence_runtime_error(
         std::format(
             "{} in function \"{}\"", message, get_stack_frame()->symbol),
         symbol,
         hoisted_symbols_);
+#endif
 }
 
 } // namespace ir

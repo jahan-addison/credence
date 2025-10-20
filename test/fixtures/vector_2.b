@@ -1,6 +1,7 @@
-// TODO: need to test
 main () {
   auto x[50],*y,z;
+  // TODO: extrn symbol
+  // TODO: make GLOBAL ita instruction (GLOB)
   extrn putchar;
   x[49] = 0;
 }

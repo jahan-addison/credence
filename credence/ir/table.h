@@ -89,6 +89,8 @@ class Table
     using Size = std::size_t;
     using LValue = std::string;
     using RValue = std::string;
+    using RValue_Data_Type = std::tuple<RValue, Type, Size>;
+    using RValue_Reference = std::string_view;
     using ITA_Table = std::unique_ptr<Table>;
     using Address_Table = Symbol_Table<Label, Address>;
     using Symbolic_Stack = std::deque<RValue>;
@@ -96,6 +98,7 @@ class Table
     using Parameters = std::vector<std::string>;
     using Labels = std::set<Label>;
     using Locals = std::set<std::string>;
+    using Globals = type::Value_Pointer;
 
   private:
     /**
@@ -109,7 +112,7 @@ class Table
         }
         void set_parameters_from_symbolic_label(Label const& label);
         static constexpr Label get_label_as_human_readable(
-            std::string_view label)
+            RValue_Reference label)
         {
             return Label{ label.begin() + 2,
                           label.begin() + label.find_first_of("(") };
@@ -130,7 +133,8 @@ class Table
         std::map<LValue, RValue> temporary{};
     };
 
-  private:
+    // clang-format off
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     /**
      * Symbolic ITA vector definition and allocation
      */
@@ -141,7 +145,7 @@ class Table
             : size(size_of)
         {
         }
-        std::map<Address, RValue> data{};
+        std::vector<RValue_Data_Type> data{};
         int decay_index{ 0 };
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
@@ -153,69 +157,131 @@ class Table
     using Functions = std::map<std::string, Function_PTR>;
     using Vectors = std::map<std::string, Vector_PTR>;
     using Stack_Frame = std::optional<Function_PTR>;
-    using Binary_Expression = std::tuple<std::string, std::string, std::string>;
-    using RValue_Data_Type = std::tuple<RValue, Type, Size>;
 
   public:
-    ITA::Instructions from_ita_instructions();
-    static ITA_Table from_ast(ITA::Node const& symbols, ITA::Node const& ast);
+    ITA::Instructions build_from_ita_instructions();
+    void build_symbols_from_vector_definitions();
+    void set_globals(Symbol_Table<>& globals);
+    RValue from_temporary_lvalue(LValue const& lvalue);
+    static ITA_Table build_from_ast(
+        ITA::Node const& symbols,
+        ITA::Node const& ast);
 
   public:
     constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
                                           "+",  "~",  "!", "~" };
-
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    constexpr bool is_unary(std::string_view rvalue);
-    constexpr std::string_view get_unary(std::string_view rvalue);
-    constexpr LValue get_unary_lvalue(std::string& lvalue);
+    using Binary_Expression = std::tuple<std::string, std::string, std::string>;
 
-    void construct_error(std::string_view message, std::string_view symbol);
+    /**
+     * @brief is ITA unary
+     */
+    constexpr inline bool is_unary(RValue_Reference rvalue)
+    {
+        return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
+            return rvalue.starts_with(x) or rvalue.ends_with(x);
+        });
+    }
+    /**
+     * @brief Get unary operator from ITA rvalue string
+     */
+    constexpr inline RValue_Reference get_unary(RValue_Reference rvalue)
+    {
+        auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
+            return rvalue.find(op) != std::string_view::npos;
+        });
+        if (it == UNARY_TYPES.end())
+            return "";
+        return *it;
+    } /**
+       * @brief Get unary lvalue from ITA rvalue string
+       */
+    constexpr inline LValue get_unary_rvalue_reference(RValue_Reference rvalue)
+    {
+        std::string_view unary_chracters = "+-*&+~!";
+        auto lvalue = std::string{ rvalue.begin(), rvalue.end() };
+        lvalue.erase(
+            std::remove_if(
+                lvalue.begin(),
+                lvalue.end(),
+                [&](char ch) {
+                    return ::isspace(ch) or
+                           unary_chracters.find(ch) != std::string_view::npos;
+                }),
+            lvalue.end());
+        return lvalue;
+    }
+    /**
+     * @brief Get the integer or rvalue reference offset
+     *   * v[20]        = 20
+     *   * sidno[errno] = errno
+     */
+    constexpr inline RValue from_pointer_offset(
+        RValue_Reference rvalue)
+    {
+        return std::string{ rvalue.begin() + rvalue.find_first_of("[") + 1,
+                            rvalue.begin() + rvalue.find_first_of("]") };
+    }
+    /**
+     * @brief Get the lvalue from a vector or pointer offset
+     *
+     *   * v[19]        = v
+     *   * sidno[errno] = sidno
+     *
+     */
+    constexpr inline RValue from_lvalue_offset(
+        RValue_Reference rvalue)
+    {
+        return std::string{ rvalue.begin(),
+                            rvalue.begin() + rvalue.find_first_of("[") };
+    }
 
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
-
     inline Function_PTR get_stack_frame()
     {
         CREDENCE_ASSERT(is_stack_frame());
         return stack_frame.value();
     }
 
-    private:
-    void build_symbols_from_vector_definitions();
-
+  private:
+    void construct_error(
+        RValue_Reference message,
+        RValue_Reference symbol = "");
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void from_func_start_ita_instruction(ITA::Instructions const& instructions);
+    void from_func_start_ita_instruction(Label const& label);
     void from_func_end_ita_instruction();
+    void from_call_ita_instruction(Label const& label);
     void from_push_instruction(ITA::Quadruple const& instruction);
     void from_pop_instruction(ITA::Quadruple const& instruction);
     void from_label_ita_instruction(ITA::Quadruple const& instruction);
     void from_variable_ita_instruction(ITA::Quadruple const& instruction);
 
- CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue_Data_Type from_rvalue_unary_expression(
-        LValue const& lvalue,
-        RValue& rvalue,
-        std::string_view unary_operator);
+    CREDENCE_PRIVATE_UNLESS_TESTED
+        : RValue_Data_Type
+          from_rvalue_unary_expression(
+              LValue const& lvalue,
+              RValue& rvalue,
+              RValue_Reference unary_operator);
     void from_symbol_reassignment(LValue const& lhs, LValue const& rhs);
     void from_pointer_assignment(LValue const& lhs, LValue const& rhs);
-    void vector_out_of_range_check(RValue const& rvalue);
-    RValue from_temporary(LValue const& lvalue);
-    RValue from_lvalue_offset(RValue const& rvalue);
-    RValue from_pointer_offset(RValue const& rvalue);
+    void from_boundary_out_of_range(RValue const& rvalue);
     Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
-    void from_temporary_assignment(LValue const& lhs, LValue const& rhs);
+    void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
     RValue_Data_Type static get_rvalue_symbol_type_size(
         std::string const& datatype);
 
-   CREDENCE_PRIVATE_UNLESS_TESTED:
+    CREDENCE_PRIVATE_UNLESS_TESTED : Address instruction_index{ 0 };
     Symbol_Table<RValue_Data_Type, LValue> symbols_{};
     // clang-format on
 
-  private:
+  public:
     ITA::Instructions instructions{};
+
+  private:
+    Globals globals{};
     Stack_Frame stack_frame{ std::nullopt };
-    Address instruction_index{ 0 };
     ITA::Node hoisted_symbols_;
 
   public:
@@ -226,12 +292,33 @@ class Table
     Labels labels{};
 };
 
-inline void emit_ita_instructions_from_ast(
+/**
+ * @brief Emit the pre-selection ita instructions to an std::ostream
+ */
+inline void emit_ita_from_ast(
     std::ostream& os,
     ITA::Node const& symbols,
     ITA::Node const& ast)
 {
-    ITA::emit(os, Table::from_ast(symbols, ast)->from_ita_instructions());
+    ITA::emit(
+        os, Table::build_from_ast(symbols, ast)->build_from_ita_instructions());
+}
+
+/**
+ * @brief Emit the pre-selection ita instructions to an std::ostream
+ *   Passes the global symbols from the ITA object
+ */
+inline void emit_ita_from_ast_with_symbols(
+    std::ostream& os,
+    ITA::Node const& symbols,
+    ITA::Node const& ast)
+{
+    auto ita = ITA{ symbols };
+    auto instructions = ita.build_from_definitions(ast);
+    auto table = Table{ symbols, instructions };
+    table.set_globals(ita.globals_);
+    table.build_from_ita_instructions();
+    ITA::emit(os, table.instructions);
 }
 
 } // namespace ir
