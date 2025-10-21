@@ -68,6 +68,8 @@ class ITA
         FUNC_END,
         LABEL,
         GOTO,
+        LOCL,
+        GLOBL,
         IF,
         JMP_E,
         PUSH,
@@ -115,6 +117,12 @@ class ITA
                 break;
             case ITA::Instruction::RETURN:
                 os << "RET";
+                break;
+            case ITA::Instruction::GLOBL:
+                os << "GLOBL";
+                break;
+            case ITA::Instruction::LOCL:
+                os << "LOCL";
                 break;
             case ITA::Instruction::LEAVE:
                 os << "LEAVE";
@@ -304,8 +312,12 @@ class ITA
     Instructions build_from_return_statement(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build_from_auto_statement(Node const& node);
-    void build_from_extrn_statement(Node const& node);
+    void build_from_auto_statement(
+        Node const& node,
+        Instructions& instructions);
+    void build_from_extrn_statement(
+        Node const& node,
+        Instructions& instructions);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_rvalue_statement(Node const& node);

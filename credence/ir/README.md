@@ -16,6 +16,8 @@ The instruction set:
         FUNC_END,
         LABEL,
         GOTO,
+        LOCL,
+        GLOBL,
         IF,
         JMP_E,
         PUSH,
@@ -83,7 +85,8 @@ B Code:
 ```C
 main() {
   auto x, y, z;
-  x = 5;
+  extrn unit;
+  x = unit;
   y = 1;
   z = add(x, sub(x, y)) - 2;
   if (x > y) {
@@ -94,6 +97,11 @@ main() {
   x = 0;
 }
 
+str(i) {
+  extrn mess;
+  return(mess[i]);
+}
+
 add(x,y) {
   return(x + y);
 }
@@ -102,6 +110,10 @@ sub(x,y) {
   return(x - y);
 }
 
+unit 10;
+
+mess [3] "too bad", "tough luck", "that's the breaks";
+
 ```
 
 ITA:
@@ -109,7 +121,11 @@ ITA:
 ```asm
 __main():
  BeginFunc ;
-    x = (5:int:4);
+    LOCL x;
+    LOCL y;
+    LOCL z;
+    GLOBL unit;
+    x = unit;
     y = (1:int:4);
     _p1 = x;
     _p3 = x;
@@ -143,6 +159,15 @@ _L11:
 _L10:
     z = --z;
     GOTO _L9;
+ EndFunc ;
+
+
+__str(i):
+ BeginFunc ;
+    GLOBL mess;
+    RET mess[i] ;
+_L1:
+    LEAVE;
  EndFunc ;
 
 

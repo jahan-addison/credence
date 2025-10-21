@@ -23,6 +23,8 @@ There are a few differences between the compiler and B specification, namely:
 * Logical operators behave more like C (i.e. `||` and `&&`)
 * Bitwise operators behave more like C (i.e. `|` and `&`)
 * Uses C operator precedence
+* Roughly strictly typed with type inference on initialization
+* Compile-time out-of-range boundary checks on vectors and pointer arithmetic
 * Boolean "truthy" coercion for all data types in conditionals
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
@@ -59,7 +61,8 @@ B Code:
 ```C
 main() {
   auto x, y, z;
-  x = 5;
+  extrn unit;
+  x = unit;
   y = 1;
   z = add(x, sub(x, y)) - 2;
   if (x > y) {
@@ -70,6 +73,11 @@ main() {
   x = 0;
 }
 
+str(i) {
+  extrn mess;
+  return(mess[i]);
+}
+
 add(x,y) {
   return(x + y);
 }
@@ -77,6 +85,11 @@ add(x,y) {
 sub(x,y) {
   return(x - y);
 }
+
+unit 10;
+
+mess [3] "too bad", "tough luck", "that's the breaks";
+
 ```
 
 ITA:
@@ -85,7 +98,11 @@ ITA:
 ```asm
 __main():
  BeginFunc ;
-    x = (5:int:4);
+    LOCL x;
+    LOCL y;
+    LOCL z;
+    GLOBL unit;
+    x = unit;
     y = (1:int:4);
     _p1 = x;
     _p3 = x;
@@ -122,6 +139,15 @@ _L10:
  EndFunc ;
 
 
+__str(i):
+ BeginFunc ;
+    GLOBL mess;
+    RET mess[i] ;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
 __add(x,y):
  BeginFunc ;
     _t2 = x + y;
@@ -138,6 +164,7 @@ __sub(x,y):
 _L1:
     LEAVE;
  EndFunc ;
+
 
 ```
 

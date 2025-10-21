@@ -157,16 +157,16 @@ void ITA::build_from_vector_definition(Node const& node)
     CREDENCE_ASSERT(node.has_key("right"));
     auto name = node["root"].to_string();
     // zero-th index
-    auto size = node.has_key("left") ? node["left"]["root"].to_int() : 0;
+    auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
     auto right_child_node = node["right"];
     Vector_Decay_Ref values_at{};
 
-    if (std::cmp_not_equal(size, right_child_node.to_deque().size() - 1))
+    if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
         credence_runtime_error(
             std::format(
                 "invalid vector definition, right-hand-side allocation of "
                 "\"{}\" items is out of range; expected \"{}\" items ",
-                right_child_node.to_deque().size() - 1,
+                right_child_node.to_deque().size(),
                 size),
             name,
             internal_symbols_);
@@ -236,9 +236,10 @@ ITA::Instructions ITA::build_from_block_statement(
         build_statement_setup_branches(statement_type, instructions);
 
         m::match(statement_type)(
-            m::pattern | "auto" = [&] { build_from_auto_statement(statement); },
-            m::pattern |
-                "extrn" = [&] { build_from_extrn_statement(statement); },
+            m::pattern | "auto" =
+                [&] { build_from_auto_statement(statement, instructions); },
+            m::pattern | "extrn" =
+                [&] { build_from_extrn_statement(statement, instructions); },
             m::pattern | "if" =
                 [&] {
                     auto [jump_instructions, if_instructions] =
@@ -642,7 +643,9 @@ ITA::Instructions ITA::build_from_return_statement(Node const& node)
 /**
  * @brief Symbol construction from extrn declaration statements
  */
-void ITA::build_from_extrn_statement(Node const& node)
+void ITA::build_from_extrn_statement(
+    Node const& node,
+    Instructions& instructions)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "extrn");
@@ -653,6 +656,8 @@ void ITA::build_from_extrn_statement(Node const& node)
         if (globals_.is_defined(name)) {
             auto global_symbol = globals_.get_pointer_by_name(name);
             symbols_.set_symbol_by_name(name, global_symbol);
+            instructions.emplace_back(make_quadruple(Instruction::GLOBL, name));
+
         } else {
             credence_runtime_error(
                 "symbol not defined in global scope", name, internal_symbols_);
@@ -663,7 +668,9 @@ void ITA::build_from_extrn_statement(Node const& node)
 /**
  * @brief Symbol construction from auto declaration statements
  */
-void ITA::build_from_auto_statement(Node const& node)
+void ITA::build_from_auto_statement(
+    Node const& node,
+    Instructions& instructions)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "auto");
@@ -682,8 +689,9 @@ void ITA::build_from_auto_statement(Node const& node)
                             internal_symbols_);
 
 #endif
-                    symbols_.set_symbol_by_name(
-                        ident["root"].to_string(), type::NULL_LITERAL);
+                    instructions.emplace_back(
+                        make_quadruple(Instruction::LOCL, name));
+                    symbols_.set_symbol_by_name(name, type::NULL_LITERAL);
                 },
             m::pattern | "vector_lvalue" =
                 [&] {
@@ -697,8 +705,10 @@ void ITA::build_from_auto_statement(Node const& node)
                             internal_symbols_);
 
 #endif
+                    instructions.emplace_back(
+                        make_quadruple(Instruction::LOCL, name));
                     symbols_.set_symbol_by_name(
-                        ident["root"].to_string(),
+                        name,
                         { static_cast<type::Byte>('0'), { "byte", size } });
                 },
             m::pattern | "indirect_lvalue" =
@@ -712,8 +722,9 @@ void ITA::build_from_auto_statement(Node const& node)
                             internal_symbols_);
 
 #endif
-                    symbols_.set_symbol_by_name(
-                        ident["left"]["root"].to_string(), type::WORD_LITERAL);
+                    instructions.emplace_back(make_quadruple(
+                        Instruction::LOCL, std::format("*{}", name)));
+                    symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
                 });
     }
 }
@@ -741,13 +752,17 @@ ITA::Instructions ITA::build_from_rvalue_statement(Node const& node)
 void ITA::emit_to(std::ostream& os, ITA::Quadruple const& ita, bool indent)
 { // not constexpr until C++23
     ITA::Instruction op = std::get<ITA::Instruction>(ita);
+    // clang-format off
     const std::initializer_list<ITA::Instruction> lhs_instruction = {
         ITA::Instruction::GOTO,
+        ITA::Instruction::GLOBL,
+        ITA::Instruction::LOCL,
         ITA::Instruction::PUSH,
         ITA::Instruction::LABEL,
         ITA::Instruction::POP,
         ITA::Instruction::CALL
     };
+    // clang-format on
     if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
         if (op == ITA::Instruction::LABEL) {
             os << std::get<1>(ita) << ":" << std::endl;

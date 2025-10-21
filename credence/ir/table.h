@@ -94,10 +94,10 @@ class Table
     using ITA_Table = std::unique_ptr<Table>;
     using Address_Table = Symbol_Table<Label, Address>;
     using Symbolic_Stack = std::deque<RValue>;
+    using Locals = Symbol_Table<RValue_Data_Type, LValue>;
     using Temporary = std::pair<LValue, RValue>;
     using Parameters = std::vector<std::string>;
     using Labels = std::set<Label>;
-    using Locals = std::set<std::string>;
     using Globals = type::Value_Pointer;
 
   private:
@@ -122,9 +122,11 @@ class Table
             return std::ranges::find(parameters, parameter) !=
                    std::ranges::end(parameters);
         }
+
+        std::shared_ptr<Locals> locals = std::make_shared<Locals>();
+
         Label symbol{};
         Labels labels{};
-        Locals locals{};
         Parameters parameters{};
         Address_Table label_address{};
         static constexpr int max_depth{ 1000 };
@@ -145,12 +147,12 @@ class Table
             : size(size_of)
         {
         }
-        std::vector<RValue_Data_Type> data{};
+        std::map<std::string, RValue_Data_Type> data{};
         int decay_index{ 0 };
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
     };
-
+    // clang-format on
   private:
     using Function_PTR = std::shared_ptr<Function>;
     using Vector_PTR = std::shared_ptr<Vector>;
@@ -160,8 +162,8 @@ class Table
 
   public:
     ITA::Instructions build_from_ita_instructions();
-    void build_symbols_from_vector_definitions();
-    void set_globals(Symbol_Table<>& globals);
+    void build_symbols_from_vector_lvalues();
+    void build_vector_definitions_from_globals(Symbol_Table<>& globals);
     RValue from_temporary_lvalue(LValue const& lvalue);
     static ITA_Table build_from_ast(
         ITA::Node const& symbols,
@@ -172,6 +174,8 @@ class Table
                                           "+",  "~",  "!", "~" };
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    static constexpr RValue_Data_Type WORD_RVALUE_LITERAL =
+        RValue_Data_Type{ "__WORD__", "word", sizeof(void*) };
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
 
     /**
@@ -238,33 +242,41 @@ class Table
     }
 
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
-    inline Function_PTR get_stack_frame()
+    inline Function_PTR& get_stack_frame()
     {
         CREDENCE_ASSERT(is_stack_frame());
         return stack_frame.value();
+    }
+    inline std::shared_ptr<Locals> get_stack_frame_symbols()
+    {
+        return get_stack_frame()->locals;
     }
 
   private:
     void construct_error(
         RValue_Reference message,
         RValue_Reference symbol = "");
+  // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void from_func_start_ita_instruction(Label const& label);
     void from_func_end_ita_instruction();
     void from_call_ita_instruction(Label const& label);
+    void from_globl_ita_instruction(Label const& label);
+    void from_locl_ita_instruction(Label const& label);
     void from_push_instruction(ITA::Quadruple const& instruction);
     void from_pop_instruction(ITA::Quadruple const& instruction);
     void from_label_ita_instruction(ITA::Quadruple const& instruction);
     void from_variable_ita_instruction(ITA::Quadruple const& instruction);
 
-    CREDENCE_PRIVATE_UNLESS_TESTED
-        : RValue_Data_Type
-          from_rvalue_unary_expression(
-              LValue const& lvalue,
-              RValue& rvalue,
-              RValue_Reference unary_operator);
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    RValue_Data_Type from_rvalue_unary_expression(
+        LValue const& lvalue,
+        RValue& rvalue,
+        RValue_Reference unary_operator);
     void from_symbol_reassignment(LValue const& lhs, LValue const& rhs);
-    void from_pointer_assignment(LValue const& lhs, LValue const& rhs);
+    void from_pointer_assignment_or_vector_decay(
+        LValue const& lhs,
+        LValue const& rhs);
     void from_boundary_out_of_range(RValue const& rvalue);
     Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
     void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
@@ -272,8 +284,8 @@ class Table
     RValue_Data_Type static get_rvalue_symbol_type_size(
         std::string const& datatype);
 
-    CREDENCE_PRIVATE_UNLESS_TESTED : Address instruction_index{ 0 };
-    Symbol_Table<RValue_Data_Type, LValue> symbols_{};
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    Address instruction_index{ 0 };
     // clang-format on
 
   public:
@@ -316,7 +328,7 @@ inline void emit_ita_from_ast_with_symbols(
     auto ita = ITA{ symbols };
     auto instructions = ita.build_from_definitions(ast);
     auto table = Table{ symbols, instructions };
-    table.set_globals(ita.globals_);
+    table.build_vector_definitions_from_globals(ita.globals_);
     table.build_from_ita_instructions();
     ITA::emit(os, table.instructions);
 }

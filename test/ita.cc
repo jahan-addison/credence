@@ -601,6 +601,14 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: integration test")
 
     std::string expected = R"ita(__main():
  BeginFunc ;
+LOCL m;
+LOCL i;
+LOCL j;
+LOCL c;
+LOCL sign;
+LOCL C;
+LOCL s;
+LOCL loop;
 i = (0:int:4);
 j = (1:int:4);
 m = (0:int:4);
@@ -696,8 +704,12 @@ _L1:
 LEAVE;
  EndFunc ;
 )ita";
+
     auto expected_2 = R"ita(__main():
  BeginFunc ;
+LOCL x;
+LOCL y;
+LOCL z;
 x = (5:int:4);
 y = (1:int:4);
 _p1 = x;
@@ -838,6 +850,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
 
     std::string expected = R"ita(__main():
  BeginFunc ;
+LOCL x;
 _p1 = (2:int:4);
 _p2 = (5:int:4);
 PUSH _p2;
@@ -1026,7 +1039,8 @@ TEST_CASE_FIXTURE(
 
     auto ita = ITA_hoisted(global_symbols);
     auto definitions = obj["test"]["left"].to_deque();
-    auto expected = R"ita(_p2 = (2:int:4);
+    auto expected = R"ita(LOCL x;
+_p2 = (2:int:4);
 _p3 = (5:int:4);
 PUSH _p3;
 PUSH _p2;
@@ -1067,12 +1081,12 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_block_statement")
         "}]],\n            \"node\" : \"statement\",\n            \"root\" : "
         "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
         "\"root\" : \"block\"\n      }");
+    auto expected = R"ita(LOCL x;
+_t2 = (5:int:4) || (2:int:4);
+x = _t2;
+)ita";
     TEST_BLOCK_STATEMENT_NODE_WITH(
-        global_symbols,
-        obj["test"],
-        "_t2 = (5:int:4) || (2:int:4);\nx = _t2;\n",
-        false,
-        false);
+        global_symbols, obj["test"], expected, false, false);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
@@ -1090,8 +1104,9 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
 
     auto vectors = obj["test"].to_deque();
     auto ita = ITA_hoisted(obj);
+    credence::ir::ITA::Instructions instructions{};
 
-    CHECK_THROWS(ita.build_from_extrn_statement(obj["test"]));
+    CHECK_THROWS(ita.build_from_extrn_statement(obj["test"], instructions));
 
     ita.globals_.addr_.emplace(
         "a", credence::type::Value_Pointer{ credence::type::NULL_LITERAL });
@@ -1100,11 +1115,21 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
     ita.globals_.addr_.emplace(
         "c", credence::type::Value_Pointer{ credence::type::NULL_LITERAL });
 
-    CHECK_NOTHROW(ita.build_from_extrn_statement(obj["test"]));
+    CHECK_NOTHROW(ita.build_from_extrn_statement(obj["test"], instructions));
 
     CHECK_EQ(ita.symbols_.is_defined("a"), true);
     CHECK_EQ(ita.symbols_.is_defined("b"), true);
     CHECK_EQ(ita.symbols_.is_defined("c"), true);
+    REQUIRE(instructions.size() == 3);
+    REQUIRE(
+        std::get<0>(instructions[0]) == credence::ir::ITA::Instruction::GLOBL);
+    REQUIRE(
+        std::get<0>(instructions[1]) == credence::ir::ITA::Instruction::GLOBL);
+    REQUIRE(
+        std::get<0>(instructions[2]) == credence::ir::ITA::Instruction::GLOBL);
+    REQUIRE(std::get<1>(instructions[0]) == "a");
+    REQUIRE(std::get<1>(instructions[1]) == "b");
+    REQUIRE(std::get<1>(instructions[2]) == "c");
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_vector_definition")
@@ -1129,7 +1154,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_vector_definition")
 
     obj["test"] = LOAD_JSON_FROM_STRING(
         "{\n      \"left\" : {\n        \"node\" : \"number_literal\",\n       "
-        " \"root\" : 5\n      },\n      \"node\" : \"vector_definition\",\n    "
+        " \"root\" : 6\n      },\n      \"node\" : \"vector_definition\",\n    "
         "  \"right\" : [{\n          \"node\" : \"string_literal\",\n          "
         "\"root\" : \"\\\"too bad\\\"\"\n        }, {\n          \"node\" : "
         "\"string_literal\",\n          \"root\" : \"\\\"tough luck\\\"\"\n    "
@@ -1214,12 +1239,11 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_block_statement")
         "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
         "\"root\" : \"block\"\n      }");
 
-    TEST_BLOCK_STATEMENT_NODE_WITH(
-        obj,
-        obj["test"],
-        "_t2 = (5:int:4) || (2:int:4);\nx = _t2;\n",
-        false,
-        false);
+    auto expected = R"ita(LOCL x;
+_t2 = (5:int:4) || (2:int:4);
+x = _t2;
+)ita";
+    TEST_BLOCK_STATEMENT_NODE_WITH(obj, obj["test"], expected, false, false);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: switch and case statements")
@@ -1519,7 +1543,9 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: switch and case statements")
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    auto expected = R"ita(x = (5:int:4);
+    auto expected = R"ita(LOCL x;
+LOCL y;
+x = (5:int:4);
 _t2 = CMP x;
 JMP_E _t2 (0:int:4) _L4;
 JMP_E _t2 (1:int:4) _L6;
@@ -1540,7 +1566,9 @@ x = (5:int:4);
 GOTO _L7;
 )ita";
 
-    auto expected_2 = R"ita(x = (5:int:4);
+    auto expected_2 = R"ita(LOCL x;
+LOCL y;
+x = (5:int:4);
 _t2 = CMP x;
 JMP_E _t2 (0:int:4) _L4;
 JMP_E _t2 (1:int:4) _L14;
@@ -1573,7 +1601,9 @@ x = (5:int:4);
 GOTO _L15;
 )ita";
 
-    auto expected_3 = R"ita(x = (10:int:4);
+    auto expected_3 = R"ita(LOCL x;
+LOCL y;
+x = (10:int:4);
 _L2:
 _t5 = x >= (5:int:4);
 IF _t5 GOTO _L4;
@@ -1947,7 +1977,9 @@ TEST_CASE_FIXTURE(
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    auto expected = R"ita(_t2 = (5:int:4) + (5:int:4);
+    auto expected = R"ita(LOCL x;
+LOCL y;
+_t2 = (5:int:4) + (5:int:4);
 _t3 = (3:int:4) + (3:int:4);
 _t4 = _t2 * _t3;
 x = _t4;
@@ -1980,7 +2012,9 @@ _t16 = _t14 * _t15;
 x = _t16;
 GOTO _L6;
 )ita";
-    auto expected_2 = R"ita(x = (1:int:4);
+    auto expected_2 = R"ita(LOCL x;
+LOCL y;
+x = (1:int:4);
 y = (10:int:4);
 _L2:
 _L4:
@@ -2332,7 +2366,8 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: if and else branching")
         "}, null],\n            \"root\" : \"if\"\n          }],\n        "
         "\"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    auto expected = R"ita(_t2 = (5:int:4) + (5:int:4);
+    auto expected = R"ita(LOCL x;
+_t2 = (5:int:4) + (5:int:4);
 _t3 = (3:int:4) + (3:int:4);
 _t4 = _t2 * _t3;
 x = _t4;
@@ -2353,7 +2388,8 @@ x = (8:int:4);
 GOTO _L6;
 )ita";
 
-    auto expected_2 = R"ita(_t2 = (5:int:4) + (5:int:4);
+    auto expected_2 = R"ita(LOCL x;
+_t2 = (5:int:4) + (5:int:4);
 _t3 = (3:int:4) + (3:int:4);
 _t4 = _t2 * _t3;
 x = _t4;
@@ -2462,7 +2498,9 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: truthy type coercion")
         "}, null],\n            \"root\" : \"if\"\n          }],\n        "
         "\"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    std::string expected = R"ita(x = (5:int:4);
+    std::string expected = R"ita(LOCL x;
+LOCL y;
+x = (5:int:4);
 _L2:
 _t5 = CMP x;
 IF _t5 GOTO _L4;
@@ -2516,7 +2554,11 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: unary expression")
         "[\"=\"]\n                }]],\n            \"node\" : "
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
-    auto expected = R"ita(j = (0:int:4);
+    auto expected = R"ita(LOCL x;
+LOCL C;
+LOCL s;
+LOCL j;
+j = (0:int:4);
 j = ++j;
 _p1 = s;
 j = ++j;
@@ -2588,7 +2630,9 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: label and goto")
         "\"statement\",\n            \"root\" : \"goto\"\n          }],\n      "
         "  \"node\" : \"statement\",\n        \"root\" : \"block\"\n      }");
 
-    std::string expected = R"ita(__LADD:
+    std::string expected = R"ita(LOCL x;
+LOCL y;
+__LADD:
 _p1 = (2:int:4);
 _p2 = (5:int:4);
 PUSH _p2;
@@ -2864,7 +2908,10 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_auto_statement")
         "\"root\" : \"z\"\n    }],\n  \"node\" : \"statement\",\n  \"root\" : "
         "\"auto\"\n}");
 
-    ita_.build_from_auto_statement(obj["test"]);
+    credence::ir::ITA::Instructions instructions{};
+
+    ita_.build_from_auto_statement(obj["test"], instructions);
+
     CHECK(ita_.symbols_.table_.size() == 3);
     CHECK(ita_.symbols_.table_.contains("x") == true);
     CHECK(ita_.symbols_.table_.contains("y") == true);
@@ -2880,6 +2927,10 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_auto_statement")
     CHECK(ita_.symbols_.table_["x"] == byte_value);
     CHECK(ita_.symbols_.table_["y"] == word_value);
     CHECK(ita_.symbols_.table_["z"] == empty_value);
+
+    REQUIRE(std::get<1>(instructions[0]) == "x");
+    REQUIRE(std::get<1>(instructions[1]) == "*y");
+    REQUIRE(std::get<1>(instructions[2]) == "z");
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: deep-evaluated rvalue")

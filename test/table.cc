@@ -60,7 +60,7 @@ struct Table_Fixture
         auto ita = ITA{ symbols };
         auto instructions = ita.build_from_definitions(node);
         auto table = Table{ symbols, instructions };
-        table.set_globals(ita.globals_);
+        table.build_vector_definitions_from_globals(ita.globals_);
         table.build_from_ita_instructions();
         return table;
     }
@@ -74,7 +74,7 @@ struct Table_Fixture
     };
 };
 
-TEST_CASE("ir/table.cc: Table::from_ast")
+TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
 {
     auto symbols = LOAD_JSON_FROM_STRING(
         "{\"m\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 17, "
@@ -104,7 +104,113 @@ TEST_CASE("ir/table.cc: Table::from_ast")
         "\"end_column\": 9}, \"printf\": {\"type\": \"function_definition\", "
         "\"line\": 39, \"start_pos\": 844, \"column\": 1, \"end_pos\": 850, "
         "\"end_column\": 7}}");
-    auto ast = LOAD_JSON_FROM_STRING(
+    auto vector_2 = LOAD_JSON_FROM_STRING(
+        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : [{\n                \"left\" : {\n         "
+        "         \"node\" : \"number_literal\",\n                  \"root\" : "
+        "50\n                },\n                \"node\" : "
+        "\"vector_lvalue\",\n                \"root\" : \"x\"\n              "
+        "}, {\n                \"left\" : {\n                  \"node\" : "
+        "\"lvalue\",\n                  \"root\" : \"y\"\n                },\n "
+        "               \"node\" : \"indirect_lvalue\",\n                "
+        "\"root\" : [\"*\"]\n              }, {\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"z\"\n              }],\n    "
+        "        \"node\" : \"statement\",\n            \"root\" : \"auto\"\n  "
+        "        }, {\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"putchar\"\n              "
+        "}],\n            \"node\" : \"statement\",\n            \"root\" : "
+        "\"extrn\"\n          }, {\n            \"left\" : [[{\n               "
+        "   \"left\" : {\n                    \"left\" : {\n                   "
+        "   \"node\" : \"number_literal\",\n                      \"root\" : "
+        "49\n                    },\n                    \"node\" : "
+        "\"vector_lvalue\",\n                    \"root\" : \"x\"\n            "
+        "      },\n                  \"node\" : \"assignment_expression\",\n   "
+        "               \"right\" : {\n                    \"node\" : "
+        "\"number_literal\",\n                    \"root\" : 0\n               "
+        "   },\n                  \"root\" : [\"=\"]\n                }]],\n   "
+        "         \"node\" : \"statement\",\n            \"root\" : "
+        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      },\n      \"root\" : \"main\"\n    }, {\n "
+        "     \"left\" : [{\n          \"node\" : \"lvalue\",\n          "
+        "\"root\" : \"errno\"\n        }],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"t\"\n              }],\n    "
+        "        \"node\" : \"statement\",\n            \"root\" : \"auto\"\n  "
+        "        }, {\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"unit\"\n              }, "
+        "{\n                \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"mess\"\n              }],\n            \"node\" : \"statement\",\n  "
+        "          \"root\" : \"extrn\"\n          }, {\n            \"left\" "
+        ": [{\n                \"node\" : \"lvalue\",\n                "
+        "\"root\" : \"u\"\n              }],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"auto\"\n          }, {\n     "
+        "       \"left\" : [[{\n                  \"left\" : {\n               "
+        "     \"node\" : \"lvalue\",\n                    \"root\" : \"u\"\n   "
+        "               },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"unit\"\n                  },\n                  \"root\" : "
+        "[\"=\"]\n                }], [{\n                  \"left\" : {\n     "
+        "               \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"unit\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"node\" : \"number_literal\",\n                    "
+        "\"root\" : 1\n                  },\n                  \"root\" : "
+        "[\"=\"]\n                }], [{\n                  \"left\" : {\n     "
+        "               \"node\" : \"lvalue\",\n                    \"root\" : "
+        "\"t\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"errno\"\n             "
+        "       },\n                    \"node\" : \"vector_lvalue\",\n        "
+        "            \"root\" : \"mess\"\n                  },\n               "
+        "   \"root\" : [\"=\"]\n                }], [{\n                  "
+        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
+        "        \"root\" : \"printf\"\n                  },\n                 "
+        " \"node\" : \"function_expression\",\n                  \"right\" : "
+        "[{\n                      \"node\" : \"string_literal\",\n            "
+        "          \"root\" : \"\\\"error number %d, "
+        "%s*n'*,errno,mess[errno]\\\"\"\n                    }],\n             "
+        "     \"root\" : \"printf\"\n                }], [{\n                  "
+        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
+        "        \"root\" : \"unit\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"node\" : \"lvalue\",\n                    "
+        "\"root\" : \"u\"\n                  },\n                  \"root\" : "
+        "[\"=\"]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
+        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
+        "},\n      \"root\" : \"snide\"\n    }, {\n      \"left\" : [{\n       "
+        "   \"node\" : \"lvalue\",\n          \"root\" : \"s\"\n        }],\n  "
+        "    \"node\" : \"function_definition\",\n      \"right\" : {\n        "
+        "\"left\" : [{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"s\"\n              }],\n    "
+        "        \"node\" : \"statement\",\n            \"root\" : "
+        "\"return\"\n          }],\n        \"node\" : \"statement\",\n        "
+        "\"root\" : \"block\"\n      },\n      \"root\" : \"printf\"\n    }, "
+        "{\n      \"node\" : \"vector_definition\",\n      \"right\" : [{\n    "
+        "      \"node\" : \"string_literal\",\n          \"root\" : "
+        "\"\\\"puts\\\"\"\n        }],\n      \"root\" : \"putchar\"\n    }, "
+        "{\n      \"node\" : \"vector_definition\",\n      \"right\" : [{\n    "
+        "      \"node\" : \"number_literal\",\n          \"root\" : 10\n       "
+        " }],\n      \"root\" : \"unit\"\n    }, {\n      \"left\" : {\n       "
+        " \"node\" : \"number_literal\",\n        \"root\" : 6\n      },\n     "
+        " \"node\" : \"vector_definition\",\n      \"right\" : [{\n          "
+        "\"node\" : \"string_literal\",\n          \"root\" : \"\\\"too "
+        "bad\\\"\"\n        }, {\n          \"node\" : \"string_literal\",\n   "
+        "       \"root\" : \"\\\"tough luck\\\"\"\n        }, {\n          "
+        "\"node\" : \"string_literal\",\n          \"root\" : \"\\\"sorry, "
+        "Charlie\\\"\"\n        }, {\n          \"node\" : "
+        "\"string_literal\",\n          \"root\" : \"\\\"that's the "
+        "breaks\\\"\"\n        }, {\n          \"node\" : "
+        "\"string_literal\",\n          \"root\" : \"\\\"what a shame\\\"\"\n  "
+        "      }, {\n          \"node\" : \"string_literal\",\n          "
+        "\"root\" : \"\\\"some days you can't win\\\"\"\n        }],\n      "
+        "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
+        "\"definitions\"\n}\n");
+    auto switch_main_function = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
         "[{\n            \"left\" : [{\n                \"node\" : "
@@ -353,6 +459,14 @@ TEST_CASE("ir/table.cc: Table::from_ast")
 
     std::string expected_switch_main_function = R"ita(__main():
  BeginFunc ;
+    LOCL m;
+    LOCL i;
+    LOCL j;
+    LOCL c;
+    LOCL sign;
+    LOCL C;
+    LOCL s;
+    LOCL loop;
     i = (0:int:4);
     j = (1:int:4);
     m = (0:int:4);
@@ -452,27 +566,95 @@ _L1:
  EndFunc ;
 
 )ita";
+    auto expected_2 = R"ita(__main():
+ BeginFunc ;
+    LOCL x;
+    LOCL *y;
+    LOCL z;
+    GLOBL putchar;
+    x[49] = (0:int:4);
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__snide(errno):
+ BeginFunc ;
+    LOCL t;
+    GLOBL unit;
+    GLOBL mess;
+    LOCL u;
+    u = unit;
+    unit = (1:int:4);
+    t = mess[errno];
+    _p1 = ("error number %d, %s*n'*,errno,mess[errno]":string:41);
+    PUSH _p1;
+    CALL printf;
+    POP 8;
+    _t2 = RET;
+    unit = u;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__printf(s):
+ BeginFunc ;
+    RET s ;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita";
     std::ostringstream out_to{};
-    auto symbolic_context = credence::ir::Table::build_from_ast(symbols, ast);
-    auto instructions = symbolic_context->build_from_ita_instructions();
-    auto table = std::move(symbolic_context);
+    auto table = make_table_with_global_symbols(switch_main_function, symbols);
+    auto locals = table.functions["main"]->locals;
+    auto instructions = table.instructions;
     credence::ir::ITA::emit(out_to, instructions);
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(table->functions.at("main")->address_location[0] == 2);
-    REQUIRE(table->functions.at("main")->address_location[1] == 68);
-    REQUIRE(table->functions.at("main")->allocation == 24);
-    REQUIRE(table->functions.size() == 4);
-    REQUIRE(table->functions.at("main")->labels.size() == 19);
-    REQUIRE(table->functions.at("main")->locals.size() == 6);
-    REQUIRE(table->symbols_.size() == 6);
+    REQUIRE(table.functions.at("main")->address_location[0] == 2);
+    REQUIRE(table.functions.at("main")->address_location[1] == 76);
+    REQUIRE(table.functions.at("main")->allocation == 32);
+    REQUIRE(table.functions.size() == 4);
+    REQUIRE(table.functions.at("main")->labels.size() == 19);
+    REQUIRE(table.functions.at("main")->locals->size() == 8);
+    REQUIRE(locals->size() == 8);
     out_to.str("");
     credence::ir::ITA::emit_to(
-        out_to, instructions[table->functions.at("main")->address_location[0]]);
-    REQUIRE(out_to.str() == "i = (0:int:4);\n");
+        out_to, instructions[table.functions.at("main")->address_location[0]]);
+    REQUIRE(out_to.str() == "LOCL m;\n");
     out_to.str("");
     credence::ir::ITA::emit_to(
-        out_to, instructions[table->functions.at("main")->address_location[1]]);
+        out_to, instructions[table.functions.at("main")->address_location[1]]);
     REQUIRE(out_to.str() == "GOTO _L25;\n");
+    out_to.str("");
+    credence::ir::emit_ita_from_ast_with_symbols(
+        out_to, VECTOR_SYMBOLS, vector_2);
+    REQUIRE(out_to.str() == expected_2);
+}
+
+TEST_CASE_FIXTURE(
+    Table_Fixture,
+    "ir/table.cc: Table::from_globl_ita_instruction")
+{
+    auto table = make_table_with_frame(VECTOR_SYMBOLS);
+    auto locals = table.get_stack_frame_symbols();
+    table.vectors["mess"] = std::make_shared<credence::ir::Table::Vector>(
+        credence::ir::Table::Vector{ 10 });
+    REQUIRE_THROWS(table.from_globl_ita_instruction("snide"));
+    REQUIRE_NOTHROW(table.from_globl_ita_instruction("mess"));
+}
+
+TEST_CASE_FIXTURE(
+    Table_Fixture,
+    "ir/table.cc: Table::from_locl_ita_instruction")
+{
+    auto table = make_table_with_frame(VECTOR_SYMBOLS);
+    auto locals = table.get_stack_frame_symbols();
+    REQUIRE_NOTHROW(table.from_locl_ita_instruction("snide"));
+    REQUIRE_NOTHROW(table.from_locl_ita_instruction("*ptr"));
+    REQUIRE(locals->table_.contains("snide"));
+    REQUIRE(locals->addr_.contains("ptr"));
 }
 
 TEST_CASE_FIXTURE(
@@ -571,7 +753,7 @@ TEST_CASE_FIXTURE(
         "{\n      \"node\" : \"vector_definition\",\n      \"right\" : [{\n    "
         "      \"node\" : \"number_literal\",\n          \"root\" : 10\n       "
         " }],\n      \"root\" : \"unit\"\n    }, {\n      \"left\" : {\n       "
-        " \"node\" : \"number_literal\",\n        \"root\" : 5\n      },\n     "
+        " \"node\" : \"number_literal\",\n        \"root\" : 6\n      },\n     "
         " \"node\" : \"vector_definition\",\n      \"right\" : [{\n          "
         "\"node\" : \"string_literal\",\n          \"root\" : \"\\\"too "
         "bad\\\"\"\n        }, {\n          \"node\" : \"string_literal\",\n   "
@@ -586,15 +768,21 @@ TEST_CASE_FIXTURE(
         "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
         "\"definitions\"\n}\n");
     auto table = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
-    table.build_symbols_from_vector_definitions();
+    auto locals = table.functions["main"]->locals;
+    locals->set_symbol_by_name(
+        "mess", credence::ir::Table::WORD_RVALUE_LITERAL);
+    locals->set_symbol_by_name(
+        "putchar", credence::ir::Table::WORD_RVALUE_LITERAL);
+    locals->set_symbol_by_name(
+        "unit", credence::ir::Table::WORD_RVALUE_LITERAL);
     REQUIRE(table.vectors.size() == 4);
-    REQUIRE(table.vectors["mess"]->data.size() == 6);
+    REQUIRE(table.vectors["mess"]->data.size() == 7);
     REQUIRE(table.vectors["putchar"]->data.size() == 1);
-    REQUIRE(std::get<0>(table.vectors["putchar"]->data[0]) == "puts");
-    REQUIRE(std::get<0>(table.vectors["unit"]->data[0]) == "10");
-    REQUIRE(std::get<1>(table.vectors["unit"]->data[0]) == "int");
-    REQUIRE(std::get<0>(table.vectors["mess"]->data[0]) == "too bad");
-    REQUIRE(std::get<0>(table.vectors["mess"]->data[1]) == "tough luck");
+    REQUIRE(std::get<0>(table.vectors["putchar"]->data["0"]) == "puts");
+    REQUIRE(std::get<0>(table.vectors["unit"]->data["0"]) == "10");
+    REQUIRE(std::get<1>(table.vectors["unit"]->data["0"]) == "int");
+    REQUIRE(std::get<0>(table.vectors["mess"]->data["0"]) == "too bad");
+    REQUIRE(std::get<0>(table.vectors["mess"]->data["1"]) == "tough luck");
 }
 
 TEST_CASE_FIXTURE(
@@ -652,13 +840,12 @@ TEST_CASE_FIXTURE(
     REQUIRE_NOTHROW(table.from_variable_ita_instruction(test2));
     REQUIRE_THROWS(table.from_variable_ita_instruction(test3));
     REQUIRE_THROWS(table.from_variable_ita_instruction(test5));
-    table.symbols_.table_["x"] = { "10", "int", 4UL };
-    table.symbols_.table_["z"] = { "100", "int", 4UL };
-    REQUIRE_NOTHROW(table.from_variable_ita_instruction(test5));
-    table.symbols_.addr_["mess"] = "x";
-    REQUIRE_NOTHROW(table.from_variable_ita_instruction(test4));
-    table.symbols_.addr_["mess"] = "invalid_address";
     REQUIRE_THROWS(table.from_variable_ita_instruction(test4));
+    table.functions["main"]->locals->addr_["y"] = "NULL";
+    table.functions["main"]->locals->addr_["mess"] = "NULL";
+    REQUIRE_NOTHROW(table.from_variable_ita_instruction(test4));
+    REQUIRE_THROWS(table.from_variable_ita_instruction(test5));
+    table.functions["main"]->locals->table_["z"] = { "100", "int", 4UL };
     REQUIRE_NOTHROW(table.from_variable_ita_instruction(test5));
 }
 
@@ -676,20 +863,22 @@ TEST_CASE_FIXTURE(
     REQUIRE_THROWS(table.from_boundary_out_of_range(test1));
     REQUIRE_THROWS(table.from_boundary_out_of_range(test2));
     REQUIRE_THROWS(table.from_boundary_out_of_range(test3));
-    table.symbols_.set_symbol_by_name(
-        "mess", { "mess", "word", sizeof(void*) });
+    table.functions["main"]->locals->addr_["mess"] = "NULL";
     auto size = static_cast<std::size_t>(5);
     table.vectors["mess"] = std::make_shared<credence::ir::Table::Vector>(
         credence::ir::Table::Vector{ size });
     REQUIRE_THROWS(table.from_boundary_out_of_range(test3));
-    table.symbols_.set_symbol_by_name("z", { "5", "int", 4UL });
+    table.functions["main"]->locals->table_["z"] = { "5", "int", 4UL };
     REQUIRE_NOTHROW(table.from_boundary_out_of_range(test3));
     REQUIRE_NOTHROW(table.from_boundary_out_of_range(test4));
     REQUIRE_THROWS(table.from_boundary_out_of_range(test5));
-    REQUIRE_NOTHROW(table.from_pointer_assignment(test4, test7));
-    REQUIRE_NOTHROW(table.from_pointer_assignment(test7, test4));
-    REQUIRE_NOTHROW(table.from_pointer_assignment(test3, test4));
-    REQUIRE_THROWS(table.from_pointer_assignment(test2, test7));
+    REQUIRE_NOTHROW(
+        table.from_pointer_assignment_or_vector_decay(test4, test7));
+    REQUIRE_NOTHROW(
+        table.from_pointer_assignment_or_vector_decay(test7, test4));
+    REQUIRE_NOTHROW(
+        table.from_pointer_assignment_or_vector_decay(test3, test4));
+    REQUIRE_THROWS(table.from_pointer_assignment_or_vector_decay(test2, test7));
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_pointer_offset")
@@ -726,13 +915,14 @@ TEST_CASE_FIXTURE(
 {
     auto table = make_table_with_frame(make_node());
     auto frame = table.get_stack_frame();
+    auto locals = table.get_stack_frame_symbols();
     table.instruction_index = 10;
-    table.symbols_.table_["x"] = { "10", "int", 4UL };
+    table.functions["main"]->locals->table_["x"] = { "10", "int", 4UL };
     table.instruction_index = 10;
     frame->parameters.emplace_back("x");
     table.from_func_end_ita_instruction();
     REQUIRE(table.functions["main"]->address_location[1] == 9);
-    REQUIRE_FALSE(table.symbols_.table_.contains("x"));
+    REQUIRE(locals->table_.contains("x"));
 }
 
 TEST_CASE_FIXTURE(
@@ -787,8 +977,9 @@ TEST_CASE_FIXTURE(
 {
     using std::get;
     auto table = make_table_with_frame(make_node());
-    table.symbols_.table_["a"] = { "5", "int", sizeof(int) };
-    table.symbols_.addr_["b"] = "a";
+    auto locals = table.get_stack_frame_symbols();
+    table.functions["main"]->locals->table_["a"] = { "5", "int", 4UL };
+    table.functions["main"]->locals->addr_["b"] = "a";
     std::string test_rvalue = "~ 5";
     std::string test_pointer = "b";
     std::string test_pointer2 = "a";
@@ -846,15 +1037,17 @@ TEST_CASE_FIXTURE(
     REQUIRE_THROWS(table.from_temporary_reassignment("_t1", "~ _t2"));
     table.get_stack_frame()->temporary["_t1"] = "100";
     table.get_stack_frame()->temporary["_t2"] = "5";
-    table.symbols_.set_symbol_by_name("_t1", { "5", "int", 4UL });
-    table.symbols_.set_symbol_by_name("_t2", { "5", "int", 4UL });
+    table.functions["main"]->locals->table_["_t1"] = { "5", "int", 4UL };
+    table.functions["main"]->locals->table_["_t2"] = { "5", "int", 4UL };
+    table.functions["main"]->locals->table_["_t4"] = { "5", "int", 4UL };
     table.from_temporary_reassignment("_t1", "100");
     table.from_temporary_reassignment("_t2", "~ _t1");
     table.from_temporary_reassignment("_t3", "_t1");
     table.from_temporary_reassignment("_t4", "_t1 || _t2");
-    auto test = table.symbols_.get_symbol_by_name("_t1");
-    auto test2 = table.symbols_.get_symbol_by_name("_t2");
-    auto test3 = table.symbols_.get_symbol_by_name("_t4");
+    auto locals = table.functions["main"]->locals;
+    auto test = locals->get_symbol_by_name("_t1");
+    auto test2 = locals->get_symbol_by_name("_t2");
+    auto test3 = locals->get_symbol_by_name("_t4");
     REQUIRE(std::get<0>(test) == "100");
     REQUIRE(std::get<0>(test2) == "~ _t1");
     REQUIRE(std::get<0>(test3) == "_t1 || _t2");
@@ -863,19 +1056,21 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_symbol_reassignment")
 {
     auto table = make_table_with_frame(make_node());
-    CHECK_THROWS(table.from_symbol_reassignment("a", "b"));
-    table.symbols_.table_["a"] = { "5", "int", 4UL };
-    table.symbols_.table_["c"] = { "5", "int", 4UL };
-    table.symbols_.addr_["b"] = "z";
-    table.functions["main"]->allocation = 8UL;
+    auto locals = table.get_stack_frame_symbols();
+    REQUIRE_THROWS(table.from_symbol_reassignment("a", "b"));
+    locals->table_["a"] = { "5", "int", 4UL };
+    REQUIRE_THROWS(table.from_symbol_reassignment("a", "c"));
+    locals->table_["c"] = { "5", "int", 4UL };
+    locals->addr_["x"] = "a";
+    locals->addr_["y"] = "b";
     REQUIRE_THROWS(table.from_symbol_reassignment("a", "z"));
+    REQUIRE_THROWS(table.from_symbol_reassignment("x", "m"));
     table.from_symbol_reassignment("a", "c");
-    table.symbols_.table_["z"] = { "10", "double", 8UL };
-    // pointer assignment test
-    table.from_symbol_reassignment("a", "b");
-    REQUIRE(table.symbols_.addr_["a"] == "z");
-    REQUIRE(table.functions["main"]->allocation == 16UL);
-    REQUIRE(std::get<0>(table.symbols_.table_["a"]) == "5");
+    REQUIRE(locals->addr_["x"] == "a");
+    REQUIRE_NOTHROW(table.from_symbol_reassignment("x", "y"));
+    REQUIRE_NOTHROW(table.from_symbol_reassignment("a", "c"));
+    REQUIRE(std::get<0>(locals->table_["a"]) == "5");
+    REQUIRE(locals->addr_["x"] == "y");
 }
 
 TEST_CASE_FIXTURE(
@@ -883,13 +1078,14 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::from_integral_unary_expression")
 {
     auto table = make_table_with_frame(make_node());
+    auto locals = table.get_stack_frame_symbols();
     credence::ir::Table::RValue_Data_Type expected1 = { "5", "int", 4UL };
     credence::ir::Table::RValue_Data_Type expected2 = { "5", "long", 8UL };
     credence::ir::Table::RValue_Data_Type expected3 = { "5", "double", 8UL };
-    table.symbols_.set_symbol_by_name("a", expected1);
-    table.symbols_.set_symbol_by_name("b", expected2);
-    table.symbols_.set_symbol_by_name("c", expected3);
-    table.symbols_.set_symbol_by_name("x", { "hello world", "string", 15UL });
+    locals->set_symbol_by_name("a", expected1);
+    locals->set_symbol_by_name("b", expected2);
+    locals->set_symbol_by_name("c", expected3);
+    locals->set_symbol_by_name("x", { "hello world", "string", 15UL });
     auto test = table.from_integral_unary_expression("a");
     auto test2 = table.from_integral_unary_expression("b");
     auto test3 = table.from_integral_unary_expression("c");
