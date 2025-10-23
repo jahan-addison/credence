@@ -1,0 +1,173 @@
+[
+  {
+    "k": {
+      "type": "lvalue",
+      "line": 3,
+      "start_pos": 33,
+      "column": 8,
+      "end_pos": 34,
+      "end_column": 9
+    },
+    "m": {
+      "type": "lvalue",
+      "line": 3,
+      "start_pos": 35,
+      "column": 10,
+      "end_pos": 36,
+      "end_column": 11
+    },
+    "strs": {
+      "type": "vector_definition",
+      "line": 12,
+      "start_pos": 140,
+      "column": 1,
+      "end_pos": 144,
+      "end_column": 5,
+      "size": 3
+    },
+    "nmbrs": {
+      "type": "vector_definition",
+      "line": 10,
+      "start_pos": 117,
+      "column": 1,
+      "end_pos": 122,
+      "end_column": 6,
+      "size": 3
+    },
+    "main": {
+      "type": "function_definition",
+      "line": 1,
+      "start_pos": 0,
+      "column": 1,
+      "end_pos": 4,
+      "end_column": 5
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "k"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "m"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "nmbrs"
+                }
+              ],
+              "node": "statement",
+              "root": "extrn"
+            },
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "strs"
+                }
+              ],
+              "node": "statement",
+              "root": "extrn"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "left": {
+                        "node": "number_literal",
+                        "root": 1
+                      },
+                      "node": "vector_lvalue",
+                      "root": "strs"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "number_literal",
+                        "root": 10
+                      },
+                      "node": "vector_lvalue",
+                      "root": "nmbrs"
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      },
+      {
+        "left": {
+          "node": "number_literal",
+          "root": 3
+        },
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "number_literal",
+            "root": 10
+          },
+          {
+            "node": "number_literal",
+            "root": 20
+          },
+          {
+            "node": "number_literal",
+            "root": 30
+          }
+        ],
+        "root": "nmbrs"
+      },
+      {
+        "left": {
+          "node": "number_literal",
+          "root": 3
+        },
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "string_literal",
+            "root": "\"hello\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"there\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"hi\""
+          }
+        ],
+        "root": "strs"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

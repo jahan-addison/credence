@@ -17,9 +17,11 @@
 #pragma once
 
 #include <algorithm>   // for all_of
-#include <cctype>      // for toupper
+#include <cctype>      // for isdigit, toupper
+#include <cstddef>     // for size_t
+#include <ctype.h>     // for isdigit, toupper
 #include <filesystem>  // for filesystem
-#include <fstream>     // for ostream
+#include <fstream>     // for ostream, ostringstream
 #include <stddef.h>    // for size_t
 #include <string>      // for basic_string, string
 #include <string_view> // for basic_string_view, string_view
@@ -27,7 +29,7 @@
 #include <type_traits> // for is_same_v, is_convertible_v
 namespace json {
 class JSON;
-}
+} // lines 29-29
 
 #define CREDENCE_PUBLIC public
 #ifdef CREDENCE_TEST
@@ -189,6 +191,20 @@ constexpr std::string tuple_to_string(
     result += ")";
     return result;
 }
+
+///////////////
+// Emission
+///////////////
+
+void emit_partial_ita(
+    std::ostream& os,
+    AST_Node const& symbols,
+    AST_Node const& ast);
+
+void emit_complete_ita(
+    std::ostream& os,
+    AST_Node const& symbols,
+    AST_Node const& ast);
 
 ////////////////
 // File helpers

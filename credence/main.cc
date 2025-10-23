@@ -131,7 +131,7 @@ int main(int argc, const char* argv[])
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    credence::ir::emit_ita_from_ast_with_symbols(
+                    credence::util::emit_complete_ita(
                         out_to, symbols, ast["root"]);
                 },
             m::pattern | "ast" =

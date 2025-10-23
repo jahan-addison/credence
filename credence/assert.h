@@ -25,7 +25,7 @@
 
 #ifndef CREDENCE_TEST
 #define credence_error(message)  do {           \
-  credence::credence_cpptrace_stack_trace(1,2); \
+  credence::credence_cpptrace_stack_trace(2,2); \
   throw std::runtime_error(message);            \
 } while(0)
 #else
@@ -35,10 +35,10 @@
 #endif
 
 #ifndef CREDENCE_TEST
-#define credence_runtime_error(message, symbol, symbols)     \
-    ::credence_runtime_error_impl(message, symbol, symbols)
+#define credence_compile_error(message, symbol, symbols)     \
+    ::credence_compile_error_impl(message, symbol, symbols)
 #else
-#define credence_runtime_error(message, symbol, symbols)     \
+#define credence_compile_error(message, symbol, symbols)     \
     throw std::runtime_error(message)
 #endif
 
@@ -70,7 +70,7 @@ inline void credence_cpptrace_stack_trace(int skip = 2, int depth = 3)
 
 namespace {
 
-inline void credence_runtime_error_impl(
+inline void credence_compile_error_impl(
     std::string_view message,
     std::string_view symbol_name,
     json::JSON symbols)
@@ -79,8 +79,8 @@ inline void credence_runtime_error_impl(
     if (symbols.has_key(symbol)) {
         credence_error(
             std::format(
-                ">>> Runtime error :: on \"{}\" :: {}\n"
-                ">>>    from line {} column {}:{}",
+                "\n  >>> Compilation Failure :: on \"{}\" :: {}\n"
+                ">>> from line {} column {}:{}",
                 symbol,
                 message,
                 symbols[symbol]["line"].to_int(),
@@ -88,7 +88,10 @@ inline void credence_runtime_error_impl(
                 symbols[symbol]["end_column"].to_int()));
     } else {
         credence_error(
-            std::format(">>> Runtime error :: \"{}\" {}", symbol, message));
+            std::format(
+                "\n  >>> Compilation Failure :: on \"{}\" {}",
+                symbol,
+                message));
     }
 }
 

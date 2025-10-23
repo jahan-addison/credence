@@ -75,7 +75,7 @@ See the branch state machine object for details [here](https://github.com/jahan-
 
 ## Table
 
-The `Table` provides a function, symbolic label, and address table for the ITA instruction sets Including instruction location maps, stack frame and stack allocation sizes, and vector definition allocations as a pre-selection pass for platform code generation.
+The `Table` provides function, label, and address tables; along including instruction location maps, stack frame and stack allocation sizes; along with vector (globals) compiletime allocations as a a type checking pass for platform code generation.
 
 
 ## Example:

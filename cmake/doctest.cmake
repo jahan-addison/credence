@@ -31,7 +31,7 @@ target_include_directories(
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES
                                             "GNU")
-  target_compile_options(Test_Suite PUBLIC -DCREDENCE_TEST -DDEBUG -Wall -Wpedantic -Wextra
+  target_compile_options(Test_Suite PUBLIC -DCREDENCE_TEST -DROOT_TEST_PATH=${CMAKE_CURRENT_SOURCE_DIR} -DDEBUG -Wall -Wpedantic -Wextra
                                             -Werror)
 elseif(MSVC)
   target_compile_options(Test_Suite PUBLIC /W4 /WX)

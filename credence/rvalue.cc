@@ -251,7 +251,7 @@ type::RValue RValue_Parser::from_assignment_expression(Node const& node)
     auto left_child_node = node["left"];
     auto right_child_node = node["right"];
     if (!is_symbol(left_child_node))
-        credence_runtime_error(
+        credence_compile_error(
             "identifier of assignment not declared with 'auto' or 'extrn'",
             left_child_node["root"].to_string(),
             internal_symbols_);
@@ -284,7 +284,7 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
-                credence_runtime_error(
+                credence_compile_error(
                     "identifier does not exist", name, internal_symbols_);
             else
                 symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
@@ -348,7 +348,7 @@ type::RValue::Value RValue_Parser::from_indirect_identifier(Node const& node)
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "indirect_lvalue");
     CREDENCE_ASSERT(node.has_key("left"));
     if (!is_symbol(node["left"]))
-        credence_runtime_error(
+        credence_compile_error(
             "indirect identifier not defined, did you forget to declare with "
             "auto or extrn? No symbol found",
             node["root"].to_string(),
@@ -365,7 +365,7 @@ type::RValue::Value RValue_Parser::from_vector_idenfitier(Node const& node)
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_lvalue");
 
     if (!is_symbol(node))
-        credence_runtime_error(
+        credence_compile_error(
             "vector not defined, did you forget to declare with "
             "auto or extrn? No symbol found",
             node["root"].to_string(),

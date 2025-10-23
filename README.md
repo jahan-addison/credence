@@ -10,7 +10,7 @@
 The compiler works in 3 stages:
 
 * The Lexer, Parser first-pass, built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
-* An IR I've called [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and application runtime
+* An IR I've called [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and types checking
 
 * The target platforms - currently x86_64, arm64, and z80
 
@@ -18,14 +18,17 @@ The compiler works in 3 stages:
 
 There are a few differences between the compiler and B specification, namely:
 
-* Support for C++ style comments (i.e. `//`)
-* Goto and labels are not fully supported, use functions and control structures
-* Logical operators behave more like C (i.e. `||` and `&&`)
-* Bitwise operators behave more like C (i.e. `|` and `&`)
-* Uses C operator precedence
-* Roughly strictly typed with type inference on initialization
+* Roughly strict typing with type inference
+  * Vectors (arrays) may be non-homogeneous
+  * The trivial vector is strongly typed
+  * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
+* **No undefined behavior**
 * Boolean "truthy" coercion for all data types in conditionals
+* `GOTO` and labels are not supported, use control structures
+* Support for C++ style comments
+* Logical and bitwise operators behave more like C
+* Uses C operator precedence
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte

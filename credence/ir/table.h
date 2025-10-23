@@ -91,6 +91,7 @@ class Table
     using RValue = std::string;
     using RValue_Data_Type = std::tuple<RValue, Type, Size>;
     using RValue_Reference = std::string_view;
+    using RValue_Reference_Type = std::variant<RValue, RValue_Data_Type>;
     using ITA_Table = std::unique_ptr<Table>;
     using Address_Table = Symbol_Table<Label, Address>;
     using Symbolic_Stack = std::deque<RValue>;
@@ -142,17 +143,17 @@ class Table
      */
     struct Vector
     {
+        using Storage = std::map<std::string, RValue_Data_Type>;
         Vector() = delete;
         explicit Vector(Address size_of)
             : size(size_of)
         {
         }
-        std::map<std::string, RValue_Data_Type> data{};
+        Storage data{};
         int decay_index{ 0 };
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
     };
-    // clang-format on
   private:
     using Function_PTR = std::shared_ptr<Function>;
     using Vector_PTR = std::shared_ptr<Vector>;
@@ -172,10 +173,11 @@ class Table
   public:
     constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
                                           "+",  "~",  "!", "~" };
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    static constexpr RValue_Data_Type WORD_RVALUE_LITERAL =
-        RValue_Data_Type{ "__WORD__", "word", sizeof(void*) };
+    static constexpr RValue_Data_Type NULL_RVALUE_LITERAL =
+        RValue_Data_Type{ "NULL", "null", sizeof(void*) };
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
 
     /**
@@ -187,6 +189,9 @@ class Table
             return rvalue.starts_with(x) or rvalue.ends_with(x);
         });
     }
+    /**
+     * @brief is vector, pointer, or address-of rvalue
+     */
     /**
      * @brief Get unary operator from ITA rvalue string
      */
@@ -201,9 +206,8 @@ class Table
     } /**
        * @brief Get unary lvalue from ITA rvalue string
        */
-    constexpr inline LValue get_unary_rvalue_reference(RValue_Reference rvalue)
+    constexpr inline LValue get_unary_rvalue_reference(RValue_Reference rvalue, std::string_view unary_chracters = "+-*&+~!")
     {
-        std::string_view unary_chracters = "+-*&+~!";
         auto lvalue = std::string{ rvalue.begin(), rvalue.end() };
         lvalue.erase(
             std::remove_if(
@@ -216,13 +220,50 @@ class Table
             lvalue.end());
         return lvalue;
     }
+    // clang-format on
+    inline bool is_vector_or_pointer(RValue const& rvalue)
+    {
+        auto locals = get_stack_frame_symbols();
+        return vectors.contains(rvalue) or util::contains(rvalue, "[") or
+               locals->is_pointer(rvalue) or rvalue.starts_with("&");
+    }
+    /**
+     * @brief Get the type from a local in the stack frame
+     */
+    Type get_type_from_local_symbol(LValue const& lvalue);
+    inline Type get_type_from_local_symbol(RValue_Data_Type const& rvalue)
+    {
+        return std::get<1>(rvalue);
+    }
+    /** Left-hand-side and right-hand-side type equality check */
+    inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
+    {
+        return get_type_from_local_symbol(lhs) ==
+               get_type_from_local_symbol(rhs);
+    }
+    inline bool lhs_rhs_type_is_equal(
+        LValue const& lhs,
+        RValue_Data_Type const& rvalue)
+    {
+        return get_type_from_local_symbol(lhs) == std::get<1>(rvalue);
+    }
+    /**
+     * @brief Either lhs or rhs are trivial vector assignments
+     */
+    inline bool is_trivial_vector_assignment(
+        LValue const& lhs,
+        LValue const& rhs)
+    {
+        return (
+            (vectors.contains(lhs) and vectors[lhs]->data.size() == 1) or
+            (vectors.contains(rhs) and vectors[rhs]->data.size() == 1));
+    }
     /**
      * @brief Get the integer or rvalue reference offset
      *   * v[20]        = 20
      *   * sidno[errno] = errno
      */
-    constexpr inline RValue from_pointer_offset(
-        RValue_Reference rvalue)
+    constexpr inline RValue from_pointer_offset(RValue_Reference rvalue)
     {
         return std::string{ rvalue.begin() + rvalue.find_first_of("[") + 1,
                             rvalue.begin() + rvalue.find_first_of("]") };
@@ -234,8 +275,7 @@ class Table
      *   * sidno[errno] = sidno
      *
      */
-    constexpr inline RValue from_lvalue_offset(
-        RValue_Reference rvalue)
+    constexpr inline RValue from_lvalue_offset(RValue_Reference rvalue)
     {
         return std::string{ rvalue.begin(),
                             rvalue.begin() + rvalue.find_first_of("[") };
@@ -256,13 +296,14 @@ class Table
     void construct_error(
         RValue_Reference message,
         RValue_Reference symbol = "");
-  // clang-format off
+
+    // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void from_func_start_ita_instruction(Label const& label);
     void from_func_end_ita_instruction();
     void from_call_ita_instruction(Label const& label);
     void from_globl_ita_instruction(Label const& label);
-    void from_locl_ita_instruction(Label const& label);
+    void from_locl_ita_instruction(ITA::Quadruple const& instruction);
     void from_push_instruction(ITA::Quadruple const& instruction);
     void from_pop_instruction(ITA::Quadruple const& instruction);
     void from_label_ita_instruction(ITA::Quadruple const& instruction);
@@ -271,16 +312,30 @@ class Table
   CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue_Data_Type from_rvalue_unary_expression(
         LValue const& lvalue,
-        RValue& rvalue,
+        RValue const& rvalue,
         RValue_Reference unary_operator);
-    void from_symbol_reassignment(LValue const& lhs, LValue const& rhs);
-    void from_pointer_assignment_or_vector_decay(
+    void from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs);
+    void from_pointer_or_vector_assignment(
         LValue const& lhs,
-        LValue const& rhs);
-    void from_boundary_out_of_range(RValue const& rvalue);
+        LValue& rhs,
+        bool indirection = false);
+    void is_boundary_out_of_range(RValue const& rvalue);
+    void from_type_invalid_assignment(LValue const& lvalue, RValue const& rvalue);
+    void from_type_invalid_assignment(
+        LValue const& lvalue,
+        RValue_Data_Type const& rvalue);
+    void from_trivial_vector_assignment(
+        LValue const& lhs,
+        RValue_Data_Type const& rvalue);
+    void safely_reassign_pointers_or_vectors(
+        LValue const& lvalue,
+        RValue_Reference_Type const& rvalue,
+        bool indirection = false);
     Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
     void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
+    std::pair<std::string, std::string> get_rvalue_from_variable_instruction(
+        ITA::Quadruple const& instruction);
     RValue_Data_Type static get_rvalue_symbol_type_size(
         std::string const& datatype);
 
@@ -303,35 +358,6 @@ class Table
     Vectors vectors{};
     Labels labels{};
 };
-
-/**
- * @brief Emit the pre-selection ita instructions to an std::ostream
- */
-inline void emit_ita_from_ast(
-    std::ostream& os,
-    ITA::Node const& symbols,
-    ITA::Node const& ast)
-{
-    ITA::emit(
-        os, Table::build_from_ast(symbols, ast)->build_from_ita_instructions());
-}
-
-/**
- * @brief Emit the pre-selection ita instructions to an std::ostream
- *   Passes the global symbols from the ITA object
- */
-inline void emit_ita_from_ast_with_symbols(
-    std::ostream& os,
-    ITA::Node const& symbols,
-    ITA::Node const& ast)
-{
-    auto ita = ITA{ symbols };
-    auto instructions = ita.build_from_definitions(ast);
-    auto table = Table{ symbols, instructions };
-    table.build_vector_definitions_from_globals(ita.globals_);
-    table.build_from_ita_instructions();
-    ITA::emit(os, table.instructions);
-}
 
 } // namespace ir
 
