@@ -1,15 +1,17 @@
 main() {
-  auto x, y, z;
+  auto *a;
+  auto c, i, j;
   extrn unit;
-  x = unit;
-  y = 1;
-  z = add(x, sub(x, y)) - 2;
-  if (x > y) {
-    while(z > x) {
-      z--;
+  c = unit;
+  a = &c;
+  i = 1;
+  j = add(c, sub(c, i)) - 2;
+  if (c > i) {
+    while(j > i) {
+      j--;
     }
   }
-  x = 0;
+  c = 0;
 }
 
 str(i) {

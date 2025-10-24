@@ -4,7 +4,10 @@ main() {
   extrn nmbrs;
   extrn strs;
   k = &nmbrs[0];
-  z = k;
+  m = &strs[2];
+  z = m;
+  m = k;
+  k = z;
 }
 
 nmbrs [3] 10, 20, 30;

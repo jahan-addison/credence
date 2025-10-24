@@ -1,7 +1,7 @@
 main () {
   auto x[50],*y,z;
   extrn putchar;
-  x[49] = 0;
+  x[10] = 0;
 }
 
 snide(errno) {

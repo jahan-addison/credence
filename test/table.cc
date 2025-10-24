@@ -85,20 +85,23 @@ struct Table_Fixture
 
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
 {
+    // clang-format off
     // Type checking test cases from test/fixtures/types:
-    const auto statuses = { false, false, false, false, false, true, true,
-                            false, false, true,  false, false, false };
+    const auto statuses = {
+        false, false, false, false,
+        false, true,  true,  false,
+        false, true,  false, false,
+        false, false, false, true
+    };
     // clang-format on
     auto type_fixtures_path = fs::path(ROOT_PATH);
     type_fixtures_path.append("test/fixtures/types/ast");
-
     for (std::size_t i = 1; i <= statuses.size(); i++) {
         auto* status = statuses.begin() + i - 1;
         auto file_path =
             fs::path(type_fixtures_path).append(std::format("{}.json", i));
         auto path_contents =
             json::JSON::load_file(file_path.string()).to_deque();
-
         if (*status)
             REQUIRE_NOTHROW(make_table_with_global_symbols(
                 path_contents[1], path_contents[0]));

@@ -173,7 +173,9 @@ void Table::from_label_ita_instruction(ITA::Quadruple const& instruction)
  * each type and populate function frame stack table
  *
  *  * LValues that begin with `_t` or `_p` are temporaries or parameters
+ *
  *  * Checks the storage type of the lvalue and rvalues
+ *
  *  * Assign symbols to the table and allocate them as a local on the
  *  * frame stack
  */
@@ -373,24 +375,26 @@ void Table::safely_reassign_pointers_or_vectors(
                     }
                     return;
                 }
-                if (!indirection and not locals->is_pointer(value))
-                    construct_error(
-                        std::format(
-                            "invalid pointer assignment, right-hand-side "
-                            "\"{}\" "
-                            "is not a pointer or address",
-                            value),
-                        lvalue);
-                // the lvalue and rvalue must both be pointers
                 if (!locals->is_pointer(lvalue) or
-                    not locals->is_pointer(value))
-                    construct_error(
-                        std::format(
-                            "invalid pointer assignment, left-hand-side \"{}\" "
-                            "and right-hand-side must both be pointers",
-                            lvalue),
-                        value);
-                locals->set_symbol_by_name(lvalue, value);
+                    not locals->is_pointer(value)) {
+                    // do not allow dereferencing of null pointers
+                    if (indirection) {
+                        construct_error(
+                            "invalid pointer assignment, right-hand-side is a "
+                            "dereferenced null pointer",
+                            lvalue);
+                    } else {
+                        // the lvalue and rvalue must both be pointers
+                        construct_error(
+                            std::format(
+                                "invalid pointer assignment, left-hand-side "
+                                "\"{}\" "
+                                "and right-hand-side must both be pointers",
+                                lvalue),
+                            value);
+                        locals->set_symbol_by_name(lvalue, value);
+                    }
+                }
             },
             [&](RValue_Data_Type const& value) {
                 if (!indirection and locals->is_pointer(lvalue))

@@ -75,7 +75,7 @@ See the branch state machine object for details [here](https://github.com/jahan-
 
 ## Table
 
-The `Table` provides function, label, and address tables; along including instruction location maps, stack frame and stack allocation sizes; along with vector (globals) compiletime allocations as a a type checking pass for platform code generation.
+The `Table` serves as a pre-selection pass that constructs tables for functions, labels, and stack frames along with their corresponding local allocations. During this stage, it also performs vector management, out-of-range boundary checks, and type validation. The resulting data structures provide a foundation for generating type- and data-size-safe platform-specific machine code.
 
 
 ## Example:
@@ -84,17 +84,19 @@ B Code:
 
 ```C
 main() {
-  auto x, y, z;
+  auto *a;
+  auto c, i, j;
   extrn unit;
-  x = unit;
-  y = 1;
-  z = add(x, sub(x, y)) - 2;
-  if (x > y) {
-    while(z > x) {
-      z--;
+  c = unit;
+  a = &c;
+  i = 1;
+  j = add(c, sub(c, i)) - 2;
+  if (c > i) {
+    while(j > i) {
+      j--;
     }
   }
-  x = 0;
+  c = 0;
 }
 
 str(i) {
@@ -118,47 +120,51 @@ mess [3] "too bad", "tough luck", "that's the breaks";
 
 ITA:
 
+
 ```asm
 __main():
  BeginFunc ;
-    LOCL x;
-    LOCL y;
-    LOCL z;
+    LOCL *a;
+    LOCL c;
+    LOCL i;
+    LOCL j;
     GLOBL unit;
-    x = unit;
-    y = (1:int:4);
-    _p1 = x;
-    _p3 = x;
-    _p4 = y;
+    c = unit;
+    _t2 = & c;
+    a = _t2;
+    i = (1:int:4);
+    _p1 = c;
+    _p3 = c;
+    _p4 = i;
     PUSH _p4;
     PUSH _p3;
     CALL sub;
     POP 16;
-    _t2 = RET;
-    _p2 = _t2;
+    _t3 = RET;
+    _p2 = _t3;
     PUSH _p2;
     PUSH _p1;
     CALL add;
     POP 16;
-    _t3 = RET;
-    _t4 = _t3;
-    z = (2:int:4) - _t4;
-_L5:
-    _t8 = x > y;
-    IF _t8 GOTO _L7;
+    _t4 = RET;
+    _t5 = _t4;
+    j = (2:int:4) - _t5;
 _L6:
-    x = (0:int:4);
+    _t9 = c > i;
+    IF _t9 GOTO _L8;
+_L7:
+    c = (0:int:4);
 _L1:
     LEAVE;
-_L7:
-_L9:
-_L11:
-    _t12 = z > x;
-    IF _t12 GOTO _L10;
-    GOTO _L6;
+_L8:
 _L10:
-    z = --z;
-    GOTO _L9;
+_L12:
+    _t13 = j > i;
+    IF _t13 GOTO _L11;
+    GOTO _L7;
+_L11:
+    j = --j;
+    GOTO _L10;
  EndFunc ;
 
 
@@ -187,5 +193,6 @@ __sub(x,y):
 _L1:
     LEAVE;
  EndFunc ;
+
 
 ```
