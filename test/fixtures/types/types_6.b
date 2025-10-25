@@ -1,4 +1,4 @@
-main() {
+main(argc, argv) {
   // should pass
   auto k, m, z;
   extrn array;

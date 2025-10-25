@@ -7,6 +7,8 @@
 
 ---
 
+Blog series: [Credence](https://soliloq.uy/tag/credence/)
+
 The compiler works in 3 stages:
 
 * The Lexer, Parser first-pass, built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
