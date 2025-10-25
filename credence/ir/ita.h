@@ -76,7 +76,7 @@ class ITA
         POP,
         CALL,
         CMP,
-        VARIABLE,
+        MOV,
         RETURN,
         LEAVE,
         NOOP
@@ -106,7 +106,7 @@ class ITA
                 break;
             case ITA::Instruction::LABEL:
                 break;
-            case ITA::Instruction::VARIABLE:
+            case ITA::Instruction::MOV:
                 os << "=";
                 break;
             case ITA::Instruction::NOOP:
@@ -206,14 +206,14 @@ class ITA
   public:
     /**
      * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
-     * size Set as a Instruction::VARIABLE instruction with the right-hamd-side
+     * size Set as a Instruction::MOV instruction with the right-hamd-side
      */
     static constexpr inline Quadruple make_temporary(
         int* temporary_size,
         std::string const& temp)
     {
         return make_quadruple(
-            Instruction::VARIABLE,
+            Instruction::MOV,
             std::string{ "_t" } +
                 util::to_constexpr_string<int>(++(*temporary_size)),
             temp);

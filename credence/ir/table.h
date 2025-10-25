@@ -307,7 +307,7 @@ class Table
     void from_push_instruction(ITA::Quadruple const& instruction);
     void from_pop_instruction(ITA::Quadruple const& instruction);
     void from_label_ita_instruction(ITA::Quadruple const& instruction);
-    void from_variable_ita_instruction(ITA::Quadruple const& instruction);
+    void from_mov_ita_instruction(ITA::Quadruple const& instruction);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     RValue_Data_Type from_rvalue_unary_expression(
@@ -334,7 +334,7 @@ class Table
     Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
     void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
-    std::pair<std::string, std::string> get_rvalue_from_variable_instruction(
+    std::pair<std::string, std::string> get_rvalue_from_mov_instruction(
         ITA::Quadruple const& instruction);
     RValue_Data_Type static get_rvalue_symbol_type_size(
         std::string const& datatype);

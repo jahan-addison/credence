@@ -166,8 +166,7 @@ void binary_operands_unbalanced_temporary_stack(
                 ITA::Quadruple last_lvalue =
                     instructions[instructions.size() - last_index];
                 // backtrack the instruction stack and grab the last lvalue
-                while (std::get<0>(last_lvalue) !=
-                           ITA::Instruction::VARIABLE and
+                while (std::get<0>(last_lvalue) != ITA::Instruction::MOV and
                        last_index < instructions.size()) {
                     last_lvalue =
                         instructions[instructions.size() - last_index];
@@ -308,8 +307,7 @@ void assignment_operands_to_temporary_stack(
                     lvalue, temporary);
                 ITA::insert_instructions(instructions, lhs.second);
                 instructions.emplace_back(
-                    ITA::make_quadruple(
-                        ITA::Instruction::VARIABLE, lhs.first, rhs));
+                    ITA::make_quadruple(ITA::Instruction::MOV, lhs.first, rhs));
             },
         m::pattern | ds(m::_ == 1, m::_ == 0) =
             [&] {
@@ -319,7 +317,7 @@ void assignment_operands_to_temporary_stack(
                     auto last = instructions[instructions.size() - 1];
                     instructions.emplace_back(
                         ITA::make_quadruple(
-                            ITA::Instruction::VARIABLE,
+                            ITA::Instruction::MOV,
                             lhs_rvalue,
                             std::get<1>(last)));
                 }
@@ -339,7 +337,7 @@ void assignment_operands_to_temporary_stack(
                 ITA::insert_instructions(instructions, rhs.second);
                 instructions.emplace_back(
                     ITA::make_quadruple(
-                        ITA::Instruction::VARIABLE, lhs.first, rhs.first));
+                        ITA::Instruction::MOV, lhs.first, rhs.first));
             });
 }
 
@@ -482,7 +480,7 @@ void unary_operand_to_temporary_stack(
                                     operand1, RValue_Type_Variant::LValue) and
                                 is_in_place_unary_operator(op)) {
                                 auto unary = ITA::make_quadruple(
-                                    ITA::Instruction::VARIABLE,
+                                    ITA::Instruction::MOV,
                                     rvalue_to_string(*operand1, false),
                                     operator_to_string(op),
                                     rhs.first);

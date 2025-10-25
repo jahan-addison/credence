@@ -856,41 +856,39 @@ TEST_CASE_FIXTURE(
     REQUIRE(frame->label_address.addr_["_L1"] == 5UL);
 }
 
-TEST_CASE_FIXTURE(
-    Table_Fixture,
-    "ir/table.cc: Table::from_variable_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_mov_ita_instruction")
 {
     auto table = make_table_with_frame(VECTOR_SYMBOLS);
     auto frame = table.get_stack_frame();
     auto test1 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::VARIABLE, "_t1", "(5:int:4)", ""
+        credence::ir::ITA::Instruction::MOV, "_t1", "(5:int:4)", ""
     };
     auto test2 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::VARIABLE, "a", "(10:int:4)", ""
+        credence::ir::ITA::Instruction::MOV, "a", "(10:int:4)", ""
     };
     auto test3 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::VARIABLE, "z", "mess", ""
+        credence::ir::ITA::Instruction::MOV, "z", "mess", ""
     };
     auto test4 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::VARIABLE, "y", "*mess", ""
+        credence::ir::ITA::Instruction::MOV, "y", "*mess", ""
     };
     auto test5 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::VARIABLE,
+        credence::ir::ITA::Instruction::MOV,
         "z",
         "--",
         "x",
     };
-    REQUIRE_NOTHROW(table.from_variable_ita_instruction(test1));
-    REQUIRE_NOTHROW(table.from_variable_ita_instruction(test2));
-    REQUIRE_THROWS(table.from_variable_ita_instruction(test3));
-    REQUIRE_THROWS(table.from_variable_ita_instruction(test5));
+    REQUIRE_NOTHROW(table.from_mov_ita_instruction(test1));
+    REQUIRE_NOTHROW(table.from_mov_ita_instruction(test2));
+    REQUIRE_THROWS(table.from_mov_ita_instruction(test3));
+    REQUIRE_THROWS(table.from_mov_ita_instruction(test5));
     table.functions["main"]->locals->addr_["mess"] = "NULL";
-    REQUIRE_THROWS(table.from_variable_ita_instruction(test4));
+    REQUIRE_THROWS(table.from_mov_ita_instruction(test4));
     table.functions["main"]->locals->table_["y"] = { "100", "int", 4UL };
-    REQUIRE_THROWS(table.from_variable_ita_instruction(test4));
-    REQUIRE_THROWS(table.from_variable_ita_instruction(test5));
+    REQUIRE_THROWS(table.from_mov_ita_instruction(test4));
+    REQUIRE_THROWS(table.from_mov_ita_instruction(test5));
     table.functions["main"]->locals->table_["z"] = { "100", "int", 4UL };
-    REQUIRE_NOTHROW(table.from_variable_ita_instruction(test5));
+    REQUIRE_NOTHROW(table.from_mov_ita_instruction(test5));
 }
 
 TEST_CASE_FIXTURE(

@@ -52,8 +52,8 @@ ITA::Instructions Table::build_from_ita_instructions()
                 [&] { from_call_ita_instruction(std::get<1>(instruction)); },
             m::pattern | ITA::Instruction::POP =
                 [&] { from_pop_instruction(instruction); },
-            m::pattern | ITA::Instruction::VARIABLE =
-                [&] { from_variable_ita_instruction(instruction); },
+            m::pattern | ITA::Instruction::MOV =
+                [&] { from_mov_ita_instruction(instruction); },
             m::pattern | ITA::Instruction::LABEL =
                 [&] { from_label_ita_instruction(instruction); },
             m::pattern | ITA::Instruction::GOTO =
@@ -179,10 +179,10 @@ void Table::from_label_ita_instruction(ITA::Quadruple const& instruction)
  *  * Assign symbols to the table and allocate them as a local on the
  *  * frame stack
  */
-void Table::from_variable_ita_instruction(ITA::Quadruple const& instruction)
+void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
 {
     LValue lhs = std::get<1>(instruction);
-    auto rvalue = get_rvalue_from_variable_instruction(instruction);
+    auto rvalue = get_rvalue_from_mov_instruction(instruction);
     auto rhs = rvalue.first;
 
     auto frame = get_stack_frame();
@@ -570,7 +570,7 @@ void Table::from_pop_instruction(ITA::Quadruple const& instruction)
 /**
  * @brief Get the rvalue and unary operator from a VARIABLE instruction
  */
-std::pair<std::string, std::string> Table::get_rvalue_from_variable_instruction(
+std::pair<std::string, std::string> Table::get_rvalue_from_mov_instruction(
     ITA::Quadruple const& instruction)
 {
     std::string rvalue{};

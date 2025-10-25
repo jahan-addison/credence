@@ -24,7 +24,7 @@ The instruction set:
         POP,
         CALL,
         CMP,
-        VARIABLE,
+        MOV,
         RETURN,
         LEAVE,
         NOOP
