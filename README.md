@@ -7,12 +7,12 @@
 
 ---
 
-Blog series: [Credence](https://soliloq.uy/tag/credence/)
+### Blog series: [Credence](https://soliloq.uy/tag/credence/)
 
 The compiler works in 3 stages:
 
 * The Lexer, Parser first-pass, built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
-* An IR I've called [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and types checking
+* An IR I've called [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
 
 * The target platforms - currently x86_64, arm64, and z80
 
