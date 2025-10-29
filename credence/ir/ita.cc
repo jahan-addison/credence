@@ -16,19 +16,23 @@
 
 #include <credence/ir/ita.h>
 
-#include <credence/assert.h>  // for CREDENCE_ASSERT_NODE, CREDENCE_ASSERT
+#include <credence/assert.h>  // for assert_equal_impl, CREDENCE_ASSERT_NODE
 #include <credence/ir/temp.h> // for rvalue_node_to_list_of_temp_instructions
 #include <credence/queue.h>   // for rvalue_to_string, RValue_Queue
 #include <credence/rvalue.h>  // for RValue_Parser
 #include <credence/symbol.h>  // for Symbol_Table
-#include <credence/types.h>   // for RValue, RValue_Type_Variant, WORD_LITERAL
-#include <credence/util.h>    // for AST_Node
-#include <format>             // for format
+#include <credence/types.h>   // for RValue_Type_Variant, RValue, WORD_LITERAL
+#include <credence/util.h>    // for AST_Node, AST
+#include <format>             // for format, format_string
+#include <functional>         // for identity
+#include <initializer_list>   // for initializer_list
+#include <iomanip>            // for operator<<, setw
 #include <matchit.h>          // for pattern, PatternHelper, PatternPipable
-#include <memory>             // for shared_ptr
+#include <memory>             // for __shared_ptr_access, shared_ptr
+#include <ranges>             // for __find_fn, find
 #include <simplejson.h>       // for JSON, object
-#include <utility>            // for pair, get, make_pair, cmp_not_equal
-#include <variant>            // for get, monostate, variant
+#include <utility>            // for pair, move, cmp_not_equal
+#include <variant>            // for variant, get, monostate
 
 namespace credence {
 

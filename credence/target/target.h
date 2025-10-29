@@ -18,6 +18,7 @@
 
 #include <credence/ir/table.h> // for Table
 #include <credence/util.h>     // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <ostream>             // for ostream
 #include <utility>             // for move
 
 namespace credence {
@@ -26,40 +27,44 @@ namespace target {
 
 // https://github.com/rui314/chibicc/blob/main/codegen.c
 
-class Backend
+class Backend_Target_Platform
 {
   public:
-    Backend(Backend const&) = delete;
-    Backend& operator=(Backend const&) = delete;
+    Backend_Target_Platform(Backend_Target_Platform const&) = delete;
+    Backend_Target_Platform& operator=(Backend_Target_Platform const&) = delete;
 
-  public:
-    Backend(ir::Table::ITA_Table& table)
+  protected:
+    Backend_Target_Platform(ir::Table::Table_PTR table)
         : table_(std::move(table))
     {
     }
-    virtual ~Backend() = default;
+
+    virtual ~Backend_Target_Platform() = default;
+
+  public:
+    // virtual void emit(std::ostream& os) = 0;
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    virtual void from_func_start_ita() = 0;
-    virtual void from_func_end_ita() = 0;
-    virtual void from_label_ita() = 0;
-    virtual void from_goto_ita() = 0;
-    virtual void from_locl_ita() = 0;
-    virtual void from_globl_ita() = 0;
-    virtual void from_if_ita() = 0;
-    virtual void from_jmp_e_ita() = 0;
-    virtual void from_push_ita() = 0;
-    virtual void from_pop_ita() = 0;
-    virtual void from_call_ita() = 0;
-    virtual void from_cmp_ita() = 0;
-    virtual void from_mov_ita() = 0;
-    virtual void from_return_ita() = 0;
+    // virtual void from_func_start_ita() = 0;
+    // virtual void from_func_end_ita() = 0;
+    // virtual void from_label_ita() = 0;
+    // virtual void from_goto_ita() = 0;
+    // virtual void from_locl_ita() = 0;
+    // virtual void from_globl_ita() = 0;
+    // virtual void from_if_ita() = 0;
+    // virtual void from_jmp_e_ita() = 0;
+    // virtual void from_push_ita() = 0;
+    // virtual void from_pop_ita() = 0;
+    // virtual void from_call_ita() = 0;
+    // virtual void from_cmp_ita() = 0;
+    // virtual void from_mov_ita() = 0;
+    // virtual void from_return_ita() = 0;
     virtual void from_leave_ita() = 0;
     virtual void from_noop_ita() = 0;
     // clang-format on
-  private:
-    ir::Table::ITA_Table table_;
+  protected:
+    ir::Table::Table_PTR table_;
 };
 
 } // namespace target

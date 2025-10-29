@@ -647,7 +647,7 @@ _L1:
 )ita";
     std::ostringstream out_to{};
     auto table = make_table_with_global_symbols(switch_main_function, symbols);
-    auto locals = table.functions["main"]->locals;
+    auto& locals = table.functions["main"]->locals;
     auto instructions = table.instructions;
     credence::ir::ITA::emit(out_to, instructions);
     REQUIRE(out_to.str() == expected_switch_main_function);
@@ -656,8 +656,8 @@ _L1:
     REQUIRE(table.functions.at("main")->allocation == 32);
     REQUIRE(table.functions.size() == 4);
     REQUIRE(table.functions.at("main")->labels.size() == 19);
-    REQUIRE(table.functions.at("main")->locals->size() == 8);
-    REQUIRE(locals->size() == 8);
+    REQUIRE(table.functions.at("main")->locals.size() == 8);
+    REQUIRE(locals.size() == 8);
     out_to.str("");
     credence::ir::ITA::emit_to(
         out_to, instructions[table.functions.at("main")->address_location[0]]);
@@ -667,7 +667,7 @@ _L1:
         out_to, instructions[table.functions.at("main")->address_location[1]]);
     REQUIRE(out_to.str() == "GOTO _L25;\n");
     out_to.str("");
-    credence::util::emit_complete_ita(out_to, VECTOR_SYMBOLS, vector_2);
+    credence::ir::emit_complete_ita(out_to, VECTOR_SYMBOLS, vector_2);
     REQUIRE(out_to.str() == expected_2);
 }
 
@@ -676,7 +676,6 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::from_globl_ita_instruction")
 {
     auto table = make_table_with_frame(VECTOR_SYMBOLS);
-    auto locals = table.get_stack_frame_symbols();
     table.vectors["mess"] = std::make_shared<credence::ir::Table::Vector>(
         credence::ir::Table::Vector{ 10 });
     REQUIRE_THROWS(table.from_globl_ita_instruction("snide"));
@@ -688,7 +687,7 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::from_locl_ita_instruction")
 {
     auto table = make_table_with_frame(VECTOR_SYMBOLS);
-    auto locals = table.get_stack_frame_symbols();
+    auto& locals = table.get_stack_frame_symbols();
     auto test1 = credence::ir::ITA::Quadruple{
         credence::ir::ITA::Instruction::LOCL, "snide", "", ""
     };
@@ -697,8 +696,8 @@ TEST_CASE_FIXTURE(
     };
     REQUIRE_NOTHROW(table.from_locl_ita_instruction(test1));
     REQUIRE_NOTHROW(table.from_locl_ita_instruction(test2));
-    REQUIRE(locals->table_.contains("snide"));
-    REQUIRE(locals->addr_.contains("ptr"));
+    REQUIRE(locals.table_.contains("snide"));
+    REQUIRE(locals.addr_.contains("ptr"));
 }
 
 TEST_CASE_FIXTURE(
@@ -812,13 +811,11 @@ TEST_CASE_FIXTURE(
         "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
         "\"definitions\"\n}\n");
     auto table = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
-    auto locals = table.functions["main"]->locals;
-    locals->set_symbol_by_name(
-        "mess", credence::ir::Table::NULL_RVALUE_LITERAL);
-    locals->set_symbol_by_name(
+    auto& locals = table.functions["main"]->locals;
+    locals.set_symbol_by_name("mess", credence::ir::Table::NULL_RVALUE_LITERAL);
+    locals.set_symbol_by_name(
         "putchar", credence::ir::Table::NULL_RVALUE_LITERAL);
-    locals->set_symbol_by_name(
-        "unit", credence::ir::Table::NULL_RVALUE_LITERAL);
+    locals.set_symbol_by_name("unit", credence::ir::Table::NULL_RVALUE_LITERAL);
     REQUIRE(table.vectors.size() == 4);
     REQUIRE(table.vectors["mess"]->data.size() == 7);
     REQUIRE(table.vectors["putchar"]->data.size() == 1);
@@ -882,12 +879,12 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_mov_ita_instruction")
     REQUIRE_NOTHROW(table.from_mov_ita_instruction(test2));
     REQUIRE_THROWS(table.from_mov_ita_instruction(test3));
     REQUIRE_THROWS(table.from_mov_ita_instruction(test5));
-    table.functions["main"]->locals->addr_["mess"] = "NULL";
+    table.functions["main"]->locals.addr_["mess"] = "NULL";
     REQUIRE_THROWS(table.from_mov_ita_instruction(test4));
-    table.functions["main"]->locals->table_["y"] = { "100", "int", 4UL };
+    table.functions["main"]->locals.table_["y"] = { "100", "int", 4UL };
     REQUIRE_THROWS(table.from_mov_ita_instruction(test4));
     REQUIRE_THROWS(table.from_mov_ita_instruction(test5));
-    table.functions["main"]->locals->table_["z"] = { "100", "int", 4UL };
+    table.functions["main"]->locals.table_["z"] = { "100", "int", 4UL };
     REQUIRE_NOTHROW(table.from_mov_ita_instruction(test5));
 }
 
@@ -908,13 +905,13 @@ TEST_CASE_FIXTURE(
     auto size = static_cast<std::size_t>(3);
     table.vectors["mess"] = std::make_shared<credence::ir::Table::Vector>(
         credence::ir::Table::Vector{ size });
-    table.functions["main"]->locals->table_["mess"] =
+    table.functions["main"]->locals.table_["mess"] =
         credence::ir::Table::NULL_RVALUE_LITERAL;
     table.vectors["mess"]->data["0"] = credence::ir::Table::NULL_RVALUE_LITERAL;
     table.vectors["mess"]->data["1"] = credence::ir::Table::NULL_RVALUE_LITERAL;
     table.vectors["mess"]->data["2"] = credence::ir::Table::NULL_RVALUE_LITERAL;
     REQUIRE_THROWS(table.is_boundary_out_of_range(test3));
-    table.functions["main"]->locals->table_["z"] = { "5", "int", 4UL };
+    table.functions["main"]->locals.table_["z"] = { "5", "int", 4UL };
     REQUIRE_NOTHROW(table.is_boundary_out_of_range(test3));
     REQUIRE_NOTHROW(table.is_boundary_out_of_range(test4));
     REQUIRE_THROWS(table.is_boundary_out_of_range(test5));
@@ -960,14 +957,14 @@ TEST_CASE_FIXTURE(
 {
     auto table = make_table_with_frame(make_node());
     auto frame = table.get_stack_frame();
-    auto locals = table.get_stack_frame_symbols();
+    auto& locals = table.get_stack_frame_symbols();
     table.instruction_index = 10;
-    table.functions["main"]->locals->table_["x"] = { "10", "int", 4UL };
+    table.functions["main"]->locals.table_["x"] = { "10", "int", 4UL };
     table.instruction_index = 10;
     frame->parameters.emplace_back("x");
     table.from_func_end_ita_instruction();
     REQUIRE(table.functions["main"]->address_location[1] == 9);
-    REQUIRE(locals->table_.contains("x"));
+    REQUIRE(locals.table_.contains("x"));
 }
 
 TEST_CASE_FIXTURE(
@@ -1022,10 +1019,9 @@ TEST_CASE_FIXTURE(
 {
     using std::get;
     auto table = make_table_with_frame(make_node());
-    auto locals = table.get_stack_frame_symbols();
-    table.functions["main"]->locals->table_["a"] = { "5", "int", 4UL };
-    table.functions["main"]->locals->addr_["b"] = "a";
-    table.functions["main"]->locals->table_["c"] = { "5", "int", 4UL };
+    table.functions["main"]->locals.table_["a"] = { "5", "int", 4UL };
+    table.functions["main"]->locals.addr_["b"] = "a";
+    table.functions["main"]->locals.table_["c"] = { "5", "int", 4UL };
     std::string test_rvalue = "~ 5";
     std::string test_pointer = "b";
     std::string test_pointer2 = "a";
@@ -1086,10 +1082,10 @@ TEST_CASE_FIXTURE(
     table.from_temporary_reassignment("_t2", "~ _t1");
     table.from_temporary_reassignment("_t3", "_t1");
     table.from_temporary_reassignment("_t4", "_t1 || _t2");
-    auto locals = table.functions["main"]->locals;
-    auto test = locals->get_symbol_by_name("_t1");
-    auto test2 = locals->get_symbol_by_name("_t2");
-    auto test3 = locals->get_symbol_by_name("_t4");
+    auto& locals = table.functions["main"]->locals;
+    auto test = locals.get_symbol_by_name("_t1");
+    auto test2 = locals.get_symbol_by_name("_t2");
+    auto test3 = locals.get_symbol_by_name("_t4");
     REQUIRE(std::get<0>(test) == "50");
     REQUIRE(std::get<0>(test2) == "~ _t1");
     REQUIRE(std::get<0>(test3) == "_t1 || _t2");
@@ -1100,13 +1096,13 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::from_scaler_symbol_assignment")
 {
     auto table = make_table_with_frame(make_node());
-    auto locals = table.get_stack_frame_symbols();
+    auto& locals = table.get_stack_frame_symbols();
     REQUIRE_THROWS(table.from_scaler_symbol_assignment("a", "b"));
-    locals->table_["a"] = { "5", "int", 4UL };
+    locals.table_["a"] = { "5", "int", 4UL };
     REQUIRE_THROWS(table.from_scaler_symbol_assignment("a", "c"));
-    locals->table_["c"] = { "5", "int", 4UL };
+    locals.table_["c"] = { "5", "int", 4UL };
     table.from_scaler_symbol_assignment("a", "c");
-    REQUIRE(std::get<0>(locals->table_["a"]) == "5");
+    REQUIRE(std::get<0>(locals.table_["a"]) == "5");
 }
 
 TEST_CASE_FIXTURE(
@@ -1114,14 +1110,14 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::from_integral_unary_expression")
 {
     auto table = make_table_with_frame(make_node());
-    auto locals = table.get_stack_frame_symbols();
+    auto& locals = table.get_stack_frame_symbols();
     credence::ir::Table::RValue_Data_Type expected1 = { "5", "int", 4UL };
     credence::ir::Table::RValue_Data_Type expected2 = { "5", "long", 8UL };
     credence::ir::Table::RValue_Data_Type expected3 = { "5", "double", 8UL };
-    locals->set_symbol_by_name("a", expected1);
-    locals->set_symbol_by_name("b", expected2);
-    locals->set_symbol_by_name("c", expected3);
-    locals->set_symbol_by_name("x", { "hello world", "string", 15UL });
+    locals.set_symbol_by_name("a", expected1);
+    locals.set_symbol_by_name("b", expected2);
+    locals.set_symbol_by_name("c", expected3);
+    locals.set_symbol_by_name("x", { "hello world", "string", 15UL });
     auto test = table.from_integral_unary_expression("a");
     auto test2 = table.from_integral_unary_expression("b");
     auto test3 = table.from_integral_unary_expression("c");

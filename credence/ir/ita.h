@@ -15,23 +15,22 @@
  */
 #pragma once
 
-#include <algorithm>         // for copy
-#include <credence/assert.h> // for CREDENCE_ASSERT, assert_equal_impl, CRE...
+#include <algorithm>         // for copy, max
+#include <compare>           // for operator<, strong_ordering
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for RValue
-#include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <deque>             // for operator==, _Deque_iterator, deque
-#include <initializer_list>  // for initializer_list
-#include <iomanip>           // for operator<<, setw
-#include <matchit.h>         // for pattern, Or, Wildcard, PatternHelper
+#include <credence/util.h>   // for AST_Node, to_constexpr_string, CREDENCE...
+#include <deque>             // for operator==, _Deque_iterator, deque, ope...
+#include <matchit.h>         // for matchit
 #include <optional>          // for nullopt, optional
-#include <simplejson.h>      // for JSON, object
-#include <sstream>           // for basic_ostream, operator<<, ostream, bas...
+#include <simplejson.h>      // for JSON
+#include <sstream>           // for operator<<, ostream, basic_ostream, endl
 #include <stack>             // for stack
-#include <string>            // for allocator, char_traits, operator<<, string
-#include <string_view>       // for operator==, string_view
-#include <tuple>             // for tuple, get, make_tuple
-#include <utility>           // for move, make_pair, pair
+#include <string>            // for allocator, string, operator+, basic_string
+#include <string_view>       // for string_view
+#include <tuple>             // for tuple, make_tuple
+#include <utility>           // for make_pair, pair
+#include <variant>           // for variant
 #include <vector>            // for vector
 
 namespace credence {

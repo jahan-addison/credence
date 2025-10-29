@@ -20,14 +20,18 @@
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for RValue, LITERAL_TYPE, WORD_LITERAL
-#include <credence/util.h>      // for unescape_string, AST_Node
+#include <credence/util.h>      // for AST_Node, unescape_string
+#include <deque>                // for operator==, _Deque_iterator
 #include <format>               // for format, format_string
+#include <functional>           // for identity
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
 #include <memory>               // for shared_ptr, allocator, make_shared
+#include <ranges>               // for __find_fn, find
 #include <simplejson.h>         // for JSON, JSON_String
 #include <string>               // for basic_string, operator==, char_traits
+#include <string_view>          // for basic_string_view, operator<=>
 #include <utility>              // for pair, make_pair, move
 #include <variant>              // for variant
 

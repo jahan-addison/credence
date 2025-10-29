@@ -1,18 +1,19 @@
 #include <credence/ir/table.h>
 
-#include <algorithm>         // for __find, find
-#include <credence/assert.h> // for credence_compile_error, CREDENC...
+#include <algorithm>         // for max, copy
+#include <credence/assert.h> // for CREDENCE_ASSERT
 #include <credence/ir/ita.h> // for ITA, make_ITA_instructions
 #include <credence/queue.h>  // for rvalue_to_string
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for LITERAL_TYPE
-#include <format>            // for format
+#include <credence/util.h>   // for contains, substring_count_of, is_numeric
+#include <format>            // for format, format_string
 #include <initializer_list>  // for initializer_list
 #include <limits>            // for numeric_limits
-#include <matchit.h>         // for pattern, PatternHelper, Pattern...
-#include <optional>          // for nullopt, nullopt_t, optional
-#include <string>            // for basic_string, char_traits, string
-#include <string_view>       // for basic_string_view, string_view
+#include <matchit.h>         // for pattern, PatternHelper, PatternPipable
+#include <optional>          // for optional, nullopt
+#include <stdexcept>         // for runtime_error
+#include <string>            // for basic_string, char_traits, operator+
+#include <string_view>       // for basic_string_view, operator==, string_view
 #include <tuple>             // for get, tuple
 
 namespace credence {
@@ -97,10 +98,10 @@ void Table::from_locl_ita_instruction(ITA::Quadruple const& instruction)
         auto frame = get_stack_frame();
         if (std::get<1>(instruction).starts_with("*")) {
             label = std::get<1>(instruction);
-            get_stack_frame()->locals->set_symbol_by_name(
+            get_stack_frame()->locals.set_symbol_by_name(
                 label.substr(1), "NULL");
         } else
-            get_stack_frame()->locals->set_symbol_by_name(
+            get_stack_frame()->locals.set_symbol_by_name(
                 label, NULL_RVALUE_LITERAL);
     }
 }
@@ -114,7 +115,7 @@ void Table::from_globl_ita_instruction(Label const& label)
         construct_error("extrn statement failed, symbol does not exist", label);
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
-        get_stack_frame()->locals->set_symbol_by_name(
+        get_stack_frame()->locals.set_symbol_by_name(
             label, NULL_RVALUE_LITERAL);
     }
 }
@@ -206,11 +207,11 @@ void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
         if (size > std::numeric_limits<unsigned int>::max())
             construct_error(
                 std::format("exceeds maximum byte size ({})", rhs), lhs);
-        if (!frame->locals->is_defined(lhs)) {
+        if (!frame->locals.is_defined(lhs)) {
             frame->allocation += size;
-            frame->locals->set_symbol_by_name(lhs, rvalue_symbol);
+            frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
         } else {
-            frame->locals->set_symbol_by_name(lhs, rvalue_symbol);
+            frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
             frame->allocation += size;
         }
     }
@@ -241,7 +242,7 @@ void Table::from_pointer_or_vector_assignment(
     RValue& rvalue,
     bool indirection)
 {
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
     auto frame = get_stack_frame();
     std::string rhs_lvalue{};
     std::optional<RValue_Data_Type> rvalue_symbol;
@@ -298,14 +299,14 @@ void Table::from_pointer_or_vector_assignment(
         // is the rhs an address-of rvalue?
         if (rvalue.starts_with("&")) {
             // the left-hand-side must be a pointer
-            if (!indirection and not locals->is_pointer(lvalue))
+            if (!indirection and not locals.is_pointer(lvalue))
                 construct_error(
                     std::format(
                         "invalid pointer assignment, lvalue \"{}\" is not a "
                         "pointer",
                         lvalue),
                     rvalue);
-            locals->set_symbol_by_name(
+            locals.set_symbol_by_name(
                 lvalue, get_unary_rvalue_reference(rvalue));
         } else {
             if (!rvalue_symbol.has_value()) {
@@ -330,7 +331,6 @@ void Table::from_trivial_vector_assignment(
     LValue const& lhs,
     RValue_Data_Type const& rvalue)
 {
-    auto locals = get_stack_frame_symbols();
     if (vectors.contains(lhs)) {
         vectors[lhs]->data["0"] = rvalue;
     }
@@ -345,7 +345,7 @@ void Table::safely_reassign_pointers_or_vectors(
     RValue_Reference_Type const& rvalue,
     bool indirection)
 {
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
     std::visit(
         util::overload{
             [&](RValue const& value) {
@@ -375,8 +375,8 @@ void Table::safely_reassign_pointers_or_vectors(
                     }
                     return;
                 }
-                if (!locals->is_pointer(lvalue) or
-                    not locals->is_pointer(value)) {
+                if (!locals.is_pointer(lvalue) or
+                    not locals.is_pointer(value)) {
                     // do not allow dereferencing of null pointers
                     if (indirection) {
                         construct_error(
@@ -392,12 +392,12 @@ void Table::safely_reassign_pointers_or_vectors(
                                 "and right-hand-side must both be pointers",
                                 lvalue),
                             value);
-                        locals->set_symbol_by_name(lvalue, value);
+                        locals.set_symbol_by_name(lvalue, value);
                     }
                 }
             },
             [&](RValue_Data_Type const& value) {
-                if (!indirection and locals->is_pointer(lvalue))
+                if (!indirection and locals.is_pointer(lvalue))
                     construct_error(
                         "invalid lvalue assignment, left-hand-side is a "
                         "pointer to non-pointer rvalue",
@@ -414,7 +414,7 @@ void Table::safely_reassign_pointers_or_vectors(
                             get_type_from_local_symbol(lvalue),
                             get_type_from_local_symbol(value)),
                         lvalue);
-                locals->set_symbol_by_name(lvalue, value);
+                locals.set_symbol_by_name(lvalue, value);
             } },
         rvalue);
 }
@@ -424,14 +424,14 @@ void Table::safely_reassign_pointers_or_vectors(
  */
 Table::Type Table::get_type_from_local_symbol(LValue const& lvalue)
 {
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = from_lvalue_offset(lvalue);
         auto offset = from_pointer_offset(lvalue);
         return std::get<1>(vectors[lhs_lvalue]->data[offset]);
     }
-    return std::get<1>(locals->get_symbol_by_name(lvalue));
+    return std::get<1>(locals.get_symbol_by_name(lvalue));
 }
 
 /**
@@ -480,12 +480,21 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
 
     } else {
         auto stack_frame = get_stack_frame();
-        auto locals = get_stack_frame_symbols();
-        if (!locals->is_defined(offset) and
+        auto& locals = get_stack_frame_symbols();
+        if (!locals.is_defined(offset) and
             not stack_frame->is_parameter(offset))
             construct_error(
                 std::format("invalid vector offset \"{}\"", offset), rvalue);
     }
+}
+
+/**
+ * @brief Set the stack frame
+ */
+void Table::set_stack_frame(Label const& label)
+{
+    CREDENCE_ASSERT(functions.contains(label));
+    stack_frame = functions[label];
 }
 
 /**
@@ -516,7 +525,7 @@ void Table::from_func_end_ita_instruction()
     if (is_stack_frame())
         get_stack_frame()->address_location[1] = instruction_index - 1;
 
-    stack_frame = std::nullopt;
+    stack_frame.reset();
 }
 
 /**
@@ -622,27 +631,27 @@ Table::RValue_Data_Type Table::from_rvalue_unary_expression(
     RValue const& rvalue,
     std::string_view unary_operator)
 {
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
 
     return m::match(unary_operator)(
         // cppcheck-suppress syntaxError
         m::pattern | "*" =
             [&] {
                 auto rhs_lvalue = rvalue.substr(1);
-                if (locals->is_pointer(lvalue))
+                if (locals.is_pointer(lvalue))
                     construct_error(
                         std::format(
                             "indirection on invalid lvalue, "
                             "left-hand-side is a pointer",
                             lvalue),
                         rvalue);
-                LValue indirection = locals->get_pointer_by_name(rhs_lvalue);
+                LValue indirection = locals.get_pointer_by_name(rhs_lvalue);
                 from_pointer_or_vector_assignment(lvalue, indirection, true);
-                return locals->get_symbol_by_name(lvalue);
+                return locals.get_symbol_by_name(lvalue);
             },
         m::pattern | "&" =
             [&] {
-                if (!locals->is_defined(rvalue))
+                if (!locals.is_defined(rvalue))
                     construct_error(
                         std::format(
                             "invalid pointer assignment, right-hand-side "
@@ -651,7 +660,7 @@ Table::RValue_Data_Type Table::from_rvalue_unary_expression(
                             "initialized ({})",
                             rvalue),
                         lvalue);
-                locals->set_symbol_by_name(lvalue, rvalue);
+                locals.set_symbol_by_name(lvalue, rvalue);
                 return RValue_Data_Type{ rvalue, "word", sizeof(void*) };
             },
         m::pattern |
@@ -669,7 +678,7 @@ Table::RValue_Data_Type Table::from_rvalue_unary_expression(
         m::pattern |
             "~" = [&] { return from_integral_unary_expression(lvalue); },
 
-        m::pattern | m::_ = [&] { return locals->get_symbol_by_name(lvalue); });
+        m::pattern | m::_ = [&] { return locals.get_symbol_by_name(lvalue); });
 }
 
 /**
@@ -716,14 +725,14 @@ Table::RValue Table::from_temporary_lvalue(LValue const& lvalue)
  */
 void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
 {
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
     auto rvalue = from_temporary_lvalue(rhs);
     if (is_vector_or_pointer(rvalue))
         from_pointer_or_vector_assignment(lhs, rvalue);
     else if (!rvalue.empty())
-        locals->set_symbol_by_name(lhs, { rvalue, "word", sizeof(void*) });
+        locals.set_symbol_by_name(lhs, { rvalue, "word", sizeof(void*) });
     else
-        locals->set_symbol_by_name(lhs, { rhs, "word", sizeof(void*) });
+        locals.set_symbol_by_name(lhs, { rhs, "word", sizeof(void*) });
 }
 
 /**
@@ -734,16 +743,16 @@ void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
 void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
 {
     auto frame = get_stack_frame();
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
 
-    if (!locals->is_defined(lhs))
+    if (!locals.is_defined(lhs))
         construct_error(
             std::format(
                 "invalid lvalue assignment \"{}\", left-hand-side is not "
                 "initialized",
                 lhs),
             rhs);
-    if (!locals->is_defined(rhs))
+    if (!locals.is_defined(rhs))
         construct_error(
             std::format(
                 "invalid lvalue assignment \"{}\", right-hand-side is not "
@@ -752,7 +761,7 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
             lhs);
 
     from_type_invalid_assignment(lhs, rhs);
-    locals->set_symbol_by_name(lhs, locals->get_symbol_by_name(rhs));
+    locals.set_symbol_by_name(lhs, locals.get_symbol_by_name(rhs));
 }
 
 /**
@@ -762,12 +771,12 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
     RValue const& lvalue)
 {
     auto frame = get_stack_frame();
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
     const std::initializer_list<std::string_view> integral_unary = {
         "int", "double", "float", "long"
     };
     auto rvalue = get_unary_rvalue_reference(lvalue);
-    if (!locals->is_defined(rvalue) and not frame->temporary.contains(rvalue))
+    if (!locals.is_defined(rvalue) and not frame->temporary.contains(rvalue))
         construct_error(
             std::format(
                 "invalid numeric unary expression, lvalue symbol \"{}\" is "
@@ -778,7 +787,7 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
 
     auto symbol = frame->temporary.contains(rvalue)
                       ? lvalue
-                      : std::get<1>(locals->get_symbol_by_name(rvalue));
+                      : std::get<1>(locals.get_symbol_by_name(rvalue));
     if (std::ranges::find(integral_unary, symbol) == integral_unary.end() and
         not frame->temporary.contains(rvalue))
         construct_error(
@@ -788,13 +797,13 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
                 symbol),
             lvalue);
 
-    return locals->get_symbol_by_name(rvalue);
+    return locals.get_symbol_by_name(rvalue);
 }
 
 /**
  * @brief Parse ITA::Node ast and symbols to a table instructions pair
  */
-Table::ITA_Table Table::build_from_ast(
+Table::Table_PTR Table::build_from_ast(
     ITA::Node const& symbols,
     ITA::Node const& ast)
 {
@@ -809,10 +818,10 @@ inline void Table::from_type_invalid_assignment(
     LValue const& lvalue,
     RValue const& rvalue)
 {
-    auto locals = get_stack_frame_symbols();
+    auto& locals = get_stack_frame_symbols();
     if (get_type_from_local_symbol(lvalue) == "null")
         return;
-    if (locals->is_pointer(lvalue) and locals->is_pointer(rvalue))
+    if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue))
         return;
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
         construct_error(
@@ -832,7 +841,6 @@ inline void Table::from_type_invalid_assignment(
     LValue const& lvalue,
     RValue_Data_Type const& rvalue)
 {
-    auto locals = get_stack_frame_symbols();
     if (get_type_from_local_symbol(lvalue) == "null")
         return;
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
@@ -863,6 +871,37 @@ inline void Table::construct_error(
         symbol,
         hoisted_symbols_);
 #endif
+}
+
+/**
+ * @brief Emit ita instructions to an std::ostream
+ */
+void emit_partial_ita(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast)
+{
+    auto instructions = credence::ir::Table::build_from_ast(symbols, ast)
+                            ->build_from_ita_instructions();
+    credence::ir::ITA::emit(os, instructions);
+}
+
+/**
+ * @brief Emit ita instructions type and vector boundary checking an
+ * and to an std::ostream Passes the global symbols from the ITA object
+ */
+void emit_complete_ita(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast)
+{
+    using namespace credence::ir;
+    auto ita = ITA{ symbols };
+    auto instructions = ita.build_from_definitions(ast);
+    auto table = Table{ symbols, instructions };
+    table.build_vector_definitions_from_globals(ita.globals_);
+    table.build_from_ita_instructions();
+    ITA::emit(os, table.instructions);
 }
 
 } // namespace ir

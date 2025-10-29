@@ -39,6 +39,20 @@ namespace credence {
 
 namespace ir {
 
+///////////////
+// Emission
+///////////////
+
+void emit_partial_ita(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast);
+
+void emit_complete_ita(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast);
+
 /**
  * @brief
  * A function, symbolic label, and address table for ITA instruction
@@ -83,6 +97,7 @@ class Table
     }
 
   public:
+    // Semantic type aliases
     using Label = std::string;
     using Type = std::string;
     using Address = std::size_t;
@@ -92,7 +107,7 @@ class Table
     using RValue_Data_Type = std::tuple<RValue, Type, Size>;
     using RValue_Reference = std::string_view;
     using RValue_Reference_Type = std::variant<RValue, RValue_Data_Type>;
-    using ITA_Table = std::unique_ptr<Table>;
+    using Table_PTR = std::unique_ptr<Table>;
     using Address_Table = Symbol_Table<Label, Address>;
     using Symbolic_Stack = std::deque<RValue>;
     using Locals = Symbol_Table<RValue_Data_Type, LValue>;
@@ -107,6 +122,7 @@ class Table
      */
     struct Function
     {
+        Function() = delete;
         explicit Function(Label const& label)
             : symbol(label)
         {
@@ -124,16 +140,17 @@ class Table
                    std::ranges::end(parameters);
         }
 
-        std::shared_ptr<Locals> locals = std::make_shared<Locals>();
-
         Label symbol{};
         Labels labels{};
+        Locals locals{};
+
         Parameters parameters{};
-        Address_Table label_address{};
-        static constexpr int max_depth{ 1000 };
-        std::array<Address, 2> address_location{};
-        unsigned int allocation{ 0 };
         std::map<LValue, RValue> temporary{};
+        Address_Table label_address{};
+        std::array<Address, 2> address_location{};
+
+        static constexpr int max_depth = 1000;
+        unsigned int allocation = 0;
     };
 
     // clang-format off
@@ -156,21 +173,23 @@ class Table
     };
   private:
     using Function_PTR = std::shared_ptr<Function>;
+    using Stack_Frame = std::optional<Function_PTR>;
     using Vector_PTR = std::shared_ptr<Vector>;
     using Functions = std::map<std::string, Function_PTR>;
     using Vectors = std::map<std::string, Vector_PTR>;
-    using Stack_Frame = std::optional<Function_PTR>;
 
   public:
+    Stack_Frame stack_frame;
     ITA::Instructions build_from_ita_instructions();
     void build_symbols_from_vector_lvalues();
     void build_vector_definitions_from_globals(Symbol_Table<>& globals);
     RValue from_temporary_lvalue(LValue const& lvalue);
-    static ITA_Table build_from_ast(
+    static Table_PTR build_from_ast(
         ITA::Node const& symbols,
         ITA::Node const& ast);
 
   public:
+    using Binary_Expression = std::tuple<std::string, std::string, std::string>;
     constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
                                           "+",  "~",  "!", "~" };
 
@@ -178,7 +197,6 @@ class Table
   CREDENCE_PRIVATE_UNLESS_TESTED:
     static constexpr RValue_Data_Type NULL_RVALUE_LITERAL =
         RValue_Data_Type{ "NULL", "null", sizeof(void*) };
-    using Binary_Expression = std::tuple<std::string, std::string, std::string>;
 
     /**
      * @brief is ITA unary
@@ -225,7 +243,7 @@ class Table
     {
         auto locals = get_stack_frame_symbols();
         return vectors.contains(rvalue) or util::contains(rvalue, "[") or
-               locals->is_pointer(rvalue) or rvalue.starts_with("&");
+               locals.is_pointer(rvalue) or rvalue.starts_with("&");
     }
     /**
      * @brief Get the type from a local in the stack frame
@@ -281,21 +299,28 @@ class Table
                             rvalue.begin() + rvalue.find_first_of("[") };
     }
 
+  public:
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
-    inline Function_PTR& get_stack_frame()
+    inline std::shared_ptr<Function> get_stack_frame()
     {
         CREDENCE_ASSERT(is_stack_frame());
         return stack_frame.value();
     }
-    inline std::shared_ptr<Locals> get_stack_frame_symbols()
+
+    inline Locals& get_stack_frame_symbols()
     {
         return get_stack_frame()->locals;
     }
 
-  private:
-    void construct_error(
-        RValue_Reference message,
-        RValue_Reference symbol = "");
+    void set_stack_frame(Label const& label);
+
+  public:
+    std::pair<std::string, std::string> get_rvalue_from_mov_instruction(
+        ITA::Quadruple const& instruction);
+    RValue_Data_Type static get_rvalue_symbol_type_size(
+        std::string const& datatype);
+    Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
+    RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -331,24 +356,22 @@ class Table
         LValue const& lvalue,
         RValue_Reference_Type const& rvalue,
         bool indirection = false);
-    Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
     void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
-    RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
-    std::pair<std::string, std::string> get_rvalue_from_mov_instruction(
-        ITA::Quadruple const& instruction);
-    RValue_Data_Type static get_rvalue_symbol_type_size(
-        std::string const& datatype);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Address instruction_index{ 0 };
     // clang-format on
+
+  private:
+    void construct_error(
+        RValue_Reference message,
+        RValue_Reference symbol = "");
 
   public:
     ITA::Instructions instructions{};
 
   private:
     Globals globals{};
-    Stack_Frame stack_frame{ std::nullopt };
     ITA::Node hoisted_symbols_;
 
   public:

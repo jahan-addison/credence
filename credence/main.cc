@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h>   // for credence_cpptrace_stack_trace
-#include <credence/ir/ita.h>   // for ITA
-#include <credence/ir/table.h> // for Table
-#include <credence/util.h>     // for AST_Node, read_file_from_path
-#include <cxxopts.hpp>         // for value, Options, ParseResult, OptionAdder
+#include <credence/assert.h>   // for credence_cpptrace_stack_trace, creden...
+#include <credence/ir/table.h> // emit_complete_ita
+#include <credence/util.h>     // for AST_Node, capitalize,
+#include <cxxopts.hpp>         // for value, ParseResult, OptionAdder, Opti...
 #include <exception>           // for exception
 #include <filesystem>          // for filesystem_error, operator<<
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
@@ -29,7 +28,9 @@
 #include <pybind11/pybind11.h> // for error_already_set::what, module, module_
 #include <pybind11/pytypes.h>  // for object, object_api, error_already_set
 #include <simplejson.h>        // for JSON, operator<<
+#include <sstream>             // for basic_ostringstream
 #include <stdexcept>           // for runtime_error
+#include <stdlib.h>            // for exit
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
@@ -131,7 +132,7 @@ int main(int argc, const char* argv[])
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    credence::util::emit_complete_ita(
+                    credence::ir::emit_complete_ita(
                         out_to, symbols, ast["root"]);
                 },
             m::pattern | "ast" =

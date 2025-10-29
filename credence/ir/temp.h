@@ -16,21 +16,20 @@
 
 #pragma once
 
-#include <credence/ir/ita.h> // for ITA
-#include <credence/queue.h>  // for RValue_Queue
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for RValue
-#include <credence/util.h>   // for AST_Node
-#include <cstddef>           // for size_t
-#include <stack>             // for stack
-#include <string>            // for string
-#include <utility>           // for pair
-#include <variant>           // for variant
-namespace credence {
-namespace type {
-enum class Operator;
-}
-}
+#include <credence/ir/ita.h>    // for ITA
+#include <credence/operators.h> // for Operator
+#include <credence/queue.h>     // for RValue_Queue
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for RValue
+#include <credence/util.h>      // for AST_Node
+#include <cstddef>              // for size_t
+#include <functional>           // for identity
+#include <initializer_list>     // for initializer_list
+#include <ranges>               // for __find_fn, find
+#include <stack>                // for stack
+#include <string>               // for string
+#include <utility>              // for pair, move
+#include <variant>              // for variant
 
 /****************************************************************************
  *  A set of functions that construct temporary lvalues "_tX" that aid in
