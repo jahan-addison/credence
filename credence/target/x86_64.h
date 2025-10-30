@@ -32,9 +32,7 @@ namespace credence::target::x86_64 {
 
 // https://math.hws.edu/eck/cs220/f22/registers.html
 
-namespace registers {
-
-enum class r64
+enum class Register
 {
     rbp, // frame pointer
     rsp, // stack pointer
@@ -50,10 +48,7 @@ enum class r64
     r12,
     r13,
     r14,
-};
 
-enum class r32
-{
     ebp, // frame pointer
     esp, // stack pointer
     eax,
@@ -68,11 +63,21 @@ enum class r32
     r12d,
     r13d,
     r14d,
-    r15d
-
+    r15d,
+    noop
 };
 
-} // namespace registers
+enum class Mnemonic
+{
+    imul,
+    lea,
+    ret,
+    leave,
+    mov,
+    push,
+    pop,
+    call
+};
 
 class Code_Generator final : public target::Backend_Target_Platform
 {
@@ -85,7 +90,6 @@ class Code_Generator final : public target::Backend_Target_Platform
 
   public:
     using Immediate = std::string;
-    using Register = std::variant<registers::r64, registers::r32>;
 
   private:
     struct Stack_Address
@@ -97,16 +101,6 @@ class Code_Generator final : public target::Backend_Target_Platform
         Stack_Address() = delete;
         unsigned int offset;
     };
-    using Instructions = std::vector<std::string>;
-    using Storage =
-        std::variant<std::monostate, Stack_Address, Register, Immediate>;
-    using Data_Location = std::pair<Storage, Instructions>;
-
-  private:
-    void setup_table();
-    void setup_registers();
-    void setup_constants();
-    void teardown_registers();
 
   public:
     enum class Operand_Type
@@ -119,15 +113,28 @@ class Code_Generator final : public target::Backend_Target_Platform
     enum class Operand_Size
     {
         Byte = 1,
-        Word = 2,
-        Dword = 4,
-        Qword = 8,
-        Oword = 16,
-        Yword = 32,
+        Word,
+        Dword,
+        Qword,
     };
 
+    using Storage = std::variant<Stack_Address, Register, Immediate>;
+    using Instruction = std::tuple<Mnemonic, Operand_Size, Storage, Storage>;
+    using Instructions = std::deque<Instruction>;
+    using Data_Location = std::pair<Storage, Instructions>;
+
+    static inline void insert_instructions(
+        Instructions& to,
+        Instructions const& from)
+    {
+        to.insert(to.end(), from.begin(), from.end());
+    }
+
+  private:
+    void setup_table();
+    void setup_constants();
+
   public:
-    void build_from_ita();
     // void emit(std::ostream& os) override;
 
     // clang-format off
@@ -136,11 +143,14 @@ class Code_Generator final : public target::Backend_Target_Platform
     void emit_pop(Operand_Size size, Storage const& dest);
     void emit_mov(Operand_Size size, Storage const& src, Storage const& dest);
 
-    CREDENCE_PRIVATE_UNLESS_TESTED:
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     void emit_enter(Operand_Size size);
     void emit_leave(Operand_Size size);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    Register get_acc_register_from_size(Operand_Size size);
+    Operand_Size get_size_from_table_rvalue(
+        ir::Table::RValue_Data_Type const& rvalue);
     Immediate from_immediate_value(ir::Table::RValue_Data_Type const& imm_value);
     Data_Location from_ita_expression(ir::Table::RValue const& expr);
 
@@ -148,6 +158,12 @@ class Code_Generator final : public target::Backend_Target_Platform
     Data_Location from_ita_unary_expression(ir::ITA::Quadruple const& inst);
     Data_Location from_ita_bitwise_expression(ir::ITA::Quadruple const& inst);
     Data_Location from_ita_binary_expression(ir::ITA::Quadruple const& inst);
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    Data_Location imul(
+        ir::Table::RValue_Data_Type const& lhs,
+        ir::Table::RValue_Data_Type const& rhs);
+
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     // void from_func_start_ita() override;
@@ -176,8 +192,6 @@ class Code_Generator final : public target::Backend_Target_Platform
     std::string current_frame{ "main" };
     Instructions instructions_;
     Instructions data_;
-    std::stack<registers::r64> gpr_stack_64_{};
-    std::stack<registers::r32> gpr_stack_32_{};
 };
 
 } // namespace x86_64

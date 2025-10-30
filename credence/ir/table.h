@@ -100,16 +100,16 @@ class Table
     // Semantic type aliases
     using Label = std::string;
     using Type = std::string;
-    using Address = std::size_t;
-    using Size = std::size_t;
     using LValue = std::string;
     using RValue = std::string;
+    using Address = std::size_t;
+    using Size = std::size_t;
     using RValue_Data_Type = std::tuple<RValue, Type, Size>;
+    using Symbolic_Stack = std::deque<RValue>;
     using RValue_Reference = std::string_view;
     using RValue_Reference_Type = std::variant<RValue, RValue_Data_Type>;
     using Table_PTR = std::unique_ptr<Table>;
     using Address_Table = Symbol_Table<Label, Address>;
-    using Symbolic_Stack = std::deque<RValue>;
     using Locals = Symbol_Table<RValue_Data_Type, LValue>;
     using Temporary = std::pair<LValue, RValue>;
     using Parameters = std::vector<std::string>;
@@ -171,6 +171,7 @@ class Table
         unsigned long size{ 0 };
         static constexpr int max_size{ 1000 };
     };
+    // clang-format on
   private:
     using Function_PTR = std::shared_ptr<Function>;
     using Stack_Frame = std::optional<Function_PTR>;
@@ -187,6 +188,15 @@ class Table
     static Table_PTR build_from_ast(
         ITA::Node const& symbols,
         ITA::Node const& ast);
+
+    /**
+     * @brief Get the type from a local in the stack frame
+     */
+    Type get_type_from_symbol(LValue const& lvalue);
+    inline Type get_type_from_symbol(RValue_Data_Type const& rvalue)
+    {
+        return std::get<1>(rvalue);
+    }
 
   public:
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
@@ -245,25 +255,16 @@ class Table
         return vectors.contains(rvalue) or util::contains(rvalue, "[") or
                locals.is_pointer(rvalue) or rvalue.starts_with("&");
     }
-    /**
-     * @brief Get the type from a local in the stack frame
-     */
-    Type get_type_from_local_symbol(LValue const& lvalue);
-    inline Type get_type_from_local_symbol(RValue_Data_Type const& rvalue)
-    {
-        return std::get<1>(rvalue);
-    }
     /** Left-hand-side and right-hand-side type equality check */
     inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
     {
-        return get_type_from_local_symbol(lhs) ==
-               get_type_from_local_symbol(rhs);
+        return get_type_from_symbol(lhs) == get_type_from_symbol(rhs);
     }
     inline bool lhs_rhs_type_is_equal(
         LValue const& lhs,
         RValue_Data_Type const& rvalue)
     {
-        return get_type_from_local_symbol(lhs) == std::get<1>(rvalue);
+        return get_type_from_symbol(lhs) == std::get<1>(rvalue);
     }
     /**
      * @brief Either lhs or rhs are trivial vector assignments
