@@ -2,7 +2,7 @@
 
 #include <credence/ir/ita.h>
 #include <credence/ir/table.h>
-#include <credence/target/x86_64.h>
+#include <credence/target/x86_64/instructions.h>
 #include <credence/util.h> // for AST_Node, AST
 #include <filesystem>
 #include <simplejson.h>
@@ -10,7 +10,7 @@
 #include <utility>
 
 using namespace credence;
-using namespace credence::target;
+using namespace credence::target::x86_64;
 
 namespace fs = std::filesystem;
 
@@ -21,11 +21,11 @@ namespace fs = std::filesystem;
 
 template<typename T, typename K>
 inline void require_is_imm_instruction(
-    x86_64::Code_Generator::Instruction& inst,
-    x86_64::Mnemonic mn,
-    x86_64::Code_Generator::Operand_Size size,
-    x86_64::Code_Generator::Storage s1,
-    x86_64::Code_Generator::Storage s2)
+    detail::Instruction& inst,
+    Mnemonic mn,
+    Operand_Size size,
+    detail::Storage s1,
+    detail::Storage s2)
 {
     auto s1_type = std::get<T>(s1);
     auto s2_type = std::get<K>(s2);
@@ -38,14 +38,6 @@ inline void require_is_imm_instruction(
     REQUIRE(inst_s1 == s1_type);
     REQUIRE(inst_s2 == s2_type);
 }
-
-#define REQUIRE_IS_IMM_INSTRUCTION(inst, mn, size, s1, s2) \
- do {                                                  \
-    REQUIRE(std::get<0>(inst) == mn);                  \
-    REQUIRE(std::get<1>(inst) == size);                \
-    REQUIRE(std::get<2>(inst) == s1);                  \
-    REQUIRE(std::get<3>(inst) == s2);                  \
- } while(0)
 
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
@@ -88,7 +80,7 @@ struct Table_Fixture
     }
 };
 
-TEST_CASE_FIXTURE(Table_Fixture, "Code_Generator::imul")
+TEST_CASE_FIXTURE(Table_Fixture, "detail::imul")
 {
     using namespace credence::target::x86_64;
     Node base_ast = LOAD_JSON_FROM_STRING(
@@ -97,41 +89,36 @@ TEST_CASE_FIXTURE(Table_Fixture, "Code_Generator::imul")
         "[],\n        \"node\" : \"statement\",\n        \"root\" : "
         "\"block\"\n      },\n      \"root\" : \"main\"\n    }],\n  \"node\" : "
         "\"program\",\n  \"root\" : \"definitions\"\n}");
-    auto table = make_table(base_symbols, base_ast);
-    auto code = target::x86_64::Code_Generator{ std::move(table) };
 
-    auto test_rvalue = ir::Table::RValue_Data_Type{ "5", "int", 4UL };
-    auto test_rvalue_2 = ir::Table::RValue_Data_Type{ "10", "int", 4UL };
+    auto test_rvalue = detail::Immediate{ "5", "int", 4UL };
+    auto test_rvalue_2 = detail::Immediate{ "10", "int", 4UL };
+    auto test_register = Register::r11;
 
-    auto test = code.imul(test_rvalue, test_rvalue_2);
+    auto test = detail::imul(Operand_Size::Dword, test_rvalue, test_rvalue_2);
+    auto test2 =
+        detail::imul(Operand_Size::Dword, test_register, test_register);
 
-    require_is_imm_instruction<std::string, Register>(
+    REQUIRE(test.second.size() == 2);
+    REQUIRE(test2.second.size() == 1);
+
+    require_is_imm_instruction<detail::Immediate, Register>(
         test.second.at(0),
         Mnemonic::mov,
-        Code_Generator::Operand_Size::Dword,
-        "5",
+        Operand_Size::Dword,
+        test_rvalue,
         Register::eax);
 
-    require_is_imm_instruction<Register, std::string>(
+    require_is_imm_instruction<Register, detail::Immediate>(
         test.second.at(1),
         Mnemonic::imul,
-        Code_Generator::Operand_Size::Dword,
+        Operand_Size::Dword,
         Register::eax,
-        "10");
-}
+        test_rvalue_2);
 
-TEST_CASE_FIXTURE(Table_Fixture, "Code_Generator::from_ita_binary_expression")
-{
-    Node base_ast = LOAD_JSON_FROM_STRING(
-        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
-        "[],\n        \"node\" : \"statement\",\n        \"root\" : "
-        "\"block\"\n      },\n      \"root\" : \"main\"\n    }],\n  \"node\" : "
-        "\"program\",\n  \"root\" : \"definitions\"\n}");
-    auto table = make_table(base_symbols, base_ast);
-    auto code = target::x86_64::Code_Generator{ std::move(table) };
-    auto test = ir::ITA::Quadruple{
-        ir::ITA::Instruction::MOV, "x", "(5:int:4) * (5:int:4)", ""
-    };
-    code.from_ita_binary_expression(test);
+    require_is_imm_instruction<Register, Register>(
+        test2.second.at(0),
+        Mnemonic::imul,
+        Operand_Size::Dword,
+        Register::r11,
+        Register::r11);
 }

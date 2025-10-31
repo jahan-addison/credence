@@ -193,7 +193,7 @@ class Table
      * @brief Get the type from a local in the stack frame
      */
     Type get_type_from_symbol(LValue const& lvalue);
-    inline Type get_type_from_symbol(RValue_Data_Type const& rvalue)
+    static inline Type get_type_from_symbol(RValue_Data_Type const& rvalue)
     {
         return std::get<1>(rvalue);
     }

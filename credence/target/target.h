@@ -60,7 +60,7 @@ class Backend_Target_Platform
     // virtual void from_cmp_ita() = 0;
     // virtual void from_mov_ita() = 0;
     // virtual void from_return_ita() = 0;
-    virtual void from_leave_ita() = 0;
+    // virtual void from_leave_ita() = 0;
     virtual void from_noop_ita() = 0;
     // clang-format on
   protected:
