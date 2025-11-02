@@ -199,15 +199,14 @@ class Table
     }
 
   public:
+    static constexpr RValue_Data_Type NULL_RVALUE_LITERAL =
+        RValue_Data_Type{ "NULL", "null", sizeof(void*) };
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
     constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
                                           "+",  "~",  "!", "~" };
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    static constexpr RValue_Data_Type NULL_RVALUE_LITERAL =
-        RValue_Data_Type{ "NULL", "null", sizeof(void*) };
-
     /**
      * @brief is ITA unary
      */
@@ -318,7 +317,7 @@ class Table
   public:
     std::pair<std::string, std::string> get_rvalue_from_mov_instruction(
         ITA::Quadruple const& instruction);
-    RValue_Data_Type static get_rvalue_symbol_type_size(
+    RValue_Data_Type static get_symbol_type_size_from_rvalue_string(
         std::string const& datatype);
     Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);

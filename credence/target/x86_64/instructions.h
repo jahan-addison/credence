@@ -27,20 +27,6 @@ namespace credence::target::x86_64 {
 
 // https://math.hws.edu/eck/cs220/f22/registers.html
 
-namespace detail {
-
-struct Stack_Address
-{
-    constexpr explicit Stack_Address(unsigned int offset)
-        : offset(offset)
-    {
-    }
-    Stack_Address() = delete;
-    unsigned int offset;
-};
-
-} // namespace detail
-
 enum class Register
 {
     rbp,
@@ -49,6 +35,7 @@ enum class Register
     rax,
     rbx,
     rcx,
+    rdx,
     rsi,
     rdi,
     r8,
@@ -64,6 +51,7 @@ enum class Register
 
     eax,
     ebx,
+    edx,
     ecx,
     esi,
     edi,
@@ -74,8 +62,7 @@ enum class Register
     r12d,
     r13d,
     r14d,
-    r15d,
-    noop
+    r15d
 };
 
 enum class Mnemonic
@@ -83,6 +70,17 @@ enum class Mnemonic
     imul,
     lea,
     ret,
+    sub,
+    add,
+    je,
+    jne,
+    jle,
+    jl,
+    idiv,
+    inc,
+    dec,
+    cqo,
+    cdq,
     leave,
     mov,
     push,
@@ -90,35 +88,38 @@ enum class Mnemonic
     call
 };
 
-enum class Operand_Type
-{
-    Register,
-    Label,
-    Immediate,
-};
-
 enum class Operand_Size
 {
-    Byte = 1,
+    Byte,
     Word,
     Dword,
     Qword,
 };
 
-namespace detail {
+struct Stack_Address
+{
+    constexpr explicit Stack_Address(unsigned int offset)
+        : offset(offset)
+    {
+    }
+    Stack_Address() = delete;
+    unsigned int offset;
+};
+
+inline constexpr auto O_NUL = std::monostate{};
 
 using Immediate = ir::Table::RValue_Data_Type;
-using Storage = std::variant<Stack_Address, Register, Immediate>;
+using Storage =
+    std::variant<std::monostate, Stack_Address, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Operand_Size, Storage, Storage>;
 using Instructions = std::deque<Instruction>;
 using Operation_Pair = std::pair<Storage, Instructions>;
 
-inline Instructions make_instructions()
+inline Instructions make_inst()
 {
     return Instructions{};
 }
-
-inline void insert_instructions(Instructions& to, Instructions const& from)
+inline void insert_inst(Instructions& to, Instructions const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
 }
@@ -126,14 +127,10 @@ inline void insert_instructions(Instructions& to, Instructions const& from)
 Operand_Size get_size_from_table_rvalue(
     ir::Table::RValue_Data_Type const& rvalue);
 
-Operation_Pair push(Operand_Size size);
-Operation_Pair pop(Operand_Size size, Storage const& dest);
-Operation_Pair mov(Operand_Size size, Storage const& src, Storage const& dest);
-Operation_Pair enter(Operand_Size size);
-Operation_Pair leave(Operand_Size size);
-
-Operation_Pair imul(Operand_Size size, Storage const& lhs, Storage const& rhs);
-
-} // namespace detail
+Operation_Pair imul(Operand_Size size, Storage& lhs, Storage& rhs);
+Operation_Pair idiv(Operand_Size size, Storage& lhs, Storage& rhs);
+Operation_Pair sub(Operand_Size size, Storage& lhs, Storage& rhs);
+Operation_Pair add(Operand_Size size, Storage& lhs, Storage& rhs);
+Operation_Pair mod(Operand_Size size, Storage& lhs, Storage& rhs);
 
 } // namespace x86_64

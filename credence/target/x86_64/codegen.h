@@ -16,45 +16,53 @@
 
 #pragma once
 
-#include "instructions.h"
+#include "instructions.h"           // for Operation_Pair, Instructions
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
-#include <credence/target/target.h> // for Backend
+#include <credence/target/target.h> // for Backend_Target_Platform
 #include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <ostream>                  // for ostream
-#include <stack>                    // for stack
 #include <string>                   // for basic_string, string
-#include <variant>                  // for variant
-#include <vector>                   // for vector
+#include <utility>                  // for pair, move
 
 // https://cs.brown.edu/courses/cs033/docs/guides/x64_cheatsheet.pdf
 
 namespace credence::target::x86_64 {
 
-class Code_Generator final : public target::Backend_Target_Platform
+class Code_Generator final : public target::Backend
 {
   public:
     Code_Generator() = delete;
     explicit Code_Generator(ir::Table::Table_PTR table)
-        : Backend_Target_Platform(std::move(table))
+        : Backend(std::move(table))
     {
     }
 
-    using Operation_Pair = detail::Operation_Pair;
-
-  private:
-    void setup_table();
-    void setup_constants();
-
   public:
+    using Operands = std::pair<Storage, Storage>;
+    using Binary_Operands = std::pair<std::string, Operands>;
+    using Immediate_Operands =
+        std::variant<ir::Table::Binary_Expression, Immediate>;
+    using RValue_Operands =
+        std::variant<std::pair<Immediate, Immediate>, Immediate>;
+
+    RValue_Operands resolve_immediate_operands_from_table(
+        Immediate_Operands const& imm_value);
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    Binary_Operands operands_from_binary_ita_operands(
+        ir::ITA::Quadruple const& inst);
     Operation_Pair from_ita_expression(ir::Table::RValue const& expr);
-
-  CREDENCE_PRIVATE_UNLESS_TESTED:
     Operation_Pair from_ita_unary_expression(ir::ITA::Quadruple const& inst);
     Operation_Pair from_ita_bitwise_expression(ir::ITA::Quadruple const& inst);
-    Operation_Pair from_ita_binary_expression(ir::ITA::Quadruple const& inst);
+    Operation_Pair from_ita_relational_expression(
+        ir::ITA::Quadruple const& inst);
+    Operation_Pair from_ita_binary_arithmetic_expression(
+        ir::ITA::Quadruple const& inst);
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void setup_table();
+    void setup_constants();
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     // void from_func_start_ita() override;
@@ -81,8 +89,8 @@ class Code_Generator final : public target::Backend_Target_Platform
 
   private:
     std::string current_frame{ "main" };
-    detail::Instructions instructions_;
-    detail::Instructions data_;
+    Instructions instructions_;
+    Instructions data_;
 };
 
 } // namespace x86_64

@@ -133,7 +133,7 @@ void Table::build_vector_definitions_from_globals(Symbol_Table<>& globals)
         for (auto const& item : symbol.second) {
             auto key = std::to_string(index++);
             vectors[symbol.first]->data[key] =
-                get_rvalue_symbol_type_size(rvalue_to_string(item));
+                get_symbol_type_size_from_rvalue_string(rvalue_to_string(item));
         }
     }
 }
@@ -201,7 +201,7 @@ void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
     } else {
         RValue_Data_Type rvalue_symbol =
             rvalue.second.empty()
-                ? get_rvalue_symbol_type_size(rhs)
+                ? get_symbol_type_size_from_rvalue_string(rhs)
                 : from_rvalue_unary_expression(lhs, rhs, rvalue.second);
         Size size = std::get<2>(rvalue_symbol);
         if (size > std::numeric_limits<unsigned int>::max())
@@ -292,7 +292,7 @@ void Table::from_pointer_or_vector_assignment(
                 // update the lhs vector, if applicable
                 if (vectors.contains(lhs_lvalue))
                     vectors[lhs_lvalue]->data[offset] =
-                        get_rvalue_symbol_type_size(rvalue);
+                        get_symbol_type_size_from_rvalue_string(rvalue);
             }
         }
     } else {
@@ -602,11 +602,13 @@ std::pair<std::string, std::string> Table::get_rvalue_from_mov_instruction(
 }
 
 /**
- * @brief Parse RValue::Value_Type into a 3-tuple of value, type, and size
+ * @brief Parse RValue::Value_Type string into a 3-tuple of value, type, and
+ * size
  *
- * e.g. (10:int:4) -> 10, "int", 4UL
+ * e.g. "(10:int:4)" -> 10, "int", 4UL
  */
-Table::RValue_Data_Type Table::get_rvalue_symbol_type_size(RValue const& rvalue)
+Table::RValue_Data_Type Table::get_symbol_type_size_from_rvalue_string(
+    RValue const& rvalue)
 {
     CREDENCE_ASSERT(util::substring_count_of(rvalue, ":") == 2);
 

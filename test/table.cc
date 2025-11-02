@@ -1193,24 +1193,25 @@ TEST_CASE_FIXTURE(
     REQUIRE(test6 == "u");
 }
 
-TEST_CASE("ir/table.cc: Table::get_rvalue_symbol_type_size")
+TEST_CASE("ir/table.cc: Table::get_symbol_type_size_from_rvalue_string")
 {
     auto [test1_1, test1_2, test1_3] =
-        credence::ir::Table::get_rvalue_symbol_type_size("(10:int:4)");
+        credence::ir::Table::get_symbol_type_size_from_rvalue_string(
+            "(10:int:4)");
     auto [test2_1, test2_2, test2_3] =
-        credence::ir::Table::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_symbol_type_size_from_rvalue_string(
             std::format("(10.005:float:{})", sizeof(float)));
     auto [test3_1, test3_2, test3_3] =
-        credence::ir::Table::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_symbol_type_size_from_rvalue_string(
             std::format("(10.000000000000000005:double:{})", sizeof(double)));
     auto [test4_1, test4_2, test4_3] =
-        credence::ir::Table::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_symbol_type_size_from_rvalue_string(
             std::format("('0':byte:{})", sizeof(char)));
     auto [test5_1, test5_2, test5_3] =
-        credence::ir::Table::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_symbol_type_size_from_rvalue_string(
             std::format("(__WORD__:word:{})", sizeof(void*)));
     auto [test6_1, test6_2, test6_3] =
-        credence::ir::Table::get_rvalue_symbol_type_size(
+        credence::ir::Table::get_symbol_type_size_from_rvalue_string(
             std::format(
                 "(\"hello this is a very long string\":string:{})",
                 std::string{ "hello this is a very long string" }.size()));

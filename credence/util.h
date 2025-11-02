@@ -31,8 +31,11 @@ class JSON;
 #define CREDENCE_PUBLIC public
 #ifdef CREDENCE_TEST
 #define CREDENCE_PRIVATE_UNLESS_TESTED public
+#define CREDENCE_PROTECTED_UNLESS_TESTED public
+
 #else
 #define CREDENCE_PRIVATE_UNLESS_TESTED private
+#define CREDENCE_PROTECTED_UNLESS_TESTED protected
 #endif
 
 namespace credence {

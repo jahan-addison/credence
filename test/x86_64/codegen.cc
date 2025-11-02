@@ -1,5 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
+#include <credence/target/x86_64/codegen.h>
+
 #include <credence/ir/ita.h>                     // for ITA
 #include <credence/ir/table.h>                   // for Table
 #include <credence/target/x86_64/instructions.h> // for Operand_Size, Register
@@ -70,7 +72,7 @@ struct Table_Fixture
     {
         return credence::ir::Table::build_from_ast(symbols, node);
     }
-    static inline credence::ir::Table make_table_with_global_symbols(
+    static inline auto make_table_with_global_symbols(
         Node const& node,
         Node const& symbols)
     {
@@ -84,7 +86,9 @@ struct Table_Fixture
     }
 };
 
-TEST_CASE_FIXTURE(Table_Fixture, "imul")
+TEST_CASE_FIXTURE(
+    Table_Fixture,
+    "Code_Generator::operands_from_binary_ita_operands")
 {
     using namespace credence::target::x86_64;
     Node base_ast = LOAD_JSON_FROM_STRING(
@@ -93,35 +97,17 @@ TEST_CASE_FIXTURE(Table_Fixture, "imul")
         "[],\n        \"node\" : \"statement\",\n        \"root\" : "
         "\"block\"\n      },\n      \"root\" : \"main\"\n    }],\n  \"node\" : "
         "\"program\",\n  \"root\" : \"definitions\"\n}");
-
-    Storage test_rvalue = Immediate{ "5", "int", 4UL };
-    Storage test_rvalue_2 = Immediate{ "10", "int", 4UL };
-    Storage test_register = Register::r11;
-
-    auto test = imul(Operand_Size::Dword, test_rvalue, test_rvalue_2);
-    auto test2 = imul(Operand_Size::Dword, test_register, test_register);
-
-    REQUIRE(test.second.size() == 2);
-    REQUIRE(test2.second.size() == 1);
-
-    require_is_imm_instruction<Immediate, Register>(
-        test.second.at(0),
-        Mnemonic::mov,
-        Operand_Size::Dword,
-        test_rvalue,
-        Register::eax);
-
-    require_is_imm_instruction<Register, Immediate>(
-        test.second.at(1),
-        Mnemonic::imul,
-        Operand_Size::Dword,
-        Register::eax,
-        test_rvalue_2);
-
-    require_is_imm_instruction<Register, Register>(
-        test2.second.at(0),
-        Mnemonic::imul,
-        Operand_Size::Dword,
-        Register::r11,
-        Register::r11);
+    auto table = make_table_with_global_symbols(base_ast, base_symbols);
+    auto tp = std::make_unique<ir::Table>(table);
+    auto code = Code_Generator{ std::move(tp) };
+    credence::ir::Table::RValue_Data_Type x_sym = { "10", "int", 4UL };
+    auto test = ir::ITA::Quadruple{
+        ir::ITA::Instruction::MOV, "k", "(5:int:4) || x", ""
+    };
+    code.setup_table();
+    auto& locals = code.table_->get_stack_frame_symbols();
+    locals.set_symbol_by_name("x", x_sym);
+    auto operands = code.operands_from_binary_ita_operands(test);
+    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "5");
+    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) == "10");
 }

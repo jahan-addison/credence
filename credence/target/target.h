@@ -27,19 +27,19 @@ namespace target {
 
 // https://github.com/rui314/chibicc/blob/main/codegen.c
 
-class Backend_Target_Platform
+class Backend
 {
   public:
-    Backend_Target_Platform(Backend_Target_Platform const&) = delete;
-    Backend_Target_Platform& operator=(Backend_Target_Platform const&) = delete;
+    Backend(Backend const&) = delete;
+    Backend& operator=(Backend const&) = delete;
 
   protected:
-    Backend_Target_Platform(ir::Table::Table_PTR table)
+    Backend(ir::Table::Table_PTR table)
         : table_(std::move(table))
     {
     }
 
-    virtual ~Backend_Target_Platform() = default;
+    virtual ~Backend() = default;
 
   public:
     // virtual void emit(std::ostream& os) = 0;
@@ -62,8 +62,7 @@ class Backend_Target_Platform
     // virtual void from_return_ita() = 0;
     // virtual void from_leave_ita() = 0;
     virtual void from_noop_ita() = 0;
-    // clang-format on
-  protected:
+  CREDENCE_PROTECTED_UNLESS_TESTED:
     ir::Table::Table_PTR table_;
 };
 
