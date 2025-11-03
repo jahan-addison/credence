@@ -25,8 +25,15 @@ namespace credence {
 
 namespace target {
 
-// https://github.com/rui314/chibicc/blob/main/codegen.c
+inline unsigned int align_up_to_16(unsigned int n)
+{
+    const unsigned int ALIGNMENT = 16;
+    const unsigned int MASK = ALIGNMENT - 1; // MASK = 15 (0xF)
+    // The logic is: (n + 15) & ~15
+    return (n + MASK) & (~MASK);
+}
 
+template<typename S>
 class Backend
 {
   public:
@@ -42,25 +49,26 @@ class Backend
     virtual ~Backend() = default;
 
   public:
-    // virtual void emit(std::ostream& os) = 0;
+    using ITA_Inst = ir::ITA::Quadruple;
+    virtual void emit(std::ostream& os) = 0;
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    // virtual void from_func_start_ita() = 0;
-    // virtual void from_func_end_ita() = 0;
-    // virtual void from_label_ita() = 0;
+    virtual void from_func_start_ita(ir::Table::Label const& name) = 0;
+    virtual void from_func_end_ita() = 0;
+    virtual void from_cmp_ita(ITA_Inst const& inst) = 0;
+    virtual void from_mov_ita(ITA_Inst const& inst) = 0;
+    virtual void from_return_ita(S const& storage) = 0;
+    virtual void from_leave_ita() = 0;
+    virtual void from_locl_ita(ITA_Inst const& inst) = 0;
+    virtual void from_label_ita(ITA_Inst const& inst) = 0;
+    virtual void from_push_ita(ITA_Inst const& inst) = 0;
     // virtual void from_goto_ita() = 0;
-    // virtual void from_locl_ita() = 0;
     // virtual void from_globl_ita() = 0;
     // virtual void from_if_ita() = 0;
     // virtual void from_jmp_e_ita() = 0;
-    // virtual void from_push_ita() = 0;
     // virtual void from_pop_ita() = 0;
     // virtual void from_call_ita() = 0;
-    // virtual void from_cmp_ita() = 0;
-    // virtual void from_mov_ita() = 0;
-    // virtual void from_return_ita() = 0;
-    // virtual void from_leave_ita() = 0;
     virtual void from_noop_ita() = 0;
   CREDENCE_PROTECTED_UNLESS_TESTED:
     ir::Table::Table_PTR table_;

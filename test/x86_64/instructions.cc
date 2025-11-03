@@ -25,17 +25,17 @@ namespace fs = std::filesystem;
 
 template<typename T, typename K>
 inline void require_is_imm_instruction(
-    Instruction& inst,
+    detail::Instruction& inst,
     Mnemonic mn,
     Operand_Size size,
-    Storage s1,
-    Storage s2)
+    detail::Storage s1,
+    detail::Storage s2)
 {
     auto s1_type = std::get<T>(s1);
     auto s2_type = std::get<K>(s2);
 
-    auto inst_s1 = std::get<T>(std::get<2>(inst));
-    auto inst_s2 = std::get<K>(std::get<3>(inst));
+    T inst_s1 = std::get<T>(std::get<2>(inst));
+    K inst_s2 = std::get<K>(std::get<3>(inst));
 
     REQUIRE(std::get<0>(inst) == mn);
     REQUIRE(std::get<1>(inst) == size);
@@ -86,40 +86,39 @@ struct Table_Fixture
 
 TEST_CASE_FIXTURE(Table_Fixture, "imul")
 {
-    using namespace credence::target::x86_64;
-    Node base_ast = LOAD_JSON_FROM_STRING(
+    util::AST_Node base_ast = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
         "[],\n        \"node\" : \"statement\",\n        \"root\" : "
         "\"block\"\n      },\n      \"root\" : \"main\"\n    }],\n  \"node\" : "
         "\"program\",\n  \"root\" : \"definitions\"\n}");
 
-    Storage test_rvalue = Immediate{ "5", "int", 4UL };
-    Storage test_rvalue_2 = Immediate{ "10", "int", 4UL };
-    Storage test_register = Register::r11;
+    detail::Storage test_rvalue = detail::Immediate{ "5", "int", 4UL };
+    detail::Storage test_rvalue_2 = detail::Immediate{ "10", "int", 4UL };
+    detail::Storage test_register = Register::r11;
 
-    auto test = imul(Operand_Size::Dword, test_rvalue, test_rvalue_2);
-    auto test2 = imul(Operand_Size::Dword, test_register, test_register);
+    auto test = mul(Operand_Size::Dword, test_rvalue, test_rvalue_2);
+    auto test2 = mul(Operand_Size::Dword, test_register, test_register);
 
     REQUIRE(test.second.size() == 2);
     REQUIRE(test2.second.size() == 1);
 
-    require_is_imm_instruction<Immediate, Register>(
-        test.second.at(0),
+    require_is_imm_instruction<Register, detail::Immediate>(
+        std::get<detail::Instruction>(test.second.at(0)),
         Mnemonic::mov,
         Operand_Size::Dword,
-        test_rvalue,
-        Register::eax);
+        Register::eax,
+        test_rvalue);
 
-    require_is_imm_instruction<Register, Immediate>(
-        test.second.at(1),
+    require_is_imm_instruction<detail::Immediate, Register>(
+        std::get<detail::Instruction>(test.second.at(1)),
         Mnemonic::imul,
         Operand_Size::Dword,
-        Register::eax,
-        test_rvalue_2);
+        test_rvalue_2,
+        Register::eax);
 
     require_is_imm_instruction<Register, Register>(
-        test2.second.at(0),
+        std::get<detail::Instruction>(test2.second.at(0)),
         Mnemonic::imul,
         Operand_Size::Dword,
         Register::r11,

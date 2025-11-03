@@ -27,11 +27,11 @@ namespace fs = std::filesystem;
 
 template<typename T, typename K>
 inline void require_is_imm_instruction(
-    Instruction& inst,
+    detail::Instruction& inst,
     Mnemonic mn,
     Operand_Size size,
-    Storage s1,
-    Storage s2)
+    detail::Storage s1,
+    detail::Storage s2)
 {
     auto s1_type = std::get<T>(s1);
     auto s2_type = std::get<K>(s2);
@@ -90,7 +90,7 @@ TEST_CASE_FIXTURE(
     Table_Fixture,
     "Code_Generator::operands_from_binary_ita_operands")
 {
-    using namespace credence::target::x86_64;
+    using namespace credence::target::x86_64::detail;
     Node base_ast = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
@@ -104,10 +104,83 @@ TEST_CASE_FIXTURE(
     auto test = ir::ITA::Quadruple{
         ir::ITA::Instruction::MOV, "k", "(5:int:4) || x", ""
     };
-    code.setup_table();
+    auto test2 =
+        ir::ITA::Quadruple{ ir::ITA::Instruction::MOV, "k", "_t1 || x", "" };
+    code.set_table_stack_frame("main");
     auto& locals = code.table_->get_stack_frame_symbols();
     locals.set_symbol_by_name("x", x_sym);
+    locals.set_symbol_by_name("_t1", { "12", "int", 4UL });
+    locals.set_symbol_by_name("_t2", { "_t1", "word", 8UL });
     auto operands = code.operands_from_binary_ita_operands(test);
     REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "5");
     REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) == "10");
+    operands = code.operands_from_binary_ita_operands(test2);
+    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "12");
+    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) == "10");
+
+    auto imm = code.resolve_immediate_operands_from_table("x");
+    REQUIRE(std::get<0>(std::get<Immediate>(imm)) == "10");
+}
+
+TEST_CASE_FIXTURE(Table_Fixture, "Code_Generator::emit")
+{
+    using namespace credence::target::x86_64::detail;
+    Node symbols = LOAD_JSON_FROM_STRING(
+        "{\"m\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 17, "
+        "\"column\": 8, \"end_pos\": 18, \"end_column\": 9}, \"c\": {\"type\": "
+        "\"lvalue\", \"line\": 2, \"start_pos\": 19, \"column\": 10, "
+        "\"end_pos\": 20, \"end_column\": 11}, \"main\": {\"type\": "
+        "\"function_definition\", \"line\": 1, \"start_pos\": 0, \"column\": "
+        "1, \"end_pos\": 4, \"end_column\": 5}}\n\n");
+    Node constants = LOAD_JSON_FROM_STRING(
+        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"m\"\n              }, {\n   "
+        "             \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"c\"\n              }],\n            \"node\" : \"statement\",\n     "
+        "       \"root\" : \"auto\"\n          }, {\n            \"left\" : "
+        "[[{\n                  \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"m\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"node\" : "
+        "\"number_literal\",\n                    \"root\" : 1\n               "
+        "   },\n                  \"root\" : [\"=\"]\n                }], [{\n "
+        "                 \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"c\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"node\" : "
+        "\"number_literal\",\n                    \"root\" : 5\n               "
+        "   },\n                  \"root\" : [\"=\"]\n                }], [{\n "
+        "                 \"left\" : {\n                    \"node\" : "
+        "\"lvalue\",\n                    \"root\" : \"m\"\n                  "
+        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "         \"right\" : {\n                    \"left\" : {\n            "
+        "          \"node\" : \"number_literal\",\n                      "
+        "\"root\" : 10\n                    },\n                    \"node\" : "
+        "\"relation_expression\",\n                    \"right\" : {\n         "
+        "             \"left\" : {\n                        \"node\" : "
+        "\"lvalue\",\n                        \"root\" : \"m\"\n               "
+        "       },\n                      \"node\" : "
+        "\"relation_expression\",\n                      \"right\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"lvalue\",\n                          \"root\" : \"c\"\n             "
+        "           },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"constant_literal\",\n               "
+        "           \"root\" : \"0\"\n                        },\n             "
+        "           \"root\" : [\"-\"]\n                      },\n             "
+        "         \"root\" : [\"+\"]\n                    },\n                 "
+        "   \"root\" : [\"*\"]\n                  },\n                  "
+        "\"root\" : [\"=\"]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
+        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
+        "},\n      \"root\" : \"main\"\n    }],\n  \"node\" : \"program\",\n  "
+        "\"root\" : \"definitions\"\n}\n");
+    auto table = make_table_with_global_symbols(constants, symbols);
+    auto tp = std::make_unique<ir::Table>(table);
+    auto code = Code_Generator{ std::move(tp) };
+    std::stringstream ss{};
+    code.emit(ss);
+    std::cout << ss.str();
 }

@@ -16,19 +16,24 @@
 
 #pragma once
 
-#include "instructions.h"           // for Operation_Pair, Instructions
+#include "instructions.h"           // for Register, Operand_Size, Immediate
+#include <algorithm>                // for __find_if, find_if
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
-#include <credence/target/target.h> // for Backend_Target_Platform
+#include <credence/target/target.h> // for Backend
 #include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <deque>                    // for deque
+#include <initializer_list>         // for initializer_list
+#include <map>                      // for map
+#include <ostream>                  // for ostream
 #include <string>                   // for basic_string, string
+#include <string_view>              // for basic_string_view, string_view
 #include <utility>                  // for pair, move
-
-// https://cs.brown.edu/courses/cs033/docs/guides/x64_cheatsheet.pdf
+#include <variant>                  // for variant
 
 namespace credence::target::x86_64 {
 
-class Code_Generator final : public target::Backend
+class Code_Generator final : public target::Backend<detail::Storage>
 {
   public:
     Code_Generator() = delete;
@@ -38,59 +43,123 @@ class Code_Generator final : public target::Backend
     }
 
   public:
+    using Instruction_Pair = detail::Instruction_Pair;
+    using Storage = detail::Storage;
+    using Instructions = detail::Instructions;
     using Operands = std::pair<Storage, Storage>;
     using Binary_Operands = std::pair<std::string, Operands>;
-    using Immediate_Operands =
-        std::variant<ir::Table::Binary_Expression, Immediate>;
-    using RValue_Operands =
-        std::variant<std::pair<Immediate, Immediate>, Immediate>;
+    using Immediate_Operands = std::variant<
+        ir::Table::Binary_Expression,
+        ir::Table::LValue,
+        detail::Immediate>;
+    using RValue_Operands = std::variant<
+        std::pair<detail::Immediate, detail::Immediate>,
+        detail::Immediate>;
+    using Local_Stack = std::map<ir::Table::LValue, unsigned int>;
 
-    RValue_Operands resolve_immediate_operands_from_table(
-        Immediate_Operands const& imm_value);
+  public:
+    std::map<Operand_Size, std::string> suffix = { { Operand_Size::Byte, "b" },
+                                                   { Operand_Size::Word, "w" },
+                                                   { Operand_Size::Dword, "l" },
+                                                   { Operand_Size::Qword,
+                                                     "q" } };
+    constexpr static auto math_binary_operators = { "*", "/", "-", "+", "%" };
+    constexpr static auto relation_binary_operators = { "==", "!=", "<",
+                                                        ">",  "<=", ">=" };
+    constexpr inline bool is_binary_math_operator(ir::Table::RValue rvalue)
+    {
+        auto test = std::ranges::find_if(
+            math_binary_operators.begin(),
+            math_binary_operators.end(),
+            [&](std::string_view s) {
+                return rvalue.find(s) != std::string::npos;
+            });
+        return test != math_binary_operators.end();
+    }
+
+    constexpr inline bool is_relation_binary_operators(ir::Table::RValue rvalue)
+    {
+        auto test = std::ranges::find_if(
+            relation_binary_operators.begin(),
+            relation_binary_operators.end(),
+            [&](std::string_view s) {
+                return rvalue.find(s) != std::string::npos;
+            });
+        return test != relation_binary_operators.end();
+    }
+
+  public:
+    void emit(std::ostream& os) override;
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    RValue_Operands resolve_immediate_operands_from_table(
+        Immediate_Operands const& imm_value);
     Binary_Operands operands_from_binary_ita_operands(
         ir::ITA::Quadruple const& inst);
-    Operation_Pair from_ita_expression(ir::Table::RValue const& expr);
-    Operation_Pair from_ita_unary_expression(ir::ITA::Quadruple const& inst);
-    Operation_Pair from_ita_bitwise_expression(ir::ITA::Quadruple const& inst);
-    Operation_Pair from_ita_relational_expression(
+    Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
+    Instruction_Pair from_ita_unary_expression(ir::ITA::Quadruple const& inst);
+    Instruction_Pair from_ita_bitwise_expression(ir::ITA::Quadruple const& inst);
+    Instruction_Pair from_ita_trivial_relational_expression(
         ir::ITA::Quadruple const& inst);
-    Operation_Pair from_ita_binary_arithmetic_expression(
+    Instruction_Pair from_ita_binary_arithmetic_expression(
         ir::ITA::Quadruple const& inst);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void setup_table();
+    std::string emit_storage_device(Storage const& storage);
+    void set_table_stack_frame(ir::Table::Label const& name);
     void setup_constants();
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    // void from_func_start_ita() override;
-    // void from_func_end_ita() override;
-    // void from_label_ita() override;
+    Storage get_storage_device(Operand_Size size = Operand_Size::Qword);
+    Storage get_stack_address(Operand_Size size = Operand_Size::Qword);
+
+    std::deque<Register> o_qword_register = { Register::rdi, Register::rsi,
+                                        Register::rdx, Register::rcx,
+                                        Register::r8,  Register::r9 };
+    std::deque<Register> o_dword_register = { Register::edi, Register::esi,
+                                        Register::edx, Register::ecx,
+                                        Register::r8d,  Register::r9d };
+
+    inline void reset_o_register()
+    {
+        o_qword_register = { Register::rdi, Register::rsi, Register::rdx,
+                             Register::rcx, Register::r8,  Register::r9 };
+        o_dword_register = { Register::edi, Register::esi, Register::edx,
+                             Register::ecx, Register::r8d, Register::r9d };
+    }
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void build_from_ita_table();
+    void from_func_start_ita(ir::Table::Label const& name) override;
+    void from_func_end_ita() override;
+    void from_locl_ita(ITA_Inst const& inst) override;
+    void from_cmp_ita(ITA_Inst const& inst) override;
+    void from_mov_ita(ITA_Inst const& inst) override;
+    void from_return_ita(Storage const& dest) override;
+    void from_leave_ita() override;
+    void from_label_ita(ITA_Inst const& inst) override;
+    void from_push_ita(ITA_Inst const& inst) override;
     // void from_goto_ita() override;
-    // void from_locl_ita() override;
     // void from_globl_ita() override;
     // void from_if_ita() override;
     // void from_jmp_e_ita() override;
-    // void from_push_ita() override;
     // void from_pop_ita() override;
     // void from_call_ita() override;
-    // void from_cmp_ita() override;
-    // void from_mov_ita() override;
-    // void from_return_ita() override;
-    // void from_leave_ita() override;
     void from_noop_ita() override {
     }
     // clang-format on
 
   private:
     unsigned int constant_index{ 0 };
+    unsigned int stack_offset{ 0 };
+    Local_Stack stack{};
 
   private:
     std::string current_frame{ "main" };
-    Instructions instructions_;
-    Instructions data_;
+
+    detail::Instructions instructions_;
+    detail::Instructions data_;
 };
 
 } // namespace x86_64

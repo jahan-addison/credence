@@ -503,7 +503,7 @@ void Table::set_stack_frame(Label const& label)
  */
 void Table::from_func_start_ita_instruction(Label const& label)
 {
-    Label human_label = Function::get_label_as_human_readable(label);
+    Label human_label = get_label_as_human_readable(label);
     address_table.set_symbol_by_name(label, instruction_index - 1);
     if (labels.contains(human_label))
         construct_error(
@@ -800,6 +800,25 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
             lvalue);
 
     return locals.get_symbol_by_name(rvalue);
+}
+
+/**
+ * @brief Search the ita instructions set in
+ * a stack frame for a specific instruction
+ */
+bool Table::stack_frame_contains_ita_instruction(
+    Label name,
+    ITA::Instruction inst)
+{
+    CREDENCE_ASSERT(functions.contains(name));
+    auto frame = functions.at(name);
+    auto search = std::ranges::find_if(
+        instructions.begin() + frame->address_location[0],
+        instructions.begin() + frame->address_location[1],
+        [&](ir::ITA::Quadruple const& quad) {
+            return std::get<0>(quad) == inst;
+        });
+    return search != instructions.begin() + frame->address_location[1];
 }
 
 /**

@@ -116,6 +116,16 @@ class Table
     using Labels = std::set<Label>;
     using Globals = type::Value_Pointer;
 
+  public:
+    static constexpr Label get_label_as_human_readable(Label label)
+    {
+        if (util::contains(label, "("))
+            return Label{ label.begin() + 2,
+                          label.begin() + label.find_first_of("(") };
+        else
+            return label;
+    }
+
   private:
     /**
      * Symbolic ITA function stack frame allocation
@@ -182,6 +192,9 @@ class Table
   public:
     Stack_Frame stack_frame;
     ITA::Instructions build_from_ita_instructions();
+    bool stack_frame_contains_ita_instruction(
+        Label name,
+        ITA::Instruction inst);
     void build_symbols_from_vector_lvalues();
     void build_vector_definitions_from_globals(Symbol_Table<>& globals);
     RValue from_temporary_lvalue(LValue const& lvalue);
