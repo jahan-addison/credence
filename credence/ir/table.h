@@ -202,6 +202,25 @@ class Table
         ITA::Node const& symbols,
         ITA::Node const& ast);
 
+    static constexpr inline bool is_rvalue_data_type(RValue const& rvalue)
+    {
+        return util::substring_count_of(rvalue, ":") == 2 and
+               rvalue.starts_with("(") and rvalue.ends_with(")");
+    }
+    static constexpr inline bool is_temporary(RValue_Reference rvalue)
+    {
+        for (std::size_t i = 0; i < rvalue.size(); i++) {
+            const auto c = rvalue[i];
+            if (i == 0 and c != '_')
+                return false;
+            if (i == 1 and c != 't')
+                return false;
+            if (i > 1 and not std::isdigit(c))
+                return false;
+        }
+        return true;
+    }
+
     /**
      * @brief Get the type from a local in the stack frame
      */

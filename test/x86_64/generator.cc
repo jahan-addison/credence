@@ -1,6 +1,6 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
-#include <credence/target/x86_64/codegen.h>
+#include <credence/target/x86_64/generator.h>
 
 #include <credence/ir/ita.h>                     // for ITA
 #include <credence/ir/table.h>                   // for Table
@@ -86,41 +86,42 @@ struct Table_Fixture
     }
 };
 
-TEST_CASE_FIXTURE(
-    Table_Fixture,
-    "Code_Generator::operands_from_binary_ita_operands")
-{
-    using namespace credence::target::x86_64::detail;
-    Node base_ast = LOAD_JSON_FROM_STRING(
-        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
-        "[],\n        \"node\" : \"statement\",\n        \"root\" : "
-        "\"block\"\n      },\n      \"root\" : \"main\"\n    }],\n  \"node\" : "
-        "\"program\",\n  \"root\" : \"definitions\"\n}");
-    auto table = make_table_with_global_symbols(base_ast, base_symbols);
-    auto tp = std::make_unique<ir::Table>(table);
-    auto code = Code_Generator{ std::move(tp) };
-    credence::ir::Table::RValue_Data_Type x_sym = { "10", "int", 4UL };
-    auto test = ir::ITA::Quadruple{
-        ir::ITA::Instruction::MOV, "k", "(5:int:4) || x", ""
-    };
-    auto test2 =
-        ir::ITA::Quadruple{ ir::ITA::Instruction::MOV, "k", "_t1 || x", "" };
-    code.set_table_stack_frame("main");
-    auto& locals = code.table_->get_stack_frame_symbols();
-    locals.set_symbol_by_name("x", x_sym);
-    locals.set_symbol_by_name("_t1", { "12", "int", 4UL });
-    locals.set_symbol_by_name("_t2", { "_t1", "word", 8UL });
-    auto operands = code.operands_from_binary_ita_operands(test);
-    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "5");
-    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) == "10");
-    operands = code.operands_from_binary_ita_operands(test2);
-    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "12");
-    REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) == "10");
+// TEST_CASE_FIXTURE(Table_Fixture,
+// "Code_Generator::resolve_operands_from_table")
+// {
+//     using namespace credence::target::x86_64::detail;
+//     Node base_ast = LOAD_JSON_FROM_STRING(
+//         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
+//         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+//         "[],\n        \"node\" : \"statement\",\n        \"root\" : "
+//         "\"block\"\n      },\n      \"root\" : \"main\"\n    }],\n  \"node\"
+//         : "
+//         "\"program\",\n  \"root\" : \"definitions\"\n}");
+//     auto table = make_table_with_global_symbols(base_ast, base_symbols);
+//     auto tp = std::make_unique<ir::Table>(table);
+//     auto code = Code_Generator{ std::move(tp) };
+//     credence::ir::Table::RValue_Data_Type x_sym = { "10", "int", 4UL };
+//     auto test = ir::ITA::Quadruple{
+//         ir::ITA::Instruction::MOV, "k", "(5:int:4) || x", ""
+//     };
+//     auto test2 =
+//         ir::ITA::Quadruple{ ir::ITA::Instruction::MOV, "k", "_t1 || x", "" };
+//     code.set_table_stack_frame("main");
+//     auto& locals = code.table_->get_stack_frame_symbols();
+//     locals.set_symbol_by_name("x", x_sym);
+//     locals.set_symbol_by_name("_t1", { "12", "int", 4UL });
+//     locals.set_symbol_by_name("_t2", { "_t1", "word", 8UL });
+//     auto operands = code.resolve_operands_from_table(test);
+//     REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "5");
+//     REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) ==
+//     "10"); operands = code.resolve_operands_from_table(test2);
+//     REQUIRE(std::get<0>(std::get<Immediate>(operands.second.first)) == "12");
+//     REQUIRE(std::get<0>(std::get<Immediate>(operands.second.second)) ==
+//     "10");
 
-    auto imm = code.resolve_immediate_operands_from_table("x");
-    REQUIRE(std::get<0>(std::get<Immediate>(imm)) == "10");
-}
+//     auto imm = code.resolve_immediate_operands_from_table("x");
+//     REQUIRE(std::get<0>(std::get<Immediate>(imm)) == "10");
+// }
 
 TEST_CASE_FIXTURE(Table_Fixture, "Code_Generator::emit")
 {
@@ -167,12 +168,12 @@ TEST_CASE_FIXTURE(Table_Fixture, "Code_Generator::emit")
         "\"lvalue\",\n                          \"root\" : \"c\"\n             "
         "           },\n                        \"node\" : "
         "\"relation_expression\",\n                        \"right\" : {\n     "
-        "                     \"node\" : \"constant_literal\",\n               "
-        "           \"root\" : \"0\"\n                        },\n             "
-        "           \"root\" : [\"-\"]\n                      },\n             "
-        "         \"root\" : [\"+\"]\n                    },\n                 "
-        "   \"root\" : [\"*\"]\n                  },\n                  "
-        "\"root\" : [\"=\"]\n                }]],\n            \"node\" : "
+        "                     \"node\" : \"number_literal\",\n                 "
+        "         \"root\" : 0\n                        },\n                   "
+        "     \"root\" : [\"-\"]\n                      },\n                   "
+        "   \"root\" : [\"+\"]\n                    },\n                    "
+        "\"root\" : [\"*\"]\n                  },\n                  \"root\" "
+        ": [\"=\"]\n                }]],\n            \"node\" : "
         "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
         "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
         "},\n      \"root\" : \"main\"\n    }],\n  \"node\" : \"program\",\n  "

@@ -46,23 +46,27 @@ class Code_Generator final : public target::Backend<detail::Storage>
     using Instruction_Pair = detail::Instruction_Pair;
     using Storage = detail::Storage;
     using Instructions = detail::Instructions;
-    using Operands = std::pair<Storage, Storage>;
-    using Binary_Operands = std::pair<std::string, Operands>;
-    using Immediate_Operands = std::variant<
+    using Operator_Symbol = std::string;
+    using Storage_Operands = std::pair<Storage, Storage>;
+    using Immediate_Storage_Operands = std::variant<Storage_Operands, Storage>;
+    using Binary_Operator_Storage_Operands =
+        std::pair<Operator_Symbol, Storage_Operands>;
+    using Immediate_IR_Operands = std::variant<
         ir::Table::Binary_Expression,
         ir::Table::LValue,
         detail::Immediate>;
-    using RValue_Operands = std::variant<
-        std::pair<detail::Immediate, detail::Immediate>,
-        detail::Immediate>;
     using Local_Stack = std::map<ir::Table::LValue, unsigned int>;
+    // using Temporary_Stack
 
   public:
-    std::map<Operand_Size, std::string> suffix = { { Operand_Size::Byte, "b" },
-                                                   { Operand_Size::Word, "w" },
-                                                   { Operand_Size::Dword, "l" },
-                                                   { Operand_Size::Qword,
-                                                     "q" } };
+    // clang-format off
+    std::map<Operand_Size, std::string>
+    suffix = { { Operand_Size::Byte, "b" },
+              { Operand_Size::Word, "w" },
+              { Operand_Size::Dword, "l" },
+              { Operand_Size::Qword,
+                "q" } };
+    // clang-format on
     constexpr static auto math_binary_operators = { "*", "/", "-", "+", "%" };
     constexpr static auto relation_binary_operators = { "==", "!=", "<",
                                                         ">",  "<=", ">=" };
@@ -93,17 +97,20 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue_Operands resolve_immediate_operands_from_table(
-        Immediate_Operands const& imm_value);
-    Binary_Operands operands_from_binary_ita_operands(
-        ir::ITA::Quadruple const& inst);
+    void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
     Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
     Instruction_Pair from_ita_unary_expression(ir::ITA::Quadruple const& inst);
-    Instruction_Pair from_ita_bitwise_expression(ir::ITA::Quadruple const& inst);
-    Instruction_Pair from_ita_trivial_relational_expression(
+    Instruction_Pair from_ita_bitwise_expression(
         ir::ITA::Quadruple const& inst);
-    Instruction_Pair from_ita_binary_arithmetic_expression(
-        ir::ITA::Quadruple const& inst);
+    Instruction_Pair from_storage_arithmetic_expression(
+        Storage_Operands& operands,
+        Operand_Size size,
+        std::string const& binary_op);
+    Instruction_Pair from_storage_relational_expression(
+        Storage_Operands& operands,
+        Operand_Size size,
+        std::string const& binary_op);
+
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(Storage const& storage);
@@ -115,11 +122,11 @@ class Code_Generator final : public target::Backend<detail::Storage>
     Storage get_stack_address(Operand_Size size = Operand_Size::Qword);
 
     std::deque<Register> o_qword_register = { Register::rdi, Register::rsi,
-                                        Register::rdx, Register::rcx,
-                                        Register::r8,  Register::r9 };
+                                              Register::rdx, Register::rcx,
+                                              Register::r8,  Register::r9 };
     std::deque<Register> o_dword_register = { Register::edi, Register::esi,
-                                        Register::edx, Register::ecx,
-                                        Register::r8d,  Register::r9d };
+                                              Register::edx, Register::ecx,
+                                              Register::r8d, Register::r9d };
 
     inline void reset_o_register()
     {
@@ -127,6 +134,20 @@ class Code_Generator final : public target::Backend<detail::Storage>
                              Register::rcx, Register::r8,  Register::r9 };
         o_dword_register = { Register::edi, Register::esi, Register::edx,
                              Register::ecx, Register::r8d, Register::r9d };
+    }
+
+    inline bool is_qword_register(Register r)
+    {
+        return std::ranges::find(
+                   o_qword_register.begin(), o_qword_register.end(), r) !=
+               o_qword_register.end();
+    }
+
+    inline bool is_dword_register(Register r)
+    {
+        return std::ranges::find(
+                   o_dword_register.begin(), o_dword_register.end(), r) !=
+               o_dword_register.end();
     }
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -157,7 +178,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   private:
     std::string current_frame{ "main" };
-
+    std::optional<Storage> temporary_expansion;
     detail::Instructions instructions_;
     detail::Instructions data_;
 };

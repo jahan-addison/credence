@@ -26,10 +26,13 @@
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
 
-#define BINARY_OP_INST_DEF(name)                \
-    detail::Instruction_Pair name(Operand_Size size, detail::Storage& lhs, detail::Storage& rhs)
+#define BINARY_OP_INST_DEFINITION(name)                \
+    detail::Instruction_Pair name(Operand_Size size, detail::Storage& dest, detail::Storage& src)
 
-#define UNARY_OP_INST_DEF(name)                 \
+#define THREE_OP_INST_DEFINITION(name)                \
+    detail::Instruction_Pair name(Operand_Size size, detail::Storage& dest, detail::Storage& s1, detail::Storage& s2)
+
+#define UNARY_OP_INST_DEFINITION(name)                 \
     detail::Instruction_Pair name(Operand_Size size, detail::Storage& dest)
 
 #define add_inst_s(inst, op, size, lhs, rhs)    \
@@ -397,6 +400,8 @@ using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 
 // Intel syntax, Storage = Storage
 using Instruction = std::tuple<Mnemonic, Operand_Size, Storage, Storage>;
+using Three_Operand_Instruction =
+    std::tuple<Mnemonic, Operand_Size, Storage, Storage, Storage>;
 using Label = ir::Table::Label;
 using Instructions = std::deque<std::variant<Label, Instruction>>;
 
@@ -424,27 +429,28 @@ inline Immediate make_u32_integer_immediate(unsigned int imm)
 
 } // namespace detail
 
+Register get_accumulator_register_from_size(Operand_Size size);
+
 Operand_Size get_size_from_table_rvalue(
     ir::Table::RValue_Data_Type const& rvalue);
 
-BINARY_OP_INST_DEF(mul);
-BINARY_OP_INST_DEF(div);
-BINARY_OP_INST_DEF(sub);
-BINARY_OP_INST_DEF(add);
-BINARY_OP_INST_DEF(mod);
-UNARY_OP_INST_DEF(inc);
-
-UNARY_OP_INST_DEF(dec);
-UNARY_OP_INST_DEF(u_not);
-
-BINARY_OP_INST_DEF(r_eq);
-BINARY_OP_INST_DEF(r_neq);
-BINARY_OP_INST_DEF(r_lt);
-BINARY_OP_INST_DEF(r_gt);
-BINARY_OP_INST_DEF(r_le);
-BINARY_OP_INST_DEF(r_ge);
-BINARY_OP_INST_DEF(r_or);
-BINARY_OP_INST_DEF(r_and);
-BINARY_OP_INST_DEF(r_lt);
+UNARY_OP_INST_DEFINITION(inc);
+UNARY_OP_INST_DEFINITION(dec);
+UNARY_OP_INST_DEFINITION(u_not);
+BINARY_OP_INST_DEFINITION(mul);
+BINARY_OP_INST_DEFINITION(div);
+BINARY_OP_INST_DEFINITION(sub);
+BINARY_OP_INST_DEFINITION(add);
+BINARY_OP_INST_DEFINITION(mod);
+BINARY_OP_INST_DEFINITION(r_eq);
+BINARY_OP_INST_DEFINITION(r_neq);
+BINARY_OP_INST_DEFINITION(r_lt);
+BINARY_OP_INST_DEFINITION(r_gt);
+BINARY_OP_INST_DEFINITION(r_le);
+BINARY_OP_INST_DEFINITION(r_ge);
+BINARY_OP_INST_DEFINITION(r_or);
+BINARY_OP_INST_DEFINITION(r_and);
+BINARY_OP_INST_DEFINITION(r_lt);
+THREE_OP_INST_DEFINITION(imul);
 
 } // namespace x86_64

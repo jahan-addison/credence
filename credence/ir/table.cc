@@ -710,10 +710,7 @@ Table::RValue Table::from_temporary_lvalue(LValue const& lvalue)
                       ? get_stack_frame()->temporary[lvalue]
                       : lvalue;
     if (util::contains(rvalue, "_t") and util::contains(rvalue, " ")) {
-        auto expression = from_rvalue_binary_expression(rvalue);
-        auto lhs = from_temporary_lvalue(std::get<0>(expression));
-        auto rhs = from_temporary_lvalue(std::get<1>(expression));
-        return std::string{ lhs + " " + std::get<2>(expression) + " " + rhs };
+        return rvalue;
     } else {
         if (util::contains(rvalue, "_t"))
             return from_temporary_lvalue(rvalue);

@@ -1067,7 +1067,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_temporary_lvalue")
 
     REQUIRE(table.from_temporary_lvalue("_t1") == "100");
     REQUIRE(table.from_temporary_lvalue("_t4") == "5");
-    REQUIRE(table.from_temporary_lvalue("_t6") == "5 || 10");
+    REQUIRE(table.from_temporary_lvalue("_t6") == "_t4 || _t5");
 }
 
 TEST_CASE_FIXTURE(

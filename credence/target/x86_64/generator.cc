@@ -1,4 +1,4 @@
-#include "codegen.h"
+#include "generator.h"
 #include "instructions.h"           // for get_size_from_table_rvalue, Imm...
 #include <credence/assert.h>        // for CREDENCE_ASSERT
 #include <credence/ir/ita.h>        // for ITA
@@ -19,6 +19,7 @@
 #include <variant>                  // for get, holds_alternative, monostate
 
 #define ir_i(name) credence::ir::ITA::Instruction::name
+#define is_variant(S, V) std::holds_alternative<S>(V)
 
 namespace credence::target::x86_64 {
 
@@ -27,26 +28,29 @@ namespace m = matchit;
 void Code_Generator::emit(std::ostream& os)
 {
     build_from_ita_table();
+    // clang-format off
     for (auto const& inst : instructions_) {
         std::visit(
             util::overload{
-                [&](detail::Instruction const& s) {
-                    Mnemonic inst = std::get<0>(s);
-                    os << "    " << inst;
+            [&](detail::Instruction const& s) {
+                Mnemonic inst = std::get<0>(s);
+                os << "    " << inst;
+                if (inst != Mnemonic::mov)
                     os << suffix[std::get<1>(s)];
-                    Storage dest = std::get<2>(s);
-                    Storage src = std::get<3>(s);
-                    if (!std::holds_alternative<std::monostate>(dest))
-                        os << " " << emit_storage_device(dest) << ", ";
-                    if (!std::holds_alternative<std::monostate>(src))
-                        os << emit_storage_device(src);
-                    os << std::endl;
-                },
-                [&](ir::Table::Label const& s) {
-                    os << s << ":" << std::endl;
-                } },
-            inst);
+                Storage dest = std::get<2>(s);
+                Storage src = std::get<3>(s);
+                if (!std::holds_alternative<std::monostate>(dest))
+                    os << " " << emit_storage_device(dest);
+                if (!std::holds_alternative<std::monostate>(src))
+                    os << ", " << emit_storage_device(src);
+                os << std::endl;
+            },
+            [&](ir::Table::Label const& s) {
+                os << s << ":" << std::endl;
+            } },
+                inst);
     }
+    // clang-format on
 }
 
 void Code_Generator::build_from_ita_table()
@@ -121,7 +125,7 @@ void Code_Generator::from_func_start_ita(ir::Table::Label const& name)
 
 Code_Generator::Storage Code_Generator::get_storage_device(Operand_Size size)
 {
-    auto registers =
+    auto& registers =
         size == Operand_Size::Dword ? o_dword_register : o_qword_register;
     if (registers.size() > 0) {
         Storage storage = registers.front();
@@ -186,37 +190,113 @@ void Code_Generator::from_cmp_ita([[maybe_unused]] ITA_Inst const& inst)
 void Code_Generator::from_mov_ita(ITA_Inst const& inst)
 {
     ir::Table::LValue lhs = std::get<1>(inst);
-    ir::Table::RValue rhs = table_->get_rvalue_from_mov_instruction(inst).first;
-    if (!util::contains(lhs, "_t") and
-        util::substring_count_of(rhs, " ") == 2) {
-        if (is_binary_math_operator(rhs)) {
-            auto inst_pair = from_ita_binary_arithmetic_expression(inst);
-            detail::insert_inst(instructions_, inst_pair.second);
+    auto symbols = table_->get_stack_frame_symbols();
+    if (!ir::Table::is_temporary(lhs)) {
+        temporary_expansion.reset();
+        CREDENCE_ASSERT(stack.contains(lhs));
+        ir::Table::RValue rhs =
+            table_->get_rvalue_from_mov_instruction(inst).first;
+        auto lhs_storage = stack[lhs];
+        if (ir::Table::is_rvalue_data_type(rhs)) {
+            auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
+            add_inst_s(
+                instructions_, mov, Operand_Size::Dword, lhs_storage, imm);
+        } else if (ir::Table::is_temporary(rhs)) {
+            insert_from_temporary_table_rvalue(
+                table_->from_temporary_lvalue(rhs));
+        } else {
             add_inst_s(
                 instructions_,
                 mov,
                 Operand_Size::Dword,
-                inst_pair.first,
-                Register::eax);
-        }
-        if (is_relation_binary_operators(rhs)) {
-            auto inst_pair = from_ita_trivial_relational_expression(inst);
-            detail::insert_inst(instructions_, inst_pair.second);
-            add_inst_s(
-                instructions_,
-                mov,
-                Operand_Size::Dword,
-                inst_pair.first,
-                Register::eax);
+                lhs_storage,
+                symbols.get_symbol_by_name(rhs));
         }
     } else {
-        if (!util::contains(lhs, "_t")) {
-            CREDENCE_ASSERT(stack.contains(lhs));
-            auto symbols = table_->get_stack_frame_symbols();
-            Storage storage = stack[lhs];
-            auto imm = symbols.get_symbol_by_name(lhs);
-            add_inst_s(instructions_, mov, Operand_Size::Dword, storage, imm);
+        if (!temporary_expansion.has_value()) {
+            temporary_expansion = get_storage_device();
         }
+        insert_from_temporary_table_rvalue(table_->from_temporary_lvalue(lhs));
+    }
+}
+
+void Code_Generator::insert_from_temporary_table_rvalue(
+    ir::Table::RValue const& expr)
+{
+    Storage lhs_s;
+    Storage rhs_s;
+    auto symbols = table_->get_stack_frame_symbols();
+    if (is_binary_math_operator(expr)) {
+        auto expression = table_->from_rvalue_binary_expression(expr);
+        auto lhs = std::get<0>(expression);
+        auto rhs = std::get<1>(expression);
+        if (stack.contains(lhs))
+            lhs_s = stack[lhs];
+        else if (ir::Table::is_rvalue_data_type(lhs))
+            lhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(lhs);
+        else
+            lhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
+
+        if (stack.contains(rhs))
+            rhs_s = stack[rhs];
+        else if (ir::Table::is_rvalue_data_type(rhs))
+            rhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
+        else if (symbols.is_defined(rhs))
+            rhs_s = symbols.get_symbol_by_name(rhs);
+        else
+            rhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
+        if (temporary_expansion.has_value()) {
+            auto storage = temporary_expansion.value();
+            add_inst_s(instructions_, mov, Operand_Size::Dword, storage, lhs_s);
+            Storage_Operands operands = { storage, rhs_s };
+            auto inst = from_storage_arithmetic_expression(
+                operands, Operand_Size::Dword, std::get<2>(expression));
+            detail::insert_inst(instructions_, inst.second);
+        } else {
+            Storage_Operands operands = { lhs_s, rhs_s };
+            auto inst = from_storage_arithmetic_expression(
+                operands, Operand_Size::Dword, std::get<2>(expression));
+            detail::insert_inst(instructions_, inst.second);
+        }
+    } else if (is_relation_binary_operators(expr)) {
+        auto expression = table_->from_rvalue_binary_expression(expr);
+        auto lhs = std::get<0>(expression);
+        auto rhs = std::get<1>(expression);
+
+        if (stack.contains(lhs))
+            lhs_s = stack[lhs];
+        else if (ir::Table::is_rvalue_data_type(lhs))
+            lhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(lhs);
+        else if (symbols.is_defined(rhs))
+            lhs_s = symbols.get_symbol_by_name(rhs);
+        else
+            lhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
+
+        if (stack.contains(rhs))
+            rhs_s = stack[rhs];
+        else if (ir::Table::is_rvalue_data_type(rhs))
+            rhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
+        else
+            rhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
+        if (temporary_expansion.has_value()) {
+            auto storage = temporary_expansion.value();
+            add_inst_s(instructions_, mov, Operand_Size::Dword, storage, lhs_s);
+            Storage_Operands operands = { storage, rhs_s };
+            auto inst = from_storage_relational_expression(
+                operands, Operand_Size::Dword, std::get<2>(expression));
+            detail::insert_inst(instructions_, inst.second);
+        } else {
+            Storage_Operands operands = { lhs_s, rhs_s };
+            auto inst = from_storage_relational_expression(
+                operands, Operand_Size::Dword, std::get<2>(expression));
+            detail::insert_inst(instructions_, inst.second);
+        }
+    } else if (ir::Table::is_rvalue_data_type(expr)) {
+        auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(expr);
+        add_inst_ll(instructions_, mov, Operand_Size::Dword, eax, imm);
+    } else {
+        auto imm = symbols.get_symbol_by_name(expr);
+        add_inst_ll(instructions_, mov, Operand_Size::Dword, eax, imm);
     }
 }
 
@@ -239,158 +319,52 @@ void Code_Generator::from_label_ita(ITA_Inst const& inst)
     instructions_.emplace_back(label);
 }
 
-Code_Generator::RValue_Operands
-Code_Generator::resolve_immediate_operands_from_table(
-    Immediate_Operands const& imm_value)
-{
-    RValue_Operands result = ir::Table::NULL_RVALUE_LITERAL;
-    auto symbols = table_->get_stack_frame_symbols();
-    std::visit(
-        util::overload{
-            [&](ir::Table::Binary_Expression const& s) {
-                auto lhs =
-                    util::substring_count_of(std::get<0>(s), ":") == 2
-                        ? table_->get_symbol_type_size_from_rvalue_string(
-                              std::get<0>(s))
-                        : symbols.get_symbol_by_name(std::get<0>(s));
-                auto rhs =
-                    util::substring_count_of(std::get<1>(s), ":") == 2
-                        ? table_->get_symbol_type_size_from_rvalue_string(
-                              std::get<1>(s))
-                        : symbols.get_symbol_by_name(std::get<1>(s));
-
-                result = std::make_pair(lhs, rhs);
-            },
-            [&](ir::Table::RValue_Data_Type const& s) { result = s; },
-            [&](ir::Table::LValue const& s) {
-                if (util::contains(s, "_t")) {
-                    auto temp = table_->from_temporary_lvalue(s);
-                    if (util::substring_count_of(temp, " ") == 2) {
-                        auto temp_r =
-                            table_->from_rvalue_binary_expression(temp);
-                        result = resolve_immediate_operands_from_table(temp_r);
-                    }
-                } else {
-                    result = symbols.get_symbol_by_name(s);
-                }
-            } },
-        imm_value);
-    return result;
-}
-
-Code_Generator::Binary_Operands
-Code_Generator::operands_from_binary_ita_operands(
-    ir::ITA::Quadruple const& inst)
-{
-    auto table_rvalue = table_->get_rvalue_from_mov_instruction(inst);
-    auto expression = table_->from_rvalue_binary_expression(table_rvalue.first);
-    std::string binary_op = std::get<2>(expression);
-
-    auto imm_operands =
-        std::get<0>(resolve_immediate_operands_from_table(expression));
-
-    Operands operands = { imm_operands.first, imm_operands.second };
-    return std::make_pair(binary_op, operands);
-}
-
 Code_Generator::Instruction_Pair
-Code_Generator::from_ita_binary_arithmetic_expression(
-    ir::ITA::Quadruple const& inst)
+Code_Generator::from_storage_arithmetic_expression(
+    Storage_Operands& operands,
+    Operand_Size size,
+    std::string const& binary_op)
 {
-    CREDENCE_ASSERT(std::get<0>(inst) == ir::ITA::Instruction::MOV);
     Instruction_Pair instructions{ Register::eax, {} };
-    auto operands = operands_from_binary_ita_operands(inst);
-    m::match(operands.first)(
+    m::match(binary_op)(
         // cppcheck-suppress syntaxError
         m::pattern | std::string{ "*" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    mul(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = mul(size, operands.first, operands.second); },
         m::pattern | std::string{ "/" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    div(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = div(size, operands.first, operands.second); },
         m::pattern | std::string{ "-" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    sub(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = sub(size, operands.first, operands.second); },
         m::pattern | std::string{ "+" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    add(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = add(size, operands.first, operands.second); },
         m::pattern | std::string{ "%" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    mod(size, operands.second.first, operands.second.second);
-            });
-
+            [&] { instructions = mod(size, operands.first, operands.second); });
     return instructions;
 }
 
 Code_Generator::Instruction_Pair
-Code_Generator::from_ita_trivial_relational_expression(
-    ir::ITA::Quadruple const& inst)
+Code_Generator::from_storage_relational_expression(
+    Storage_Operands& operands,
+    Operand_Size size,
+    std::string const& binary_op)
 {
-    CREDENCE_ASSERT(std::get<0>(inst) == ir::ITA::Instruction::MOV);
     Instruction_Pair instructions{ Register::eax, {} };
-    auto operands = operands_from_binary_ita_operands(inst);
-    m::match(operands.first)(
+    m::match(binary_op)(
         // cppcheck-suppress syntaxError
         m::pattern | std::string{ "==" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    r_eq(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = r_eq(size, operands.first, operands.second); },
         m::pattern | std::string{ "!=" } =
             [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    r_neq(size, operands.second.first, operands.second.second);
+                instructions = r_neq(size, operands.first, operands.second);
             },
         m::pattern | std::string{ "<" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    r_gt(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = r_gt(size, operands.first, operands.second); },
         m::pattern | std::string{ ">" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    r_lt(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = r_lt(size, operands.first, operands.second); },
         m::pattern | std::string{ "<=" } =
-            [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    r_le(size, operands.second.first, operands.second.second);
-            },
+            [&] { instructions = r_le(size, operands.first, operands.second); },
         m::pattern | std::string{ ">=" } =
             [&] {
-                auto size = get_size_from_table_rvalue(
-                    std::get<detail::Immediate>(operands.second.first));
-                instructions =
-                    r_ge(size, operands.second.first, operands.second.second);
+                instructions = r_ge(size, operands.first, operands.second);
             });
 
     return instructions;
