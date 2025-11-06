@@ -429,8 +429,8 @@ inline Immediate make_u32_integer_immediate(unsigned int imm)
 
 } // namespace detail
 
-Register get_accumulator_register_from_size(Operand_Size size);
-
+Register get_accumulator_register_from_size(
+    Operand_Size size = Operand_Size::Dword);
 Operand_Size get_size_from_table_rvalue(
     ir::Table::RValue_Data_Type const& rvalue);
 

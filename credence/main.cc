@@ -34,6 +34,8 @@
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
+#include <credence/target/x86_64/generator.h> // for x86_64
+
 int main(int argc, const char* argv[])
 {
     namespace py = pybind11;
@@ -128,18 +130,21 @@ int main(int argc, const char* argv[])
 
         std::ostringstream out_to{};
 
+        // clang-format off
         m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "ir" =
                 [&]() {
-                    credence::ir::emit_complete_ita(
-                        out_to, symbols, ast["root"]);
+                    credence::ir::emit_complete_ita(out_to, symbols, ast["root"]);
                 },
             m::pattern | "ast" =
                 [&]() {
-                    if (!ast.is_null()) {
+                    if (!ast.is_null())
                         out_to << ast["root"] << std::endl;
-                    }
+                },
+            m::pattern | "x86_64" =
+                [&]() {
+                    credence::target::x86_64::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "syntax" =
                 [&]() {
@@ -147,6 +152,7 @@ int main(int argc, const char* argv[])
                         out_to << syntax_tree << std::endl;
                     }
                 });
+        // clang-format on
 
         // emit to file or stdout
         credence::util::write_file_to_path_from_stringstream(

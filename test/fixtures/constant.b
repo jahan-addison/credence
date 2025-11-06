@@ -1,7 +1,8 @@
 main () {
-  auto m,c;
+  auto m,c,k;
   m = 1;
   c = 5;
+  // k = m || c;
   m = 10 * m + c - 0;
 }
 

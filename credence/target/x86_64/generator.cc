@@ -110,14 +110,14 @@ void Code_Generator::from_func_start_ita(ir::Table::Label const& name)
     set_table_stack_frame(name);
     auto frame = table_->functions[current_frame];
     auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
-    add_inst_ld(instructions_, push, Operand_Size::Dword, rbp);
-    add_inst_lrs(instructions_, push, Operand_Size::Dword, rbp, rsp);
+    add_inst_ld(instructions_, push, Operand_Size::Qword, rbp);
+    add_inst_lrs(instructions_, push, Operand_Size::Qword, rbp, rsp);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::ITA::Instruction::CALL)) {
         add_inst_ll(
             instructions_,
             sub,
-            Operand_Size::Dword,
+            Operand_Size::Qword,
             rsp,
             detail::make_u32_integer_immediate(stack_alloc));
     }
@@ -192,18 +192,18 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
     ir::Table::LValue lhs = std::get<1>(inst);
     auto symbols = table_->get_stack_frame_symbols();
     if (!ir::Table::is_temporary(lhs)) {
-        temporary_expansion.reset();
         CREDENCE_ASSERT(stack.contains(lhs));
+        auto lhs_storage = stack[lhs];
         ir::Table::RValue rhs =
             table_->get_rvalue_from_mov_instruction(inst).first;
-        auto lhs_storage = stack[lhs];
         if (ir::Table::is_rvalue_data_type(rhs)) {
             auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
             add_inst_s(
                 instructions_, mov, Operand_Size::Dword, lhs_storage, imm);
         } else if (ir::Table::is_temporary(rhs)) {
-            insert_from_temporary_table_rvalue(
-                table_->from_temporary_lvalue(rhs));
+            auto acc = get_accumulator_register_from_size();
+            add_inst_s(
+                instructions_, mov, Operand_Size::Dword, lhs_storage, acc);
         } else {
             add_inst_s(
                 instructions_,
@@ -212,85 +212,92 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
                 lhs_storage,
                 symbols.get_symbol_by_name(rhs));
         }
+        temporary_expansion = false;
     } else {
-        if (!temporary_expansion.has_value()) {
-            temporary_expansion = get_storage_device();
-        }
         insert_from_temporary_table_rvalue(table_->from_temporary_lvalue(lhs));
     }
+}
+
+Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
+    ir::Table::LValue const& lvalue,
+    std::string const& op)
+{
+    Storage storage{};
+    if (ir::Table::is_rvalue_data_type(lvalue)) {
+        auto acc = get_accumulator_register_from_size();
+        storage = ir::Table::get_symbol_type_size_from_rvalue_string(lvalue);
+        if (!temporary_expansion) {
+            temporary_expansion = true;
+            add_inst_s(instructions_, mov, Operand_Size::Dword, acc, storage);
+        }
+    } else if (temporary.contains(lvalue)) {
+        storage = temporary[lvalue];
+    } else if (stack.contains(lvalue)) {
+        storage = get_accumulator_register_from_size();
+        Storage_Operands operands = { storage, stack[lvalue] };
+        if (!temporary_expansion) {
+            temporary_expansion = true;
+            add_inst_s(
+                instructions_,
+                mov,
+                Operand_Size::Dword,
+                storage,
+                stack[lvalue]);
+            return storage;
+        } else {
+            auto inst = from_storage_arithmetic_expression(
+                operands, Operand_Size::Dword, op);
+            detail::insert_inst(instructions_, inst.second);
+            return storage;
+        }
+    } else
+        storage = get_accumulator_register_from_size();
+
+    return storage;
 }
 
 void Code_Generator::insert_from_temporary_table_rvalue(
     ir::Table::RValue const& expr)
 {
-    Storage lhs_s;
-    Storage rhs_s;
+    Storage lhs_s{};
+    Storage rhs_s{};
     auto symbols = table_->get_stack_frame_symbols();
+
     if (is_binary_math_operator(expr)) {
         auto expression = table_->from_rvalue_binary_expression(expr);
         auto lhs = std::get<0>(expression);
         auto rhs = std::get<1>(expression);
-        if (stack.contains(lhs))
-            lhs_s = stack[lhs];
-        else if (ir::Table::is_rvalue_data_type(lhs))
-            lhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(lhs);
-        else
-            lhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
+        auto op = std::get<2>(expression);
 
-        if (stack.contains(rhs))
-            rhs_s = stack[rhs];
-        else if (ir::Table::is_rvalue_data_type(rhs))
-            rhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
-        else if (symbols.is_defined(rhs))
-            rhs_s = symbols.get_symbol_by_name(rhs);
-        else
-            rhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
-        if (temporary_expansion.has_value()) {
-            auto storage = temporary_expansion.value();
-            add_inst_s(instructions_, mov, Operand_Size::Dword, storage, lhs_s);
-            Storage_Operands operands = { storage, rhs_s };
-            auto inst = from_storage_arithmetic_expression(
-                operands, Operand_Size::Dword, std::get<2>(expression));
-            detail::insert_inst(instructions_, inst.second);
-        } else {
-            Storage_Operands operands = { lhs_s, rhs_s };
-            auto inst = from_storage_arithmetic_expression(
-                operands, Operand_Size::Dword, std::get<2>(expression));
-            detail::insert_inst(instructions_, inst.second);
-        }
+        lhs_s = get_storage_from_temporary_lvalue(lhs, op);
+        rhs_s = get_storage_from_temporary_lvalue(rhs, op);
+        if (lhs_s == rhs_s)
+            return;
+        if (is_variant(detail::Immediate, lhs_s))
+            std::swap(lhs_s, rhs_s);
+
+        Storage_Operands operands = { lhs_s, rhs_s };
+        auto inst = from_storage_arithmetic_expression(
+            operands, Operand_Size::Dword, std::get<2>(expression));
+        detail::insert_inst(instructions_, inst.second);
     } else if (is_relation_binary_operators(expr)) {
         auto expression = table_->from_rvalue_binary_expression(expr);
         auto lhs = std::get<0>(expression);
         auto rhs = std::get<1>(expression);
+        auto op = std::get<2>(expression);
 
-        if (stack.contains(lhs))
-            lhs_s = stack[lhs];
-        else if (ir::Table::is_rvalue_data_type(lhs))
-            lhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(lhs);
-        else if (symbols.is_defined(rhs))
-            lhs_s = symbols.get_symbol_by_name(rhs);
-        else
-            lhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
+        lhs_s = get_storage_from_temporary_lvalue(lhs, op);
+        rhs_s = get_storage_from_temporary_lvalue(rhs, op);
+        if (lhs_s == rhs_s)
+            return;
+        if (is_variant(detail::Immediate, lhs_s))
+            std::swap(lhs_s, rhs_s);
 
-        if (stack.contains(rhs))
-            rhs_s = stack[rhs];
-        else if (ir::Table::is_rvalue_data_type(rhs))
-            rhs_s = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
-        else
-            rhs_s = get_accumulator_register_from_size(Operand_Size::Dword);
-        if (temporary_expansion.has_value()) {
-            auto storage = temporary_expansion.value();
-            add_inst_s(instructions_, mov, Operand_Size::Dword, storage, lhs_s);
-            Storage_Operands operands = { storage, rhs_s };
-            auto inst = from_storage_relational_expression(
-                operands, Operand_Size::Dword, std::get<2>(expression));
-            detail::insert_inst(instructions_, inst.second);
-        } else {
-            Storage_Operands operands = { lhs_s, rhs_s };
-            auto inst = from_storage_relational_expression(
-                operands, Operand_Size::Dword, std::get<2>(expression));
-            detail::insert_inst(instructions_, inst.second);
-        }
+        Storage_Operands operands = { lhs_s, rhs_s };
+        auto inst = from_storage_relational_expression(
+            operands, Operand_Size::Dword, std::get<2>(expression));
+        detail::insert_inst(instructions_, inst.second);
+
     } else if (ir::Table::is_rvalue_data_type(expr)) {
         auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(expr);
         add_inst_ll(instructions_, mov, Operand_Size::Dword, eax, imm);
@@ -368,6 +375,21 @@ Code_Generator::from_storage_relational_expression(
             });
 
     return instructions;
+}
+
+void emit(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast)
+{
+    using namespace credence::ir;
+    auto ita = ITA{ symbols };
+    auto instructions = ita.build_from_definitions(ast);
+    auto table = std::make_unique<ir::Table>(Table{ symbols, instructions });
+    table->build_vector_definitions_from_globals(ita.globals_);
+    table->build_from_ita_instructions();
+    auto generator = Code_Generator{ std::move(table) };
+    generator.emit(os);
 }
 
 } // namespace x86_64

@@ -56,9 +56,10 @@ class Code_Generator final : public target::Backend<detail::Storage>
         ir::Table::LValue,
         detail::Immediate>;
     using Local_Stack = std::map<ir::Table::LValue, unsigned int>;
-    // using Temporary_Stack
+    using Temporary_Storage = std::map<ir::Table::LValue, Storage>;
 
   public:
+    const Storage EMPTY_STORAGE = std::monostate{};
     // clang-format off
     std::map<Operand_Size, std::string>
     suffix = { { Operand_Size::Byte, "b" },
@@ -98,6 +99,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
+    Storage get_storage_from_temporary_lvalue(
+        ir::Table::LValue const& lvalue,
+        std::string const& op);
     Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
     Instruction_Pair from_ita_unary_expression(ir::ITA::Quadruple const& inst);
     Instruction_Pair from_ita_bitwise_expression(
@@ -175,12 +179,18 @@ class Code_Generator final : public target::Backend<detail::Storage>
     unsigned int constant_index{ 0 };
     unsigned int stack_offset{ 0 };
     Local_Stack stack{};
+    Temporary_Storage temporary{};
 
   private:
     std::string current_frame{ "main" };
-    std::optional<Storage> temporary_expansion;
+    bool temporary_expansion{ false };
     detail::Instructions instructions_;
     detail::Instructions data_;
 };
+
+void emit(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast);
 
 } // namespace x86_64
