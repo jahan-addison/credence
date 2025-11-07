@@ -38,6 +38,8 @@ class JSON;
 #define CREDENCE_PROTECTED_UNLESS_TESTED protected
 #endif
 
+#define is_variant(S, V) std::holds_alternative<S>(V)
+
 namespace credence {
 
 namespace util {

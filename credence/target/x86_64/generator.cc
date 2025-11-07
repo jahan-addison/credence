@@ -19,7 +19,6 @@
 #include <variant>                  // for get, holds_alternative, monostate
 
 #define ir_i(name) credence::ir::ITA::Instruction::name
-#define is_variant(S, V) std::holds_alternative<S>(V)
 
 namespace credence::target::x86_64 {
 
@@ -28,6 +27,9 @@ namespace m = matchit;
 void Code_Generator::emit(std::ostream& os)
 {
     build_from_ita_table();
+    os << std::endl;
+    os << ".intel_syntax noprefix" << std::endl;
+    os << std::endl;
     // clang-format off
     for (auto const& inst : instructions_) {
         std::visit(
@@ -35,10 +37,8 @@ void Code_Generator::emit(std::ostream& os)
             [&](detail::Instruction const& s) {
                 Mnemonic inst = std::get<0>(s);
                 os << "    " << inst;
-                if (inst != Mnemonic::mov)
-                    os << suffix[std::get<1>(s)];
-                Storage dest = std::get<2>(s);
-                Storage src = std::get<3>(s);
+                Storage dest = std::get<1>(s);
+                Storage src = std::get<2>(s);
                 if (!std::holds_alternative<std::monostate>(dest))
                     os << " " << emit_storage_device(dest);
                 if (!std::holds_alternative<std::monostate>(src))
@@ -51,6 +51,7 @@ void Code_Generator::emit(std::ostream& os)
                 inst);
     }
     // clang-format on
+    os << std::endl;
 }
 
 void Code_Generator::build_from_ita_table()
@@ -110,14 +111,13 @@ void Code_Generator::from_func_start_ita(ir::Table::Label const& name)
     set_table_stack_frame(name);
     auto frame = table_->functions[current_frame];
     auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
-    add_inst_ld(instructions_, push, Operand_Size::Qword, rbp);
-    add_inst_lrs(instructions_, push, Operand_Size::Qword, rbp, rsp);
+    adiild(instructions_, push, rbp);
+    addiilrs(instructions_, mov_, rbp, rsp);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::ITA::Instruction::CALL)) {
-        add_inst_ll(
+        addiill(
             instructions_,
             sub,
-            Operand_Size::Qword,
             rsp,
             detail::make_u32_integer_immediate(stack_alloc));
     }
@@ -153,10 +153,9 @@ void Code_Generator::from_func_end_ita()
     auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::ITA::Instruction::CALL)) {
-        add_inst_ll(
+        addiill(
             instructions_,
             add,
-            Operand_Size::Dword,
             rsp,
             detail::make_u32_integer_immediate(stack_alloc));
     }
@@ -171,7 +170,7 @@ void Code_Generator::from_push_ita(ITA_Inst const& inst)
     auto symbol = locals.get_symbol_by_name(lvalue);
     auto storage = get_storage_device();
 
-    add_inst_s(instructions_, mov, Operand_Size::Dword, storage, symbol);
+    addiis(instructions_, mov, storage, symbol);
 }
 
 void Code_Generator::from_locl_ita(ITA_Inst const& inst)
@@ -198,17 +197,15 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             table_->get_rvalue_from_mov_instruction(inst).first;
         if (ir::Table::is_rvalue_data_type(rhs)) {
             auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
-            add_inst_s(
-                instructions_, mov, Operand_Size::Dword, lhs_storage, imm);
+            addiis(instructions_, mov, lhs_storage, imm);
         } else if (ir::Table::is_temporary(rhs)) {
             auto acc = get_accumulator_register_from_size();
-            add_inst_s(
-                instructions_, mov, Operand_Size::Dword, lhs_storage, acc);
+            addiis(instructions_, mov, lhs_storage, acc);
         } else {
-            add_inst_s(
+            addiis(
                 instructions_,
                 mov,
-                Operand_Size::Dword,
+
                 lhs_storage,
                 symbols.get_symbol_by_name(rhs));
         }
@@ -228,7 +225,7 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
         storage = ir::Table::get_symbol_type_size_from_rvalue_string(lvalue);
         if (!temporary_expansion) {
             temporary_expansion = true;
-            add_inst_s(instructions_, mov, Operand_Size::Dword, acc, storage);
+            addiis(instructions_, mov, acc, storage);
         }
     } else if (temporary.contains(lvalue)) {
         storage = temporary[lvalue];
@@ -237,16 +234,15 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
         Storage_Operands operands = { storage, stack[lvalue] };
         if (!temporary_expansion) {
             temporary_expansion = true;
-            add_inst_s(
+            addiis(
                 instructions_,
                 mov,
-                Operand_Size::Dword,
+
                 storage,
                 stack[lvalue]);
             return storage;
         } else {
-            auto inst = from_storage_arithmetic_expression(
-                operands, Operand_Size::Dword, op);
+            auto inst = from_storage_arithmetic_expression(operands, op);
             detail::insert_inst(instructions_, inst.second);
             return storage;
         }
@@ -254,6 +250,27 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
         storage = get_accumulator_register_from_size();
 
     return storage;
+}
+
+void Code_Generator::insert_from_temporary_immediate_rvalues(
+    Storage& lhs,
+    std::string const& op,
+    Storage& rhs)
+{
+    auto imm_l = std::get<detail::Immediate>(lhs);
+    auto imm_r = std::get<detail::Immediate>(rhs);
+    auto imm = ir::Table::RValue_Data_Type(
+        std::format(
+            "{} {} {}",
+            ir::Table::get_value_from_rvalue_data_type(imm_l),
+            op,
+            ir::Table::get_value_from_rvalue_data_type(imm_r)),
+        "word",
+        8UL);
+    lhs = get_accumulator_register_from_size(Operand_Size::Dword);
+    Storage_Operands operands = { lhs, imm };
+    auto inst = from_storage_arithmetic_expression(operands, op);
+    detail::insert_inst(instructions_, inst.second);
 }
 
 void Code_Generator::insert_from_temporary_table_rvalue(
@@ -268,55 +285,58 @@ void Code_Generator::insert_from_temporary_table_rvalue(
         auto lhs = std::get<0>(expression);
         auto rhs = std::get<1>(expression);
         auto op = std::get<2>(expression);
-
         lhs_s = get_storage_from_temporary_lvalue(lhs, op);
         rhs_s = get_storage_from_temporary_lvalue(rhs, op);
+        if (is_variant(detail::Immediate, lhs_s) and
+            is_variant(detail::Immediate, rhs_s)) {
+            insert_from_temporary_immediate_rvalues(lhs_s, op, rhs_s);
+            return;
+        }
         if (lhs_s == rhs_s)
             return;
         if (is_variant(detail::Immediate, lhs_s))
             std::swap(lhs_s, rhs_s);
-
         Storage_Operands operands = { lhs_s, rhs_s };
-        auto inst = from_storage_arithmetic_expression(
-            operands, Operand_Size::Dword, std::get<2>(expression));
+        auto inst = from_storage_arithmetic_expression(operands, op);
         detail::insert_inst(instructions_, inst.second);
     } else if (is_relation_binary_operators(expr)) {
         auto expression = table_->from_rvalue_binary_expression(expr);
         auto lhs = std::get<0>(expression);
         auto rhs = std::get<1>(expression);
         auto op = std::get<2>(expression);
-
         lhs_s = get_storage_from_temporary_lvalue(lhs, op);
         rhs_s = get_storage_from_temporary_lvalue(rhs, op);
+        if (is_variant(detail::Immediate, lhs_s) and
+            is_variant(detail::Immediate, rhs_s)) {
+            insert_from_temporary_immediate_rvalues(lhs_s, op, rhs_s);
+            return;
+        }
         if (lhs_s == rhs_s)
             return;
         if (is_variant(detail::Immediate, lhs_s))
             std::swap(lhs_s, rhs_s);
-
         Storage_Operands operands = { lhs_s, rhs_s };
-        auto inst = from_storage_relational_expression(
-            operands, Operand_Size::Dword, std::get<2>(expression));
-        detail::insert_inst(instructions_, inst.second);
-
+        auto inst = from_storage_relational_expression(operands, op);
     } else if (ir::Table::is_rvalue_data_type(expr)) {
         auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(expr);
-        add_inst_ll(instructions_, mov, Operand_Size::Dword, eax, imm);
+        addiill(instructions_, mov, eax, imm);
     } else {
         auto imm = symbols.get_symbol_by_name(expr);
-        add_inst_ll(instructions_, mov, Operand_Size::Dword, eax, imm);
+        addiill(instructions_, mov, eax, imm);
     }
 }
 
 void Code_Generator::from_return_ita(Storage const& dest)
 {
-    add_inst_lr(instructions_, mov, Operand_Size::Dword, dest, eax);
+    addiilr(instructions_, mov, dest, eax);
 }
 
 void Code_Generator::from_leave_ita()
 {
     if (current_frame == "main")
-        add_inst_lrs(instructions_, xor_, Operand_Size::Dword, eax, eax);
-    add_inst_ld(instructions_, pop, Operand_Size::Qword, rbp);
+        addiilrs(instructions_, xor_, eax, eax);
+    adiild(instructions_, pop, rbp);
+    addiie(instructions_, ret);
 }
 
 void Code_Generator::from_label_ita(ITA_Inst const& inst)
@@ -329,50 +349,47 @@ void Code_Generator::from_label_ita(ITA_Inst const& inst)
 Code_Generator::Instruction_Pair
 Code_Generator::from_storage_arithmetic_expression(
     Storage_Operands& operands,
-    Operand_Size size,
     std::string const& binary_op)
 {
     Instruction_Pair instructions{ Register::eax, {} };
     m::match(binary_op)(
         // cppcheck-suppress syntaxError
         m::pattern | std::string{ "*" } =
-            [&] { instructions = mul(size, operands.first, operands.second); },
+            [&] { instructions = mul(operands.first, operands.second); },
         m::pattern | std::string{ "/" } =
-            [&] { instructions = div(size, operands.first, operands.second); },
+            [&] {
+                auto storage = get_storage_device(Operand_Size::Dword);
+                instructions = div(storage, operands.first);
+            },
         m::pattern | std::string{ "-" } =
-            [&] { instructions = sub(size, operands.first, operands.second); },
+            [&] { instructions = sub(operands.first, operands.second); },
         m::pattern | std::string{ "+" } =
-            [&] { instructions = add(size, operands.first, operands.second); },
+            [&] { instructions = add(operands.first, operands.second); },
         m::pattern | std::string{ "%" } =
-            [&] { instructions = mod(size, operands.first, operands.second); });
+            [&] { instructions = mod(operands.first, operands.second); });
     return instructions;
 }
 
 Code_Generator::Instruction_Pair
 Code_Generator::from_storage_relational_expression(
     Storage_Operands& operands,
-    Operand_Size size,
     std::string const& binary_op)
 {
     Instruction_Pair instructions{ Register::eax, {} };
     m::match(binary_op)(
         // cppcheck-suppress syntaxError
         m::pattern | std::string{ "==" } =
-            [&] { instructions = r_eq(size, operands.first, operands.second); },
+            [&] { instructions = r_eq(operands.first, operands.second); },
         m::pattern | std::string{ "!=" } =
-            [&] {
-                instructions = r_neq(size, operands.first, operands.second);
-            },
+            [&] { instructions = r_neq(operands.first, operands.second); },
         m::pattern | std::string{ "<" } =
-            [&] { instructions = r_gt(size, operands.first, operands.second); },
+            [&] { instructions = r_gt(operands.first, operands.second); },
         m::pattern | std::string{ ">" } =
-            [&] { instructions = r_lt(size, operands.first, operands.second); },
+            [&] { instructions = r_lt(operands.first, operands.second); },
         m::pattern | std::string{ "<=" } =
-            [&] { instructions = r_le(size, operands.first, operands.second); },
+            [&] { instructions = r_le(operands.first, operands.second); },
         m::pattern | std::string{ ">=" } =
-            [&] {
-                instructions = r_ge(size, operands.first, operands.second);
-            });
+            [&] { instructions = r_ge(operands.first, operands.second); });
 
     return instructions;
 }

@@ -229,6 +229,14 @@ class Table
     {
         return std::get<1>(rvalue);
     }
+    /**
+     * @brief Get the value from an rvalue data type object
+     */
+    static constexpr inline RValue get_value_from_rvalue_data_type(
+        RValue_Data_Type const& rvalue)
+    {
+        return std::get<0>(rvalue);
+    }
 
   public:
     static constexpr RValue_Data_Type NULL_RVALUE_LITERAL =

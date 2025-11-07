@@ -26,38 +26,41 @@
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
 
-#define BINARY_OP_INST_DEFINITION(name)                \
-    detail::Instruction_Pair name(Operand_Size size, detail::Storage& dest, detail::Storage& src)
+#define O_2_D(name) \
+    detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& src)
 
-#define THREE_OP_INST_DEFINITION(name)                \
-    detail::Instruction_Pair name(Operand_Size size, detail::Storage& dest, detail::Storage& s1, detail::Storage& s2)
+#define O_3_D(name)  \
+    detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& s1, detail::Storage& s2)
 
-#define UNARY_OP_INST_DEFINITION(name)                 \
-    detail::Instruction_Pair name(Operand_Size size, detail::Storage& dest)
+#define O_1_D(name)  \
+    detail::Instruction_Pair name(detail::Storage& src)
 
-#define add_inst_s(inst, op, size, lhs, rhs)    \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, lhs, rhs})
+#define addiis(inst, op, lhs, rhs)      \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
 
-#define add_inst_ll(inst, op, size, lhs, rhs)   \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, Register::lhs, rhs})
+#define addiill(inst, op, lhs, rhs)     \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, rhs})
 
-#define add_inst_lr(inst, op, size, lhs, rhs)   \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, lhs, Register::rhs})
+#define addiilr(inst, op, lhs, rhs)     \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, Register::rhs})
 
-#define add_inst_lrs(inst, op, size, lhs, rhs)  \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, Register::lhs, Register::rhs})
+#define addiilrs(inst, op, lhs, rhs)    \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
 
-#define add_inst_e(inst, op, size)              \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, detail::O_NUL, detail::O_NUL})
+#define addiie(inst, op)                \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
 
-#define add_inst_d(inst, op, size, dest)        \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, dest, detail::O_NUL})
+#define addiid(inst, op, dest)          \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
 
-#define add_inst_ld(inst, op, size, dest)        \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, size, Register::dest, detail::O_NUL})
+#define adiild(inst, op, dest)          \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::dest, detail::O_NUL})
 
-#define add_inst(inst, op, size, lhs, rhs)      \
-    inst.emplace_back(detail::Instruction{op, size, lhs, rhs})
+#define addiils(inst, op, dest)         \
+    inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
+
+#define addii(inst, op, lhs, rhs)    \
+    inst.emplace_back(detail::Instruction{op, lhs, rhs})
 
 namespace credence::target::x86_64 {
 
@@ -128,6 +131,7 @@ enum class Mnemonic
     setle,
     setge,
     and_,
+    mov_,
     xor_
 };
 
@@ -338,6 +342,10 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
             os << "mov";
             break;
 
+        case mn(mov_):
+            os << "mov";
+            break;
+
         case mn(push):
             os << "push";
             break;
@@ -389,22 +397,25 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
     return os;
 }
 
+Register get_accumulator_register_from_size(
+    Operand_Size size = Operand_Size::Dword);
+Operand_Size get_size_from_table_rvalue(
+    ir::Table::RValue_Data_Type const& rvalue);
+
 namespace detail {
 
 using Stack_Offset = unsigned int;
 
 inline constexpr auto O_NUL = std::monostate{};
-
+// clang-format off
 using Immediate = ir::Table::RValue_Data_Type;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
-
 // Intel syntax, Storage = Storage
-using Instruction = std::tuple<Mnemonic, Operand_Size, Storage, Storage>;
-using Three_Operand_Instruction =
-    std::tuple<Mnemonic, Operand_Size, Storage, Storage, Storage>;
+using Instruction = std::tuple<Mnemonic, Storage, Storage>;
+using Three_Operand_Instruction = std::tuple<Mnemonic, Storage, Storage, Storage>;
 using Label = ir::Table::Label;
 using Instructions = std::deque<std::variant<Label, Instruction>>;
-
+// clang-format on
 using Instruction_Pair = std::pair<Storage, detail::Instructions>;
 
 inline Instructions make_inst()
@@ -429,28 +440,23 @@ inline Immediate make_u32_integer_immediate(unsigned int imm)
 
 } // namespace detail
 
-Register get_accumulator_register_from_size(
-    Operand_Size size = Operand_Size::Dword);
-Operand_Size get_size_from_table_rvalue(
-    ir::Table::RValue_Data_Type const& rvalue);
-
-UNARY_OP_INST_DEFINITION(inc);
-UNARY_OP_INST_DEFINITION(dec);
-UNARY_OP_INST_DEFINITION(u_not);
-BINARY_OP_INST_DEFINITION(mul);
-BINARY_OP_INST_DEFINITION(div);
-BINARY_OP_INST_DEFINITION(sub);
-BINARY_OP_INST_DEFINITION(add);
-BINARY_OP_INST_DEFINITION(mod);
-BINARY_OP_INST_DEFINITION(r_eq);
-BINARY_OP_INST_DEFINITION(r_neq);
-BINARY_OP_INST_DEFINITION(r_lt);
-BINARY_OP_INST_DEFINITION(r_gt);
-BINARY_OP_INST_DEFINITION(r_le);
-BINARY_OP_INST_DEFINITION(r_ge);
-BINARY_OP_INST_DEFINITION(r_or);
-BINARY_OP_INST_DEFINITION(r_and);
-BINARY_OP_INST_DEFINITION(r_lt);
-THREE_OP_INST_DEFINITION(imul);
+O_1_D(inc);
+O_1_D(dec);
+O_1_D(u_not);
+O_2_D(mul);
+O_2_D(div);
+O_2_D(sub);
+O_2_D(add);
+O_2_D(mod);
+O_2_D(r_eq);
+O_2_D(r_neq);
+O_2_D(r_lt);
+O_2_D(r_gt);
+O_2_D(r_le);
+O_2_D(r_ge);
+O_2_D(r_or);
+O_2_D(r_and);
+O_2_D(r_lt);
+O_3_D(imul);
 
 } // namespace x86_64

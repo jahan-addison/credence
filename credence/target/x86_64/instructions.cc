@@ -35,151 +35,152 @@ Register get_accumulator_register_from_size(Operand_Size size)
 
 Instruction_Pair arithmetic_accumulator_two_form_instruction(
     Mnemonic mnemonic,
-    Operand_Size size,
     Storage& dest,
     Storage& src)
 {
-    using namespace credence::target::x86_64::detail;
+    CREDENCE_ASSERT(!is_variant(std::monostate, dest));
     auto instructions = make_inst();
-    add_inst(instructions, mnemonic, size, dest, src);
-    CREDENCE_ASSERT(!std::holds_alternative<std::monostate>(dest));
+    addii(instructions, mnemonic, dest, src);
     return { dest, instructions };
 }
 
-Instruction_Pair mul(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair arithmetic_one_form_instruction(
+    Mnemonic mnemonic,
+    Storage& src)
 {
-    return arithmetic_accumulator_two_form_instruction(
-        Mnemonic::imul, size, dest, src);
+    auto instructions = make_inst();
+    addii(instructions, mnemonic, src, O_NUL);
+    return { src, instructions };
 }
 
-Instruction_Pair div(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair mul(Storage& dest, Storage& src)
 {
     return arithmetic_accumulator_two_form_instruction(
-        Mnemonic::idiv, size, dest, src);
+        Mnemonic::imul, dest, src);
 }
 
-Instruction_Pair sub(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair div(Storage& dest, Storage& src)
+{
+    auto inst = make_inst();
+    addiie(inst, cdq);
+    addiis(inst, mov, dest, src);
+    addiid(inst, idiv, dest);
+    return { src, inst };
+}
+
+Instruction_Pair sub(Storage& dest, Storage& src)
 {
     return arithmetic_accumulator_two_form_instruction(
-        Mnemonic::sub, size, dest, src);
+        Mnemonic::sub, dest, src);
 }
 
-Instruction_Pair add(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair add(Storage& dest, Storage& src)
 {
     return arithmetic_accumulator_two_form_instruction(
-        Mnemonic::add, size, dest, src);
+        Mnemonic::add, dest, src);
 }
 
-Instruction_Pair mod(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair mod(Storage& dest, Storage& src)
 {
     auto storage = Register::eax;
     auto inst = make_inst();
-    if (size == Operand_Size::Qword) {
-        storage = Register::rax;
-        add_inst_s(inst, mov, size, storage, dest);
-        add_inst_e(inst, cqo, size);
-        add_inst_ll(inst, mov, size, rbx, src);
-        add_inst_ld(inst, idiv, size, rbx);
-        add_inst_lr(inst, mov, size, storage, rdx);
-    } else {
-        add_inst_s(inst, mov, size, storage, dest);
-        add_inst_e(inst, cdq, size);
-        add_inst_ll(inst, mov, size, ecx, src);
-        add_inst_ld(inst, idiv, size, ecx);
-        add_inst_lr(inst, mov, size, storage, edx);
-    }
+    addiis(inst, mov, storage, dest);
+    addiie(inst, cdq);
+    addiill(inst, mov, ecx, src);
+    adiild(inst, idiv, ecx);
+    addiilr(inst, mov, storage, edx);
     return { storage, inst };
 }
 
-Instruction_Pair inc(Operand_Size size, Storage& dest)
+Instruction_Pair inc(Storage& dest)
 {
     auto inst = make_inst();
-    add_inst_s(inst, inc, size, dest, O_NUL);
+    addiis(inst, inc, dest, O_NUL);
     return { dest, inst };
 }
 
-Instruction_Pair dec(Operand_Size size, Storage& dest)
+Instruction_Pair dec(Storage& dest)
 {
     auto inst = make_inst();
-    add_inst_s(inst, dec, size, dest, O_NUL);
+    addiis(inst, dec, dest, O_NUL);
     return { dest, inst };
 }
 
-Instruction_Pair r_eq(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair r_eq(Storage& dest, Storage& src)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, src);
-    add_inst_ld(inst, sete, size, al);
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, src);
+    adiild(inst, sete, al);
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 
-Instruction_Pair r_neq(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair r_neq(Storage& dest, Storage& src)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, src);
-    add_inst_ld(inst, setne, size, al);
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, src);
+    adiild(inst, setne, al);
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 
-Instruction_Pair u_not(Operand_Size size, Storage& dest)
+Instruction_Pair u_not(Storage& dest)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, make_integer_immediate(0));
-    add_inst_ld(inst, setne, size, al);
-    add_inst_s(inst, xor_, size, Register::al, make_integer_immediate(-1));
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, make_integer_immediate(0));
+    adiild(inst, setne, al);
+    addiis(inst, xor_, Register::al, make_integer_immediate(-1));
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 
-Instruction_Pair r_lt(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair r_lt(Storage& dest, Storage& src)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, src);
-    add_inst_ld(inst, setl, size, al);
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, src);
+    adiild(inst, setl, al);
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 
-Instruction_Pair r_gt(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair r_gt(Storage& dest, Storage& src)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, src);
-    add_inst_ld(inst, setg, size, al);
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, src);
+    adiild(inst, setg, al);
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 
-Instruction_Pair r_le(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair r_le(Storage& dest, Storage& src)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, src);
-    add_inst_ld(inst, setle, size, al);
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, src);
+    adiild(inst, setle, al);
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 
-Instruction_Pair r_ge(Operand_Size size, Storage& dest, Storage& src)
+Instruction_Pair r_ge(Storage& dest, Storage& src)
 {
     auto inst = make_inst();
-    add_inst_ll(inst, mov, size, eax, dest);
-    add_inst_ll(inst, cmp, size, eax, src);
-    add_inst_ld(inst, setge, size, al);
-    add_inst_s(inst, and_, size, Register::al, make_integer_immediate(1));
-    add_inst_lrs(inst, mov, size, eax, al);
+    addiill(inst, mov, eax, dest);
+    addiill(inst, cmp, eax, src);
+    adiild(inst, setge, al);
+    addiis(inst, and_, Register::al, make_integer_immediate(1));
+    addiilrs(inst, mov, eax, al);
     return { Register::eax, inst };
 }
 

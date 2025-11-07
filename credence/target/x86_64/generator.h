@@ -99,6 +99,10 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
+    void insert_from_temporary_immediate_rvalues(
+        Storage& lhs,
+        std::string const& op,
+        Storage& rhs);
     Storage get_storage_from_temporary_lvalue(
         ir::Table::LValue const& lvalue,
         std::string const& op);
@@ -108,11 +112,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
         ir::ITA::Quadruple const& inst);
     Instruction_Pair from_storage_arithmetic_expression(
         Storage_Operands& operands,
-        Operand_Size size,
         std::string const& binary_op);
     Instruction_Pair from_storage_relational_expression(
         Storage_Operands& operands,
-        Operand_Size size,
         std::string const& binary_op);
 
 
