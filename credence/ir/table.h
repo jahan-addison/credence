@@ -207,6 +207,17 @@ class Table
         return util::substring_count_of(rvalue, ":") == 2 and
                rvalue.starts_with("(") and rvalue.ends_with(")");
     }
+    static inline bool is_binary_rvalue_data_expression(RValue const& rvalue)
+    {
+        if (util::substring_count_of(rvalue, " ") != 2)
+            return false;
+        auto test = ir::Table::from_rvalue_binary_expression(rvalue);
+        if (!is_rvalue_data_type(std::get<0>(test)))
+            return false;
+        if (!is_rvalue_data_type(std::get<1>(test)))
+            return false;
+        return true;
+    }
     static constexpr inline bool is_temporary(RValue_Reference rvalue)
     {
         for (std::size_t i = 0; i < rvalue.size(); i++) {
@@ -359,7 +370,8 @@ class Table
         ITA::Quadruple const& instruction);
     RValue_Data_Type static get_symbol_type_size_from_rvalue_string(
         std::string const& datatype);
-    Binary_Expression from_rvalue_binary_expression(RValue const& rvalue);
+    static Binary_Expression from_rvalue_binary_expression(
+        RValue const& rvalue);
     RValue_Data_Type from_integral_unary_expression(RValue const& lvalue);
 
     // clang-format off

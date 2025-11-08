@@ -57,7 +57,41 @@ constexpr unsigned long type_variant(RValue_Type_Variant const& type)
     return static_cast<std::underlying_type_t<RValue_Type_Variant>>(type);
 }
 
+inline int integral_from_type_int(std::string const& t)
+{
+    return std::stoi(t);
+}
+
+inline long integral_from_type_long(std::string const& t)
+{
+    return std::stol(t);
+}
+
+inline float integral_from_type_float(std::string const& t)
+{
+    return std::stof(t);
+}
+
+inline float integral_from_type_double(std::string const& t)
+{
+    return std::stod(t);
+}
+
 } // namespace detail
+
+template<typename T>
+T integral_from_type(std::string const& t)
+{
+    if constexpr (std::is_same_v<T, int>) {
+        return detail::integral_from_type_int(t);
+    } else if constexpr (std::is_same_v<T, long>) {
+        return detail::integral_from_type_long(t);
+    } else if constexpr (std::is_same_v<T, float>) {
+        return detail::integral_from_type_float(t);
+    } else {
+        return detail::integral_from_type_double(t);
+    }
+}
 
 using Byte = unsigned char;
 using Type_Size = std::pair<std::string, std::size_t>;

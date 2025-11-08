@@ -1,0 +1,267 @@
+[
+  {
+    "m": {
+      "type": "lvalue",
+      "line": 2,
+      "start_pos": 17,
+      "column": 8,
+      "end_pos": 18,
+      "end_column": 9
+    },
+    "c": {
+      "type": "lvalue",
+      "line": 2,
+      "start_pos": 20,
+      "column": 11,
+      "end_pos": 21,
+      "end_column": 12
+    },
+    "k": {
+      "type": "lvalue",
+      "line": 2,
+      "start_pos": 23,
+      "column": 14,
+      "end_pos": 24,
+      "end_column": 15
+    },
+    "main": {
+      "type": "function_definition",
+      "line": 1,
+      "start_pos": 0,
+      "column": 1,
+      "end_pos": 4,
+      "end_column": 5
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "m"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "c"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "k"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "m"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "number_literal",
+                      "root": 20
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "c"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "number_literal",
+                      "root": 10
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "lvalue",
+                        "root": "c"
+                      },
+                      "root": [
+                        "/"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "lvalue",
+                        "root": "c"
+                      },
+                      "root": [
+                        "+"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "lvalue",
+                        "root": "c"
+                      },
+                      "root": [
+                        "-"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "lvalue",
+                        "root": "c"
+                      },
+                      "root": [
+                        "*"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "lvalue",
+                        "root": "c"
+                      },
+                      "root": [
+                        "%"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "number_literal",
+                        "root": 5
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "number_literal",
+                        "root": 5
+                      },
+                      "root": [
+                        "+"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

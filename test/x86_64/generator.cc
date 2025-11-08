@@ -81,16 +81,63 @@ TEST_CASE("target/x86_64: fixture: math_constant_2.b")
 main:
     push rbp
     mov rbp, rsp
-    mov eax, 20
-    cdq
-    mov edi, eax
-    idiv edi
+    mov eax, 4
     add eax, 1
     mov dword ptr [rbp - 4], eax
-    mov eax, 1
-    add eax, 1 + 1
+    mov eax, 2
     sub eax, dword ptr [rbp - 4]
     mov dword ptr [rbp - 8], eax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    REQUIRE(test.str() == expected);
+}
+
+TEST_CASE("target/x86_64: fixture: math_constant_4.b")
+{
+    using namespace credence::target::x86_64;
+    auto test = std::ostringstream{};
+    auto fixture_path = fs::path(ROOT_PATH);
+    fixture_path.append("test/fixtures/x86_64/ast");
+    // clang-format off
+    auto file_path = fs::path(fixture_path)
+        .append(std::format("{}.json", "math_constant_4"));
+    // clang-format on
+    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
+    credence::target::x86_64::emit(
+        test, fixture_content[0], fixture_content[1]);
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov dword ptr [rbp - 4], 20
+    mov dword ptr [rbp - 8], 10
+    mov eax, dword ptr [rbp - 4]
+    cdq
+    mov edi, dword ptr [rbp - 8]
+    idiv edi
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    add eax, dword ptr [rbp - 8]
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    sub eax, dword ptr [rbp - 8]
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    imul eax, dword ptr [rbp - 8]
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    cdq
+    mov esi, dword ptr [rbp - 8]
+    idiv esi
+    mov dword ptr [rbp - 12], edx
+    mov eax, 10
+    mov dword ptr [rbp - 12], eax
 _L1:
     xor eax, eax
     pop rbp

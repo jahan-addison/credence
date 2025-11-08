@@ -48,7 +48,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     using Instructions = detail::Instructions;
     using Operator_Symbol = std::string;
     using Storage_Operands = std::pair<Storage, Storage>;
-    using Immediate_Storage_Operands = std::variant<Storage_Operands, Storage>;
+    using Immediate_Operands = std::pair<detail::Immediate, detail::Immediate>;
     using Binary_Operator_Storage_Operands =
         std::pair<Operator_Symbol, Storage_Operands>;
     using Immediate_IR_Operands = std::variant<
@@ -82,6 +82,20 @@ class Code_Generator final : public target::Backend<detail::Storage>
         return test != math_binary_operators.end();
     }
 
+    Register get_accumulator_register_from_size(
+        Operand_Size size = Operand_Size::Dword)
+    {
+        namespace m = matchit;
+        if (special_register != Register::eax) {
+            auto special = special_register;
+            special_register = Register::eax;
+            return special;
+        }
+        return m::match(size)(
+            m::pattern | Operand_Size::Qword = [&] { return Register::rax; },
+            m::pattern | m::_ = [&] { return Register::eax; });
+    }
+
     constexpr inline bool is_relation_binary_operators(ir::Table::RValue rvalue)
     {
         auto test = std::ranges::find_if(
@@ -99,10 +113,15 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
+    bool is_immediate_temporary_expression(Storage const& imm);
     void insert_from_temporary_immediate_rvalues(
         Storage& lhs,
         std::string const& op,
         Storage& rhs);
+    detail::Immediate get_result_from_trivial_integral_expression(
+        detail::Immediate const& lhs,
+        std::string const& op,
+        detail::Immediate const& rhs);
     Storage get_storage_from_temporary_lvalue(
         ir::Table::LValue const& lvalue,
         std::string const& op);
@@ -185,6 +204,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   private:
     std::string current_frame{ "main" };
+    std::size_t ita_index{ 0 };
+    Register special_register = Register::eax;
     bool temporary_expansion{ false };
     detail::Instructions instructions_;
     detail::Instructions data_;

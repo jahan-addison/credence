@@ -428,9 +428,10 @@ inline void insert_inst(Instructions& to, Instructions const& from)
     to.insert(to.end(), from.begin(), from.end());
 }
 
-inline Immediate make_integer_immediate(int imm)
+template<typename T = int>
+inline Immediate make_integer_immediate(T imm, std::string const& type = "int")
 {
-    return Immediate{ std::to_string(imm), "int", 4UL };
+    return Immediate{ std::to_string(imm), type, 4UL };
 }
 
 inline Immediate make_u32_integer_immediate(unsigned int imm)

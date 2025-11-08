@@ -26,13 +26,6 @@ Operand_Size get_size_from_table_rvalue(
         m::pattern | m::_ = [&] { return Operand_Size::Dword; });
 }
 
-Register get_accumulator_register_from_size(Operand_Size size)
-{
-    return m::match(size)(
-        m::pattern | Operand_Size::Qword = [&] { return Register::rax; },
-        m::pattern | m::_ = [&] { return Register::eax; });
-}
-
 Instruction_Pair arithmetic_accumulator_two_form_instruction(
     Mnemonic mnemonic,
     Storage& dest,
@@ -68,6 +61,15 @@ Instruction_Pair div(Storage& dest, Storage& src)
     return { src, inst };
 }
 
+Instruction_Pair mod(Storage& dest, Storage& src)
+{
+    auto inst = make_inst();
+    addiie(inst, cdq);
+    addiis(inst, mov, dest, src);
+    addiid(inst, idiv, dest);
+    return { Register::edx, inst };
+}
+
 Instruction_Pair sub(Storage& dest, Storage& src)
 {
     return arithmetic_accumulator_two_form_instruction(
@@ -78,18 +80,6 @@ Instruction_Pair add(Storage& dest, Storage& src)
 {
     return arithmetic_accumulator_two_form_instruction(
         Mnemonic::add, dest, src);
-}
-
-Instruction_Pair mod(Storage& dest, Storage& src)
-{
-    auto storage = Register::eax;
-    auto inst = make_inst();
-    addiis(inst, mov, storage, dest);
-    addiie(inst, cdq);
-    addiill(inst, mov, ecx, src);
-    adiild(inst, idiv, ecx);
-    addiilr(inst, mov, storage, edx);
-    return { storage, inst };
 }
 
 Instruction_Pair inc(Storage& dest)
