@@ -133,27 +133,32 @@ int main(int argc, const char* argv[])
         // clang-format off
         m::match(target)(
             // cppcheck-suppress syntaxError
+            m::pattern | "x86_64" =
+                [&]() {
+                    credence::target::x86_64::emit(out_to, symbols, ast["root"]);
+                },
             m::pattern | "ir" =
                 [&]() {
-                    credence::ir::emit_complete_ita(out_to, symbols, ast["root"]);
+                    credence::ir::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "ast" =
                 [&]() {
                     if (!ast.is_null())
                         out_to << ast["root"] << std::endl;
                 },
-            m::pattern | "x86_64" =
-                [&]() {
-                    credence::target::x86_64::emit(out_to, symbols, ast["root"]);
-                },
             m::pattern | "syntax" =
                 [&]() {
                     if (!syntax_tree.empty()) {
                         out_to << syntax_tree << std::endl;
                     }
+                },
+            m::pattern | m::_ =
+                [&]() {
+                    std::cerr << "Credence :: Invalid target option"
+                              << std::endl;
+                    std::exit(1);
                 });
         // clang-format on
-
         // emit to file or stdout
         credence::util::write_file_to_path_from_stringstream(
             output, out_to, target == "ast" ? "json" : "bo");

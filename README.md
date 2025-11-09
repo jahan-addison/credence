@@ -25,7 +25,6 @@ There are a few differences between the compiler and B specification, namely:
   * The trivial vector is strongly typed
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
-* **No undefined behavior**
 * Boolean "truthy" coercion for all data types in conditionals
 * `GOTO` and labels are not supported, use control structures
 * Support for C++ style comments
@@ -186,6 +185,9 @@ _L1:
 ```bash
 make test
 ```
+
+
+* Note: Undefined behavior is left undocumented for educational purposes. Relevant findings may be reported through issues or pull requests
 
 ---
 

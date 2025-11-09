@@ -139,8 +139,6 @@ constexpr auto OPERATOR_PRECEDENCE =
 constexpr auto BINARY_OPERATORS =
     mapbox::eternal::map<std::string_view, Operator>(
         { { "||", Operator::R_OR },
-          { "&", Operator::AND },
-          { "|", Operator::OR },
           { "&&", Operator::R_AND },
           { "==", Operator::R_EQUAL },
           { "!=", Operator::R_NEQUAL },
@@ -150,6 +148,8 @@ constexpr auto BINARY_OPERATORS =
           { ">=", Operator::R_GE },
 
           { "^", Operator::XOR },
+          { "&", Operator::AND },
+          { "|", Operator::OR },
           { "<<", Operator::LSHIFT },
           { ">>", Operator::RSHIFT },
 

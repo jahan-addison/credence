@@ -667,7 +667,7 @@ _L1:
         out_to, instructions[table.functions.at("main")->address_location[1]]);
     REQUIRE(out_to.str() == "GOTO _L25;\n");
     out_to.str("");
-    credence::ir::emit_complete_ita(out_to, VECTOR_SYMBOLS, vector_2);
+    credence::ir::emit(out_to, VECTOR_SYMBOLS, vector_2);
     REQUIRE(out_to.str() == expected_2);
 }
 

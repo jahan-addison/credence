@@ -43,12 +43,7 @@ namespace ir {
 // Emission
 ///////////////
 
-void emit_partial_ita(
-    std::ostream& os,
-    util::AST_Node const& symbols,
-    util::AST_Node const& ast);
-
-void emit_complete_ita(
+void emit(
     std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast);
@@ -235,8 +230,9 @@ class Table
     /**
      * @brief Get the type from a local in the stack frame
      */
-    Type get_type_from_symbol(LValue const& lvalue);
-    static inline Type get_type_from_symbol(RValue_Data_Type const& rvalue)
+    Type get_type_from_rvalue_data_type(LValue const& lvalue);
+    static inline Type get_type_from_rvalue_data_type(
+        RValue_Data_Type const& rvalue)
     {
         return std::get<1>(rvalue);
     }
@@ -255,13 +251,10 @@ class Table
     using Binary_Expression = std::tuple<std::string, std::string, std::string>;
     constexpr static auto UNARY_TYPES = { "++", "--", "*", "&", "-",
                                           "+",  "~",  "!", "~" };
-
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
     /**
      * @brief is ITA unary
      */
-    constexpr inline bool is_unary(RValue_Reference rvalue)
+    static constexpr inline bool is_unary(RValue_Reference rvalue)
     {
         return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
             return rvalue.starts_with(x) or rvalue.ends_with(x);
@@ -273,7 +266,7 @@ class Table
     /**
      * @brief Get unary operator from ITA rvalue string
      */
-    constexpr inline RValue_Reference get_unary(RValue_Reference rvalue)
+    static constexpr inline RValue_Reference get_unary(RValue_Reference rvalue)
     {
         auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
             return rvalue.find(op) != std::string_view::npos;
@@ -281,10 +274,13 @@ class Table
         if (it == UNARY_TYPES.end())
             return "";
         return *it;
-    } /**
-       * @brief Get unary lvalue from ITA rvalue string
-       */
-    constexpr inline LValue get_unary_rvalue_reference(RValue_Reference rvalue, std::string_view unary_chracters = "+-*&+~!")
+    }
+    /**
+     * @brief Get unary lvalue from ITA rvalue string
+     */
+    static constexpr inline LValue get_unary_rvalue_reference(
+        RValue_Reference rvalue,
+        std::string_view unary_chracters = "+-*&+~!")
     {
         auto lvalue = std::string{ rvalue.begin(), rvalue.end() };
         lvalue.erase(
@@ -298,23 +294,24 @@ class Table
             lvalue.end());
         return lvalue;
     }
-    // clang-format on
     inline bool is_vector_or_pointer(RValue const& rvalue)
     {
         auto locals = get_stack_frame_symbols();
         return vectors.contains(rvalue) or util::contains(rvalue, "[") or
                locals.is_pointer(rvalue) or rvalue.starts_with("&");
     }
+    // clang-format off
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     /** Left-hand-side and right-hand-side type equality check */
     inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
     {
-        return get_type_from_symbol(lhs) == get_type_from_symbol(rhs);
+        return get_type_from_rvalue_data_type(lhs) == get_type_from_rvalue_data_type(rhs);
     }
     inline bool lhs_rhs_type_is_equal(
         LValue const& lhs,
         RValue_Data_Type const& rvalue)
     {
-        return get_type_from_symbol(lhs) == std::get<1>(rvalue);
+        return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
     }
     /**
      * @brief Either lhs or rhs are trivial vector assignments

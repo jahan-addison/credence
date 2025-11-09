@@ -26,13 +26,13 @@
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
 
-#define O_2_D(name) \
+#define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
     detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& src)
 
-#define O_3_D(name)  \
+#define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
     detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& s1, detail::Storage& s2)
 
-#define O_1_D(name)  \
+#define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
     detail::Instruction_Pair name(detail::Storage& src)
 
 #define addiis(inst, op, lhs, rhs)      \
@@ -99,7 +99,8 @@ enum class Register
     r14d,
     r15d,
 
-    al
+    al,
+    ax
 };
 
 enum class Mnemonic
@@ -135,13 +136,19 @@ enum class Mnemonic
     xor_
 };
 
-enum class Operand_Size
+enum class Operand_Size : std::size_t
 {
     Byte = 1,
     Word = 2,
     Dword = 4,
     Qword = 8,
+    Empty = 0
 };
+
+constexpr inline std::size_t get_size_from_operand_size(Operand_Size size)
+{
+    return static_cast<std::underlying_type_t<Operand_Size>>(size);
+}
 
 constexpr inline std::ostream& operator<<(std::ostream& os, Register r)
 {
@@ -269,8 +276,13 @@ constexpr inline std::ostream& operator<<(std::ostream& os, Register r)
         case rr(r15d):
             os << "r15d";
             break;
+
         case rr(al):
             os << "al";
+            break;
+
+        case rr(ax):
+            os << "ax";
             break;
     }
     return os;
@@ -404,7 +416,7 @@ Operand_Size get_size_from_table_rvalue(
 
 namespace detail {
 
-using Stack_Offset = unsigned int;
+using Stack_Offset = std::size_t;
 
 inline constexpr auto O_NUL = std::monostate{};
 // clang-format off
@@ -441,23 +453,30 @@ inline Immediate make_u32_integer_immediate(unsigned int imm)
 
 } // namespace detail
 
-O_1_D(inc);
-O_1_D(dec);
-O_1_D(u_not);
-O_2_D(mul);
-O_2_D(div);
-O_2_D(sub);
-O_2_D(add);
-O_2_D(mod);
-O_2_D(r_eq);
-O_2_D(r_neq);
-O_2_D(r_lt);
-O_2_D(r_gt);
-O_2_D(r_le);
-O_2_D(r_ge);
-O_2_D(r_or);
-O_2_D(r_and);
-O_2_D(r_lt);
-O_3_D(imul);
+DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);
+DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(dec);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mul);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(div);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(sub);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(add);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mod);
+
+DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(u_not);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_eq);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_neq);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_lt);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_gt);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_le);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_ge);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_or);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_and);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_lt);
+
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_ones);
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 
 } // namespace x86_64

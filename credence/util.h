@@ -21,6 +21,7 @@
 #include <cstddef>     // for size_t
 #include <filesystem>  // for filesystem
 #include <fstream>     // for ostream, ostringstream
+#include <map>         // for map
 #include <string>      // for allocator, string
 #include <string_view> // for string_view, basic_string_view
 #include <tuple>       // for apply, tuple
@@ -38,20 +39,20 @@ class JSON;
 #define CREDENCE_PROTECTED_UNLESS_TESTED protected
 #endif
 
-#define is_variant(S, V) std::holds_alternative<S>(V)
-
 namespace credence {
 
 namespace util {
 
 namespace fs = std::filesystem;
 
+namespace AST = json;
+using AST_Node = AST::JSON;
+
 ////////////////////
 // Visitor Pattern
 ////////////////////
 
-namespace AST = json;
-using AST_Node = AST::JSON;
+#define is_variant(S, V) std::holds_alternative<S>(V)
 
 // The overload pattern
 // (std::variant visitor)

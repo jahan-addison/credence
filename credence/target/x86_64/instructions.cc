@@ -15,7 +15,7 @@ Operand_Size get_size_from_table_rvalue(
     ir::Table::RValue_Data_Type const& rvalue)
 {
     using T = ir::Table::Type;
-    ir::Table::Type type = ir::Table::get_type_from_symbol(rvalue);
+    ir::Table::Type type = ir::Table::get_type_from_rvalue_data_type(rvalue);
     return m::match(type)(
         m::pattern | m::or_(T{ "int" }, T{ "string" }) =
             [&] { return Operand_Size::Dword; },

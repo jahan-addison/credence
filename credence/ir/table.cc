@@ -282,8 +282,8 @@ void Table::from_pointer_or_vector_assignment(
                         "with "
                         "type {} is not the same type ({})",
                         rvalue,
-                        get_type_from_symbol(lvalue),
-                        get_type_from_symbol(rvalue_symbol.value())),
+                        get_type_from_rvalue_data_type(lvalue),
+                        get_type_from_rvalue_data_type(rvalue_symbol.value())),
                     lvalue);
             vectors[lhs_lvalue]->data[offset] = rvalue_symbol.value();
         } else {
@@ -356,7 +356,7 @@ void Table::safely_reassign_pointers_or_vectors(
                     if (vectors.contains(lvalue) and
                         not vectors.contains(value)) {
                         auto vector_rvalue = vectors[lvalue]->data.at("0");
-                        if (get_type_from_symbol(lvalue) != "null" and
+                        if (get_type_from_rvalue_data_type(lvalue) != "null" and
                             !lhs_rhs_type_is_equal(value, vector_rvalue))
                             construct_error(
                                 std::format(
@@ -365,8 +365,9 @@ void Table::safely_reassign_pointers_or_vectors(
                                     "with "
                                     "type \"{}\" is not the same type ({})",
                                     value,
-                                    get_type_from_symbol(vector_rvalue),
-                                    get_type_from_symbol(value)),
+                                    get_type_from_rvalue_data_type(
+                                        vector_rvalue),
+                                    get_type_from_rvalue_data_type(value)),
                                 lvalue);
                         from_trivial_vector_assignment(lvalue, vector_rvalue);
                     } else if (
@@ -403,7 +404,7 @@ void Table::safely_reassign_pointers_or_vectors(
                         "pointer to non-pointer rvalue",
                         lvalue);
                 // the lvalue and rvalue vector data entry type must match
-                if (get_type_from_symbol(lvalue) != "null" and
+                if (get_type_from_rvalue_data_type(lvalue) != "null" and
                     !lhs_rhs_type_is_equal(lvalue, value))
                     construct_error(
                         std::format(
@@ -411,8 +412,8 @@ void Table::safely_reassign_pointers_or_vectors(
                             "with "
                             "type \"{}\" is not the same type ({})",
                             lvalue,
-                            get_type_from_symbol(lvalue),
-                            get_type_from_symbol(value)),
+                            get_type_from_rvalue_data_type(lvalue),
+                            get_type_from_rvalue_data_type(value)),
                         lvalue);
                 locals.set_symbol_by_name(lvalue, value);
             } },
@@ -422,7 +423,7 @@ void Table::safely_reassign_pointers_or_vectors(
 /**
  * @brief Get the type from a symbol in the local stack frame
  */
-Table::Type Table::get_type_from_symbol(LValue const& lvalue)
+Table::Type Table::get_type_from_rvalue_data_type(LValue const& lvalue)
 {
     auto& locals = get_stack_frame_symbols();
     if (util::contains(lvalue, "[")) {
@@ -837,7 +838,7 @@ inline void Table::from_type_invalid_assignment(
     RValue const& rvalue)
 {
     auto& locals = get_stack_frame_symbols();
-    if (get_type_from_symbol(lvalue) == "null")
+    if (get_type_from_rvalue_data_type(lvalue) == "null")
         return;
     if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue))
         return;
@@ -847,8 +848,8 @@ inline void Table::from_type_invalid_assignment(
                 "invalid lvalue assignment, right-hand-side \"{}\" "
                 "with type {} is not the same type ({})",
                 rvalue,
-                get_type_from_symbol(rvalue),
-                get_type_from_symbol(lvalue)),
+                get_type_from_rvalue_data_type(rvalue),
+                get_type_from_rvalue_data_type(lvalue)),
             lvalue);
 }
 
@@ -859,7 +860,7 @@ inline void Table::from_type_invalid_assignment(
     LValue const& lvalue,
     RValue_Data_Type const& rvalue)
 {
-    if (get_type_from_symbol(lvalue) == "null")
+    if (get_type_from_rvalue_data_type(lvalue) == "null")
         return;
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
         construct_error(
@@ -867,8 +868,8 @@ inline void Table::from_type_invalid_assignment(
                 "invalid lvalue assignment, right-hand-side \"{}\" "
                 "with type {} is not the same type ({})",
                 std::get<0>(rvalue),
-                get_type_from_symbol(rvalue),
-                get_type_from_symbol(lvalue)),
+                get_type_from_rvalue_data_type(rvalue),
+                get_type_from_rvalue_data_type(lvalue)),
             lvalue);
 }
 
@@ -892,23 +893,10 @@ inline void Table::construct_error(
 }
 
 /**
- * @brief Emit ita instructions to an std::ostream
- */
-void emit_partial_ita(
-    std::ostream& os,
-    util::AST_Node const& symbols,
-    util::AST_Node const& ast)
-{
-    auto instructions = credence::ir::Table::build_from_ast(symbols, ast)
-                            ->build_from_ita_instructions();
-    credence::ir::ITA::emit(os, instructions);
-}
-
-/**
  * @brief Emit ita instructions type and vector boundary checking an
  * and to an std::ostream Passes the global symbols from the ITA object
  */
-void emit_complete_ita(
+void emit(
     std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast)
