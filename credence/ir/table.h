@@ -266,7 +266,7 @@ class Table
     /**
      * @brief Get unary operator from ITA rvalue string
      */
-    static constexpr inline RValue_Reference get_unary(RValue_Reference rvalue)
+    static constexpr inline std::string get_unary(RValue_Reference rvalue)
     {
         auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
             return rvalue.find(op) != std::string_view::npos;
@@ -276,9 +276,9 @@ class Table
         return *it;
     }
     /**
-     * @brief Get unary lvalue from ITA rvalue string
+     * @brief Get unary rvalue from ITA rvalue string
      */
-    static constexpr inline LValue get_unary_rvalue_reference(
+    static constexpr inline RValue get_unary_rvalue_reference(
         RValue_Reference rvalue,
         std::string_view unary_chracters = "+-*&+~!")
     {

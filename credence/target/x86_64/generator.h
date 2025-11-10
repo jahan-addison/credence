@@ -177,7 +177,10 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
-    void from_binary_operator_expression(ir::Table::RValue const& expr);
+    void from_temporary_binary_operator_expression(
+        ir::Table::RValue const& expr);
+    void from_temporary_unary_operator_expression(
+        ir::Table::RValue const& expr);
     void insert_from_temporary_immediate_rvalues(
         Storage& lhs,
         std::string const& op,
@@ -194,7 +197,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
         ir::Table::LValue const& lvalue,
         std::string const& op);
     Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
-    Instruction_Pair from_ita_unary_expression(ir::ITA::Quadruple const& inst);
+    void from_ita_unary_expression(
+    std::string const& op,
+    Storage& dest);
     Instruction_Pair from_ita_bitwise_expression(
         ir::ITA::Quadruple const& inst);
     Instruction_Pair from_arithmetic_expression_operands(
@@ -257,7 +262,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
             });
     }
 
-    constexpr inline void reset_o_register()
+    inline void reset_o_register()
     {
         // clang-format off
         available_qword_register = {

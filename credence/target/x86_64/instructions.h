@@ -133,7 +133,8 @@ enum class Mnemonic
     setge,
     and_,
     mov_,
-    xor_
+    xor_,
+    not_
 };
 
 enum class Operand_Size : std::size_t
@@ -402,6 +403,10 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
             os << "and";
             break;
 
+        case mn(not_):
+            os << "not";
+            break;
+
         case mn(xor_):
             os << "xor";
             break;
@@ -476,7 +481,7 @@ DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_ones);
+DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 
 } // namespace x86_64

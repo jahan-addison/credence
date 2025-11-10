@@ -147,6 +147,78 @@ _L1:
     REQUIRE(test.str() == expected);
 }
 
+TEST_CASE("target/x86_64: fixture: math_constant_5.b")
+{
+    using namespace credence::target::x86_64;
+    auto test = std::ostringstream{};
+    auto fixture_path = fs::path(ROOT_PATH);
+    fixture_path.append("test/fixtures/x86_64/ast");
+    // clang-format off
+    auto file_path = fs::path(fixture_path)
+        .append(std::format("{}.json", "math_constant_5"));
+    // clang-format on
+    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
+    credence::target::x86_64::emit(
+        test, fixture_content[0], fixture_content[1]);
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov dword ptr [rbp - 8], 5
+    inc dword ptr [rbp - 4]
+    dec dword ptr [rbp - 8]
+    inc dword ptr [rbp - 8]
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    REQUIRE(test.str() == expected);
+}
+
+TEST_CASE("target/x86_64: fixture: math_constant_6.b")
+{
+    using namespace credence::target::x86_64;
+    auto test = std::ostringstream{};
+    auto fixture_path = fs::path(ROOT_PATH);
+    fixture_path.append("test/fixtures/x86_64/ast");
+    // clang-format off
+    auto file_path = fs::path(fixture_path)
+        .append(std::format("{}.json", "math_constant_6"));
+    // clang-format on
+    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
+    credence::target::x86_64::emit(
+        test, fixture_content[0], fixture_content[1]);
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov eax, dword ptr [rbp - 4]
+    not eax
+    mov dword ptr [rbp - 8], eax
+    inc dword ptr [rbp - 4]
+    dec dword ptr [rbp - 8]
+    inc dword ptr [rbp - 8]
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    REQUIRE(test.str() == expected);
+}
+
 TEST_CASE("target/x86_64: fixture: relation_constant.b")
 {
     using namespace credence::target::x86_64;

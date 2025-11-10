@@ -89,6 +89,13 @@ Instruction_Pair inc(Storage& dest)
     return { dest, inst };
 }
 
+Instruction_Pair b_not(Storage& dest)
+{
+    auto inst = make_inst();
+    addiis(inst, not_, dest, O_NUL);
+    return { dest, inst };
+}
+
 Instruction_Pair dec(Storage& dest)
 {
     auto inst = make_inst();

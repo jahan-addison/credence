@@ -237,9 +237,15 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             auto lhs_storage = get_stack_offset_from_lvalue(lhs);
             addiis(instructions_, mov, lhs_storage, acc);
         } else {
-            auto lhs_storage = get_stack_offset_from_lvalue(lhs);
-            auto symbol = symbols.get_symbol_by_name(rhs);
-            addiis(instructions_, mov, lhs_storage, symbol);
+            Storage lhs_storage = get_stack_offset_from_lvalue(lhs);
+            if (is_unary_operator(rhs)) {
+                auto symbol = symbols.get_symbol_by_name(lhs);
+                auto unary_op = ir::Table::get_unary(rhs);
+                from_ita_unary_expression(unary_op, lhs_storage);
+            } else {
+                auto symbol = symbols.get_symbol_by_name(rhs);
+                addiis(instructions_, mov, lhs_storage, symbol);
+            }
         }
         temporary_expansion = false;
     } else {
@@ -431,7 +437,48 @@ void Code_Generator::insert_from_temporary_immediate_rvalues(
     }
 }
 
-void Code_Generator::from_binary_operator_expression(
+void Code_Generator::from_ita_unary_expression(
+    std::string const& op,
+    Storage& dest)
+{
+    m::match(op)(
+        m::pattern | std::string{ "++" } =
+            [&] {
+                auto inst = inc(dest);
+                detail::insert_inst(instructions_, inst.second);
+            },
+        m::pattern | std::string{ "--" } =
+            [&] {
+                auto inst = dec(dest);
+                detail::insert_inst(instructions_, inst.second);
+            },
+        m::pattern | std::string{ "~" } =
+            [&] {
+                auto inst = b_not(dest);
+                detail::insert_inst(instructions_, inst.second);
+            });
+}
+
+void Code_Generator::from_temporary_unary_operator_expression(
+    ir::Table::RValue const& expr)
+{
+    CREDENCE_ASSERT(is_unary_operator(expr));
+    auto op = ir::Table::get_unary(expr);
+    ir::Table::RValue rvalue = table_->get_unary_rvalue_reference(expr);
+    get_storage_from_temporary_lvalue(rvalue, op);
+    if (stack_address.contains(rvalue)) {
+        auto size = stack_address[rvalue].second;
+        Storage dest = get_accumulator_register_from_size(size);
+        from_ita_unary_expression(op, dest);
+    } else {
+        auto size = get_size_from_table_rvalue(
+            ir::Table::get_symbol_type_size_from_rvalue_string(rvalue));
+        Storage dest = get_accumulator_register_from_size(size);
+        from_ita_unary_expression(op, dest);
+    }
+}
+
+void Code_Generator::from_temporary_binary_operator_expression(
     ir::Table::RValue const& expr)
 {
     CREDENCE_ASSERT(is_binary_operator(expr));
@@ -464,7 +511,9 @@ void Code_Generator::insert_from_temporary_table_rvalue(
 {
     auto symbols = table_->get_stack_frame_symbols();
     if (is_binary_operator(expr)) {
-        from_binary_operator_expression(expr);
+        from_temporary_binary_operator_expression(expr);
+    } else if (is_unary_operator(expr)) {
+        from_temporary_unary_operator_expression(expr);
     } else if (ir::Table::is_rvalue_data_type(expr)) {
         auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(expr);
         addiill(instructions_, mov, eax, imm);

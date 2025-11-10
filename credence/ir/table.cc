@@ -765,7 +765,9 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
 }
 
 /**
- * @brief Parse numeric ITA unary expressions
+ * @brief
+ * Parse numeric ITA unary expressions, where the rvalue may
+ * be from the temporary stack or the local frame stack
  */
 Table::RValue_Data_Type Table::from_integral_unary_expression(
     RValue const& lvalue)
@@ -785,19 +787,50 @@ Table::RValue_Data_Type Table::from_integral_unary_expression(
                 rvalue),
             lvalue);
 
-    auto symbol = frame->temporary.contains(rvalue)
-                      ? lvalue
-                      : std::get<1>(locals.get_symbol_by_name(rvalue));
-    if (std::ranges::find(integral_unary, symbol) == integral_unary.end() and
-        not frame->temporary.contains(rvalue))
-        construct_error(
-            std::format(
-                "invalid numeric unary expression on lvalue, lvalue type "
-                "\"{}\" is not a numeric type",
-                symbol),
-            lvalue);
-
-    return locals.get_symbol_by_name(rvalue);
+    if (frame->temporary.contains(lvalue)) {
+        auto temp_rvalue = get_unary_rvalue_reference(frame->temporary[lvalue]);
+        CREDENCE_ASSERT(is_rvalue_data_type(temp_rvalue));
+        auto rdt = get_symbol_type_size_from_rvalue_string(temp_rvalue);
+        if (std::ranges::find(integral_unary, std::get<1>(rdt)) ==
+            integral_unary.end())
+            construct_error(
+                std::format(
+                    "invalid numeric unary expression on lvalue, lvalue type "
+                    "\"{}\" is not a numeric type",
+                    lvalue),
+                frame->temporary[lvalue]);
+        return rdt;
+    } else {
+        auto symbol = locals.get_symbol_by_name(rvalue);
+        auto type = std::get<1>(symbol);
+        if (type == "word") {
+            auto rhs = get_unary_rvalue_reference(std::get<0>(symbol));
+            auto local_rvalue =
+                locals.is_defined(rhs)
+                    ? locals.get_symbol_by_name(rhs)
+                    : get_symbol_type_size_from_rvalue_string(rhs);
+            if (std::ranges::find(integral_unary, std::get<1>(local_rvalue)) ==
+                integral_unary.end())
+                construct_error(
+                    std::format(
+                        "invalid numeric unary expression on lvalue, lvalue "
+                        "type "
+                        "\"{}\" is not a numeric type",
+                        lvalue),
+                    std::get<0>(locals.get_symbol_by_name(rvalue)));
+            return local_rvalue;
+        } else {
+            if (std::ranges::find(integral_unary, type) == integral_unary.end())
+                construct_error(
+                    std::format(
+                        "invalid numeric unary expression on lvalue, lvalue "
+                        "type "
+                        "\"{}\" is not a numeric type",
+                        lvalue),
+                    rvalue);
+        }
+        return locals.get_symbol_by_name(rvalue);
+    }
 }
 
 /**

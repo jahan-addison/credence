@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include <algorithm> // for all_of
-#include <map>       // for map
-#include <utility>   // for pair
-#include <vector>    // for vector
+#include <cstddef> // for size_t
+#include <map>     // for map
+#include <utility> // for pair
+#include <vector>  // for vector
 
 ////////////////
 // Ordered_Map
@@ -84,19 +84,21 @@ struct Ordered_Map
         key_to_index.clear();
     }
     // Iteration in insertion order
-    typename std::vector<std::pair<Key, Value>>::iterator begin()
+    constexpr typename std::vector<std::pair<Key, Value>>::iterator begin()
     {
         return data.begin();
     }
-    typename std::vector<std::pair<Key, Value>>::iterator end()
+    constexpr typename std::vector<std::pair<Key, Value>>::iterator end()
     {
         return data.end();
     }
-    typename std::vector<std::pair<Key, Value>>::const_iterator begin() const
+    constexpr typename std::vector<std::pair<Key, Value>>::const_iterator
+    begin() const
     {
         return data.begin();
     }
-    typename std::vector<std::pair<Key, Value>>::const_iterator end() const
+    constexpr typename std::vector<std::pair<Key, Value>>::const_iterator end()
+        const
     {
         return data.end();
     }

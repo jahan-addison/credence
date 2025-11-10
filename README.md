@@ -177,7 +177,6 @@ _L1:
 
 ```
 
-
 ---
 
 ## Test suite
@@ -185,9 +184,6 @@ _L1:
 ```bash
 make test
 ```
-
-
-* Note: Undefined behavior is left undocumented for educational purposes. Relevant findings may be reported through issues or pull requests
 
 ---
 
