@@ -28,9 +28,21 @@
 namespace credence {
 
 template<typename Key, typename Value>
-struct Ordered_Map
+class Ordered_Map
 {
-    void insert(Key const& key, Value const& value)
+  public:
+    using Entry = std::pair<Key, Value>;
+
+  public:
+    constexpr explicit Ordered_Map() = default;
+
+  public:
+    constexpr Ordered_Map(Ordered_Map const&) = default;
+    constexpr Ordered_Map& operator=(Ordered_Map const&) = default;
+    constexpr Ordered_Map(Ordered_Map&& other) = default;
+
+  public:
+    constexpr void insert(Key const& key, Value const& value)
     {
         if (key_to_index.find(key) == key_to_index.end()) {
             data.emplace_back(key, value);
@@ -39,7 +51,7 @@ struct Ordered_Map
             data[key_to_index[key]].second = value;
         }
     }
-    Value& operator[](Key const& key)
+    constexpr Value& operator[](Key const& key)
     {
         if (!contains(key)) {
             data.emplace_back(key, Value());
@@ -47,23 +59,18 @@ struct Ordered_Map
         }
         return data[key_to_index[key]].second;
     }
-
-    constexpr inline std::pair<Key, Value> first() { return data.front(); }
-
-    constexpr inline std::pair<Key, Value> last() { return data.back(); }
-
-    constexpr inline std::pair<Key, Value> prev()
+    constexpr inline Entry first() { return data.front(); }
+    constexpr inline Entry last() { return data.back(); }
+    constexpr inline Entry prev()
     {
         return data.size() > 1 ? data.at(data.size() - 2) : data.back();
     }
 
-    constexpr inline std::pair<Key, Value> at(std::size_t at)
+    constexpr inline Value at(Key const& key)
     {
-        return data.at(at);
+        return data[key_to_index[key]].second;
     }
-
     constexpr inline std::size_t size() { return data.size(); }
-
     constexpr inline bool empty() { return data.empty(); }
 
     const Value& operator[](Key const& key) const
@@ -83,28 +90,22 @@ struct Ordered_Map
         data.clear();
         key_to_index.clear();
     }
-    // Iteration in insertion order
-    constexpr typename std::vector<std::pair<Key, Value>>::iterator begin()
+    constexpr typename std::vector<Entry>::iterator begin()
     {
         return data.begin();
     }
-    constexpr typename std::vector<std::pair<Key, Value>>::iterator end()
-    {
-        return data.end();
-    }
-    constexpr typename std::vector<std::pair<Key, Value>>::const_iterator
-    begin() const
+    constexpr typename std::vector<Entry>::iterator end() { return data.end(); }
+    constexpr typename std::vector<Entry>::const_iterator begin() const
     {
         return data.begin();
     }
-    constexpr typename std::vector<std::pair<Key, Value>>::const_iterator end()
-        const
+    constexpr typename std::vector<Entry>::const_iterator end() const
     {
         return data.end();
     }
 
   private:
-    std::vector<std::pair<Key, Value>> data;
+    std::vector<Entry> data;
     std::map<Key, size_t> key_to_index;
 };
 

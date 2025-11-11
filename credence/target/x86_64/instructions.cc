@@ -11,27 +11,11 @@ using namespace credence::target::x86_64::detail;
 
 namespace m = matchit;
 
-Operand_Size get_size_from_table_rvalue(
-    ir::Table::RValue_Data_Type const& rvalue)
-{
-    using T = ir::Table::Type;
-    ir::Table::Type type = ir::Table::get_type_from_rvalue_data_type(rvalue);
-    return m::match(type)(
-        m::pattern | m::or_(T{ "int" }, T{ "string" }) =
-            [&] { return Operand_Size::Dword; },
-        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
-            [&] { return Operand_Size::Qword; },
-        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
-        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
-        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
-}
-
 Instruction_Pair arithmetic_accumulator_two_form_instruction(
     Mnemonic mnemonic,
     Storage& dest,
     Storage& src)
 {
-    CREDENCE_ASSERT(!is_variant(std::monostate, dest));
     auto instructions = make_inst();
     addii(instructions, mnemonic, dest, src);
     return { dest, instructions };

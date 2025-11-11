@@ -46,60 +46,85 @@ class Code_Generator final : public target::Backend<detail::Storage>
     }
 
   private:
-    using Stack_Entry = std::pair<detail::Stack_Offset, Operand_Size>;
-    using Stack_Pair = std::pair<ir::Table::LValue, Stack_Entry>;
     using Operator_Symbol = std::string;
     using Instruction_Pair = detail::Instruction_Pair;
     using Storage = detail::Storage;
     using Immediate = detail::Immediate;
     using Instructions = detail::Instructions;
     using Storage_Operands = std::pair<Storage, Storage>;
-    using Local_Stack = Ordered_Map<ir::Table::LValue, Stack_Entry>;
+
+  public:
+    void emit(std::ostream& os) override;
 
   public:
     const Storage EMPTY_STORAGE = std::monostate{};
-    // clang-format off
-    const std::map<Operand_Size, std::string>
-    suffix = { { Operand_Size::Byte, "b" },
-              { Operand_Size::Word, "w" },
-              { Operand_Size::Dword, "l" },
-              { Operand_Size::Qword,
-                "q" } };
+    const std::map<Operand_Size, std::string> suffix = {
+        { Operand_Size::Byte, "b" },
+        { Operand_Size::Word, "w" },
+        { Operand_Size::Dword, "l" },
+        { Operand_Size::Qword, "q" }
+    };
     static constexpr const auto QWORD_REGISTER = {
-        Register::rdi, Register::r8,
-        Register::r9,  Register::rsi,
-        Register::rdx, Register::rcx
+        Register::rdi, Register::r8,  Register::r9,
+        Register::rsi, Register::rdx, Register::rcx
     };
     static constexpr const auto DWORD_REGISTER = {
-        Register::rdi, Register::r8,
-        Register::r9,  Register::rsi,
-        Register::rdx, Register::rcx
+        Register::rdi, Register::r8,  Register::r9,
+        Register::rsi, Register::rdx, Register::rcx
     };
+
   private:
-    std::deque<Register> available_qword_register =
-    {
-        Register::rdi, Register::r8,
-        Register::r9,  Register::rsi,
-        Register::rdx, Register::rcx
+    std::deque<Register> available_qword_register = {
+        Register::rdi, Register::r8,  Register::r9,
+        Register::rsi, Register::rdx, Register::rcx
     };
-    std::deque<Register> available_dword_register =
-    {
-        Register::edi, Register::r8d,
-        Register::r9d, Register::esi,
-        Register::edx, Register::ecx
+    std::deque<Register> available_dword_register = {
+        Register::edi, Register::r8d, Register::r9d,
+        Register::esi, Register::edx, Register::ecx
     };
-    constexpr static auto math_binary_operators = {
-        "*", "/", "-", "+", "%"
-    };
-    constexpr static auto unary_operators = {
-        "++", "--", "*", "&", "-",
-        "+",  "~",  "!", "~"
-    };
+    constexpr static auto math_binary_operators = { "*", "/", "-", "+", "%" };
+    constexpr static auto unary_operators = { "++", "--", "*", "&", "-",
+                                              "+",  "~",  "!", "~" };
     constexpr static auto relation_binary_operators = {
-        "==", "!=", "<", "&&",
-        "||", ">", "<=", ">="
+        "==", "!=", "<", "&&", "||", ">", "<=", ">="
     };
-    // clang-format on
+
+    struct Stack
+    {
+        using LValue = ir::Table::LValue;
+        using Offset = detail::Stack_Offset;
+        using Entry = std::pair<Offset, Operand_Size>;
+        using Pair = std::pair<LValue, Entry>;
+        using Local = Ordered_Map<LValue, Entry>;
+        constexpr void make(LValue const& lvalue);
+        constexpr Entry get(LValue const& lvalue);
+        constexpr Entry get(Offset offset);
+        constexpr inline void clear() { stack_address.clear(); }
+        constexpr inline bool empty_at(LValue const& lvalue)
+        {
+            return stack_address[lvalue].second == Operand_Size::Empty;
+        }
+        constexpr inline bool contains(LValue const& lvalue)
+        {
+            return stack_address.contains(lvalue);
+        }
+        constexpr Operand_Size get_operand_size_from_offset(Offset offset);
+        constexpr Offset allocate(Operand_Size operand);
+        constexpr void set_address_from_accumulator(
+            LValue const& lvalue,
+            Register acc);
+        constexpr void set_address_from_immediate(
+            LValue const& lvalue,
+            Immediate const& rvalue);
+
+      private:
+        Offset size{ 0 };
+        Local stack_address{};
+    };
+
+  private:
+    Stack stack{};
+
     constexpr inline bool is_binary_math_operator(
         ir::Table::RValue const& rvalue)
     {
@@ -155,7 +180,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
             m::pattern | m::_ = [&] { return Register::eax; });
     }
 
-    constexpr inline Operand_Size get_size_from_accumulator_register(
+    static constexpr inline Operand_Size get_size_from_accumulator_register(
         Register acc)
     {
         if (acc == Register::al) {
@@ -168,15 +193,6 @@ class Code_Generator final : public target::Backend<detail::Storage>
             return Operand_Size::Dword;
         }
     }
-    void set_stack_address_from_accumulator_size(
-        ir::Table::LValue const& lvalue,
-        Register acc);
-    void set_stack_address_from_immediate(
-        ir::Table::LValue const& lvalue,
-        Immediate const& rvalue);
-
-  public:
-    void emit(std::ostream& os) override;
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -221,51 +237,6 @@ class Code_Generator final : public target::Backend<detail::Storage>
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Storage get_storage_device(Operand_Size size = Operand_Size::Qword);
     // clang-format on
-    inline std::size_t get_stack_offset_from_lvalue(
-        ir::Table::LValue const& lvalue)
-    {
-        CREDENCE_ASSERT(stack_address[lvalue].second != Operand_Size::Empty);
-        return stack_address[lvalue].first;
-    }
-
-    constexpr inline std::size_t get_stack_offset()
-    {
-        return std::accumulate(
-            stack_address.begin(),
-            stack_address.end(),
-            0UL,
-            [&](std::size_t offset, Stack_Pair const& entry) {
-                return offset += entry.second.first;
-            });
-    }
-
-    constexpr inline std::size_t get_size_of_stored_lvalues()
-    {
-        return std::accumulate(
-            stack_address.begin(),
-            stack_address.end(),
-            0UL,
-            [&](std::size_t offset, Stack_Pair const& entry) {
-                if (entry.second.second != Operand_Size::Empty)
-                    return ++offset;
-                return offset;
-            });
-    }
-
-    constexpr inline Operand_Size get_stack_operand_size_from_offset(
-        std::size_t offset)
-    {
-        return std::accumulate(
-            stack_address.begin(),
-            stack_address.end(),
-            Operand_Size::Empty,
-            [&](Operand_Size size, Stack_Pair const& entry) {
-                if (entry.second.first == offset)
-                    return entry.second.second;
-                return size;
-            });
-    }
-
     inline void reset_o_register()
     {
         // clang-format off
@@ -279,15 +250,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
         };
         // clang-format on
     }
-
-    constexpr inline bool is_qword_register(Register r)
+    static constexpr inline bool is_qword_register(Register r)
     {
         return std::ranges::find(
                    QWORD_REGISTER.begin(), QWORD_REGISTER.end(), r) !=
                QWORD_REGISTER.end();
     }
-
-    constexpr inline bool is_dword_register(Register r)
+    static constexpr inline bool is_dword_register(Register r)
     {
         return std::ranges::find(
                    DWORD_REGISTER.begin(), DWORD_REGISTER.end(), r) !=
@@ -312,17 +281,12 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // void from_jmp_e_ita() override;
     // void from_pop_ita() override;
     // void from_call_ita() override;
-    void from_noop_ita() override {
-    }
     // clang-format on
-
-  private:
-    unsigned int constant_index{ 0 };
-    Local_Stack stack_address{};
 
   private:
     std::string current_frame{ "main" };
     std::size_t ita_index{ 0 };
+    std::size_t constant_index{ 0 };
     Register special_register = Register::eax;
     bool temporary_expansion{ false };
     detail::Instructions instructions_;

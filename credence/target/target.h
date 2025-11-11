@@ -69,7 +69,6 @@ class Backend
     // virtual void from_jmp_e_ita() = 0;
     // virtual void from_pop_ita() = 0;
     // virtual void from_call_ita() = 0;
-    virtual void from_noop_ita() = 0;
   CREDENCE_PROTECTED_UNLESS_TESTED:
     ir::Table::Table_PTR table_;
 };

@@ -421,8 +421,22 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 
 Register get_accumulator_register_from_size(
     Operand_Size size = Operand_Size::Dword);
-Operand_Size get_size_from_table_rvalue(
-    ir::Table::RValue_Data_Type const& rvalue);
+
+constexpr Operand_Size get_size_from_table_rvalue(
+    ir::Table::RValue_Data_Type const& rvalue)
+{
+    namespace m = matchit;
+    using T = ir::Table::Type;
+    ir::Table::Type type = ir::Table::get_type_from_rvalue_data_type(rvalue);
+    return m::match(type)(
+        m::pattern | m::or_(T{ "int" }, T{ "string" }) =
+            [&] { return Operand_Size::Dword; },
+        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
+            [&] { return Operand_Size::Qword; },
+        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
+        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
+        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
+}
 
 namespace detail {
 
@@ -449,7 +463,6 @@ inline void insert_inst(Instructions& to, Instructions const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
 }
-
 template<typename T = int>
 inline Immediate make_integer_immediate(T imm, std::string const& type = "int")
 {

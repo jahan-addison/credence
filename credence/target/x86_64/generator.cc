@@ -71,9 +71,9 @@ void Code_Generator::emit(std::ostream& os)
                 os << "    " << inst;
                 Storage dest = std::get<1>(s);
                 Storage src = std::get<2>(s);
-                if (!std::holds_alternative<std::monostate>(dest))
+                if (!is_variant(std::monostate, dest))
                     os << " " << emit_storage_device(dest);
-                if (!std::holds_alternative<std::monostate>(src))
+                if (!is_variant(std::monostate, src))
                     os << ", " << emit_storage_device(src);
                 os << std::endl;
             },
@@ -84,6 +84,53 @@ void Code_Generator::emit(std::ostream& os)
     }
     // clang-format on
     os << std::endl;
+}
+
+void emit(
+    std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast)
+{
+    using namespace credence::ir;
+    auto ita = ITA{ symbols };
+    auto instructions = ita.build_from_definitions(ast);
+    auto table = std::make_unique<ir::Table>(Table{ symbols, instructions });
+    table->build_vector_definitions_from_globals(ita.globals_);
+    table->build_from_ita_instructions();
+    auto generator = Code_Generator{ std::move(table) };
+    generator.emit(os);
+}
+
+std::string Code_Generator::emit_storage_device(Storage const& storage)
+{
+    std::string sloc;
+    std::visit(
+        util::overload{
+            [&]([[maybe_unused]] std::monostate s) {},
+            [&](Stack::Offset s) {
+                auto size = stack.get_operand_size_from_offset(s);
+                CREDENCE_ASSERT(size != Operand_Size::Empty);
+                std::string prefix = m::match(size)(
+                    m::pattern |
+                        Operand_Size::Qword = [&] { return "qword ptr"; },
+                    m::pattern |
+                        Operand_Size::Dword = [&] { return "dword ptr"; },
+                    m::pattern |
+                        Operand_Size::Word = [&] { return "word ptr"; },
+                    m::pattern |
+                        Operand_Size::Byte = [&] { return "byte ptr"; },
+                    m::pattern | m::_ = [&] { return "dword ptr"; });
+
+                sloc = std::format("{} [rbp - {}]", prefix, s);
+            },
+            [&](Register s) {
+                std::stringstream ss{};
+                ss << s;
+                sloc = ss.str();
+            },
+            [&](Immediate const& s) { sloc = std::get<0>(s); } },
+        storage);
+    return sloc;
 }
 
 void Code_Generator::build_from_ita_table()
@@ -114,42 +161,10 @@ void Code_Generator::build_from_ita_table()
     }
 }
 
-std::string Code_Generator::emit_storage_device(Storage const& storage)
-{
-    std::string sloc;
-    std::visit(
-        util::overload{
-            [&]([[maybe_unused]] std::monostate s) {},
-            [&](detail::Stack_Offset s) {
-                auto size = get_stack_operand_size_from_offset(s);
-                CREDENCE_ASSERT(size != Operand_Size::Empty);
-                std::string prefix = m::match(size)(
-                    m::pattern |
-                        Operand_Size::Qword = [&] { return "qword ptr"; },
-                    m::pattern |
-                        Operand_Size::Dword = [&] { return "dword ptr"; },
-                    m::pattern |
-                        Operand_Size::Word = [&] { return "word ptr"; },
-                    m::pattern |
-                        Operand_Size::Byte = [&] { return "byte ptr"; },
-                    m::pattern | m::_ = [&] { return "dword ptr"; });
-
-                sloc = std::format("{} [rbp - {}]", prefix, s);
-            },
-            [&](Register s) {
-                std::stringstream ss{};
-                ss << s;
-                sloc = ss.str();
-            },
-            [&](Immediate const& s) { sloc = std::get<0>(s); } },
-        storage);
-    return sloc;
-}
-
 void Code_Generator::from_func_start_ita(ir::Table::Label const& name)
 {
     CREDENCE_ASSERT(table_->functions.contains(name));
-    stack_address.clear();
+    stack.clear();
     current_frame = name;
     set_table_stack_frame(name);
     auto frame = table_->functions[current_frame];
@@ -175,7 +190,7 @@ Code_Generator::Storage Code_Generator::get_storage_device(Operand_Size size)
         registers.pop_front();
         return storage;
     } else {
-        return get_stack_offset() + get_size_from_operand_size(size);
+        return stack.allocate(size);
     }
 }
 
@@ -210,7 +225,7 @@ void Code_Generator::from_push_ita(ITA_Inst const& inst)
 void Code_Generator::from_locl_ita(ITA_Inst const& inst)
 {
     ir::Table::LValue lvalue = std::get<1>(inst);
-    stack_address[lvalue] = { 0, Operand_Size::Empty };
+    stack.make(lvalue);
 }
 
 void Code_Generator::from_cmp_ita([[maybe_unused]] ITA_Inst const& inst)
@@ -223,21 +238,21 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
     ir::Table::LValue lhs = std::get<1>(inst);
     auto symbols = table_->get_stack_frame_symbols();
     if (!ir::Table::is_temporary(lhs)) {
-        CREDENCE_ASSERT(stack_address.contains(lhs));
+        CREDENCE_ASSERT(stack.contains(lhs));
         ir::Table::RValue rhs =
             table_->get_rvalue_from_mov_instruction(inst).first;
         if (ir::Table::is_rvalue_data_type(rhs)) {
             auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(rhs);
-            set_stack_address_from_immediate(lhs, imm);
-            auto lhs_storage = get_stack_offset_from_lvalue(lhs);
+            stack.set_address_from_immediate(lhs, imm);
+            auto lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, imm);
         } else if (ir::Table::is_temporary(rhs)) {
             auto acc = get_accumulator_register_from_size();
-            set_stack_address_from_accumulator_size(lhs, acc);
-            auto lhs_storage = get_stack_offset_from_lvalue(lhs);
+            stack.set_address_from_accumulator(lhs, acc);
+            auto lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, acc);
         } else {
-            Storage lhs_storage = get_stack_offset_from_lvalue(lhs);
+            Storage lhs_storage = stack.get(lhs).first;
             if (is_unary_operator(rhs)) {
                 auto symbol = symbols.get_symbol_by_name(lhs);
                 auto unary_op = ir::Table::get_unary(rhs);
@@ -269,12 +284,9 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
             if (!ir::Table::is_binary_rvalue_data_expression(rvalue))
                 addiis(instructions_, mov, acc, storage);
         }
-    } else if (
-        stack_address.contains(lvalue) and
-        stack_address[lvalue].second != Operand_Size::Empty) {
-        storage =
-            get_accumulator_register_from_size(stack_address[lvalue].second);
-        auto address = stack_address[lvalue].first;
+    } else if (stack.contains(lvalue) and not stack.empty_at(lvalue)) {
+        storage = get_accumulator_register_from_size(stack.get(lvalue).second);
+        auto address = stack.get(lvalue).first;
         Storage_Operands operands = { storage, address };
         if (!temporary_expansion) {
             temporary_expansion = true;
@@ -289,46 +301,6 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
         storage = get_accumulator_register_from_size();
 
     return storage;
-}
-
-void Code_Generator::set_stack_address_from_immediate(
-    ir::Table::LValue const& lvalue,
-    Immediate const& rvalue)
-{
-    auto operand_size = get_size_from_table_rvalue(rvalue);
-    auto value_size = get_size_from_operand_size(operand_size);
-    if (stack_address[lvalue].first != 0UL or
-        stack_address[lvalue].second == operand_size)
-        return;
-    if (get_size_of_stored_lvalues() > 1) {
-        auto top_size = stack_address.prev().second.first;
-        stack_address[lvalue].first = top_size + value_size;
-    } else {
-        stack_address[lvalue].first = get_stack_offset() + value_size;
-    }
-    stack_address[lvalue].second = operand_size;
-}
-
-void Code_Generator::set_stack_address_from_accumulator_size(
-    ir::Table::LValue const& lvalue,
-    Register acc)
-{
-    auto register_size = get_size_from_accumulator_register(acc);
-    if (stack_address[lvalue].first != 0UL or
-        stack_address[lvalue].second == register_size)
-        return;
-    stack_address[lvalue].second = register_size;
-    auto operand_size = get_size_from_operand_size(register_size);
-    if (get_stack_offset() == 0UL) {
-        stack_address[lvalue].first = operand_size;
-    } else {
-        if (get_size_of_stored_lvalues() > 1) {
-            auto top_size = stack_address.prev().second.first;
-            stack_address[lvalue].first = top_size + operand_size;
-        } else {
-            stack_address[lvalue].first = get_stack_offset() + operand_size;
-        }
-    }
 }
 
 template<typename T>
@@ -360,13 +332,13 @@ Code_Generator::get_result_from_trivial_relational_expression(
     Immediate const& rhs)
 {
     int result{ 0 };
+    // note: operand type checking is done in the table
     auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
     auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
     auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
     auto lhs_type = ir::Table::get_type_from_rvalue_data_type(lhs);
     auto rhs_type = ir::Table::get_type_from_rvalue_data_type(lhs);
 
-    // note: operand type checking is done in the table
     // clang-format off
     m::match(op) (
         make_trivial_immediate_binary_result(==),
@@ -475,8 +447,8 @@ void Code_Generator::from_temporary_unary_operator_expression(
     auto op = ir::Table::get_unary(expr);
     ir::Table::RValue rvalue = table_->get_unary_rvalue_reference(expr);
     get_storage_from_temporary_lvalue(rvalue, op);
-    if (stack_address.contains(rvalue)) {
-        auto size = stack_address[rvalue].second;
+    if (stack.contains(rvalue)) {
+        auto size = stack.get(rvalue).second;
         Storage dest = get_accumulator_register_from_size(size);
         from_ita_unary_expression(op, dest);
     } else {
@@ -605,19 +577,75 @@ Code_Generator::from_relational_expression_operands(
     return instructions;
 }
 
-void emit(
-    std::ostream& os,
-    util::AST_Node const& symbols,
-    util::AST_Node const& ast)
+constexpr Code_Generator::Stack::Entry Code_Generator::Stack::get(
+    LValue const& lvalue)
 {
-    using namespace credence::ir;
-    auto ita = ITA{ symbols };
-    auto instructions = ita.build_from_definitions(ast);
-    auto table = std::make_unique<ir::Table>(Table{ symbols, instructions });
-    table->build_vector_definitions_from_globals(ita.globals_);
-    table->build_from_ita_instructions();
-    auto generator = Code_Generator{ std::move(table) };
-    generator.emit(os);
+    return stack_address[lvalue];
+}
+
+constexpr void Code_Generator::Stack::make(LValue const& lvalue)
+{
+    stack_address[lvalue] = { 0, Operand_Size::Empty };
+}
+
+constexpr Code_Generator::Stack::Offset Code_Generator::Stack::allocate(
+    Operand_Size operand)
+{
+    auto alloc = get_size_from_operand_size(operand);
+    size += alloc;
+    return size;
+}
+
+constexpr Code_Generator::Stack::Entry Code_Generator::Stack::get(Offset offset)
+{
+    auto find = std::find_if(
+        stack_address.begin(), stack_address.end(), [&](Pair const& entry) {
+            return entry.second.first == offset;
+        });
+    if (find == stack_address.end())
+        return { 0, Operand_Size::Empty };
+    else
+        return find->second;
+}
+
+constexpr Operand_Size Code_Generator::Stack::get_operand_size_from_offset(
+    Offset offset)
+{
+    return std::accumulate(
+        stack_address.begin(),
+        stack_address.end(),
+        Operand_Size::Empty,
+        [&](Operand_Size size, Pair const& entry) {
+            if (entry.second.first == offset)
+                return entry.second.second;
+            return size;
+        });
+}
+
+constexpr void Code_Generator::Stack::set_address_from_immediate(
+    LValue const& lvalue,
+    Immediate const& rvalue)
+{
+    auto operand_size = get_size_from_table_rvalue(rvalue);
+    auto value_size = get_size_from_operand_size(operand_size);
+    if (stack_address[lvalue].second != Operand_Size::Empty)
+        return;
+    size += value_size;
+    stack_address[lvalue].first = size;
+    stack_address[lvalue].second = operand_size;
+}
+
+constexpr void Code_Generator::Stack::set_address_from_accumulator(
+    LValue const& lvalue,
+    Register acc)
+{
+    auto register_size =
+        Code_Generator::get_size_from_accumulator_register(acc);
+    if (stack_address[lvalue].second != Operand_Size::Empty)
+        return;
+    size += get_size_from_operand_size(register_size);
+    stack_address[lvalue].first = size;
+    stack_address[lvalue].second = register_size;
 }
 
 } // namespace x86_64

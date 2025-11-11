@@ -20,12 +20,12 @@
 #include <cctype>            // for isspace
 #include <credence/assert.h> // for CREDENCE_ASSERT
 #include <credence/ir/ita.h> // for ITA
+#include <credence/map.h>    // for Ordered_Map
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <cstddef>           // for size_t
 #include <deque>             // for deque
 #include <initializer_list>  // for initializer_list
-#include <map>               // for map
 #include <memory>            // for shared_ptr, unique_ptr
 #include <optional>          // for nullopt, nullopt_t, optional
 #include <set>               // for set
@@ -150,7 +150,7 @@ class Table
         Locals locals{};
 
         Parameters parameters{};
-        std::map<LValue, RValue> temporary{};
+        Ordered_Map<LValue, RValue> temporary{};
         Address_Table label_address{};
         std::array<Address, 2> address_location{};
 
@@ -165,7 +165,7 @@ class Table
      */
     struct Vector
     {
-        using Storage = std::map<std::string, RValue_Data_Type>;
+        using Storage = Ordered_Map<std::string, RValue_Data_Type>;
         Vector() = delete;
         explicit Vector(Address size_of)
             : size(size_of)
@@ -231,7 +231,7 @@ class Table
      * @brief Get the type from a local in the stack frame
      */
     Type get_type_from_rvalue_data_type(LValue const& lvalue);
-    static inline Type get_type_from_rvalue_data_type(
+    static constexpr inline Type get_type_from_rvalue_data_type(
         RValue_Data_Type const& rvalue)
     {
         return std::get<1>(rvalue);
