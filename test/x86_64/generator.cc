@@ -20,6 +20,20 @@ namespace fs = std::filesystem;
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
+#define SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST(ast_path, expected)                  \
+ do {                                                                               \
+    using namespace credence::target::x86_64;                                       \
+    auto test = std::ostringstream{};                                               \
+    auto fixture_path = fs::path(ROOT_PATH);                                        \
+    fixture_path.append("test/fixtures/x86_64/ast");                                \
+    auto file_path = fs::path(fixture_path)                                         \
+        .append(std::format("{}.json", ast_path));                                  \
+    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();    \
+    credence::target::x86_64::emit(                                                 \
+        test, fixture_content[0], fixture_content[1]);                              \
+    REQUIRE(test.str() == expected);                                                \
+ } while(0)
+
 inline auto fixture_files_root_path()
 {
     auto fixtures_path = fs::path(ROOT_PATH);
@@ -29,17 +43,6 @@ inline auto fixture_files_root_path()
 
 TEST_CASE("target/x86_64: fixture: math_constant.b")
 {
-    using namespace credence::target::x86_64;
-    auto test = std::ostringstream{};
-    auto fixture_path = fs::path(ROOT_PATH);
-    fixture_path.append("test/fixtures/x86_64/ast");
-    // clang-format off
-    auto file_path = fs::path(fixture_path)
-        .append(std::format("{}.json", "math_constant"));
-    // clang-format on
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
-    credence::target::x86_64::emit(
-        test, fixture_content[0], fixture_content[1]);
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -59,22 +62,11 @@ _L1:
     ret
 
 )x86";
-    REQUIRE(test.str() == expected);
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant", expected);
 }
 
 TEST_CASE("target/x86_64: fixture: math_constant_2.b")
 {
-    using namespace credence::target::x86_64;
-    auto test = std::ostringstream{};
-    auto fixture_path = fs::path(ROOT_PATH);
-    fixture_path.append("test/fixtures/x86_64/ast");
-    // clang-format off
-    auto file_path = fs::path(fixture_path)
-        .append(std::format("{}.json", "math_constant_2"));
-    // clang-format on
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
-    credence::target::x86_64::emit(
-        test, fixture_content[0], fixture_content[1]);
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -93,22 +85,11 @@ _L1:
     ret
 
 )x86";
-    REQUIRE(test.str() == expected);
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_2", expected);
 }
 
 TEST_CASE("target/x86_64: fixture: math_constant_4.b")
 {
-    using namespace credence::target::x86_64;
-    auto test = std::ostringstream{};
-    auto fixture_path = fs::path(ROOT_PATH);
-    fixture_path.append("test/fixtures/x86_64/ast");
-    // clang-format off
-    auto file_path = fs::path(fixture_path)
-        .append(std::format("{}.json", "math_constant_4"));
-    // clang-format on
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
-    credence::target::x86_64::emit(
-        test, fixture_content[0], fixture_content[1]);
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -144,22 +125,11 @@ _L1:
     ret
 
 )x86";
-    REQUIRE(test.str() == expected);
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_4", expected);
 }
 
 TEST_CASE("target/x86_64: fixture: math_constant_5.b")
 {
-    using namespace credence::target::x86_64;
-    auto test = std::ostringstream{};
-    auto fixture_path = fs::path(ROOT_PATH);
-    fixture_path.append("test/fixtures/x86_64/ast");
-    // clang-format off
-    auto file_path = fs::path(fixture_path)
-        .append(std::format("{}.json", "math_constant_5"));
-    // clang-format on
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
-    credence::target::x86_64::emit(
-        test, fixture_content[0], fixture_content[1]);
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -179,22 +149,11 @@ _L1:
     ret
 
 )x86";
-    REQUIRE(test.str() == expected);
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_5", expected);
 }
 
 TEST_CASE("target/x86_64: fixture: math_constant_6.b")
 {
-    using namespace credence::target::x86_64;
-    auto test = std::ostringstream{};
-    auto fixture_path = fs::path(ROOT_PATH);
-    fixture_path.append("test/fixtures/x86_64/ast");
-    // clang-format off
-    auto file_path = fs::path(fixture_path)
-        .append(std::format("{}.json", "math_constant_6"));
-    // clang-format on
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
-    credence::target::x86_64::emit(
-        test, fixture_content[0], fixture_content[1]);
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -216,22 +175,42 @@ _L1:
     ret
 
 )x86";
-    REQUIRE(test.str() == expected);
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_6", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: math_constant_7.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov eax, dword ptr [rbp - 4]
+    neg eax
+    mov dword ptr [rbp - 8], eax
+    mov eax, 100
+    neg eax
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 8]
+    mov dword ptr [rbp - 4], eax
+    inc dword ptr [rbp - 4]
+    mov eax, dword ptr [rbp - 4]
+    mov dword ptr [rbp - 8], eax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_7", expected);
 }
 
 TEST_CASE("target/x86_64: fixture: relation_constant.b")
 {
-    using namespace credence::target::x86_64;
-    auto test = std::ostringstream{};
-    auto fixture_path = fs::path(ROOT_PATH);
-    fixture_path.append("test/fixtures/x86_64/ast");
-    // clang-format off
-    auto file_path = fs::path(fixture_path)
-        .append(std::format("{}.json", "relation_constant"));
-    // clang-format on
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();
-    credence::target::x86_64::emit(
-        test, fixture_content[0], fixture_content[1]);
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -246,5 +225,5 @@ _L1:
     ret
 
 )x86";
-    REQUIRE(test.str() == expected);
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("relation_constant", expected);
 }

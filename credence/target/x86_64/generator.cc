@@ -82,15 +82,14 @@ void Code_Generator::emit(std::ostream& os)
             } },
                 inst);
     }
-    // clang-format on
     os << std::endl;
 }
 
-void emit(
-    std::ostream& os,
+void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast)
 {
+    // clang-format on
     using namespace credence::ir;
     auto ita = ITA{ symbols };
     auto instructions = ita.build_from_definitions(ast);
@@ -173,11 +172,8 @@ void Code_Generator::from_func_start_ita(ir::Table::Label const& name)
     addiilrs(instructions_, mov_, rbp, rsp);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::ITA::Instruction::CALL)) {
-        addiill(
-            instructions_,
-            sub,
-            rsp,
-            detail::make_u32_integer_immediate(stack_alloc));
+        auto imm = detail::make_u32_integer_immediate(stack_alloc);
+        addiill(instructions_, sub, rsp, imm);
     }
 }
 
@@ -251,6 +247,13 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             stack.set_address_from_accumulator(lhs, acc);
             auto lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, acc);
+        } else if (stack.contains(rhs)) {
+            auto acc =
+                get_accumulator_register_from_size(stack.get(rhs).second);
+            Storage lhs_storage = stack.get(lhs).first;
+            Storage rhs_storage = stack.get(rhs).first;
+            addiis(instructions_, mov, acc, rhs_storage);
+            addiis(instructions_, mov, lhs_storage, acc);
         } else {
             Storage lhs_storage = stack.get(lhs).first;
             if (is_unary_operator(rhs)) {
@@ -258,6 +261,7 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
                 auto unary_op = ir::Table::get_unary(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
             } else {
+                std::cout << "hmm: " << rhs << std::endl;
                 auto symbol = symbols.get_symbol_by_name(rhs);
                 addiis(instructions_, mov, lhs_storage, symbol);
             }

@@ -45,12 +45,14 @@ enum class Operator
     R_OR,
     R_AND,
 
-    // math binary operators
+    // math operators
     B_SUBTRACT,
     B_ADD,
     B_MOD,
     B_MUL,
     B_DIV,
+    U_MINUS,
+    U_PLUS,
 
     // unary increment/decrement
     PRE_INC,
@@ -74,8 +76,6 @@ enum class Operator
     U_SUBSCRIPT,
 
     // other
-    U_MINUS,
-    U_PLUS,
     B_TERNARY,
     B_ASSIGN
 };
