@@ -72,7 +72,7 @@ inline float integral_from_type_float(std::string const& t)
     return std::stof(t);
 }
 
-inline float integral_from_type_double(std::string const& t)
+inline double integral_from_type_double(std::string const& t)
 {
     return std::stod(t);
 }
@@ -88,8 +88,10 @@ T integral_from_type(std::string const& t)
         return detail::integral_from_type_long(t);
     } else if constexpr (std::is_same_v<T, float>) {
         return detail::integral_from_type_float(t);
-    } else {
+    } else if constexpr (std::is_same_v<T, double>) {
         return detail::integral_from_type_double(t);
+    } else {
+        return detail::integral_from_type_int(t);
     }
 }
 

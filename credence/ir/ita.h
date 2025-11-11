@@ -258,8 +258,8 @@ class ITA
     static util::AST_Node make_block_statement(
         std::deque<util::AST_Node> const& blocks);
     static util::AST_Node make_block_statement(util::AST_Node block);
-    std::string instruction_to_string(Instruction op);
-    std::string quadruple_to_string(Quadruple const& ita);
+    static std::string instruction_to_string(Instruction op);
+    static std::string quadruple_to_string(Quadruple const& ita);
 
   public:
     /**

@@ -456,6 +456,15 @@ void Code_Generator::from_ita_unary_expression(
             [&] {
                 auto inst = b_not(dest);
                 detail::insert_inst(instructions_, inst.second);
+            },
+        m::pattern | std::string{ "-" } =
+            [&] {
+                auto inst = neg(dest);
+                detail::insert_inst(instructions_, inst.second);
+            },
+        m::pattern | std::string{ "+" } =
+            [&] {
+                // unary "+" is a no-op
             });
 }
 

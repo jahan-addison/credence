@@ -300,6 +300,7 @@ class Table
         return vectors.contains(rvalue) or util::contains(rvalue, "[") or
                locals.is_pointer(rvalue) or rvalue.starts_with("&");
     }
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     /** Left-hand-side and right-hand-side type equality check */
@@ -313,6 +314,26 @@ class Table
     {
         return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
     }
+    static constexpr std::initializer_list<std::string_view>
+        integral_unary = { "int", "double", "float", "long" };
+    /**
+     * @brief Check that the type of an lvalue is an integral type
+     */
+    inline void assert_integral_unary_expression(
+        LValue const& lvalue,
+        RValue const& rvalue,
+        Type const& type)
+    {
+        if (std::ranges::find(integral_unary, type) == integral_unary.end())
+            construct_error(
+                std::format(
+                    "invalid numeric unary expression on lvalue, lvalue "
+                    "type "
+                    "\"{}\" is not a numeric type",
+                    lvalue),
+                rvalue);
+    }
+
     /**
      * @brief Either lhs or rhs are trivial vector assignments
      */

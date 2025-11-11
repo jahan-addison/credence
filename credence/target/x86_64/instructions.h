@@ -110,6 +110,7 @@ enum class Mnemonic
     ret,
     sub,
     add,
+    neg,
     je,
     jne,
     jle,
@@ -295,6 +296,10 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         case mn(imul):
             os << "imul";
             break;
+        case mn(neg):
+            os << "neg";
+            break;
+
         case mn(lea):
             os << "lea";
             break;
@@ -458,11 +463,18 @@ inline Immediate make_u32_integer_immediate(unsigned int imm)
 
 } // namespace detail
 
+// Disambiguation:
+// arithmetic
+// b (bitwise)
+// r (relational)
+// u (unary)
+
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(dec);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mul);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(div);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(sub);
+DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(neg);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(add);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mod);
 

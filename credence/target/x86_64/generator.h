@@ -103,6 +103,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
     constexpr inline bool is_binary_math_operator(
         ir::Table::RValue const& rvalue)
     {
+        if (util::substring_count_of(rvalue, " ") != 2)
+            return false;
         auto test = std::ranges::find_if(
             math_binary_operators.begin(),
             math_binary_operators.end(),
@@ -115,6 +117,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
     constexpr inline bool is_relation_binary_operator(
         ir::Table::RValue const& rvalue)
     {
+        if (util::substring_count_of(rvalue, " ") != 2)
+            return false;
         auto test = std::ranges::find_if(
             relation_binary_operators.begin(),
             relation_binary_operators.end(),

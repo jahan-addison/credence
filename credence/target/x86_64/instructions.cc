@@ -103,6 +103,13 @@ Instruction_Pair dec(Storage& dest)
     return { dest, inst };
 }
 
+Instruction_Pair neg(Storage& dest)
+{
+    auto inst = make_inst();
+    addiis(inst, neg, dest, O_NUL);
+    return { dest, inst };
+}
+
 Instruction_Pair r_eq(Storage& dest, Storage& src)
 {
     auto inst = make_inst();

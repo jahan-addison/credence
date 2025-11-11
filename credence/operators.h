@@ -21,6 +21,7 @@
 #include <mapbox/eternal.hpp>
 #include <ostream>
 #include <sstream>
+#include <type_traits>
 #include <utility>
 
 namespace credence {
@@ -57,7 +58,7 @@ enum class Operator
     POST_INC,
     POST_DEC,
 
-    // bit ops
+    // bitwise ops
     RSHIFT,
     AND,
     OR,
@@ -65,17 +66,18 @@ enum class Operator
     LSHIFT,
     U_ONES_COMPLEMENT,
 
-    U_MINUS,
-    U_PLUS,
-    B_TERNARY,
-    B_ASSIGN,
-
     // pointer operators
     U_ADDR_OF,
     U_INDIRECTION,
     U_CALL,
     U_PUSH,
-    U_SUBSCRIPT
+    U_SUBSCRIPT,
+
+    // other
+    U_MINUS,
+    U_PLUS,
+    B_TERNARY,
+    B_ASSIGN
 };
 
 enum class Associativity
@@ -375,6 +377,10 @@ constexpr std::string operator_to_string(Operator const& op)
             break;
         case Operator::U_ADDR_OF:
             return "&";
+            break;
+        // other unary
+        case Operator::U_PLUS:
+            return "+";
             break;
         case Operator::U_MINUS:
             return "-";
