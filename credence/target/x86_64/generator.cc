@@ -308,7 +308,7 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
 }
 
 template<typename T>
-T trivial_operation_from_numeric_table_type(
+T trivial_arithmetic_from_numeric_table_type(
     std::string const& lhs,
     std::string const& op,
     std::string const& rhs)
@@ -326,6 +326,31 @@ T trivial_operation_from_numeric_table_type(
         case '/':
             return imm_l / imm_r;
     }
+    return result;
+}
+
+template<typename T>
+T trivial_bitwise_from_numeric_table_type(
+    std::string const& lhs,
+    std::string const& op,
+    std::string const& rhs)
+{
+    T result{ 0 };
+    T imm_l = type::integral_from_type<T>(lhs);
+    T imm_r = type::integral_from_type<T>(rhs);
+    if (op == ">>")
+        return imm_l >> imm_r;
+    else if (op == "<<")
+        return imm_l << imm_r;
+    else
+        switch (op[0]) {
+            case '^':
+                return imm_l ^ imm_r;
+            case '&':
+                return imm_l & imm_r;
+            case '|':
+                return imm_l | imm_r;
+        }
     return result;
 }
 
@@ -368,22 +393,44 @@ Code_Generator::get_result_from_trivial_integral_expression(
     auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
     auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
     if (type == "int") {
-        auto result = trivial_operation_from_numeric_table_type<int>(
+        auto result = trivial_arithmetic_from_numeric_table_type<int>(
             lhs_imm, op, rhs_imm);
         return detail::make_integer_immediate<int>(result, "int");
     } else if (type == "long") {
-        auto result = trivial_operation_from_numeric_table_type<long>(
+        auto result = trivial_arithmetic_from_numeric_table_type<long>(
             lhs_imm, op, rhs_imm);
         return detail::make_integer_immediate<long>(result, "long");
     } else if (type == "float") {
-        auto result = trivial_operation_from_numeric_table_type<float>(
+        auto result = trivial_arithmetic_from_numeric_table_type<float>(
             lhs_imm, op, rhs_imm);
         return detail::make_integer_immediate<float>(result, "float");
 
     } else if (type == "double") {
-        auto result = trivial_operation_from_numeric_table_type<double>(
+        auto result = trivial_arithmetic_from_numeric_table_type<double>(
             lhs_imm, op, rhs_imm);
         return detail::make_integer_immediate<double>(result, "double");
+    }
+    credence_error("unreachable");
+    return detail::make_integer_immediate(0, "int");
+}
+
+Code_Generator::Immediate
+Code_Generator::get_result_from_trivial_bitwise_expression(
+    Immediate const& lhs,
+    std::string const& op,
+    Immediate const& rhs)
+{
+    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
+    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
+    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
+    if (type == "int") {
+        auto result =
+            trivial_bitwise_from_numeric_table_type<int>(lhs_imm, op, rhs_imm);
+        return detail::make_integer_immediate<int>(result, "int");
+    } else if (type == "long") {
+        auto result =
+            trivial_bitwise_from_numeric_table_type<long>(lhs_imm, op, rhs_imm);
+        return detail::make_integer_immediate<long>(result, "long");
     }
     credence_error("unreachable");
     return detail::make_integer_immediate(0, "int");
@@ -409,6 +456,12 @@ void Code_Generator::insert_from_temporary_immediate_rvalues(
             get_result_from_trivial_relational_expression(imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
         special_register = acc;
+        addiis(instructions_, mov, acc, imm);
+    } else if (
+        std::ranges::find(bitwise_operators, op) !=
+        math_binary_operators.end()) {
+        auto imm = get_result_from_trivial_bitwise_expression(imm_l, op, imm_r);
+        auto acc = get_accumulator_register_from_size();
         addiis(instructions_, mov, acc, imm);
     }
 }
@@ -485,8 +538,11 @@ void Code_Generator::from_temporary_binary_operator_expression(
     if (is_binary_math_operator(expr)) {
         auto inst = from_arithmetic_expression_operands(operands, op);
         detail::insert_inst(instructions_, inst.second);
-    } else {
+    } else if (is_relation_binary_operator(expr)) {
         auto inst = from_relational_expression_operands(operands, op);
+        detail::insert_inst(instructions_, inst.second);
+    } else if (is_bitwise_operator(expr)) {
+        auto inst = from_bitwise_expression_operands(operands, op);
         detail::insert_inst(instructions_, inst.second);
     }
 }
@@ -554,6 +610,27 @@ Code_Generator::from_arithmetic_expression_operands(
                 addiis(instructions.second, mov, storage, operands.first);
                 instructions = mod(storage, operands.second);
             });
+    return instructions;
+}
+
+Code_Generator::Instruction_Pair
+Code_Generator::from_bitwise_expression_operands(
+    Storage_Operands& operands,
+    std::string const& binary_op)
+{
+    Instruction_Pair instructions{ Register::eax, {} };
+    m::match(binary_op)(
+        // cppcheck-suppress syntaxError
+        m::pattern | std::string{ "<<" } =
+            [&] { instructions = lshift(operands.first, operands.second); },
+        m::pattern | std::string{ ">>" } =
+            [&] { instructions = rshift(operands.first, operands.second); },
+        m::pattern | std::string{ "^" } =
+            [&] { instructions = b_xor(operands.first, operands.second); },
+        m::pattern | std::string{ "&" } =
+            [&] { instructions = b_and(operands.first, operands.second); },
+        m::pattern | std::string{ "|" } =
+            [&] { instructions = b_or(operands.first, operands.second); });
     return instructions;
 }
 

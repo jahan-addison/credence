@@ -204,12 +204,12 @@ void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
             auto unary_op = get_unary(rvalue.first);
             rvalue_symbol =
                 from_rvalue_unary_expression(lhs, rvalue.first, unary_op);
-        } else
+        } else {
             rvalue_symbol =
                 rvalue.second.empty()
                     ? get_symbol_type_size_from_rvalue_string(rhs)
                     : from_rvalue_unary_expression(lhs, rhs, rvalue.second);
-
+        }
         Size size = std::get<2>(rvalue_symbol);
         if (size > std::numeric_limits<unsigned int>::max())
             construct_error(

@@ -30,7 +30,6 @@ namespace type {
 
 /**
  * @brief Operators
- *
  */
 enum class Operator
 {
@@ -61,11 +60,11 @@ enum class Operator
     POST_DEC,
 
     // bitwise ops
-    RSHIFT,
+    RSHIFT, //  >>
+    LSHIFT, // <<
     AND,
     OR,
     XOR,
-    LSHIFT,
     U_ONES_COMPLEMENT,
 
     // pointer operators

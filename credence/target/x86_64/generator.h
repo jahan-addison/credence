@@ -83,6 +83,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Register::esi, Register::edx, Register::ecx
     };
     constexpr static auto math_binary_operators = { "*", "/", "-", "+", "%" };
+    constexpr static auto bitwise_operators = {
+        "<<", ">>", "^", "&", "%", "~"
+    };
     constexpr static auto unary_operators = { "++", "--", "*", "&", "-",
                                               "+",  "~",  "!", "~" };
     constexpr static auto relation_binary_operators = {
@@ -139,6 +142,19 @@ class Code_Generator final : public target::Backend<detail::Storage>
         return test != math_binary_operators.end();
     }
 
+    constexpr inline bool is_bitwise_operator(ir::Table::RValue const& rvalue)
+    {
+        if (util::substring_count_of(rvalue, " ") != 2)
+            return false;
+        auto test = std::ranges::find_if(
+            bitwise_operators.begin(),
+            bitwise_operators.end(),
+            [&](std::string_view s) {
+                return rvalue.find(s) != std::string::npos;
+            });
+        return test != bitwise_operators.end();
+    }
+
     constexpr inline bool is_relation_binary_operator(
         ir::Table::RValue const& rvalue)
     {
@@ -156,7 +172,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
     constexpr inline bool is_binary_operator(ir::Table::RValue const& rvalue)
     {
         return is_binary_math_operator(rvalue) or
-               is_relation_binary_operator(rvalue);
+               is_relation_binary_operator(rvalue) or
+               is_bitwise_operator(rvalue);
     }
 
     constexpr inline bool is_unary_operator(ir::Table::RValue const& rvalue)
@@ -196,15 +213,6 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
-    void from_temporary_binary_operator_expression(
-        ir::Table::RValue const& expr);
-    void from_temporary_unary_operator_expression(
-        ir::Table::RValue const& expr);
-    void insert_from_temporary_immediate_rvalues(
-        Storage& lhs,
-        std::string const& op,
-        Storage& rhs);
     Immediate get_result_from_trivial_integral_expression(
         Immediate const& lhs,
         std::string const& op,
@@ -213,21 +221,42 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs);
+    Immediate get_result_from_trivial_bitwise_expression(
+        Immediate const& lhs,
+        std::string const& op,
+        Immediate const& rhs);
     Storage get_storage_from_temporary_lvalue(
         ir::Table::LValue const& lvalue,
         std::string const& op);
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
     Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
     void from_ita_unary_expression(
-    std::string const& op,
-    Storage& dest);
-    Instruction_Pair from_ita_bitwise_expression(
-        ir::ITA::Quadruple const& inst);
+        std::string const& op,
+        Storage& dest);
+    Instruction_Pair from_bitwise_expression_operands(
+        Storage_Operands& operands,
+        std::string const& binary_op);
     Instruction_Pair from_arithmetic_expression_operands(
         Storage_Operands& operands,
         std::string const& binary_op);
     Instruction_Pair from_relational_expression_operands(
         Storage_Operands& operands,
         std::string const& binary_op);
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
+    void from_temporary_binary_operator_expression(
+        ir::Table::RValue const& expr);
+    void from_temporary_bitwise_operator_expression(
+        ir::Table::RValue const& expr);
+    void from_temporary_unary_operator_expression(
+        ir::Table::RValue const& expr);
+    void insert_from_temporary_immediate_rvalues(
+        Storage& lhs,
+        std::string const& op,
+        Storage& rhs);
+
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(Storage const& storage);

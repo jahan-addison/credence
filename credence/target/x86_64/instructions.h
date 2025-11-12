@@ -132,10 +132,13 @@ enum class Mnemonic
     setg,
     setle,
     setge,
-    and_,
     mov_,
+    and_,
+    or_,
     xor_,
-    not_
+    not_,
+    shl,
+    shr
 };
 
 enum class Operand_Size : std::size_t
@@ -414,6 +417,17 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 
         case mn(xor_):
             os << "xor";
+            break;
+        case mn(shl):
+            os << "shl";
+            break;
+
+        case mn(or_):
+            os << "or";
+            break;
+
+        case mn(shr):
+            os << "shr";
             break;
     }
     return os;
