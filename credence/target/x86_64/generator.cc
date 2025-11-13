@@ -20,45 +20,13 @@
 
 #define ir_i(name) credence::ir::ITA::Instruction::name
 
-#define STRINGIFY2(X) #X
-#define STRINGIFY(X) STRINGIFY2(X)
-
-#define make_integral_relational_entry(T, op)                                                  \
-    m::pattern | std::string{STRINGIFY(T)} = [&] {                                             \
-        result = type::integral_from_type<T>(lhs_imm) op type::integral_from_type<T>(rhs_imm); \
-    }
-
-#define make_string_relational_entry(op)                                       \
-    m::pattern | std::string{"string"} = [&] {                                 \
-        result = std::string_view{lhs_imm}.compare(std::string_view{rhs_imm}); \
-    }
-
-#define make_char_relational_entry(op)                                    \
-    m::pattern | std::string{"char"} = [&] {                              \
-        result = static_cast<int>(static_cast<unsigned char>(lhs_imm[1])) \
-        op                                                                \
-        static_cast<int>(static_cast<unsigned char>(rhs_imm[1]));         \
-    }
-
-#define make_trivial_immediate_binary_result(op)         \
-    m::pattern | std::string{STRINGIFY(op)} = [&] {      \
-        m::match(lhs_type) (                             \
-            make_integral_relational_entry(int, op),     \
-            make_integral_relational_entry(long, op),    \
-            make_integral_relational_entry(float, op),   \
-            make_integral_relational_entry(double, op),  \
-            make_string_relational_entry(op),            \
-            make_char_relational_entry(op)               \
-        );                                               \
-    }
-
 namespace credence::target::x86_64 {
 
 namespace m = matchit;
 
 void Code_Generator::emit(std::ostream& os)
 {
-    build_from_ita_table();
+    build();
     os << std::endl;
     os << ".intel_syntax noprefix" << std::endl;
     os << std::endl;
@@ -132,7 +100,7 @@ std::string Code_Generator::emit_storage_device(Storage const& storage)
     return sloc;
 }
 
-void Code_Generator::build_from_ita_table()
+void Code_Generator::build()
 {
     auto instructions = table_->instructions;
     ita_index = 0UL;
@@ -172,7 +140,7 @@ void Code_Generator::from_func_start_ita(ir::Table::Label const& name)
     addiilrs(instructions_, mov_, rbp, rsp);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::ITA::Instruction::CALL)) {
-        auto imm = detail::make_u32_integer_immediate(stack_alloc);
+        auto imm = detail::make_u32_int_immediate(stack_alloc);
         addiill(instructions_, sub, rsp, imm);
     }
 }
@@ -201,7 +169,7 @@ void Code_Generator::from_func_end_ita()
     auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::ITA::Instruction::CALL)) {
-        auto a_imm = detail::make_u32_integer_immediate(stack_alloc);
+        auto a_imm = detail::make_u32_int_immediate(stack_alloc);
         addiill(instructions_, add, rsp, a_imm);
     }
     reset_o_register();
@@ -256,7 +224,7 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             addiis(instructions_, mov, lhs_storage, acc);
         } else {
             Storage lhs_storage = stack.get(lhs).first;
-            if (is_unary_operator(rhs)) {
+            if (detail::is_unary_operator(rhs)) {
                 auto symbol = symbols.get_symbol_by_name(lhs);
                 auto unary_op = ir::Table::get_unary(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
@@ -298,7 +266,7 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
             return storage;
         } else {
             auto inst = from_arithmetic_expression_operands(operands, op);
-            detail::insert_inst(instructions_, inst.second);
+            detail::insert(instructions_, inst.second);
             return storage;
         }
     } else
@@ -307,133 +275,21 @@ Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
     return storage;
 }
 
-template<typename T>
-T trivial_arithmetic_from_numeric_table_type(
-    std::string const& lhs,
-    std::string const& op,
-    std::string const& rhs)
+constexpr detail::Register Code_Generator::get_accumulator_register_from_size(
+    Operand_Size size)
 {
-    T result{ 0 };
-    T imm_l = type::integral_from_type<T>(lhs);
-    T imm_r = type::integral_from_type<T>(rhs);
-    switch (op[0]) {
-        case '+':
-            return imm_l + imm_r;
-        case '-':
-            return imm_l - imm_r;
-        case '*':
-            return imm_l * imm_r;
-        case '/':
-            return imm_l / imm_r;
+    namespace m = matchit;
+    using namespace detail;
+    if (special_register != Register::eax) {
+        auto special = special_register;
+        special_register = Register::eax;
+        return special;
     }
-    return result;
-}
-
-template<typename T>
-T trivial_bitwise_from_numeric_table_type(
-    std::string const& lhs,
-    std::string const& op,
-    std::string const& rhs)
-{
-    T result{ 0 };
-    T imm_l = type::integral_from_type<T>(lhs);
-    T imm_r = type::integral_from_type<T>(rhs);
-    if (op == ">>")
-        return imm_l >> imm_r;
-    else if (op == "<<")
-        return imm_l << imm_r;
-    else
-        switch (op[0]) {
-            case '^':
-                return imm_l ^ imm_r;
-            case '&':
-                return imm_l & imm_r;
-            case '|':
-                return imm_l | imm_r;
-        }
-    return result;
-}
-
-Code_Generator::Immediate
-Code_Generator::get_result_from_trivial_relational_expression(
-    Immediate const& lhs,
-    std::string const& op,
-    Immediate const& rhs)
-{
-    int result{ 0 };
-    // note: operand type checking is done in the table
-    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
-    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
-    auto lhs_type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto rhs_type = ir::Table::get_type_from_rvalue_data_type(lhs);
-
-    // clang-format off
-    m::match(op) (
-        make_trivial_immediate_binary_result(==),
-        make_trivial_immediate_binary_result(!=),
-        make_trivial_immediate_binary_result(<),
-        make_trivial_immediate_binary_result(>),
-        make_trivial_immediate_binary_result(&&),
-        make_trivial_immediate_binary_result(||),
-        make_trivial_immediate_binary_result(<=),
-        make_trivial_immediate_binary_result(>=)
-    );
-    // clang-format on
-    return detail::make_integer_immediate(result, "byte");
-}
-
-Code_Generator::Immediate
-Code_Generator::get_result_from_trivial_integral_expression(
-    Immediate const& lhs,
-    std::string const& op,
-    Immediate const& rhs)
-{
-    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
-    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
-    if (type == "int") {
-        auto result = trivial_arithmetic_from_numeric_table_type<int>(
-            lhs_imm, op, rhs_imm);
-        return detail::make_integer_immediate<int>(result, "int");
-    } else if (type == "long") {
-        auto result = trivial_arithmetic_from_numeric_table_type<long>(
-            lhs_imm, op, rhs_imm);
-        return detail::make_integer_immediate<long>(result, "long");
-    } else if (type == "float") {
-        auto result = trivial_arithmetic_from_numeric_table_type<float>(
-            lhs_imm, op, rhs_imm);
-        return detail::make_integer_immediate<float>(result, "float");
-
-    } else if (type == "double") {
-        auto result = trivial_arithmetic_from_numeric_table_type<double>(
-            lhs_imm, op, rhs_imm);
-        return detail::make_integer_immediate<double>(result, "double");
-    }
-    credence_error("unreachable");
-    return detail::make_integer_immediate(0, "int");
-}
-
-Code_Generator::Immediate
-Code_Generator::get_result_from_trivial_bitwise_expression(
-    Immediate const& lhs,
-    std::string const& op,
-    Immediate const& rhs)
-{
-    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
-    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
-    if (type == "int") {
-        auto result =
-            trivial_bitwise_from_numeric_table_type<int>(lhs_imm, op, rhs_imm);
-        return detail::make_integer_immediate<int>(result, "int");
-    } else if (type == "long") {
-        auto result =
-            trivial_bitwise_from_numeric_table_type<long>(lhs_imm, op, rhs_imm);
-        return detail::make_integer_immediate<long>(result, "long");
-    }
-    credence_error("unreachable");
-    return detail::make_integer_immediate(0, "int");
+    return m::match(size)(
+        m::pattern | Operand_Size::Qword = [&] { return Register::rax; },
+        m::pattern | Operand_Size::Word = [&] { return Register::ax; },
+        m::pattern | Operand_Size::Byte = [&] { return Register::al; },
+        m::pattern | m::_ = [&] { return Register::eax; });
 }
 
 void Code_Generator::insert_from_temporary_immediate_rvalues(
@@ -443,24 +299,25 @@ void Code_Generator::insert_from_temporary_immediate_rvalues(
 {
     auto imm_l = std::get<Immediate>(lhs);
     auto imm_r = std::get<Immediate>(rhs);
-    if (std::ranges::find(math_binary_operators, op) !=
-        math_binary_operators.end()) {
-        auto imm =
-            get_result_from_trivial_integral_expression(imm_l, op, imm_r);
+    if (std::ranges::find(detail::math_binary_operators, op) !=
+        detail::math_binary_operators.end()) {
+        auto imm = detail::get_result_from_trivial_integral_expression(
+            imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size();
         addiis(instructions_, mov, acc, imm);
     } else if (
-        std::ranges::find(relation_binary_operators, op) !=
-        math_binary_operators.end()) {
-        auto imm =
-            get_result_from_trivial_relational_expression(imm_l, op, imm_r);
+        std::ranges::find(detail::relation_binary_operators, op) !=
+        detail::math_binary_operators.end()) {
+        auto imm = detail::get_result_from_trivial_relational_expression(
+            imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
         special_register = acc;
         addiis(instructions_, mov, acc, imm);
     } else if (
-        std::ranges::find(bitwise_operators, op) !=
-        math_binary_operators.end()) {
-        auto imm = get_result_from_trivial_bitwise_expression(imm_l, op, imm_r);
+        std::ranges::find(detail::bitwise_operators, op) !=
+        detail::bitwise_operators.end()) {
+        auto imm = detail::get_result_from_trivial_bitwise_expression(
+            imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size();
         addiis(instructions_, mov, acc, imm);
     }
@@ -474,22 +331,22 @@ void Code_Generator::from_ita_unary_expression(
         m::pattern | std::string{ "++" } =
             [&] {
                 auto inst = inc(dest);
-                detail::insert_inst(instructions_, inst.second);
+                detail::insert(instructions_, inst.second);
             },
         m::pattern | std::string{ "--" } =
             [&] {
                 auto inst = dec(dest);
-                detail::insert_inst(instructions_, inst.second);
+                detail::insert(instructions_, inst.second);
             },
         m::pattern | std::string{ "~" } =
             [&] {
                 auto inst = b_not(dest);
-                detail::insert_inst(instructions_, inst.second);
+                detail::insert(instructions_, inst.second);
             },
         m::pattern | std::string{ "-" } =
             [&] {
                 auto inst = neg(dest);
-                detail::insert_inst(instructions_, inst.second);
+                detail::insert(instructions_, inst.second);
             },
         m::pattern | std::string{ "+" } =
             [&] {
@@ -500,7 +357,7 @@ void Code_Generator::from_ita_unary_expression(
 void Code_Generator::from_temporary_unary_operator_expression(
     ir::Table::RValue const& expr)
 {
-    CREDENCE_ASSERT(is_unary_operator(expr));
+    CREDENCE_ASSERT(detail::is_unary_operator(expr));
     auto op = ir::Table::get_unary(expr);
     ir::Table::RValue rvalue = table_->get_unary_rvalue_reference(expr);
     get_storage_from_temporary_lvalue(rvalue, op);
@@ -509,7 +366,7 @@ void Code_Generator::from_temporary_unary_operator_expression(
         Storage dest = get_accumulator_register_from_size(size);
         from_ita_unary_expression(op, dest);
     } else {
-        auto size = get_size_from_table_rvalue(
+        auto size = detail::get_size_from_table_rvalue(
             ir::Table::get_symbol_type_size_from_rvalue_string(rvalue));
         Storage dest = get_accumulator_register_from_size(size);
         from_ita_unary_expression(op, dest);
@@ -519,7 +376,7 @@ void Code_Generator::from_temporary_unary_operator_expression(
 void Code_Generator::from_temporary_binary_operator_expression(
     ir::Table::RValue const& expr)
 {
-    CREDENCE_ASSERT(is_binary_operator(expr));
+    CREDENCE_ASSERT(detail::is_binary_operator(expr));
     auto expression = table_->from_rvalue_binary_expression(expr);
     auto lhs = std::get<0>(expression);
     auto rhs = std::get<1>(expression);
@@ -535,15 +392,15 @@ void Code_Generator::from_temporary_binary_operator_expression(
     if (is_variant(Immediate, lhs_s))
         std::swap(lhs_s, rhs_s);
     Storage_Operands operands = { lhs_s, rhs_s };
-    if (is_binary_math_operator(expr)) {
+    if (detail::is_binary_math_operator(expr)) {
         auto inst = from_arithmetic_expression_operands(operands, op);
-        detail::insert_inst(instructions_, inst.second);
-    } else if (is_relation_binary_operator(expr)) {
+        detail::insert(instructions_, inst.second);
+    } else if (detail::is_relation_binary_operator(expr)) {
         auto inst = from_relational_expression_operands(operands, op);
-        detail::insert_inst(instructions_, inst.second);
-    } else if (is_bitwise_operator(expr)) {
+        detail::insert(instructions_, inst.second);
+    } else if (detail::is_bitwise_operator(expr)) {
         auto inst = from_bitwise_expression_operands(operands, op);
-        detail::insert_inst(instructions_, inst.second);
+        detail::insert(instructions_, inst.second);
     }
 }
 
@@ -551,9 +408,9 @@ void Code_Generator::insert_from_temporary_table_rvalue(
     ir::Table::RValue const& expr)
 {
     auto symbols = table_->get_stack_frame_symbols();
-    if (is_binary_operator(expr)) {
+    if (detail::is_binary_operator(expr)) {
         from_temporary_binary_operator_expression(expr);
-    } else if (is_unary_operator(expr)) {
+    } else if (detail::is_unary_operator(expr)) {
         from_temporary_unary_operator_expression(expr);
     } else if (ir::Table::is_rvalue_data_type(expr)) {
         auto imm = ir::Table::get_symbol_type_size_from_rvalue_string(expr);
@@ -689,8 +546,8 @@ constexpr Code_Generator::Stack::Entry Code_Generator::Stack::get(Offset offset)
         return find->second;
 }
 
-constexpr Operand_Size Code_Generator::Stack::get_operand_size_from_offset(
-    Offset offset)
+constexpr detail::Operand_Size
+Code_Generator::Stack::get_operand_size_from_offset(Offset offset)
 {
     return std::accumulate(
         stack_address.begin(),
@@ -707,8 +564,8 @@ constexpr void Code_Generator::Stack::set_address_from_immediate(
     LValue const& lvalue,
     Immediate const& rvalue)
 {
-    auto operand_size = get_size_from_table_rvalue(rvalue);
-    auto value_size = get_size_from_operand_size(operand_size);
+    auto operand_size = detail::get_size_from_table_rvalue(rvalue);
+    auto value_size = detail::get_size_from_operand_size(operand_size);
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
     size += value_size;
@@ -720,11 +577,10 @@ constexpr void Code_Generator::Stack::set_address_from_accumulator(
     LValue const& lvalue,
     Register acc)
 {
-    auto register_size =
-        Code_Generator::get_size_from_accumulator_register(acc);
+    auto register_size = detail::get_size_from_accumulator_register(acc);
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
-    size += get_size_from_operand_size(register_size);
+    size += detail::get_size_from_operand_size(register_size);
     stack_address[lvalue].first = size;
     stack_address[lvalue].second = register_size;
 }

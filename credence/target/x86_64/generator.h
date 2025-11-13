@@ -46,6 +46,11 @@ class Code_Generator final : public target::Backend<detail::Storage>
     }
 
   private:
+    using Register = detail::Register;
+    using Mnemonic = detail::Mnemonic;
+
+  private:
+    using Operand_Size = detail::Operand_Size;
     using Operator_Symbol = std::string;
     using Instruction_Pair = detail::Instruction_Pair;
     using Storage = detail::Storage;
@@ -58,20 +63,25 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   public:
     const Storage EMPTY_STORAGE = std::monostate{};
-    const std::map<Operand_Size, std::string> suffix = {
-        { Operand_Size::Byte, "b" },
-        { Operand_Size::Word, "w" },
-        { Operand_Size::Dword, "l" },
-        { Operand_Size::Qword, "q" }
-    };
-    static constexpr const auto QWORD_REGISTER = {
-        Register::rdi, Register::r8,  Register::r9,
-        Register::rsi, Register::rdx, Register::rcx
-    };
-    static constexpr const auto DWORD_REGISTER = {
-        Register::rdi, Register::r8,  Register::r9,
-        Register::rsi, Register::rdx, Register::rcx
-    };
+
+    // clang-format off
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void build();
+    void from_func_start_ita(ir::Table::Label const& name) override;
+    void from_func_end_ita() override;
+    void from_locl_ita(ITA_Inst const& inst) override;
+    void from_cmp_ita(ITA_Inst const& inst) override;
+    void from_mov_ita(ITA_Inst const& inst) override;
+    void from_return_ita(Storage const& dest) override;
+    void from_leave_ita() override;
+    void from_label_ita(ITA_Inst const& inst) override;
+    void from_push_ita(ITA_Inst const& inst) override;
+    // void from_goto_ita() override;
+    // void from_globl_ita() override;
+    // void from_if_ita() override;
+    // void from_jmp_e_ita() override;
+    // void from_pop_ita() override;
+    // void from_call_ita() override;
 
   private:
     std::deque<Register> available_qword_register = {
@@ -82,21 +92,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Register::edi, Register::r8d, Register::r9d,
         Register::esi, Register::edx, Register::ecx
     };
-    constexpr static auto math_binary_operators = { "*", "/", "-", "+", "%" };
-    constexpr static auto bitwise_operators = {
-        "<<", ">>", "^", "&", "%", "~"
-    };
-    constexpr static auto unary_operators = { "++", "--", "*", "&", "-",
-                                              "+",  "~",  "!", "~" };
-    constexpr static auto relation_binary_operators = {
-        "==", "!=", "<", "&&", "||", ">", "<=", ">="
-    };
-
+    // clang-format on
     struct Stack
     {
         using LValue = ir::Table::LValue;
+        using RValue = ir::Table::RValue;
         using Offset = detail::Stack_Offset;
-        using Entry = std::pair<Offset, Operand_Size>;
+        using Entry = std::pair<Offset, detail::Operand_Size>;
         using Pair = std::pair<LValue, Entry>;
         using Local = Ordered_Map<LValue, Entry>;
         constexpr void make(LValue const& lvalue);
@@ -105,14 +107,15 @@ class Code_Generator final : public target::Backend<detail::Storage>
         constexpr inline void clear() { stack_address.clear(); }
         constexpr inline bool empty_at(LValue const& lvalue)
         {
-            return stack_address[lvalue].second == Operand_Size::Empty;
+            return stack_address[lvalue].second == detail::Operand_Size::Empty;
         }
         constexpr inline bool contains(LValue const& lvalue)
         {
             return stack_address.contains(lvalue);
         }
-        constexpr Operand_Size get_operand_size_from_offset(Offset offset);
-        constexpr Offset allocate(Operand_Size operand);
+        constexpr detail::Operand_Size get_operand_size_from_offset(
+            Offset offset);
+        constexpr Offset allocate(detail::Operand_Size operand);
         constexpr void set_address_from_accumulator(
             LValue const& lvalue,
             Register acc);
@@ -127,107 +130,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   private:
     Stack stack{};
-
-    constexpr inline bool is_binary_math_operator(
-        ir::Table::RValue const& rvalue)
-    {
-        if (util::substring_count_of(rvalue, " ") != 2)
-            return false;
-        auto test = std::ranges::find_if(
-            math_binary_operators.begin(),
-            math_binary_operators.end(),
-            [&](std::string_view s) {
-                return rvalue.find(s) != std::string::npos;
-            });
-        return test != math_binary_operators.end();
-    }
-
-    constexpr inline bool is_bitwise_operator(ir::Table::RValue const& rvalue)
-    {
-        if (util::substring_count_of(rvalue, " ") != 2)
-            return false;
-        auto test = std::ranges::find_if(
-            bitwise_operators.begin(),
-            bitwise_operators.end(),
-            [&](std::string_view s) {
-                return rvalue.find(s) != std::string::npos;
-            });
-        return test != bitwise_operators.end();
-    }
-
-    constexpr inline bool is_relation_binary_operator(
-        ir::Table::RValue const& rvalue)
-    {
-        if (util::substring_count_of(rvalue, " ") != 2)
-            return false;
-        auto test = std::ranges::find_if(
-            relation_binary_operators.begin(),
-            relation_binary_operators.end(),
-            [&](std::string_view s) {
-                return rvalue.find(s) != std::string::npos;
-            });
-        return test != relation_binary_operators.end();
-    }
-
-    constexpr inline bool is_binary_operator(ir::Table::RValue const& rvalue)
-    {
-        return is_binary_math_operator(rvalue) or
-               is_relation_binary_operator(rvalue) or
-               is_bitwise_operator(rvalue);
-    }
-
-    constexpr inline bool is_unary_operator(ir::Table::RValue const& rvalue)
-    {
-        return ir::Table::is_unary(rvalue);
-    }
-
-    constexpr inline Register get_accumulator_register_from_size(
-        Operand_Size size = Operand_Size::Dword)
-    {
-        namespace m = matchit;
-        if (special_register != Register::eax) {
-            auto special = special_register;
-            special_register = Register::eax;
-            return special;
-        }
-        return m::match(size)(
-            m::pattern | Operand_Size::Qword = [&] { return Register::rax; },
-            m::pattern | Operand_Size::Word = [&] { return Register::ax; },
-            m::pattern | Operand_Size::Byte = [&] { return Register::al; },
-            m::pattern | m::_ = [&] { return Register::eax; });
-    }
-
-    static constexpr inline Operand_Size get_size_from_accumulator_register(
-        Register acc)
-    {
-        if (acc == Register::al) {
-            return Operand_Size::Byte;
-        } else if (acc == Register::ax) {
-            return Operand_Size::Word;
-        } else if (is_qword_register(acc)) {
-            return Operand_Size::Qword;
-        } else {
-            return Operand_Size::Dword;
-        }
-    }
-
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    Immediate get_result_from_trivial_integral_expression(
-        Immediate const& lhs,
-        std::string const& op,
-        Immediate const& rhs);
-    Immediate get_result_from_trivial_relational_expression(
-        Immediate const& lhs,
-        std::string const& op,
-        Immediate const& rhs);
-    Immediate get_result_from_trivial_bitwise_expression(
-        Immediate const& lhs,
-        std::string const& op,
-        Immediate const& rhs);
+    constexpr Register get_accumulator_register_from_size(
+        Operand_Size size = Operand_Size::Dword);
     Storage get_storage_from_temporary_lvalue(
         ir::Table::LValue const& lvalue,
         std::string const& op);
+
+    // clang-format off
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
@@ -257,17 +166,17 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& op,
         Storage& rhs);
 
-
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(Storage const& storage);
     void set_table_stack_frame(ir::Table::Label const& name);
-    void setup_constants();
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Storage get_storage_device(Operand_Size size = Operand_Size::Qword);
+    Storage get_storage_device(
+        detail::Operand_Size size = detail::Operand_Size::Qword);
     // clang-format on
     inline void reset_o_register()
     {
+        using namespace detail;
         // clang-format off
         available_qword_register = {
             Register::rdi, Register::r8,  Register::r9,
@@ -279,41 +188,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
         };
         // clang-format on
     }
-    static constexpr inline bool is_qword_register(Register r)
-    {
-        return std::ranges::find(
-                   QWORD_REGISTER.begin(), QWORD_REGISTER.end(), r) !=
-               QWORD_REGISTER.end();
-    }
-    static constexpr inline bool is_dword_register(Register r)
-    {
-        return std::ranges::find(
-                   DWORD_REGISTER.begin(), DWORD_REGISTER.end(), r) !=
-               DWORD_REGISTER.end();
-    }
-
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build_from_ita_table();
-    void from_func_start_ita(ir::Table::Label const& name) override;
-    void from_func_end_ita() override;
-    void from_locl_ita(ITA_Inst const& inst) override;
-    void from_cmp_ita(ITA_Inst const& inst) override;
-    void from_mov_ita(ITA_Inst const& inst) override;
-    void from_return_ita(Storage const& dest) override;
-    void from_leave_ita() override;
-    void from_label_ita(ITA_Inst const& inst) override;
-    void from_push_ita(ITA_Inst const& inst) override;
-    // void from_goto_ita() override;
-    // void from_globl_ita() override;
-    // void from_if_ita() override;
-    // void from_jmp_e_ita() override;
-    // void from_pop_ita() override;
-    // void from_call_ita() override;
-    // clang-format on
 
   private:
-    std::string current_frame{ "main" };
+    std::string current_frame{};
     std::size_t ita_index{ 0 };
     std::size_t constant_index{ 0 };
     Register special_register = Register::eax;

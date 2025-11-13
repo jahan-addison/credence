@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>           // for find
 #include <credence/ir/table.h> // for Table
 #include <deque>               // for deque
 #include <string>              // for basic_string, string
@@ -25,6 +26,9 @@
 
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
+
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
 
 #define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
     detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& src)
@@ -59,87 +63,195 @@
 #define addiils(inst, op, dest)         \
     inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
 
-#define addii(inst, op, lhs, rhs)    \
+#define addii(inst, op, lhs, rhs)       \
     inst.emplace_back(detail::Instruction{op, lhs, rhs})
 
-namespace credence::target::x86_64 {
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
 
+#define make_integral_relational_entry(T, op)                                                  \
+    m::pattern | std::string{STRINGIFY(T)} = [&] {                                             \
+        result = type::integral_from_type<T>(lhs_imm) op type::integral_from_type<T>(rhs_imm); \
+    }
+
+#define make_string_relational_entry(op)                                       \
+    m::pattern | std::string{"string"} = [&] {                                 \
+        result = std::string_view{lhs_imm}.compare(std::string_view{rhs_imm}); \
+    }
+
+#define make_char_relational_entry(op)                                    \
+    m::pattern | std::string{"char"} = [&] {                              \
+        result = static_cast<int>(static_cast<unsigned char>(lhs_imm[1])) \
+        op                                                                \
+        static_cast<int>(static_cast<unsigned char>(rhs_imm[1]));         \
+    }
+
+#define make_trivial_immediate_binary_result(op)         \
+    m::pattern | std::string{STRINGIFY(op)} = [&] {      \
+        m::match(lhs_type) (                             \
+            make_integral_relational_entry(int, op),     \
+            make_integral_relational_entry(long, op),    \
+            make_integral_relational_entry(float, op),   \
+            make_integral_relational_entry(double, op),  \
+            make_string_relational_entry(op),            \
+            make_char_relational_entry(op)               \
+        );                                               \
+    }
+
+#define REGISTER_OSTREAM(reg) \
+    case rr(reg):             \
+        os << STRINGIFY(reg); \
+    break
+
+#define MNEMONIC_OSTREAM(mnem)                             \
+    case mn(mnem): {                                       \
+        auto mnem_str = std::string_view{STRINGIFY(mnem)}; \
+        if (util::contains(mnem_str, "_"))                 \
+            mnem_str.remove_suffix(1);                     \
+        os << mnem_str;                                    \
+        };                                                 \
+    break
+
+namespace credence::target::x86_64::detail {
+
+// clang-format off
 enum class Register
 {
-    rbp,
-    rsp,
-    rax,
-    rbx,
-    rcx,
-    rdx,
-    rsi,
-    rdi,
-    r8,
-    r9,
-    r10,
-    r11,
-    r12,
-    r13,
-    r14,
+    rbp, rsp, rax, rbx, rcx, rdx, rsi, rdi,
+    r8, r9, r10, r11, r12, r13, r14, ebp,
+    esp, eax, ebx, edx, ecx, esi, edi, r8d, ax,
+    r9d, r10d, r11d, r12d, r13d, r14d, r15d, al
+};
 
-    ebp,
-    esp,
-    eax,
-    ebx,
-    edx,
-    ecx,
-    esi,
-    edi,
-    r8d,
-    r9d,
-    r10d,
-    r11d,
-    r12d,
-    r13d,
-    r14d,
-    r15d,
+constexpr auto math_binary_operators =
+    { "*", "/", "-", "+", "%" };
+constexpr auto bitwise_operators =
+    { "<<", ">>", "^", "&", "%", "~" };
+constexpr auto unary_operators =
+    { "++", "--", "*", "&", "-", "+", "~", "!", "~" };
+constexpr auto relation_binary_operators =
+    { "==", "!=", "<",  "&&",
+    "||", ">",  "<=", ">=" };
 
-    al,
-    ax
+constexpr const auto QWORD_REGISTER = {
+    Register::rdi, Register::r8,  Register::r9,
+    Register::rsi, Register::rdx, Register::rcx
+};
+constexpr const auto DWORD_REGISTER = {
+    Register::rdi, Register::r8,  Register::r9,
+    Register::rsi, Register::rdx, Register::rcx
 };
 
 enum class Mnemonic
 {
-    imul,
-    lea,
-    ret,
-    sub,
-    add,
-    neg,
-    je,
-    jne,
-    jle,
-    jl,
-    idiv,
-    inc,
-    dec,
-    cqo,
-    cdq,
-    leave,
-    mov,
-    push,
-    pop,
-    call,
-    cmp,
-    sete,
-    setne,
-    setl,
-    setg,
-    setle,
-    setge,
-    mov_,
-    and_,
-    or_,
-    xor_,
-    not_,
-    shl,
-    shr
+    imul, lea, ret, sub, add,
+    neg, je, jne, jle, jl,
+    idiv, inc, dec, cqo, cdq,
+    leave, mov, push, pop, call,
+    cmp, sete, setne, setl, setg,
+    setle, setge, mov_, and_, or_,
+    xor_, not_, shl, shr
 };
+
+// clang-format on
+
+template<typename T>
+T trivial_arithmetic_from_numeric_table_type(
+    std::string const& lhs,
+    std::string const& op,
+    std::string const& rhs)
+{
+    T result{ 0 };
+    T imm_l = type::integral_from_type<T>(lhs);
+    T imm_r = type::integral_from_type<T>(rhs);
+    switch (op[0]) {
+        case '+':
+            return imm_l + imm_r;
+        case '-':
+            return imm_l - imm_r;
+        case '*':
+            return imm_l * imm_r;
+        case '/':
+            return imm_l / imm_r;
+    }
+    return result;
+}
+
+template<typename T>
+T trivial_bitwise_from_numeric_table_type(
+    std::string const& lhs,
+    std::string const& op,
+    std::string const& rhs)
+{
+    T result{ 0 };
+    T imm_l = type::integral_from_type<T>(lhs);
+    T imm_r = type::integral_from_type<T>(rhs);
+    if (op == ">>")
+        return imm_l >> imm_r;
+    else if (op == "<<")
+        return imm_l << imm_r;
+    else
+        switch (op[0]) {
+            case '^':
+                return imm_l ^ imm_r;
+            case '&':
+                return imm_l & imm_r;
+            case '|':
+                return imm_l | imm_r;
+        }
+    return result;
+}
+
+constexpr inline bool is_binary_math_operator(ir::Table::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = std::ranges::find_if(
+        math_binary_operators.begin(),
+        math_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != math_binary_operators.end();
+}
+
+constexpr inline bool is_bitwise_operator(ir::Table::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = std::ranges::find_if(
+        bitwise_operators.begin(),
+        bitwise_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != bitwise_operators.end();
+}
+
+constexpr inline bool is_relation_binary_operator(
+    ir::Table::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = std::ranges::find_if(
+        relation_binary_operators.begin(),
+        relation_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != relation_binary_operators.end();
+}
+
+constexpr inline bool is_binary_operator(ir::Table::RValue const& rvalue)
+{
+    return is_binary_math_operator(rvalue) or
+           is_relation_binary_operator(rvalue) or is_bitwise_operator(rvalue);
+}
+
+constexpr inline bool is_unary_operator(ir::Table::RValue const& rvalue)
+{
+    return ir::Table::is_unary(rvalue);
+}
 
 enum class Operand_Size : std::size_t
 {
@@ -150,145 +262,78 @@ enum class Operand_Size : std::size_t
     Empty = 0
 };
 
+const std::map<Operand_Size, std::string> suffix = {
+    { Operand_Size::Byte, "b" },
+    { Operand_Size::Word, "w" },
+    { Operand_Size::Dword, "l" },
+    { Operand_Size::Qword, "q" }
+};
+
+constexpr inline bool is_qword_register(Register r)
+{
+    return std::ranges::find(QWORD_REGISTER.begin(), QWORD_REGISTER.end(), r) !=
+           QWORD_REGISTER.end();
+}
+constexpr inline bool is_dword_register(Register r)
+{
+    return std::ranges::find(DWORD_REGISTER.begin(), DWORD_REGISTER.end(), r) !=
+           DWORD_REGISTER.end();
+}
+
+constexpr inline Operand_Size get_size_from_accumulator_register(Register acc)
+{
+    if (acc == Register::al) {
+        return Operand_Size::Byte;
+    } else if (acc == Register::ax) {
+        return Operand_Size::Word;
+    } else if (is_qword_register(acc)) {
+        return Operand_Size::Qword;
+    } else {
+        return Operand_Size::Dword;
+    }
+}
+
 constexpr inline std::size_t get_size_from_operand_size(Operand_Size size)
 {
     return static_cast<std::underlying_type_t<Operand_Size>>(size);
 }
 
-constexpr inline std::ostream& operator<<(std::ostream& os, Register r)
+constexpr inline std::ostream& operator<<(std::ostream& os, Register reg)
 {
-    switch (r) {
-        case rr(rbp):
-            os << "rbp";
-            break;
-
-        case rr(rsp):
-            os << "rsp";
-            break;
-
-        case rr(rax):
-            os << "rax";
-            break;
-
-        case rr(rbx):
-            os << "rbx";
-            break;
-
-        case rr(rcx):
-            os << "rcx";
-            break;
-
-        case rr(rdx):
-            os << "rdx";
-            break;
-
-        case rr(rsi):
-            os << "rsi";
-            break;
-
-        case rr(rdi):
-            os << "rdi";
-            break;
-
-        case rr(r8):
-            os << "r8";
-            break;
-
-        case rr(r9):
-            os << "r9";
-            break;
-
-        case rr(r10):
-            os << "r10";
-            break;
-
-        case rr(r11):
-            os << "r11";
-            break;
-
-        case rr(r12):
-            os << "r12";
-            break;
-
-        case rr(r13):
-            os << "r13";
-            break;
-
-        case rr(r14):
-            os << "r14";
-            break;
-
-        case rr(ebp):
-            os << "ebp";
-            break;
-
-        case rr(esp):
-            os << "esp";
-            break;
-
-        case rr(eax):
-            os << "eax";
-            break;
-
-        case rr(ebx):
-            os << "ebx";
-            break;
-
-        case rr(edx):
-            os << "edx";
-            break;
-
-        case rr(ecx):
-            os << "ecx";
-            break;
-
-        case rr(esi):
-            os << "esi";
-            break;
-
-        case rr(edi):
-            os << "edi";
-            break;
-
-        case rr(r8d):
-            os << "r8d";
-            break;
-
-        case rr(r9d):
-            os << "r9d";
-            break;
-
-        case rr(r10d):
-            os << "r10d";
-            break;
-
-        case rr(r11d):
-            os << "r11d";
-            break;
-
-        case rr(r12d):
-            os << "r12d";
-            break;
-
-        case rr(r13d):
-            os << "r13d";
-            break;
-
-        case rr(r14d):
-            os << "r14d";
-            break;
-
-        case rr(r15d):
-            os << "r15d";
-            break;
-
-        case rr(al):
-            os << "al";
-            break;
-
-        case rr(ax):
-            os << "ax";
-            break;
+    switch (reg) {
+        REGISTER_OSTREAM(rbp);
+        REGISTER_OSTREAM(rsp);
+        REGISTER_OSTREAM(rax);
+        REGISTER_OSTREAM(rbx);
+        REGISTER_OSTREAM(rcx);
+        REGISTER_OSTREAM(rdx);
+        REGISTER_OSTREAM(rsi);
+        REGISTER_OSTREAM(rdi);
+        REGISTER_OSTREAM(r8);
+        REGISTER_OSTREAM(r9);
+        REGISTER_OSTREAM(r10);
+        REGISTER_OSTREAM(r11);
+        REGISTER_OSTREAM(r12);
+        REGISTER_OSTREAM(r13);
+        REGISTER_OSTREAM(r14);
+        REGISTER_OSTREAM(ebp);
+        REGISTER_OSTREAM(esp);
+        REGISTER_OSTREAM(eax);
+        REGISTER_OSTREAM(ebx);
+        REGISTER_OSTREAM(edx);
+        REGISTER_OSTREAM(ecx);
+        REGISTER_OSTREAM(esi);
+        REGISTER_OSTREAM(edi);
+        REGISTER_OSTREAM(r8d);
+        REGISTER_OSTREAM(r9d);
+        REGISTER_OSTREAM(r10d);
+        REGISTER_OSTREAM(r11d);
+        REGISTER_OSTREAM(r12d);
+        REGISTER_OSTREAM(r13d);
+        REGISTER_OSTREAM(r14d);
+        REGISTER_OSTREAM(r15d);
+        REGISTER_OSTREAM(al);
+        REGISTER_OSTREAM(ax);
     }
     return os;
 }
@@ -296,139 +341,40 @@ constexpr inline std::ostream& operator<<(std::ostream& os, Register r)
 constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 {
     switch (mnemonic) {
-        case mn(imul):
-            os << "imul";
-            break;
-        case mn(neg):
-            os << "neg";
-            break;
-
-        case mn(lea):
-            os << "lea";
-            break;
-
-        case mn(ret):
-            os << "ret";
-            break;
-
-        case mn(sub):
-            os << "sub";
-            break;
-
-        case mn(add):
-            os << "add";
-            break;
-
-        case mn(je):
-            os << "je";
-            break;
-
-        case mn(jne):
-            os << "jne";
-            break;
-
-        case mn(jle):
-            os << "jle";
-            break;
-
-        case mn(jl):
-            os << "jl";
-            break;
-
-        case mn(idiv):
-            os << "idiv";
-            break;
-
-        case mn(inc):
-            os << "inc";
-            break;
-
-        case mn(dec):
-            os << "dec";
-            break;
-
-        case mn(cqo):
-            os << "cqo";
-            break;
-
-        case mn(cdq):
-            os << "cdq";
-            break;
-
-        case mn(leave):
-            os << "leave";
-            break;
-
-        case mn(mov):
-            os << "mov";
-            break;
-
-        case mn(mov_):
-            os << "mov";
-            break;
-
-        case mn(push):
-            os << "push";
-            break;
-
-        case mn(pop):
-            os << "pop";
-            break;
-
-        case mn(call):
-            os << "call";
-            break;
-
-        case mn(cmp):
-            os << "cmp";
-            break;
-
-        case mn(sete):
-            os << "sete";
-            break;
-
-        case mn(setne):
-            os << "setne";
-            break;
-
-        case mn(setl):
-            os << "setl";
-            break;
-
-        case mn(setg):
-            os << "setg";
-            break;
-
-        case mn(setle):
-            os << "setle";
-            break;
-
-        case mn(setge):
-            os << "setge";
-            break;
-
-        case mn(and_):
-            os << "and";
-            break;
-
-        case mn(not_):
-            os << "not";
-            break;
-
-        case mn(xor_):
-            os << "xor";
-            break;
-        case mn(shl):
-            os << "shl";
-            break;
-
-        case mn(or_):
-            os << "or";
-            break;
-
-        case mn(shr):
-            os << "shr";
-            break;
+        MNEMONIC_OSTREAM(imul);
+        MNEMONIC_OSTREAM(neg);
+        MNEMONIC_OSTREAM(lea);
+        MNEMONIC_OSTREAM(ret);
+        MNEMONIC_OSTREAM(sub);
+        MNEMONIC_OSTREAM(add);
+        MNEMONIC_OSTREAM(je);
+        MNEMONIC_OSTREAM(jne);
+        MNEMONIC_OSTREAM(jle);
+        MNEMONIC_OSTREAM(jl);
+        MNEMONIC_OSTREAM(idiv);
+        MNEMONIC_OSTREAM(inc);
+        MNEMONIC_OSTREAM(dec);
+        MNEMONIC_OSTREAM(cqo);
+        MNEMONIC_OSTREAM(cdq);
+        MNEMONIC_OSTREAM(leave);
+        MNEMONIC_OSTREAM(mov);
+        MNEMONIC_OSTREAM(mov_);
+        MNEMONIC_OSTREAM(push);
+        MNEMONIC_OSTREAM(pop);
+        MNEMONIC_OSTREAM(call);
+        MNEMONIC_OSTREAM(cmp);
+        MNEMONIC_OSTREAM(sete);
+        MNEMONIC_OSTREAM(setne);
+        MNEMONIC_OSTREAM(setl);
+        MNEMONIC_OSTREAM(setg);
+        MNEMONIC_OSTREAM(setle);
+        MNEMONIC_OSTREAM(setge);
+        MNEMONIC_OSTREAM(and_);
+        MNEMONIC_OSTREAM(not_);
+        MNEMONIC_OSTREAM(xor_);
+        MNEMONIC_OSTREAM(or_);
+        MNEMONIC_OSTREAM(shl);
+        MNEMONIC_OSTREAM(shr);
     }
     return os;
 }
@@ -452,50 +398,51 @@ constexpr Operand_Size get_size_from_table_rvalue(
         m::pattern | m::_ = [&] { return Operand_Size::Dword; });
 }
 
-namespace detail {
-
 using Stack_Offset = std::size_t;
 
 inline constexpr auto O_NUL = std::monostate{};
-// clang-format off
+
 using Immediate = ir::Table::RValue_Data_Type;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
-// Intel syntax, Storage = Storage
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
-using Three_Operand_Instruction = std::tuple<Mnemonic, Storage, Storage, Storage>;
 using Label = ir::Table::Label;
 using Instructions = std::deque<std::variant<Label, Instruction>>;
-// clang-format on
 using Instruction_Pair = std::pair<Storage, detail::Instructions>;
 
-inline Instructions make_inst()
+Immediate get_result_from_trivial_integral_expression(
+    Immediate const& lhs,
+    std::string const& op,
+    Immediate const& rhs);
+Immediate get_result_from_trivial_relational_expression(
+    Immediate const& lhs,
+    std::string const& op,
+    Immediate const& rhs);
+Immediate get_result_from_trivial_bitwise_expression(
+    Immediate const& lhs,
+    std::string const& op,
+    Immediate const& rhs);
+
+inline Instructions make()
 {
     return Instructions{};
 }
 
-inline void insert_inst(Instructions& to, Instructions const& from)
+inline void insert(Instructions& to, Instructions const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
 }
 template<typename T = int>
-inline Immediate make_integer_immediate(T imm, std::string const& type = "int")
+inline Immediate make_int_immediate(T imm, std::string const& type = "int")
 {
     return Immediate{ std::to_string(imm), type, 4UL };
 }
 
-inline Immediate make_u32_integer_immediate(unsigned int imm)
+inline Immediate make_u32_int_immediate(unsigned int imm)
 {
     return Immediate{ std::to_string(imm), "int", 4UL };
 }
 
-} // namespace detail
-
-// Disambiguation:
 // arithmetic
-// b (bitwise)
-// r (relational)
-// u (unary)
-
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(dec);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mul);
@@ -504,7 +451,7 @@ DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(sub);
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(neg);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(add);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mod);
-
+// r (relational)
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(u_not);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_eq);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_neq);
@@ -515,7 +462,7 @@ DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_ge);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_or);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_and);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_lt);
-
+// b (bitwise)
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
@@ -523,4 +470,4 @@ DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 
-} // namespace x86_64
+} // namespace x86_64::detail
