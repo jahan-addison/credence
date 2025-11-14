@@ -18,6 +18,7 @@
 
 #include <algorithm>           // for find
 #include <credence/ir/table.h> // for Table
+#include <credence/rvalue.h>   // for LValue, RValue, Data_Type, ...
 #include <deque>               // for deque
 #include <string>              // for basic_string, string
 #include <tuple>               // for tuple
@@ -202,7 +203,7 @@ T trivial_bitwise_from_numeric_table_type(
     return result;
 }
 
-constexpr inline bool is_binary_math_operator(ir::Table::RValue const& rvalue)
+constexpr inline bool is_binary_math_operator(symbol::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -215,7 +216,7 @@ constexpr inline bool is_binary_math_operator(ir::Table::RValue const& rvalue)
     return test != math_binary_operators.end();
 }
 
-constexpr inline bool is_bitwise_operator(ir::Table::RValue const& rvalue)
+constexpr inline bool is_bitwise_operator(symbol::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -228,8 +229,7 @@ constexpr inline bool is_bitwise_operator(ir::Table::RValue const& rvalue)
     return test != bitwise_operators.end();
 }
 
-constexpr inline bool is_relation_binary_operator(
-    ir::Table::RValue const& rvalue)
+constexpr inline bool is_relation_binary_operator(symbol::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -242,15 +242,15 @@ constexpr inline bool is_relation_binary_operator(
     return test != relation_binary_operators.end();
 }
 
-constexpr inline bool is_binary_operator(ir::Table::RValue const& rvalue)
+constexpr inline bool is_binary_operator(symbol::RValue const& rvalue)
 {
     return is_binary_math_operator(rvalue) or
            is_relation_binary_operator(rvalue) or is_bitwise_operator(rvalue);
 }
 
-constexpr inline bool is_unary_operator(ir::Table::RValue const& rvalue)
+constexpr inline bool is_unary_operator(symbol::RValue const& rvalue)
 {
-    return ir::Table::is_unary(rvalue);
+    return symbol::is_unary(rvalue);
 }
 
 enum class Operand_Size : std::size_t
@@ -383,11 +383,11 @@ Register get_accumulator_register_from_size(
     Operand_Size size = Operand_Size::Dword);
 
 constexpr Operand_Size get_size_from_table_rvalue(
-    ir::Table::RValue_Data_Type const& rvalue)
+    symbol::Data_Type const& rvalue)
 {
     namespace m = matchit;
-    using T = ir::Table::Type;
-    ir::Table::Type type = ir::Table::get_type_from_rvalue_data_type(rvalue);
+    using T = symbol::Type;
+    symbol::Type type = symbol::get_type_from_rvalue_data_type(rvalue);
     return m::match(type)(
         m::pattern | m::or_(T{ "int" }, T{ "string" }) =
             [&] { return Operand_Size::Dword; },
@@ -402,10 +402,10 @@ using Stack_Offset = std::size_t;
 
 inline constexpr auto O_NUL = std::monostate{};
 
-using Immediate = ir::Table::RValue_Data_Type;
+using Immediate = symbol::Data_Type;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
-using Label = ir::Table::Label;
+using Label = symbol::Label;
 using Instructions = std::deque<std::variant<Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, detail::Instructions>;
 

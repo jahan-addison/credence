@@ -16,6 +16,7 @@
 
 #include "instructions.h"
 #include <credence/ir/table.h> // for Table
+#include <credence/rvalue.h>   // for RValue, LValue, ...
 #include <matchit.h>           // for Match, Pattern
 
 namespace credence::target::x86_64::detail {
@@ -29,11 +30,11 @@ Immediate get_result_from_trivial_relational_expression(
 {
     int result{ 0 };
     // note: operand type checking is done in the table
-    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
-    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
-    auto lhs_type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto rhs_type = ir::Table::get_type_from_rvalue_data_type(lhs);
+    auto type = symbol::get_type_from_rvalue_data_type(lhs);
+    auto lhs_imm = symbol::get_value_from_rvalue_data_type(lhs);
+    auto rhs_imm = symbol::get_value_from_rvalue_data_type(rhs);
+    auto lhs_type = symbol::get_type_from_rvalue_data_type(lhs);
+    auto rhs_type = symbol::get_type_from_rvalue_data_type(lhs);
 
     // clang-format off
     m::match(op) (
@@ -55,9 +56,9 @@ Immediate get_result_from_trivial_integral_expression(
     std::string const& op,
     Immediate const& rhs)
 {
-    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
-    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
+    auto type = symbol::get_type_from_rvalue_data_type(lhs);
+    auto lhs_imm = symbol::get_value_from_rvalue_data_type(lhs);
+    auto rhs_imm = symbol::get_value_from_rvalue_data_type(rhs);
     if (type == "int") {
         auto result = trivial_arithmetic_from_numeric_table_type<int>(
             lhs_imm, op, rhs_imm);
@@ -85,9 +86,9 @@ Immediate get_result_from_trivial_bitwise_expression(
     std::string const& op,
     Immediate const& rhs)
 {
-    auto type = ir::Table::get_type_from_rvalue_data_type(lhs);
-    auto lhs_imm = ir::Table::get_value_from_rvalue_data_type(lhs);
-    auto rhs_imm = ir::Table::get_value_from_rvalue_data_type(rhs);
+    auto type = symbol::get_type_from_rvalue_data_type(lhs);
+    auto lhs_imm = symbol::get_value_from_rvalue_data_type(lhs);
+    auto rhs_imm = symbol::get_value_from_rvalue_data_type(rhs);
     if (type == "int") {
         auto result =
             trivial_bitwise_from_numeric_table_type<int>(lhs_imm, op, rhs_imm);

@@ -21,6 +21,7 @@
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
 #include <credence/map.h>           // for Ordered_Map
+#include <credence/rvalue.h>        // for LValue, RValue, Data_Type, ...
 #include <credence/target/target.h> // for Backend
 #include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <deque>                    // for deque
@@ -35,6 +36,44 @@
 #include <variant>                  // for variant
 
 namespace credence::target::x86_64 {
+
+namespace detail {
+
+struct Stack
+{
+    using LValue = symbol::LValue;
+    using RValue = symbol::RValue;
+    using Offset = detail::Stack_Offset;
+    using Entry = std::pair<Offset, detail::Operand_Size>;
+    using Pair = std::pair<LValue, Entry>;
+    using Local = Ordered_Map<LValue, Entry>;
+    constexpr void make(LValue const& lvalue);
+    constexpr Entry get(LValue const& lvalue);
+    constexpr Entry get(Offset offset);
+    constexpr inline void clear() { stack_address.clear(); }
+    constexpr inline bool empty_at(LValue const& lvalue)
+    {
+        return stack_address[lvalue].second == detail::Operand_Size::Empty;
+    }
+    constexpr inline bool contains(LValue const& lvalue)
+    {
+        return stack_address.contains(lvalue);
+    }
+    constexpr detail::Operand_Size get_operand_size_from_offset(Offset offset);
+    constexpr Offset allocate(Operand_Size operand);
+    constexpr void set_address_from_accumulator(
+        LValue const& lvalue,
+        Register acc);
+    constexpr void set_address_from_immediate(
+        LValue const& lvalue,
+        Immediate const& rvalue);
+
+  private:
+    Offset size{ 0 };
+    Local stack_address{};
+};
+
+} // namespace detail
 
 class Code_Generator final : public target::Backend<detail::Storage>
 {
@@ -67,7 +106,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void build();
-    void from_func_start_ita(ir::Table::Label const& name) override;
+    void from_func_start_ita(symbol::Label const& name) override;
     void from_func_end_ita() override;
     void from_locl_ita(ITA_Inst const& inst) override;
     void from_cmp_ita(ITA_Inst const& inst) override;
@@ -92,54 +131,18 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Register::edi, Register::r8d, Register::r9d,
         Register::esi, Register::edx, Register::ecx
     };
-    // clang-format on
-    struct Stack
-    {
-        using LValue = ir::Table::LValue;
-        using RValue = ir::Table::RValue;
-        using Offset = detail::Stack_Offset;
-        using Entry = std::pair<Offset, detail::Operand_Size>;
-        using Pair = std::pair<LValue, Entry>;
-        using Local = Ordered_Map<LValue, Entry>;
-        constexpr void make(LValue const& lvalue);
-        constexpr Entry get(LValue const& lvalue);
-        constexpr Entry get(Offset offset);
-        constexpr inline void clear() { stack_address.clear(); }
-        constexpr inline bool empty_at(LValue const& lvalue)
-        {
-            return stack_address[lvalue].second == detail::Operand_Size::Empty;
-        }
-        constexpr inline bool contains(LValue const& lvalue)
-        {
-            return stack_address.contains(lvalue);
-        }
-        constexpr detail::Operand_Size get_operand_size_from_offset(
-            Offset offset);
-        constexpr Offset allocate(detail::Operand_Size operand);
-        constexpr void set_address_from_accumulator(
-            LValue const& lvalue,
-            Register acc);
-        constexpr void set_address_from_immediate(
-            LValue const& lvalue,
-            Immediate const& rvalue);
-
-      private:
-        Offset size{ 0 };
-        Local stack_address{};
-    };
 
   private:
-    Stack stack{};
+    detail::Stack stack{};
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
     Storage get_storage_from_temporary_lvalue(
-        ir::Table::LValue const& lvalue,
+        symbol::LValue const& lvalue,
         std::string const& op);
 
     // clang-format off
-
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instruction_Pair from_ita_expression(ir::Table::RValue const& expr);
+    Instruction_Pair from_ita_expression(symbol::RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
         Storage& dest);
@@ -154,13 +157,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& binary_op);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void insert_from_temporary_table_rvalue(ir::Table::RValue const& expr);
+    void insert_from_temporary_table_rvalue(symbol::RValue const& expr);
     void from_temporary_binary_operator_expression(
-        ir::Table::RValue const& expr);
+        symbol::RValue const& expr);
     void from_temporary_bitwise_operator_expression(
-        ir::Table::RValue const& expr);
+        symbol::RValue const& expr);
     void from_temporary_unary_operator_expression(
-        ir::Table::RValue const& expr);
+        symbol::RValue const& expr);
     void insert_from_temporary_immediate_rvalues(
         Storage& lhs,
         std::string const& op,
@@ -168,7 +171,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(Storage const& storage);
-    void set_table_stack_frame(ir::Table::Label const& name);
+    void set_table_stack_frame(symbol::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Storage get_storage_device(
@@ -195,8 +198,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
     std::size_t constant_index{ 0 };
     Register special_register = Register::eax;
     bool temporary_expansion{ false };
-    detail::Instructions instructions_;
-    detail::Instructions data_;
+    Instructions instructions_;
+    Instructions data_;
 };
 
 void emit(
