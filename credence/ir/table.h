@@ -44,10 +44,11 @@ namespace ir {
 void emit(std::ostream& os,
 util::AST_Node const& symbols,
 util::AST_Node const& ast);
-// clang-format on
 
-std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
+std::pair<std::string, std::string>
+get_rvalue_from_mov_qaudruple(
     ITA::Quadruple const& instruction);
+// clang-format on
 
 namespace detail {
 
@@ -201,8 +202,8 @@ class Table
         RValue const& rvalue,
         Type const& type)
     {
-        if (std::ranges::find(typeinfo::integral_unary, type) ==
-            typeinfo::integral_unary.end())
+        if (std::ranges::find(typeinfo::integral_unary_types, type) ==
+            typeinfo::integral_unary_types.end())
             construct_error(
                 std::format(
                     "invalid numeric unary expression on lvalue, lvalue "

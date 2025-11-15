@@ -124,16 +124,6 @@ enum class Register
     r9d, r10d, r11d, r12d, r13d, r14d, r15d, al
 };
 
-constexpr auto math_binary_operators =
-    { "*", "/", "-", "+", "%" };
-constexpr auto bitwise_operators =
-    { "<<", ">>", "^", "&", "%", "~" };
-constexpr auto unary_operators =
-    { "++", "--", "*", "&", "-", "+", "~", "!", "~" };
-constexpr auto relation_binary_operators =
-    { "==", "!=", "<",  "&&",
-    "||", ">",  "<=", ">=" };
-
 constexpr const auto QWORD_REGISTER = {
     Register::rdi, Register::r8,  Register::r9,
     Register::rsi, Register::rdx, Register::rcx
@@ -201,57 +191,6 @@ T trivial_bitwise_from_numeric_table_type(
                 return imm_l | imm_r;
         }
     return result;
-}
-
-constexpr bool is_binary_math_operator(typeinfo::semantic::RValue const& rvalue)
-{
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    auto test = std::ranges::find_if(
-        math_binary_operators.begin(),
-        math_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
-    return test != math_binary_operators.end();
-}
-
-constexpr bool is_bitwise_operator(typeinfo::semantic::RValue const& rvalue)
-{
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    auto test = std::ranges::find_if(
-        bitwise_operators.begin(),
-        bitwise_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
-    return test != bitwise_operators.end();
-}
-
-constexpr bool is_relation_binary_operator(
-    typeinfo::semantic::RValue const& rvalue)
-{
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    auto test = std::ranges::find_if(
-        relation_binary_operators.begin(),
-        relation_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
-    return test != relation_binary_operators.end();
-}
-
-constexpr bool is_binary_operator(typeinfo::semantic::RValue const& rvalue)
-{
-    return is_binary_math_operator(rvalue) or
-           is_relation_binary_operator(rvalue) or is_bitwise_operator(rvalue);
-}
-
-constexpr bool is_unary_operator(typeinfo::semantic::RValue const& rvalue)
-{
-    return typeinfo::is_unary(rvalue);
 }
 
 enum class Operand_Size : std::size_t

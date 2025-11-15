@@ -250,6 +250,63 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
         "\"root\" : \"\\\"some days you can't win\\\"\"\n        }],\n      "
         "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
         "\"definitions\"\n}\n");
+    auto bitwise_constant = LOAD_JSON_FROM_STRING(
+        "\n{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
+        "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
+        "[{\n            \"left\" : [{\n                \"node\" : "
+        "\"lvalue\",\n                \"root\" : \"x\"\n              }, {\n   "
+        "             \"node\" : \"lvalue\",\n                \"root\" : "
+        "\"y\"\n              }, {\n                \"node\" : \"lvalue\",\n   "
+        "             \"root\" : \"z\"\n              }],\n            "
+        "\"node\" : \"statement\",\n            \"root\" : \"auto\"\n          "
+        "}, {\n            \"left\" : [[{\n                  \"left\" : {\n    "
+        "                \"node\" : \"lvalue\",\n                    \"root\" "
+        ": \"x\"\n                  },\n                  \"node\" : "
+        "\"assignment_expression\",\n                  \"right\" : {\n         "
+        "           \"left\" : {\n                      \"node\" : "
+        "\"number_literal\",\n                      \"root\" : 10\n            "
+        "        },\n                    \"node\" : \"unary_expression\",\n    "
+        "                \"root\" : [\"~\"]\n                  },\n            "
+        "      \"root\" : [\"=\"]\n                }], [{\n                  "
+        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
+        "        \"root\" : \"y\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"evaluated_expression\",\n                      \"root\" : {\n       "
+        "                 \"left\" : {\n                          \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 5\n         "
+        "               },\n                        \"node\" : "
+        "\"relation_expression\",\n                        \"right\" : {\n     "
+        "                     \"node\" : \"lvalue\",\n                         "
+        " \"root\" : \"x\"\n                        },\n                       "
+        " \"root\" : [\"^\"]\n                      }\n                    "
+        "},\n                    \"node\" : \"relation_expression\",\n         "
+        "           \"right\" : {\n                      \"left\" : {\n        "
+        "                \"node\" : \"number_literal\",\n                      "
+        "  \"root\" : 2\n                      },\n                      "
+        "\"node\" : \"relation_expression\",\n                      \"right\" "
+        ": {\n                        \"node\" : \"number_literal\",\n         "
+        "               \"root\" : 1\n                      },\n               "
+        "       \"root\" : [\">>\"]\n                    },\n                  "
+        "  \"root\" : [\"|\"]\n                  },\n                  "
+        "\"root\" : [\"=\"]\n                }], [{\n                  "
+        "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
+        "        \"root\" : \"z\"\n                  },\n                  "
+        "\"node\" : \"assignment_expression\",\n                  \"right\" : "
+        "{\n                    \"left\" : {\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"x\"\n                 "
+        "   },\n                    \"node\" : \"relation_expression\",\n      "
+        "              \"right\" : {\n                      \"left\" : {\n     "
+        "                   \"node\" : \"lvalue\",\n                        "
+        "\"root\" : \"y\"\n                      },\n                      "
+        "\"node\" : \"unary_expression\",\n                      \"root\" : "
+        "[\"~\"]\n                    },\n                    \"root\" : "
+        "[\"&\"]\n                  },\n                  \"root\" : [\"=\"]\n "
+        "               }]],\n            \"node\" : \"statement\",\n          "
+        "  \"root\" : \"rvalue\"\n          }],\n        \"node\" : "
+        "\"statement\",\n        \"root\" : \"block\"\n      },\n      "
+        "\"root\" : \"main\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
+        "\"definitions\"\n}\n");
     auto switch_main_function = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
@@ -497,6 +554,26 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
         "\"root\" : \"printf\"\n    }],\n  \"node\" : \"program\",\n  \"root\" "
         ": \"definitions\"\n}\n");
 
+    std::string expected_bitwise_constant = R"ita(__main():
+ BeginFunc ;
+    LOCL x;
+    LOCL y;
+    LOCL z;
+    _t2 = ~ (10:int:4);
+    x = _t2;
+    _t3 = (5:int:4) ^ x;
+    _t4 = (2:int:4) >> (1:int:4);
+    _t5 = _t3 | _t4;
+    y = _t5;
+    _t6 = ~ y;
+    _t7 = _t6;
+    z = x & _t7;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita";
+
     std::string expected_switch_main_function = R"ita(__main():
  BeginFunc ;
     LOCL m;
@@ -670,6 +747,9 @@ _L1:
     out_to.str("");
     credence::ir::emit(out_to, VECTOR_SYMBOLS, vector_2);
     REQUIRE(out_to.str() == expected_2);
+    out_to.str("");
+    credence::ir::emit(out_to, VECTOR_SYMBOLS, bitwise_constant);
+    REQUIRE(out_to.str() == expected_bitwise_constant);
 }
 
 TEST_CASE_FIXTURE(
@@ -1133,16 +1213,16 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
 {
     auto table = make_table(make_node());
-    auto test1 = credence::typeinfo::is_unary("*k");
-    auto test2 = credence::typeinfo::is_unary("!x");
-    auto test3 = credence::typeinfo::is_unary("~1000");
-    auto test4 = credence::typeinfo::is_unary("&z_1");
-    auto test5 = credence::typeinfo::is_unary("-100");
-    auto test6 = credence::typeinfo::is_unary("u++");
-    auto test7 = credence::typeinfo::is_unary("--u");
-    auto test8 = credence::typeinfo::is_unary("u");
-    auto test9 = credence::typeinfo::is_unary("500");
-    auto test10 = credence::typeinfo::is_unary("k[20]");
+    auto test1 = credence::typeinfo::is_unary_operator("*k");
+    auto test2 = credence::typeinfo::is_unary_operator("!x");
+    auto test3 = credence::typeinfo::is_unary_operator("~1000");
+    auto test4 = credence::typeinfo::is_unary_operator("&z_1");
+    auto test5 = credence::typeinfo::is_unary_operator("-100");
+    auto test6 = credence::typeinfo::is_unary_operator("u++");
+    auto test7 = credence::typeinfo::is_unary_operator("--u");
+    auto test8 = credence::typeinfo::is_unary_operator("u");
+    auto test9 = credence::typeinfo::is_unary_operator("500");
+    auto test10 = credence::typeinfo::is_unary_operator("k[20]");
 
     REQUIRE(test1 == true);
     REQUIRE(test2 == true);
@@ -1159,13 +1239,13 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::get_unary")
 {
     auto table = make_table(make_node());
-    auto test1 = credence::typeinfo::get_unary("*k");
-    auto test2 = credence::typeinfo::get_unary("!x");
-    auto test3 = credence::typeinfo::get_unary("~1000");
-    auto test4 = credence::typeinfo::get_unary("&z_1");
-    auto test5 = credence::typeinfo::get_unary("-100");
-    auto test6 = credence::typeinfo::get_unary("u++");
-    auto test7 = credence::typeinfo::get_unary("--u");
+    auto test1 = credence::typeinfo::get_unary_operator("*k");
+    auto test2 = credence::typeinfo::get_unary_operator("!x");
+    auto test3 = credence::typeinfo::get_unary_operator("~1000");
+    auto test4 = credence::typeinfo::get_unary_operator("&z_1");
+    auto test5 = credence::typeinfo::get_unary_operator("-100");
+    auto test6 = credence::typeinfo::get_unary_operator("u++");
+    auto test7 = credence::typeinfo::get_unary_operator("--u");
 
     REQUIRE(test1 == "*");
     REQUIRE(test2 == "!");

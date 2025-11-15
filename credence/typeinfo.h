@@ -62,12 +62,73 @@ using Locals = Symbol_Table<Data_Type, semantic::LValue>;
 using Temporary = std::pair<semantic::LValue, semantic::RValue>;
 using Parameters = std::vector<std::string>;
 
-constexpr auto UNARY_TYPES = { "++", "--", "*", "&", "-", "+", "~", "!", "~" };
+// clang-format off
+constexpr auto unary_operators =
+    { "++", "--", "*", "&", "-", "+", "~", "!", "~" };
+constexpr auto arithmetic_binary_operators =
+    { "*", "/", "-", "+", "%" };
+constexpr auto bitwise_operators =
+    { "<<", ">>", "^", "&", "%", "~" };
+constexpr auto relation_binary_operators =
+    { "==", "!=", "<",  "&&",
+    "||", ">",  "<=", ">=" };
+
+constexpr auto integral_unary_types =
+    { "int", "double", "float", "long" };
 
 constexpr Data_Type NULL_RVALUE_LITERAL =
     Data_Type{ "NULL", "null", sizeof(void*) };
+// clang-format on
 
-constexpr auto integral_unary = { "int", "double", "float", "long" };
+/**
+ * @brief Check if expression contains arithmetic operator
+ */
+constexpr bool is_binary_arithmetic_operator(
+    typeinfo::semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = std::ranges::find_if(
+        arithmetic_binary_operators.begin(),
+        arithmetic_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != arithmetic_binary_operators.end();
+}
+
+/**
+ * @brief Check if expression contains bitwise operator
+ */
+constexpr bool is_bitwise_operator(typeinfo::semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = std::ranges::find_if(
+        bitwise_operators.begin(),
+        bitwise_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != bitwise_operators.end();
+}
+
+/**
+ * @brief Check if expression contains relational operator
+ */
+constexpr bool is_relation_binary_operator(
+    typeinfo::semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = std::ranges::find_if(
+        relation_binary_operators.begin(),
+        relation_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != relation_binary_operators.end();
+}
 
 /**
  * @brief Check if a symbol is in the symbol::Data_Type form
@@ -110,6 +171,29 @@ constexpr semantic::RValue get_unary_rvalue_reference(
             }),
         lvalue.end());
     return lvalue;
+}
+
+/**
+ * @brief Check if an expression contains unary operator
+ */
+constexpr bool is_unary_operator(RValue_Reference rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") >= 2)
+        return false;
+    return std::ranges::any_of(unary_operators, [&](std::string_view x) {
+        return rvalue.starts_with(x) or rvalue.ends_with(x);
+    });
+}
+
+/**
+ * @brief Check if an expression contains binary operator
+ */
+constexpr bool is_binary_operator(typeinfo::semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    return is_binary_arithmetic_operator(rvalue) or
+           is_relation_binary_operator(rvalue) or is_bitwise_operator(rvalue);
 }
 
 /**
@@ -172,26 +256,14 @@ constexpr Binary_Expression from_rvalue_binary_expression(
 /**
  * @brief Get unary operator from ITA rvalue string
  */
-constexpr semantic::RValue get_unary(RValue_Reference rvalue)
+constexpr semantic::RValue get_unary_operator(RValue_Reference rvalue)
 {
-    auto it = std::ranges::find_if(UNARY_TYPES, [&](std::string_view op) {
+    auto it = std::ranges::find_if(unary_operators, [&](std::string_view op) {
         return rvalue.find(op) != std::string_view::npos;
     });
-    if (it == UNARY_TYPES.end())
+    if (it == unary_operators.end())
         return "";
     return *it;
-}
-
-/**
- * @brief Check if is unary
- */
-constexpr bool is_unary(RValue_Reference rvalue)
-{
-    if (util::substring_count_of(rvalue, " ") >= 2)
-        return false;
-    return std::ranges::any_of(UNARY_TYPES, [&](std::string_view x) {
-        return rvalue.starts_with(x) or rvalue.ends_with(x);
-    });
 }
 
 /**
@@ -238,7 +310,7 @@ constexpr semantic::RValue from_pointer_offset(RValue_Reference rvalue)
 /**
  * @brief Check if symbol is an expression with two symbol::Data_Types
  */
-constexpr bool is_binary_rvalue_data_expression(semantic::RValue const& rvalue)
+constexpr bool is_binary_datatype_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
