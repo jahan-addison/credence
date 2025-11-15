@@ -18,7 +18,7 @@
 
 #include <algorithm>           // for find
 #include <credence/ir/table.h> // for Table
-#include <credence/rvalue.h>   // for LValue, RValue, Data_Type, ...
+#include <credence/typeinfo.h> // for LValue, RValue, Data_Type, ...
 #include <deque>               // for deque
 #include <string>              // for basic_string, string
 #include <tuple>               // for tuple
@@ -203,7 +203,7 @@ T trivial_bitwise_from_numeric_table_type(
     return result;
 }
 
-constexpr inline bool is_binary_math_operator(symbol::RValue const& rvalue)
+constexpr bool is_binary_math_operator(typeinfo::semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -216,7 +216,7 @@ constexpr inline bool is_binary_math_operator(symbol::RValue const& rvalue)
     return test != math_binary_operators.end();
 }
 
-constexpr inline bool is_bitwise_operator(symbol::RValue const& rvalue)
+constexpr bool is_bitwise_operator(typeinfo::semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -229,7 +229,8 @@ constexpr inline bool is_bitwise_operator(symbol::RValue const& rvalue)
     return test != bitwise_operators.end();
 }
 
-constexpr inline bool is_relation_binary_operator(symbol::RValue const& rvalue)
+constexpr bool is_relation_binary_operator(
+    typeinfo::semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -242,15 +243,15 @@ constexpr inline bool is_relation_binary_operator(symbol::RValue const& rvalue)
     return test != relation_binary_operators.end();
 }
 
-constexpr inline bool is_binary_operator(symbol::RValue const& rvalue)
+constexpr bool is_binary_operator(typeinfo::semantic::RValue const& rvalue)
 {
     return is_binary_math_operator(rvalue) or
            is_relation_binary_operator(rvalue) or is_bitwise_operator(rvalue);
 }
 
-constexpr inline bool is_unary_operator(symbol::RValue const& rvalue)
+constexpr bool is_unary_operator(typeinfo::semantic::RValue const& rvalue)
 {
-    return symbol::is_unary(rvalue);
+    return typeinfo::is_unary(rvalue);
 }
 
 enum class Operand_Size : std::size_t
@@ -269,18 +270,18 @@ const std::map<Operand_Size, std::string> suffix = {
     { Operand_Size::Qword, "q" }
 };
 
-constexpr inline bool is_qword_register(Register r)
+constexpr bool is_qword_register(Register r)
 {
     return std::ranges::find(QWORD_REGISTER.begin(), QWORD_REGISTER.end(), r) !=
            QWORD_REGISTER.end();
 }
-constexpr inline bool is_dword_register(Register r)
+constexpr bool is_dword_register(Register r)
 {
     return std::ranges::find(DWORD_REGISTER.begin(), DWORD_REGISTER.end(), r) !=
            DWORD_REGISTER.end();
 }
 
-constexpr inline Operand_Size get_size_from_accumulator_register(Register acc)
+constexpr Operand_Size get_size_from_accumulator_register(Register acc)
 {
     if (acc == Register::al) {
         return Operand_Size::Byte;
@@ -293,12 +294,12 @@ constexpr inline Operand_Size get_size_from_accumulator_register(Register acc)
     }
 }
 
-constexpr inline std::size_t get_size_from_operand_size(Operand_Size size)
+constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 {
     return static_cast<std::underlying_type_t<Operand_Size>>(size);
 }
 
-constexpr inline std::ostream& operator<<(std::ostream& os, Register reg)
+constexpr std::ostream& operator<<(std::ostream& os, Register reg)
 {
     switch (reg) {
         REGISTER_OSTREAM(rbp);
@@ -383,11 +384,11 @@ Register get_accumulator_register_from_size(
     Operand_Size size = Operand_Size::Dword);
 
 constexpr Operand_Size get_size_from_table_rvalue(
-    symbol::Data_Type const& rvalue)
+    typeinfo::Data_Type const& rvalue)
 {
     namespace m = matchit;
-    using T = symbol::Type;
-    symbol::Type type = symbol::get_type_from_rvalue_data_type(rvalue);
+    using T = typeinfo::semantic::Type;
+    T type = typeinfo::get_type_from_rvalue_data_type(rvalue);
     return m::match(type)(
         m::pattern | m::or_(T{ "int" }, T{ "string" }) =
             [&] { return Operand_Size::Dword; },
@@ -402,11 +403,11 @@ using Stack_Offset = std::size_t;
 
 inline constexpr auto O_NUL = std::monostate{};
 
-using Immediate = symbol::Data_Type;
+using Immediate = typeinfo::Data_Type;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
-using Label = symbol::Label;
-using Instructions = std::deque<std::variant<Label, Instruction>>;
+using Instructions =
+    std::deque<std::variant<typeinfo::semantic::Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, detail::Instructions>;
 
 Immediate get_result_from_trivial_integral_expression(

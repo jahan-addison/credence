@@ -5,6 +5,7 @@
 #include <credence/ir/ita.h>   // for make_ITA_instructions, ITA
 #include <credence/ir/table.h> // for Table
 #include <credence/symbol.h>   // for Symbol_Table
+#include <credence/typeinfo.h> // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>     // for AST_Node, AST
 #include <format>              // for format
 #include <memory>              // for allocator, shared_ptr
@@ -812,9 +813,10 @@ TEST_CASE_FIXTURE(
         "\"definitions\"\n}\n");
     auto table = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
     auto& locals = table.functions["main"]->locals;
-    locals.set_symbol_by_name("mess", credence::symbol::NULL_RVALUE_LITERAL);
-    locals.set_symbol_by_name("putchar", credence::symbol::NULL_RVALUE_LITERAL);
-    locals.set_symbol_by_name("unit", credence::symbol::NULL_RVALUE_LITERAL);
+    locals.set_symbol_by_name("mess", credence::typeinfo::NULL_RVALUE_LITERAL);
+    locals.set_symbol_by_name(
+        "putchar", credence::typeinfo::NULL_RVALUE_LITERAL);
+    locals.set_symbol_by_name("unit", credence::typeinfo::NULL_RVALUE_LITERAL);
     REQUIRE(table.vectors.size() == 4);
     REQUIRE(table.vectors["mess"]->data.size() == 7);
     REQUIRE(table.vectors["putchar"]->data.size() == 1);
@@ -905,10 +907,10 @@ TEST_CASE_FIXTURE(
     table.vectors["mess"] = std::make_shared<credence::ir::detail::Vector>(
         credence::ir::detail::Vector{ size });
     table.functions["main"]->locals.table_["mess"] =
-        credence::symbol::NULL_RVALUE_LITERAL;
-    table.vectors["mess"]->data["0"] = credence::symbol::NULL_RVALUE_LITERAL;
-    table.vectors["mess"]->data["1"] = credence::symbol::NULL_RVALUE_LITERAL;
-    table.vectors["mess"]->data["2"] = credence::symbol::NULL_RVALUE_LITERAL;
+        credence::typeinfo::NULL_RVALUE_LITERAL;
+    table.vectors["mess"]->data["0"] = credence::typeinfo::NULL_RVALUE_LITERAL;
+    table.vectors["mess"]->data["1"] = credence::typeinfo::NULL_RVALUE_LITERAL;
+    table.vectors["mess"]->data["2"] = credence::typeinfo::NULL_RVALUE_LITERAL;
     REQUIRE_THROWS(table.is_boundary_out_of_range(test3));
     table.functions["main"]->locals.table_["z"] = { "5", "int", 4UL };
     REQUIRE_NOTHROW(table.is_boundary_out_of_range(test3));
@@ -925,15 +927,15 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_pointer_offset")
 {
     auto table = make_table(make_node());
-    REQUIRE(credence::symbol::from_pointer_offset("sidno[errno]") == "errno");
-    REQUIRE(credence::symbol::from_pointer_offset("y[39]") == "39");
+    REQUIRE(credence::typeinfo::from_pointer_offset("sidno[errno]") == "errno");
+    REQUIRE(credence::typeinfo::from_pointer_offset("y[39]") == "39");
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_lvalue_offset")
 {
     auto table = make_table(make_node());
-    REQUIRE(credence::symbol::from_lvalue_offset("sidno[errno]") == "sidno");
-    REQUIRE(credence::symbol::from_lvalue_offset("y[39]") == "y");
+    REQUIRE(credence::typeinfo::from_lvalue_offset("sidno[errno]") == "sidno");
+    REQUIRE(credence::typeinfo::from_lvalue_offset("y[39]") == "y");
 }
 
 TEST_CASE_FIXTURE(
@@ -1044,13 +1046,16 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::from_rvalue_binary_expression")
 {
     auto table = make_table_with_frame(make_node());
-    auto test1 = credence::symbol::from_rvalue_binary_expression("5 || 10");
-    auto test2 = credence::symbol::from_rvalue_binary_expression("_t1 && _t2");
-    auto test3 = credence::symbol::from_rvalue_binary_expression("~_t1 + *_t2");
-    REQUIRE(test1 == credence::symbol::Binary_Expression{ "5", "10", "||" });
-    REQUIRE(test2 == credence::symbol::Binary_Expression{ "_t1", "_t2", "&&" });
+    auto test1 = credence::typeinfo::from_rvalue_binary_expression("5 || 10");
+    auto test2 =
+        credence::typeinfo::from_rvalue_binary_expression("_t1 && _t2");
+    auto test3 =
+        credence::typeinfo::from_rvalue_binary_expression("~_t1 + *_t2");
+    REQUIRE(test1 == credence::typeinfo::Binary_Expression{ "5", "10", "||" });
     REQUIRE(
-        test3 == credence::symbol::Binary_Expression{ "~_t1", "*_t2", "+" });
+        test2 == credence::typeinfo::Binary_Expression{ "_t1", "_t2", "&&" });
+    REQUIRE(
+        test3 == credence::typeinfo::Binary_Expression{ "~_t1", "*_t2", "+" });
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_temporary_lvalue")
@@ -1109,9 +1114,9 @@ TEST_CASE_FIXTURE(
 {
     auto table = make_table_with_frame(make_node());
     auto& locals = table.get_stack_frame_symbols();
-    credence::symbol::Data_Type expected1 = { "5", "int", 4UL };
-    credence::symbol::Data_Type expected2 = { "5", "long", 8UL };
-    credence::symbol::Data_Type expected3 = { "5", "double", 8UL };
+    credence::typeinfo::Data_Type expected1 = { "5", "int", 4UL };
+    credence::typeinfo::Data_Type expected2 = { "5", "long", 8UL };
+    credence::typeinfo::Data_Type expected3 = { "5", "double", 8UL };
     locals.set_symbol_by_name("a", expected1);
     locals.set_symbol_by_name("b", expected2);
     locals.set_symbol_by_name("c", expected3);
@@ -1128,16 +1133,16 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
 {
     auto table = make_table(make_node());
-    auto test1 = credence::symbol::is_unary("*k");
-    auto test2 = credence::symbol::is_unary("!x");
-    auto test3 = credence::symbol::is_unary("~1000");
-    auto test4 = credence::symbol::is_unary("&z_1");
-    auto test5 = credence::symbol::is_unary("-100");
-    auto test6 = credence::symbol::is_unary("u++");
-    auto test7 = credence::symbol::is_unary("--u");
-    auto test8 = credence::symbol::is_unary("u");
-    auto test9 = credence::symbol::is_unary("500");
-    auto test10 = credence::symbol::is_unary("k[20]");
+    auto test1 = credence::typeinfo::is_unary("*k");
+    auto test2 = credence::typeinfo::is_unary("!x");
+    auto test3 = credence::typeinfo::is_unary("~1000");
+    auto test4 = credence::typeinfo::is_unary("&z_1");
+    auto test5 = credence::typeinfo::is_unary("-100");
+    auto test6 = credence::typeinfo::is_unary("u++");
+    auto test7 = credence::typeinfo::is_unary("--u");
+    auto test8 = credence::typeinfo::is_unary("u");
+    auto test9 = credence::typeinfo::is_unary("500");
+    auto test10 = credence::typeinfo::is_unary("k[20]");
 
     REQUIRE(test1 == true);
     REQUIRE(test2 == true);
@@ -1154,13 +1159,13 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::get_unary")
 {
     auto table = make_table(make_node());
-    auto test1 = credence::symbol::get_unary("*k");
-    auto test2 = credence::symbol::get_unary("!x");
-    auto test3 = credence::symbol::get_unary("~1000");
-    auto test4 = credence::symbol::get_unary("&z_1");
-    auto test5 = credence::symbol::get_unary("-100");
-    auto test6 = credence::symbol::get_unary("u++");
-    auto test7 = credence::symbol::get_unary("--u");
+    auto test1 = credence::typeinfo::get_unary("*k");
+    auto test2 = credence::typeinfo::get_unary("!x");
+    auto test3 = credence::typeinfo::get_unary("~1000");
+    auto test4 = credence::typeinfo::get_unary("&z_1");
+    auto test5 = credence::typeinfo::get_unary("-100");
+    auto test6 = credence::typeinfo::get_unary("u++");
+    auto test7 = credence::typeinfo::get_unary("--u");
 
     REQUIRE(test1 == "*");
     REQUIRE(test2 == "!");
@@ -1176,12 +1181,12 @@ TEST_CASE_FIXTURE(
     "ir/table.cc: Table::get_unary_rvalue_reference")
 {
     auto table = make_table(make_node());
-    auto test1 = credence::symbol::get_unary_rvalue_reference("*k");
-    auto test2 = credence::symbol::get_unary_rvalue_reference("!x");
-    auto test3 = credence::symbol::get_unary_rvalue_reference("~1000");
-    auto test4 = credence::symbol::get_unary_rvalue_reference("&z_1");
-    auto test5 = credence::symbol::get_unary_rvalue_reference("-100");
-    auto test6 = credence::symbol::get_unary_rvalue_reference("u++");
+    auto test1 = credence::typeinfo::get_unary_rvalue_reference("*k");
+    auto test2 = credence::typeinfo::get_unary_rvalue_reference("!x");
+    auto test3 = credence::typeinfo::get_unary_rvalue_reference("~1000");
+    auto test4 = credence::typeinfo::get_unary_rvalue_reference("&z_1");
+    auto test5 = credence::typeinfo::get_unary_rvalue_reference("-100");
+    auto test6 = credence::typeinfo::get_unary_rvalue_reference("u++");
 
     REQUIRE(test1 == "k");
     REQUIRE(test2 == "x");
@@ -1194,21 +1199,22 @@ TEST_CASE_FIXTURE(
 TEST_CASE("ir/table.cc: Table::get_symbol_type_size_from_rvalue_string")
 {
     auto [test1_1, test1_2, test1_3] =
-        credence::symbol::get_symbol_type_size_from_rvalue_string("(10:int:4)");
+        credence::typeinfo::get_symbol_type_size_from_rvalue_string(
+            "(10:int:4)");
     auto [test2_1, test2_2, test2_3] =
-        credence::symbol::get_symbol_type_size_from_rvalue_string(
+        credence::typeinfo::get_symbol_type_size_from_rvalue_string(
             std::format("(10.005:float:{})", sizeof(float)));
     auto [test3_1, test3_2, test3_3] =
-        credence::symbol::get_symbol_type_size_from_rvalue_string(
+        credence::typeinfo::get_symbol_type_size_from_rvalue_string(
             std::format("(10.000000000000000005:double:{})", sizeof(double)));
     auto [test4_1, test4_2, test4_3] =
-        credence::symbol::get_symbol_type_size_from_rvalue_string(
+        credence::typeinfo::get_symbol_type_size_from_rvalue_string(
             std::format("('0':byte:{})", sizeof(char)));
     auto [test5_1, test5_2, test5_3] =
-        credence::symbol::get_symbol_type_size_from_rvalue_string(
+        credence::typeinfo::get_symbol_type_size_from_rvalue_string(
             std::format("(__WORD__:word:{})", sizeof(void*)));
     auto [test6_1, test6_2, test6_3] =
-        credence::symbol::get_symbol_type_size_from_rvalue_string(
+        credence::typeinfo::get_symbol_type_size_from_rvalue_string(
             std::format(
                 "(\"hello this is a very long string\":string:{})",
                 std::string{ "hello this is a very long string" }.size()));

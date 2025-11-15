@@ -4,6 +4,7 @@
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
 #include <credence/target/target.h> // for align_up_to_16
+#include <credence/typeinfo.h>      // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>          // for substring_count_of, contains
 #include <cstddef>                  // for size_t
 #include <deque>                    // for deque
@@ -45,7 +46,7 @@ void Code_Generator::emit(std::ostream& os)
                     os << ", " << emit_storage_device(src);
                 os << std::endl;
             },
-            [&](symbol::Label const& s) {
+            [&](typeinfo::semantic::Label const& s) {
                 os << s << ":" << std::endl;
             } },
                 inst);
@@ -111,7 +112,7 @@ void Code_Generator::build()
             m::pattern | ir_i(FUNC_START) =
                 [&] {
                     auto symbol = std::get<1>(instructions.at(ita_index - 1));
-                    auto name = symbol::get_label_as_human_readable(symbol);
+                    auto name = typeinfo::get_label_as_human_readable(symbol);
                     current_frame = name;
                     set_table_stack_frame(name);
                     from_func_start_ita(name);
@@ -128,7 +129,7 @@ void Code_Generator::build()
     }
 }
 
-void Code_Generator::from_func_start_ita(symbol::Label const& name)
+void Code_Generator::from_func_start_ita(typeinfo::semantic::Label const& name)
 {
     CREDENCE_ASSERT(table_->functions.contains(name));
     stack.clear();
@@ -158,7 +159,8 @@ Code_Generator::Storage Code_Generator::get_storage_device(Operand_Size size)
     }
 }
 
-void Code_Generator::set_table_stack_frame(symbol::Label const& name)
+void Code_Generator::set_table_stack_frame(
+    typeinfo::semantic::Label const& name)
 {
     table_->set_stack_frame(name);
 }
@@ -188,7 +190,7 @@ void Code_Generator::from_push_ita(ITA_Inst const& inst)
 
 void Code_Generator::from_locl_ita(ITA_Inst const& inst)
 {
-    symbol::LValue lvalue = std::get<1>(inst);
+    typeinfo::semantic::LValue lvalue = std::get<1>(inst);
     stack.make(lvalue);
 }
 
@@ -199,17 +201,18 @@ void Code_Generator::from_cmp_ita([[maybe_unused]] ITA_Inst const& inst)
 
 void Code_Generator::from_mov_ita(ITA_Inst const& inst)
 {
-    symbol::LValue lhs = std::get<1>(inst);
+    typeinfo::semantic::LValue lhs = std::get<1>(inst);
     auto symbols = table_->get_stack_frame_symbols();
-    if (!symbol::is_temporary(lhs)) {
+    if (!typeinfo::is_temporary(lhs)) {
         CREDENCE_ASSERT(stack.contains(lhs));
-        symbol::RValue rhs = ir::get_rvalue_from_mov_qaudruple(inst).first;
-        if (symbol::is_rvalue_data_type(rhs)) {
-            auto imm = symbol::get_symbol_type_size_from_rvalue_string(rhs);
+        typeinfo::semantic::RValue rhs =
+            ir::get_rvalue_from_mov_qaudruple(inst).first;
+        if (typeinfo::is_rvalue_data_type(rhs)) {
+            auto imm = typeinfo::get_symbol_type_size_from_rvalue_string(rhs);
             stack.set_address_from_immediate(lhs, imm);
             auto lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, imm);
-        } else if (symbol::is_temporary(rhs)) {
+        } else if (typeinfo::is_temporary(rhs)) {
             auto acc = get_accumulator_register_from_size();
             stack.set_address_from_accumulator(lhs, acc);
             auto lhs_storage = stack.get(lhs).first;
@@ -225,7 +228,7 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             Storage lhs_storage = stack.get(lhs).first;
             if (detail::is_unary_operator(rhs)) {
                 auto symbol = symbols.get_symbol_by_name(lhs);
-                auto unary_op = symbol::get_unary(rhs);
+                auto unary_op = typeinfo::get_unary(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
             } else {
                 std::cout << "hmm: " << rhs << std::endl;
@@ -240,19 +243,19 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
 }
 
 Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
-    symbol::LValue const& lvalue,
+    typeinfo::semantic::LValue const& lvalue,
     std::string const& op)
 {
     Storage storage{};
-    if (symbol::is_rvalue_data_type(lvalue)) {
+    if (typeinfo::is_rvalue_data_type(lvalue)) {
         auto acc = get_accumulator_register_from_size();
-        storage = symbol::get_symbol_type_size_from_rvalue_string(lvalue);
+        storage = typeinfo::get_symbol_type_size_from_rvalue_string(lvalue);
         if (!temporary_expansion) {
             temporary_expansion = true;
             auto lookbehind = table_->instructions[ita_index];
-            symbol::RValue rvalue =
+            typeinfo::semantic::RValue rvalue =
                 ir::get_rvalue_from_mov_qaudruple(lookbehind).first;
-            if (!symbol::is_binary_rvalue_data_expression(rvalue))
+            if (!typeinfo::is_binary_rvalue_data_expression(rvalue))
                 addiis(instructions_, mov, acc, storage);
         }
     } else if (stack.contains(lvalue) and not stack.empty_at(lvalue)) {
@@ -354,11 +357,12 @@ void Code_Generator::from_ita_unary_expression(
 }
 
 void Code_Generator::from_temporary_unary_operator_expression(
-    symbol::RValue const& expr)
+    typeinfo::semantic::RValue const& expr)
 {
     CREDENCE_ASSERT(detail::is_unary_operator(expr));
-    auto op = symbol::get_unary(expr);
-    symbol::RValue rvalue = symbol::get_unary_rvalue_reference(expr);
+    auto op = typeinfo::get_unary(expr);
+    typeinfo::semantic::RValue rvalue =
+        typeinfo::get_unary_rvalue_reference(expr);
     get_storage_from_temporary_lvalue(rvalue, op);
     if (stack.contains(rvalue)) {
         auto size = stack.get(rvalue).second;
@@ -366,17 +370,17 @@ void Code_Generator::from_temporary_unary_operator_expression(
         from_ita_unary_expression(op, dest);
     } else {
         auto size = detail::get_size_from_table_rvalue(
-            symbol::get_symbol_type_size_from_rvalue_string(rvalue));
+            typeinfo::get_symbol_type_size_from_rvalue_string(rvalue));
         Storage dest = get_accumulator_register_from_size(size);
         from_ita_unary_expression(op, dest);
     }
 }
 
 void Code_Generator::from_temporary_binary_operator_expression(
-    symbol::RValue const& expr)
+    typeinfo::semantic::RValue const& expr)
 {
     CREDENCE_ASSERT(detail::is_binary_operator(expr));
-    auto expression = symbol::from_rvalue_binary_expression(expr);
+    auto expression = typeinfo::from_rvalue_binary_expression(expr);
     auto lhs = std::get<0>(expression);
     auto rhs = std::get<1>(expression);
     auto op = std::get<2>(expression);
@@ -404,15 +408,15 @@ void Code_Generator::from_temporary_binary_operator_expression(
 }
 
 void Code_Generator::insert_from_temporary_table_rvalue(
-    symbol::RValue const& expr)
+    typeinfo::semantic::RValue const& expr)
 {
     auto symbols = table_->get_stack_frame_symbols();
     if (detail::is_binary_operator(expr)) {
         from_temporary_binary_operator_expression(expr);
     } else if (detail::is_unary_operator(expr)) {
         from_temporary_unary_operator_expression(expr);
-    } else if (symbol::is_rvalue_data_type(expr)) {
-        auto imm = symbol::get_symbol_type_size_from_rvalue_string(expr);
+    } else if (typeinfo::is_rvalue_data_type(expr)) {
+        auto imm = typeinfo::get_symbol_type_size_from_rvalue_string(expr);
         addiill(instructions_, mov, eax, imm);
     } else {
         auto imm = symbols.get_symbol_by_name(expr);
@@ -436,7 +440,7 @@ void Code_Generator::from_leave_ita()
 void Code_Generator::from_label_ita(ITA_Inst const& inst)
 {
     instructions_.emplace_back(
-        symbol::get_label_as_human_readable(std::get<1>(inst)));
+        typeinfo::get_label_as_human_readable(std::get<1>(inst)));
 }
 
 Code_Generator::Instruction_Pair

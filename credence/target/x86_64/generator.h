@@ -21,8 +21,8 @@
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
 #include <credence/map.h>           // for Ordered_Map
-#include <credence/rvalue.h>        // for LValue, RValue, Data_Type, ...
 #include <credence/target/target.h> // for Backend
+#include <credence/typeinfo.h>      // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <deque>                    // for deque
 #include <initializer_list>         // for initializer_list
@@ -41,8 +41,8 @@ namespace detail {
 
 struct Stack
 {
-    using LValue = symbol::LValue;
-    using RValue = symbol::RValue;
+    using LValue = typeinfo::semantic::LValue;
+    using RValue = typeinfo::semantic::RValue;
     using Offset = detail::Stack_Offset;
     using Entry = std::pair<Offset, detail::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
@@ -106,7 +106,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void build();
-    void from_func_start_ita(symbol::Label const& name) override;
+    void from_func_start_ita(typeinfo::semantic::Label const& name) override;
     void from_func_end_ita() override;
     void from_locl_ita(ITA_Inst const& inst) override;
     void from_cmp_ita(ITA_Inst const& inst) override;
@@ -137,12 +137,12 @@ class Code_Generator final : public target::Backend<detail::Storage>
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
     Storage get_storage_from_temporary_lvalue(
-        symbol::LValue const& lvalue,
+        typeinfo::semantic::LValue const& lvalue,
         std::string const& op);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instruction_Pair from_ita_expression(symbol::RValue const& expr);
+    Instruction_Pair from_ita_expression(typeinfo::semantic::RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
         Storage& dest);
@@ -157,13 +157,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& binary_op);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void insert_from_temporary_table_rvalue(symbol::RValue const& expr);
+    void insert_from_temporary_table_rvalue(typeinfo::semantic::RValue const& expr);
     void from_temporary_binary_operator_expression(
-        symbol::RValue const& expr);
+        typeinfo::semantic::RValue const& expr);
     void from_temporary_bitwise_operator_expression(
-        symbol::RValue const& expr);
+        typeinfo::semantic::RValue const& expr);
     void from_temporary_unary_operator_expression(
-        symbol::RValue const& expr);
+        typeinfo::semantic::RValue const& expr);
     void insert_from_temporary_immediate_rvalues(
         Storage& lhs,
         std::string const& op,
@@ -171,7 +171,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(Storage const& storage);
-    void set_table_stack_frame(symbol::Label const& name);
+    void set_table_stack_frame(typeinfo::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Storage get_storage_device(
