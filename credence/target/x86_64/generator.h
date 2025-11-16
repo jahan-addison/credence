@@ -136,7 +136,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     detail::Stack stack{};
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
-    Storage get_storage_from_temporary_lvalue(
+    Storage get_storage_from_lvalue(
         type::semantic::LValue const& lvalue,
         std::string const& op);
 
@@ -145,7 +145,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     Instruction_Pair from_ita_expression(type::semantic::RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
-        Storage& dest);
+        Storage const& dest);
     Instruction_Pair from_bitwise_expression_operands(
         Storage_Operands& operands,
         std::string const& binary_op);
@@ -157,14 +157,17 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& binary_op);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void insert_from_temporary_table_rvalue(type::semantic::RValue const& expr);
-    void from_temporary_binary_operator_expression(
+    void insert_from_table_expression(type::semantic::RValue const& expr);
+    void insert_from_op_operands(
+        Storage_Operands& operands,
+        std::string const& op);
+    void from_binary_operator_expression(
         type::semantic::RValue const& expr);
-    void from_temporary_bitwise_operator_expression(
+    void from_bitwise_operator_expression(
         type::semantic::RValue const& expr);
-    void from_temporary_unary_operator_expression(
+    void from_unary_operator_expression(
         type::semantic::RValue const& expr);
-    void insert_from_temporary_immediate_rvalues(
+    void insert_from_immediate_rvalues(
         Storage& lhs,
         std::string const& op,
         Storage& rhs);

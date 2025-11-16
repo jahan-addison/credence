@@ -56,16 +56,14 @@ void expression_pointer_to_queue_in_place(
     Operator_Stack& operator_stack,
     int* parameter_size);
 
-namespace {
 /**
  * @brief Operator precedence check of the queue and operator stack
  */
 void associativity_operator_precedence(
     type::Operator op1,
     Queue& queue,
-    std::stack<type::Operator>& operator_stack)
+    Operator_Stack& operator_stack)
 {
-    using namespace type;
     while (!operator_stack.empty()) {
         auto op2 = operator_stack.top();
         if ((is_left_associative(op1) &&
@@ -83,17 +81,13 @@ void associativity_operator_precedence(
 /**
  * @brief Re-balance the queue if the stack is empty
  */
-inline void balance_queue(
-    Queue& queue,
-    std::stack<type::Operator>& operator_stack)
+inline void balance_queue(Queue& queue, Operator_Stack& operator_stack)
 {
     if (operator_stack.size() == 1) {
         queue.emplace_back(operator_stack.top());
         operator_stack.pop();
     }
 }
-
-} // namespace
 
 /**
  * @brief Queue construction via operators and expressions ordered by precedence
@@ -236,7 +230,7 @@ std::unique_ptr<Queue> make_queue_from_expression_operands(
 }
 
 /**
- * @brief type::RValue to queue of operators and operands
+ * @brief Single expression to queue of operators and operands
  */
 std::unique_ptr<Queue> make_queue_from_expression_operands(
     Expression const& item)

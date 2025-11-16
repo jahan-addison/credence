@@ -30,7 +30,7 @@ namespace credence {
 /**
  * @brief
  * LL(1) top-down Parser of expression ast nodes to
- * Expression data structures.
+ * Expression algebraic data structures.
  *
  * See types.h for details.
  */
@@ -91,7 +91,7 @@ class Expression_Parser
             parse_from_node(node));
     }
 
-    inline Expression from_rvalue_expression(Node const& node)
+    inline Expression from_expression_node(Node const& node)
     {
         return parse_from_node(node);
     }

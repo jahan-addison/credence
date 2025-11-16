@@ -118,9 +118,9 @@ T integral_from_type(std::string const& t)
 }
 
 /**
- * @brief Check if expression contains arithmetic operator
+ * @brief Check if expression contains arithmetic expression
  */
-constexpr bool is_binary_arithmetic_operator(semantic::RValue const& rvalue)
+constexpr bool is_binary_arithmetic_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -133,10 +133,21 @@ constexpr bool is_binary_arithmetic_operator(semantic::RValue const& rvalue)
     return test != arithmetic_binary_operators.end();
 }
 
+constexpr bool is_binary_arithmetic_operator(RValue_Reference rvalue)
+{
+    auto test = std::ranges::find_if(
+        arithmetic_binary_operators.begin(),
+        arithmetic_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != arithmetic_binary_operators.end();
+}
+
 /**
- * @brief Check if expression contains bitwise operator
+ * @brief Check if expression contains bitwise expression
  */
-constexpr bool is_bitwise_operator(semantic::RValue const& rvalue)
+constexpr bool is_bitwise_binary_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -149,13 +160,35 @@ constexpr bool is_bitwise_operator(semantic::RValue const& rvalue)
     return test != bitwise_binary_operators.end();
 }
 
+constexpr bool is_bitwise_binary_operator(RValue_Reference rvalue)
+{
+    auto test = std::ranges::find_if(
+        bitwise_binary_operators.begin(),
+        bitwise_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != bitwise_binary_operators.end();
+}
+
 /**
- * @brief Check if expression contains relational operator
+ * @brief Check if expression contains relational expression
  */
-constexpr bool is_relation_binary_operator(semantic::RValue const& rvalue)
+constexpr bool is_relation_binary_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
+    auto test = std::ranges::find_if(
+        relation_binary_operators.begin(),
+        relation_binary_operators.end(),
+        [&](std::string_view s) {
+            return rvalue.find(s) != std::string::npos;
+        });
+    return test != relation_binary_operators.end();
+}
+
+constexpr bool is_relation_binary_operator(RValue_Reference rvalue)
+{
     auto test = std::ranges::find_if(
         relation_binary_operators.begin(),
         relation_binary_operators.end(),
@@ -227,8 +260,9 @@ constexpr bool is_binary_operator(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
-    return is_binary_arithmetic_operator(rvalue) or
-           is_relation_binary_operator(rvalue) or is_bitwise_operator(rvalue);
+    return is_binary_arithmetic_expression(rvalue) or
+           is_relation_binary_expression(rvalue) or
+           is_bitwise_binary_expression(rvalue);
 }
 
 /**

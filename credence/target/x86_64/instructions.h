@@ -31,14 +31,17 @@
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
-#define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& src)
+#define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)    \
+    detail::Instruction_Pair name(detail::Storage const& dest, \
+        detail::Storage const& src)
 
-#define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
-    detail::Instruction_Pair name(detail::Storage& dest, detail::Storage& s1, detail::Storage& s2)
+#define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)    \
+    detail::Instruction_Pair name(detail::Storage const& dest, \
+        detail::Storage const& s1,                             \
+        detail::Storage const& s2)
 
 #define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
-    detail::Instruction_Pair name(detail::Storage& src)
+    detail::Instruction_Pair name(detail::Storage const& src)
 
 #define addiis(inst, op, lhs, rhs)      \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})

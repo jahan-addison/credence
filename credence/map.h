@@ -73,7 +73,7 @@ class Ordered_Map
     constexpr inline std::size_t size() { return data.size(); }
     constexpr inline bool empty() { return data.empty(); }
 
-    const Value& operator[](Key const& key) const
+    constexpr Value& operator[](Key const& key) const
     {
         if (!contains(key)) {
             data.emplace_back(key, Value());
@@ -106,7 +106,7 @@ class Ordered_Map
 
   private:
     std::vector<Entry> data;
-    std::map<Key, size_t> key_to_index;
+    std::map<Key, std::size_t> key_to_index;
 };
 
 } // namespace credence

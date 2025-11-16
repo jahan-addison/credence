@@ -216,7 +216,6 @@ void ITA::build_statement_teardown_branches(
                 Instruction::GOTO,
                 std::get<1>(branch.get_parent_branch(lookbehind).value()),
                 ""));
-        // if (type == "if")
         branch.stack.pop();
         branch.decrement_branch_level(true);
     }

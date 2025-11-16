@@ -65,12 +65,12 @@ using Temporary_Instructions = std::pair<std::string, ITA::Instructions>;
 namespace detail {
 /**
  * @brief
- * Binary operators and temporary stack to instructions
+ * Binary and Unary operators and temporary stack to instructions
  *
  * Consider the expression `(x > 1 || x < 1)`
  *
  * In order to express this in a set of 3 or 4 expressions, we create the
- * temporaries:
+ * following temporaries:
  *
  * clang-format off
  *
@@ -80,7 +80,7 @@ namespace detail {
  *
  * clang-format on
  *
- * The binary temporary is "_t3", which we return.
+ * The binary operation temporary is "_t3", which we return.
  *
  * We must also keep note of evaluated expressions, i.e wrapped in parenthesis:
  *

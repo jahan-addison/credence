@@ -76,7 +76,7 @@ instruction_temporary_from_expression_operand(Temporary::Operand& operand);
 /**
  * @brief
  * Pop exactly 1 operand and 1 temporary
- * from each stack into instruction tuple
+ * from each stack onto instruction tuple
  */
 void Temporary::binary_operands_balanced_temporary_stack(type::Operator op)
 {
@@ -636,13 +636,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
 
 /**
  * @brief
- * Construct a set of linear instructions in qaudruple form based on an
- * expression queue.
- *
- * Uses `unary_operand_to_temporary_stack',
- * `binary_operands_to_temporary_stack'
- *   for operator translation.
- *
+ * Construct a set of ITA instructions from an expression queue.
  */
 ITA::Instructions queue_to_temporary_instructions(
     queue::Queue& queue,
@@ -659,98 +653,49 @@ ITA::Instructions queue_to_temporary_instructions(
                     switch (op) {
                         // relational operators
                         case Operator::R_EQUAL:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_NEQUAL:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_LT:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_GT:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_LE:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_GE:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_OR:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::R_AND:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         // arithmetic binary operators
                         case Operator::B_SUBTRACT:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::B_ADD:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::B_MOD:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::B_MUL:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::B_DIV:
                             temporary.binary_operands_to_temporary_stack(op);
                             break;
                         // unary increment/decrement
                         case Operator::PRE_INC:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::POST_INC:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::PRE_DEC:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::POST_DEC:
                             temporary.unary_operand_to_temporary_stack(op);
                             break;
                         // bitwise operators
                         case Operator::RSHIFT:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::OR:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::AND:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::LSHIFT:
-                            temporary.binary_operands_to_temporary_stack(op);
-                            break;
                         case Operator::XOR:
                             temporary.binary_operands_to_temporary_stack(op);
                             break;
                         case Operator::U_NOT:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::U_ONES_COMPLEMENT:
                             temporary.unary_operand_to_temporary_stack(op);
                             break;
-
                         // pointer operators
                         case Operator::U_SUBSCRIPT:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::U_INDIRECTION:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::U_ADDR_OF:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
+                        // unary +/-
                         case Operator::U_MINUS:
-                            temporary.unary_operand_to_temporary_stack(op);
-                            break;
                         case Operator::U_PLUS:
                             temporary.unary_operand_to_temporary_stack(op);
                             break;
-
                         // assignment and address operators
                         case Operator::U_CALL:
                             temporary

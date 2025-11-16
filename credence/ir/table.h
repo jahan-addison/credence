@@ -109,11 +109,11 @@ struct Function
  * allocation sizes as a pass for platform code generation:
  *
  *      * Instruction address table to functions in the ITA
- *        * Symbolic stack for ITA::Instruction::CALL
+ *         * Symbolic stack for ITA::Instruction::CALL
  *      * Function definition map of local labels,
- *        * stack allocation, and depth size
+ *         * stack allocation, and depth size
  *      * Vector definition map of vectors
- *        * (arrays) in the global scope
+ *         * (arrays) in the global scope
  *      * A set of labels for ITA::Instruction::GOTO jumps
  *
  */
