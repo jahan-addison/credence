@@ -102,26 +102,29 @@ Immediate get_result_from_trivial_bitwise_expression(
     return detail::make_int_immediate(0, "int");
 }
 
-Instruction_Pair add_2ary_inst(Mnemonic mnemonic, Storage& dest, Storage& src)
+Instruction_Pair add_2ary_inst(
+    Mnemonic mnemonic,
+    Storage const& dest,
+    Storage const& src)
 {
     auto instructions = make();
     addii(instructions, mnemonic, dest, src);
     return { dest, instructions };
 }
 
-Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage& src)
+Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
 {
     auto instructions = make();
     addii(instructions, mnemonic, src, O_NUL);
     return { src, instructions };
 }
 
-Instruction_Pair mul(Storage& dest, Storage& src)
+Instruction_Pair mul(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(imul), dest, src);
 }
 
-Instruction_Pair div(Storage& dest, Storage& src)
+Instruction_Pair div(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiie(inst, cdq);
@@ -130,7 +133,7 @@ Instruction_Pair div(Storage& dest, Storage& src)
     return { src, inst };
 }
 
-Instruction_Pair mod(Storage& dest, Storage& src)
+Instruction_Pair mod(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiie(inst, cdq);
@@ -139,32 +142,32 @@ Instruction_Pair mod(Storage& dest, Storage& src)
     return { rr(edx), inst };
 }
 
-Instruction_Pair sub(Storage& dest, Storage& src)
+Instruction_Pair sub(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(Mnemonic::sub, dest, src);
 }
 
-Instruction_Pair add(Storage& dest, Storage& src)
+Instruction_Pair add(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(Mnemonic::add, dest, src);
 }
 
-Instruction_Pair inc(Storage& dest)
+Instruction_Pair inc(Storage const& dest)
 {
     return add_1ary_inst(mn(inc), dest);
 }
 
-Instruction_Pair dec(Storage& dest)
+Instruction_Pair dec(Storage const& dest)
 {
     return add_1ary_inst(mn(dec), dest);
 }
 
-Instruction_Pair neg(Storage& dest)
+Instruction_Pair neg(Storage const& dest)
 {
     return add_1ary_inst(mn(neg), dest);
 }
 
-Instruction_Pair r_eq(Storage& dest, Storage& src)
+Instruction_Pair r_eq(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
@@ -175,7 +178,7 @@ Instruction_Pair r_eq(Storage& dest, Storage& src)
     return { rr(eax), inst };
 }
 
-Instruction_Pair r_neq(Storage& dest, Storage& src)
+Instruction_Pair r_neq(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
@@ -186,7 +189,7 @@ Instruction_Pair r_neq(Storage& dest, Storage& src)
     return { rr(eax), inst };
 }
 
-Instruction_Pair r_lt(Storage& dest, Storage& src)
+Instruction_Pair r_lt(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
@@ -197,7 +200,7 @@ Instruction_Pair r_lt(Storage& dest, Storage& src)
     return { rr(eax), inst };
 }
 
-Instruction_Pair r_gt(Storage& dest, Storage& src)
+Instruction_Pair r_gt(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
@@ -208,7 +211,7 @@ Instruction_Pair r_gt(Storage& dest, Storage& src)
     return { rr(eax), inst };
 }
 
-Instruction_Pair r_le(Storage& dest, Storage& src)
+Instruction_Pair r_le(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
@@ -219,7 +222,7 @@ Instruction_Pair r_le(Storage& dest, Storage& src)
     return { rr(eax), inst };
 }
 
-Instruction_Pair r_ge(Storage& dest, Storage& src)
+Instruction_Pair r_ge(Storage const& dest, Storage const& src)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
@@ -230,37 +233,37 @@ Instruction_Pair r_ge(Storage& dest, Storage& src)
     return { rr(eax), inst };
 }
 
-Instruction_Pair rshift(Storage& dest, Storage& src)
+Instruction_Pair rshift(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(shr), dest, src);
 }
 
-Instruction_Pair lshift(Storage& dest, Storage& src)
+Instruction_Pair lshift(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(shl), dest, src);
 }
 
-Instruction_Pair b_and(Storage& dest, Storage& src)
+Instruction_Pair b_and(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(and_), dest, src);
 }
 
-Instruction_Pair b_or(Storage& dest, Storage& src)
+Instruction_Pair b_or(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(or_), dest, src);
 }
 
-Instruction_Pair b_xor(Storage& dest, Storage& src)
+Instruction_Pair b_xor(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(xor_), dest, src);
 }
 
-Instruction_Pair b_not(Storage& dest)
+Instruction_Pair b_not(Storage const& dest)
 {
     return add_1ary_inst(mn(not_), dest);
 }
 
-Instruction_Pair u_not(Storage& dest)
+Instruction_Pair u_not(Storage const& dest)
 {
     auto inst = make();
     addiill(inst, mov, eax, dest);
