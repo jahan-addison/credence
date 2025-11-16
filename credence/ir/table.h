@@ -15,26 +15,26 @@
  */
 #pragma once
 
-#include <algorithm>           // for remove_if, __any_of, __find_if, any_of
-#include <array>               // for array
-#include <cctype>              // for isspace
-#include <credence/assert.h>   // for CREDENCE_ASSERT
-#include <credence/ir/ita.h>   // for ITA
-#include <credence/map.h>      // for Ordered_Map
-#include <credence/symbol.h>   // for Symbol_Table
-#include <credence/typeinfo.h> // for LValue, RValue, Data_Type, ...
-#include <credence/util.h>     // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <cstddef>             // for size_t
-#include <deque>               // for deque
-#include <initializer_list>    // for initializer_list
-#include <memory>              // for shared_ptr, unique_ptr
-#include <optional>            // for nullopt, nullopt_t, optional
-#include <set>                 // for set
-#include <string>              // for basic_string, string
-#include <string_view>         // for basic_string_view, string_view
-#include <tuple>               // for tuple
-#include <utility>             // for pair
-#include <variant>             // for variant
+#include <algorithm>         // for remove_if, __any_of, __find_if, any_of
+#include <array>             // for array
+#include <cctype>            // for isspace
+#include <credence/assert.h> // for CREDENCE_ASSERT
+#include <credence/ir/ita.h> // for ITA
+#include <credence/map.h>    // for Ordered_Map
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for LValue, RValue, Data_Type, ...
+#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <cstddef>           // for size_t
+#include <deque>             // for deque
+#include <initializer_list>  // for initializer_list
+#include <memory>            // for shared_ptr, unique_ptr
+#include <optional>          // for nullopt, nullopt_t, optional
+#include <set>               // for set
+#include <string>            // for basic_string, string
+#include <string_view>       // for basic_string_view, string_view
+#include <tuple>             // for tuple
+#include <utility>           // for pair
+#include <variant>           // for variant
 
 namespace credence {
 
@@ -57,9 +57,9 @@ namespace detail {
  */
 struct Vector
 {
-    using Storage = Ordered_Map<std::string, typeinfo::Data_Type>;
+    using Storage = Ordered_Map<std::string, type::Data_Type>;
     Vector() = delete;
-    explicit Vector(typeinfo::semantic::Address size_of)
+    explicit Vector(type::semantic::Address size_of)
         : size(size_of)
     {
     }
@@ -75,30 +75,27 @@ struct Vector
 struct Function
 {
     Function() = delete;
-    explicit Function(typeinfo::semantic::Label const& label)
+    explicit Function(type::semantic::Label const& label)
         : symbol(label)
     {
     }
     using Address_Table =
-        Symbol_Table<typeinfo::semantic::Label, typeinfo::semantic::Address>;
-    void set_parameters_from_symbolic_label(
-        typeinfo::semantic::Label const& label);
-    typeinfo::semantic::Label symbol{};
-    typeinfo::Labels labels{};
-    typeinfo::Locals locals{};
+        Symbol_Table<type::semantic::Label, type::semantic::Address>;
+    void set_parameters_from_symbolic_label(type::semantic::Label const& label);
+    type::semantic::Label symbol{};
+    type::Labels labels{};
+    type::Locals locals{};
 
-    constexpr inline bool is_parameter(
-        typeinfo::semantic::RValue const& parameter)
+    constexpr inline bool is_parameter(type::semantic::RValue const& parameter)
     {
         return std::ranges::find(parameters, parameter) !=
                std::ranges::end(parameters);
     }
 
-    typeinfo::Parameters parameters{};
-    Ordered_Map<typeinfo::semantic::LValue, typeinfo::semantic::RValue>
-        temporary{};
+    type::Parameters parameters{};
+    Ordered_Map<type::semantic::LValue, type::semantic::RValue> temporary{};
     Address_Table label_address{};
-    std::array<typeinfo::semantic::Address, 2> address_location{};
+    std::array<type::semantic::Address, 2> address_location{};
 
     static constexpr int max_depth = 1000;
     unsigned int allocation = 0;
@@ -141,10 +138,10 @@ class Table
     using Table_PTR = std::unique_ptr<Table>;
 
   private:
-    using LValue = typeinfo::semantic::LValue;
-    using Type = typeinfo::semantic::Type;
-    using RValue = typeinfo::semantic::RValue;
-    using Label = typeinfo::semantic::Label;
+    using LValue = type::semantic::LValue;
+    using Type = type::semantic::Type;
+    using RValue = type::semantic::RValue;
+    using Label = type::semantic::Label;
 
   private:
     using Function_PTR = std::shared_ptr<detail::Function>;
@@ -189,7 +186,7 @@ class Table
     }
     inline bool lhs_rhs_type_is_equal(
         LValue const& lhs,
-        typeinfo::Data_Type const& rvalue)
+        type::Data_Type const& rvalue)
     {
         return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
     }
@@ -202,8 +199,8 @@ class Table
         RValue const& rvalue,
         Type const& type)
     {
-        if (std::ranges::find(typeinfo::integral_unary_types, type) ==
-            typeinfo::integral_unary_types.end())
+        if (std::ranges::find(type::integral_unary_types, type) ==
+            type::integral_unary_types.end())
             construct_error(
                 std::format(
                     "invalid numeric unary expression on lvalue, lvalue "
@@ -233,7 +230,7 @@ class Table
         return stack_frame.value();
     }
 
-    inline typeinfo::Locals& get_stack_frame_symbols()
+    inline type::Locals& get_stack_frame_symbols()
     {
         return get_stack_frame()->locals;
     }
@@ -241,7 +238,7 @@ class Table
     void set_stack_frame(Label const& label);
 
   public:
-    typeinfo::Data_Type from_integral_unary_expression(RValue const& lvalue);
+    type::Data_Type from_integral_unary_expression(RValue const& lvalue);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -256,10 +253,10 @@ class Table
     void from_mov_ita_instruction(ITA::Quadruple const& instruction);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    typeinfo::Data_Type from_rvalue_unary_expression(
+    type::Data_Type from_rvalue_unary_expression(
         LValue const& lvalue,
         RValue const& rvalue,
-        typeinfo::RValue_Reference unary_operator);
+        type::RValue_Reference unary_operator);
     void from_scaler_symbol_assignment(
         LValue const& lhs,
         LValue const& rhs);
@@ -273,39 +270,39 @@ class Table
         RValue const& rvalue);
     void from_type_invalid_assignment(
         LValue const& lvalue,
-        typeinfo::Data_Type const& rvalue);
+        type::Data_Type const& rvalue);
     void from_trivial_vector_assignment(
         LValue const& lhs,
-        typeinfo::Data_Type const& rvalue);
+        type::Data_Type const& rvalue);
     void safely_reassign_pointers_or_vectors(
         LValue const& lvalue,
-        typeinfo::RValue_Reference_Type const& rvalue,
+        type::RValue_Reference_Type const& rvalue,
         bool indirection = false);
     void from_temporary_reassignment(
         LValue const& lhs,
         LValue const& rhs);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    typeinfo::semantic::Address instruction_index{ 0 };
+    type::semantic::Address instruction_index{ 0 };
     // clang-format on
   private:
     void construct_error(
-        typeinfo::RValue_Reference message,
-        typeinfo::RValue_Reference symbol = "");
+        type::RValue_Reference message,
+        type::RValue_Reference symbol = "");
 
   public:
     ITA::Instructions instructions{};
 
   private:
-    typeinfo::Globals globals{};
+    type::Globals globals{};
     ITA::Node hoisted_symbols_;
 
   public:
     detail::Function::Address_Table address_table{};
-    typeinfo::Stack stack{};
+    type::Stack stack{};
     Functions functions{};
     Vectors vectors{};
-    typeinfo::Labels labels{};
+    type::Labels labels{};
 };
 
 } // namespace ir

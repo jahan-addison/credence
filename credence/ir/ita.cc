@@ -16,23 +16,22 @@
 
 #include <credence/ir/ita.h>
 
-#include <credence/assert.h>  // for assert_equal_impl, CREDENCE_ASSERT_NODE
-#include <credence/ir/temp.h> // for rvalue_node_to_list_of_temp_instructions
-#include <credence/queue.h>   // for rvalue_to_string, RValue_Queue
-#include <credence/rvalue.h>  // for RValue_Parser
-#include <credence/symbol.h>  // for Symbol_Table
-#include <credence/types.h>   // for RValue_Type_Variant, RValue, WORD_LITERAL
-#include <credence/util.h>    // for AST_Node, AST
-#include <format>             // for format, format_string
-#include <functional>         // for identity
-#include <initializer_list>   // for initializer_list
-#include <iomanip>            // for operator<<, setw
-#include <matchit.h>          // for pattern, PatternHelper, PatternPipable
-#include <memory>             // for __shared_ptr_access, shared_ptr
-#include <ranges>             // for __find_fn, find
-#include <simplejson.h>       // for JSON, object
-#include <utility>            // for pair, move, cmp_not_equal
-#include <variant>            // for variant, get, monostate
+#include <algorithm>               // for __find, find
+#include <credence/assert.h>       // for assert_equal_impl, CREDENCE_ASSER...
+#include <credence/expression.h>   // for Expression_Parser
+#include <credence/ir/temporary.h> // for expression_node_to_temporary_inst...
+#include <credence/queue.h>        // for value_type_pointer_to_string
+#include <credence/symbol.h>       // for Symbol_Table
+#include <credence/util.h>         // for AST_Node, AST
+#include <credence/value.h>        // for Expression, get_expression_type
+#include <format>                  // for format
+#include <initializer_list>        // for initializer_list
+#include <iomanip>                 // for operator<<, setw
+#include <matchit.h>               // for pattern, PatternHelper, PatternPi...
+#include <memory>                  // for shared_ptr
+#include <simplejson.h>            // for JSON, object
+#include <utility>                 // for get, pair, cmp_not_equal
+#include <variant>                 // for get, monostate, variant
 
 namespace credence {
 
@@ -81,7 +80,8 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
     Parameters parameter_lvalues{};
     auto block = node["right"];
 
-    symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
+    symbols_.set_symbol_by_name(
+        name, internal::value::Expression::WORD_LITERAL);
 
     if (parameters.JSON_type() == util::AST_Node::Class::Array and
         !parameters.to_deque().front().is_null()) {
@@ -93,7 +93,8 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
                         parameter_lvalues.emplace_back(
                             ident["root"].to_string());
                         symbols_.set_symbol_by_name(
-                            ident["root"].to_string(), type::NULL_LITERAL);
+                            ident["root"].to_string(),
+                            internal::value::Expression::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
                     [&] {
@@ -102,7 +103,8 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
                         auto size = ident["left"]["root"].to_int();
                         symbols_.set_symbol_by_name(
                             ident["root"].to_string(),
-                            { static_cast<type::Byte>('0'), { "byte", size } });
+                            { static_cast<unsigned char>('0'),
+                              { "byte", size } });
                     },
                 m::pattern | "indirect_lvalue" =
                     [&] {
@@ -110,7 +112,7 @@ ITA::Instructions ITA::build_from_function_definition(Node const& node)
                             ident["left"]["root"].to_string());
                         symbols_.set_symbol_by_name(
                             ident["left"]["root"].to_string(),
-                            type::WORD_LITERAL);
+                            internal::value::Expression::WORD_LITERAL);
                     });
         }
     }
@@ -177,9 +179,9 @@ void ITA::build_from_vector_definition(Node const& node)
 
     globals_.set_symbol_by_name(name, values_at);
     for (auto& child_node : right_child_node.array_range()) {
-        auto rvalue = RValue_Parser::make_rvalue(
+        auto rvalue = Expression_Parser::parse(
             child_node, internal_symbols_, symbols_, globals_);
-        auto datatype = std::get<type::RValue::Value>(rvalue.value);
+        auto datatype = std::get<internal::value::Literal>(rvalue.value);
         values_at.emplace_back(datatype);
     }
 
@@ -357,37 +359,35 @@ std::string ITA::build_from_branch_comparator_rvalue(
     Instructions& instructions)
 {
     std::string temp_lvalue{};
-    auto rvalue =
-        RValue_Parser::make_rvalue(block, internal_symbols_, symbols_);
+    auto rvalue = Expression_Parser::parse(block, internal_symbols_, symbols_);
     auto comparator_instructions =
-        rvalue_node_to_list_of_temp_instructions(
+        expression_node_to_temporary_instructions(
             symbols_, block, internal_symbols_, &temporary)
             .first;
 
-    m::match(type::get_rvalue_type_as_variant(rvalue))(
+    m::match(internal::value::get_expression_type(rvalue.value))(
         m::pattern | m::or_(
-                         type::RValue_Type_Variant::Relation,
-                         type::RValue_Type_Variant::Unary,
-                         type::RValue_Type_Variant::Symbol,
-                         type::RValue_Type_Variant::Value_Pointer) =
+                         std::string{ "relation" },
+                         std::string{ "unary" },
+                         std::string{ "symbol" },
+                         std::string{ "array" }) =
             [&] {
                 insert_instructions(instructions, comparator_instructions);
                 temp_lvalue =
                     std::get<1>(instructions[instructions.size() - 1]);
             },
-        m::pattern | m::or_(
-                         type::RValue_Type_Variant::LValue,
-                         type::RValue_Type_Variant::Value) =
+        m::pattern | m::or_(std::string{ "lvalue" }, std::string{ "literal" }) =
             [&] {
                 auto rhs = std::format(
                     "{} {}",
                     instruction_to_string(Instruction::CMP),
-                    rvalue_to_string(rvalue.value, false));
+                    internal::value::expression_type_to_string(
+                        rvalue.value, false));
                 auto temp = make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
             },
-        m::pattern | type::RValue_Type_Variant::Function =
+        m::pattern | std::string{ "function" } =
             [&] {
                 insert_instructions(instructions, comparator_instructions);
                 auto rhs = std::format(
@@ -425,12 +425,12 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     auto case_statement = make_block_statement(statements);
 
     auto condition =
-        RValue_Parser::make_rvalue(node["left"], internal_symbols_, symbols_);
+        Expression_Parser::parse(node["left"], internal_symbols_, symbols_);
 
     predicate_instructions.emplace_back(make_quadruple(
         Instruction::JMP_E,
         switch_label,
-        rvalue_to_string(condition.value, false),
+        internal::value::expression_type_to_string(condition.value, false),
         std::get<1>(jump)));
     if (branch.stack.size() > 2) {
         auto jump = tail.value_or(branch.get_parent_branch(true).value());
@@ -583,7 +583,7 @@ ITA::Instructions ITA::build_from_label_statement(Node const& node)
     CREDENCE_ASSERT(node.has_key("left"));
     Instructions instructions{};
     auto statement = node["left"];
-    RValue_Parser parser{ internal_symbols_, symbols_ };
+    Expression_Parser parser{ internal_symbols_, symbols_ };
     auto label = statement.to_deque().front().to_string();
     instructions.emplace_back(
         make_quadruple(Instruction::LABEL, std::format("__L{}", label), ""));
@@ -599,7 +599,7 @@ ITA::Instructions ITA::build_from_goto_statement(Node const& node)
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "goto");
     CREDENCE_ASSERT(node.has_key("left"));
     Instructions instructions{};
-    RValue_Parser parser{ internal_symbols_, symbols_ };
+    Expression_Parser parser{ internal_symbols_, symbols_ };
     auto statement = node["left"];
     auto label = statement.to_deque().front().to_string();
     if (!parser.is_defined(label))
@@ -622,7 +622,7 @@ ITA::Instructions ITA::build_from_return_statement(Node const& node)
     Instructions instructions{};
     auto return_statement = node["left"];
 
-    auto return_instructions = rvalue_node_to_list_of_temp_instructions(
+    auto return_instructions = expression_node_to_temporary_instructions(
         symbols_, return_statement, internal_symbols_, &temporary);
 
     instructions.insert(
@@ -631,10 +631,12 @@ ITA::Instructions ITA::build_from_return_statement(Node const& node)
         return_instructions.first.end());
 
     if (!return_instructions.second.empty() and instructions.empty()) {
-        auto last_rvalue = std::get<type::RValue::Type_Pointer>(
+        auto last_rvalue = std::get<internal::value::Expression::Type_Pointer>(
             return_instructions.second.back());
         instructions.emplace_back(make_quadruple(
-            Instruction::RETURN, rvalue_to_string(*last_rvalue), ""));
+            Instruction::RETURN,
+            internal::value::expression_type_to_string(*last_rvalue),
+            ""));
     } else {
         auto last = instructions[instructions.size() - 1];
         instructions.emplace_back(
@@ -695,7 +697,8 @@ void ITA::build_from_auto_statement(
 #endif
                     instructions.emplace_back(
                         make_quadruple(Instruction::LOCL, name));
-                    symbols_.set_symbol_by_name(name, type::NULL_LITERAL);
+                    symbols_.set_symbol_by_name(
+                        name, internal::value::Expression::NULL_LITERAL);
                 },
             m::pattern | "vector_lvalue" =
                 [&] {
@@ -713,7 +716,7 @@ void ITA::build_from_auto_statement(
                         make_quadruple(Instruction::LOCL, name));
                     symbols_.set_symbol_by_name(
                         name,
-                        { static_cast<type::Byte>('0'), { "byte", size } });
+                        { static_cast<unsigned char>('0'), { "byte", size } });
                 },
             m::pattern | "indirect_lvalue" =
                 [&] {
@@ -728,7 +731,8 @@ void ITA::build_from_auto_statement(
 #endif
                     instructions.emplace_back(make_quadruple(
                         Instruction::LOCL, std::format("*{}", name)));
-                    symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
+                    symbols_.set_symbol_by_name(
+                        name, internal::value::Expression::WORD_LITERAL);
                 });
     }
 }
@@ -741,10 +745,9 @@ ITA::Instructions ITA::build_from_rvalue_statement(Node const& node)
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "rvalue");
     CREDENCE_ASSERT(node.has_key("left"));
-    RValue_Queue list{};
     auto statement = node["left"];
 
-    return rvalue_node_to_list_of_temp_instructions(
+    return expression_node_to_temporary_instructions(
                symbols_, statement, internal_symbols_, &temporary)
         .first;
 }

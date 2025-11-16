@@ -17,8 +17,8 @@
 #pragma once
 
 #include <credence/assert.h> // for CREDENCE_ASSERT_MESSAGE
-#include <credence/types.h>  // for Value_Pointer, Value_Type
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <credence/value.h>  // for Literal, Array, ...
 #include <format>            // for format
 #include <map>               // for map
 #include <string>            // for basic_string, string
@@ -49,7 +49,9 @@ namespace credence {
  *   | Value | Type | Size |
  *   ------------------------
  */
-template<typename T = type::Value_Type, typename Pointer = type::Value_Pointer>
+template<
+    typename T = internal::value::Literal,
+    typename Pointer = internal::value::Array>
 class Symbol_Table
 {
   public:

@@ -1,9 +1,9 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
+#include <credence/expression.h> // for Expression_Parser
 #include <credence/queue.h>  // for rvalues_to_queue, queue_of_rvalues_to_s...
-#include <credence/rvalue.h> // for RValue_Parser
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for RValue, Type_
+#include <credence/value.h>  // for RValue, Type_
 #include <map>               // for map
 #include <simplejson.h>      // for JSON
 #include <string>            // for operator==, basic_string, operator<<
@@ -213,8 +213,8 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "    \"root\" : \"exp\"\n                  },\n                  "
         "\"root\" : [\"=\", null]\n                }");
 
-    RValue_Parser parser{ obj };
-    RValue::Value null = type::NULL_LITERAL;
+    Expression_Parser parser{ obj };
+    internal::value::Literal null = internal::value::Expression::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);
     parser.symbols_.table_.emplace("exp", null);
@@ -242,79 +242,85 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "= _p4 sub _p5 (1:int:4) = _p6 (2:int:4) = _p5 _p6 PUSH PUSH CALL = "
         "_p1 _p4 PUSH PUSH CALL = ";
 
-    std::vector<type::RValue::Type_Pointer> rvalues{};
-    auto list = make_rvalue_queue();
+    std::vector<internal::value::Array> rvalues{};
+    auto expressions = queue::Expressions{};
+    std::unique_ptr<queue::Queue> queue{};
     std::string test{};
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["complex"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["complex"]).value));
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == complex_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["unary"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["unary"]).value));
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["equal"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["equal"]).value));
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == equal_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["unary_relation"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["unary_relation"]).value));
+
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_relation_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["ternary"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["ternary"]).value));
+
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == ternary_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["function"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["function"]).value));
+
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == function_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["evaluated"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["evaluated"]).value));
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["evaluated_2"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["evaluated_2"]).value));
+
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected_2);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 
-    rvalues.emplace_back(rvalue_type_pointer_from_rvalue(
-        parser.from_rvalue(obj["functions"]).value));
-    rvalues_to_queue(rvalues, list);
-    test = queue_of_rvalues_to_string(list);
+    expressions.emplace_back(
+        internal::value::make_value_type_pointer(
+            parser.parse_from_node(obj["functions"]).value));
+
+    queue = queue::make_queue_from_expression_operands(expressions);
+    test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == functions_expected);
-    rvalues.clear();
-    list->clear();
+    expressions.clear();
 }

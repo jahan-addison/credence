@@ -16,31 +16,53 @@
 
 #include <credence/queue.h>
 
-#include <credence/operators.h> // for Operator, get_precedence, is_left_as...
-#include <credence/types.h>     // for RValue, rvalue_type_pointer_from_rvalue
+#include <credence/operators.h> // for Operator, get_precedence, is_le...
 #include <credence/util.h>      // for overload
-#include <format>               // for format, format_string
+#include <credence/value.h>     // for make_value_type_pointer, Expres...
+#include <format>               // for format
 #include <mapbox/eternal.hpp>   // for element, map
-#include <memory>               // for shared_ptr, __shared_ptr_access, all...
-#include <sstream>              // for basic_ostream, basic_ostringstream
+#include <memory>               // for shared_ptr, allocator, make_unique
+#include <ostream>              // for operator<<, basic_ostream
+#include <sstream>              // for basic_ostringstream, ostringstream
 #include <stack>                // for stack
 #include <utility>              // for pair
 #include <variant>              // for get, visit, monostate, variant
 
+/**
+ * @brief
+ *
+ *  Shunting-yard queue and operator stack of expressions.
+ */
+
+/**************************************************************************
+ *
+ *           [~]
+ *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
+ *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
+ *      [|  %___________________           | |~~~~~~~~            |
+ *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
+ *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
+ *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
+ *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ***************************************************************************/
+
 namespace credence {
 
-void rvalue_pointer_to_queue_in_place(
-    type::RValue::Type_Pointer const& rvalue_pointer,
-    RValue_Queue_PTR& rvalues_queue,
-    RValue_Operator_Stack& operator_stack,
+namespace queue {
+
+void expression_pointer_to_queue_in_place(
+    Expression const& pointer,
+    Queue& queue,
+    Operator_Stack& operator_stack,
     int* parameter_size);
 
+namespace {
 /**
  * @brief Operator precedence check of the queue and operator stack
  */
-void _associativity_operator_precedence(
+void associativity_operator_precedence(
     type::Operator op1,
-    RValue_Queue_PTR& rvalues_queue,
+    Queue& queue,
     std::stack<type::Operator>& operator_stack)
 {
     using namespace type;
@@ -50,7 +72,7 @@ void _associativity_operator_precedence(
              get_precedence(op2) <= get_precedence(op2)) ||
             (!is_left_associative(op1) &&
              get_precedence(op1) < get_precedence(op2))) {
-            rvalues_queue->emplace_back(operator_stack.top());
+            queue.emplace_back(operator_stack.top());
             operator_stack.pop();
         } else {
             break;
@@ -61,311 +83,217 @@ void _associativity_operator_precedence(
 /**
  * @brief Re-balance the queue if the stack is empty
  */
-inline void _balance_queue(
-    RValue_Queue_PTR& rvalues_queue,
+inline void balance_queue(
+    Queue& queue,
     std::stack<type::Operator>& operator_stack)
 {
     if (operator_stack.size() == 1) {
-        rvalues_queue->emplace_back(operator_stack.top());
+        queue.emplace_back(operator_stack.top());
         operator_stack.pop();
     }
 }
 
+} // namespace
+
 /**
- * @brief Queue construction via operators and rvalues ordered by precedence
+ * @brief Queue construction via operators and expressions ordered by precedence
  */
-void rvalue_pointer_to_queue_in_place(
-    type::RValue::Type_Pointer const& rvalue_pointer,
-    RValue_Queue_PTR& rvalues_queue,
-    RValue_Operator_Stack& operator_stack,
+void expression_pointer_to_queue_in_place(
+    Expression const& pointer,
+    Queue& queue,
+    Operator_Stack& operator_stack,
     int* parameter_size)
 {
-    using namespace type;
+    namespace value = internal::value;
+
     std::visit(
         util::overload{
+
             [&](std::monostate) {},
-            [&](type::RValue::RValue_Pointer const& s) {
-                auto value = rvalue_type_pointer_from_rvalue(s->value);
-                rvalue_pointer_to_queue_in_place(
-                    value, rvalues_queue, operator_stack, parameter_size);
+            [&](value::Array const&) { queue.emplace_back(pointer); },
+            [&](value::Literal const&) { queue.emplace_back(pointer); },
+            [&](value::Expression::Pointer const& s) {
+                auto value = value::make_value_type_pointer(s->value);
+                expression_pointer_to_queue_in_place(
+                    value, queue, operator_stack, parameter_size);
             },
-            [&](type::RValue::Value_Pointer&) {
-                rvalues_queue->emplace_back(rvalue_pointer);
-            },
-            [&](type::RValue::Value&) {
-                rvalues_queue->emplace_back(rvalue_pointer);
-            },
-            [&](type::RValue::LValue&) {
-                rvalues_queue->emplace_back(rvalue_pointer);
-            },
-            [&](type::RValue::Unary const& s) {
+            [&](value::Expression::Unary const& s) {
                 auto op1 = s.first;
-                auto rhs = rvalue_type_pointer_from_rvalue(s.second->value);
-                rvalue_pointer_to_queue_in_place(
-                    rhs, rvalues_queue, operator_stack, parameter_size);
+                auto rhs = value::make_value_type_pointer(s.second->value);
+                expression_pointer_to_queue_in_place(
+                    rhs, queue, operator_stack, parameter_size);
                 operator_stack.emplace(op1);
-                _balance_queue(rvalues_queue, operator_stack);
-                _associativity_operator_precedence(
-                    op1, rvalues_queue, operator_stack);
+                balance_queue(queue, operator_stack);
+                associativity_operator_precedence(op1, queue, operator_stack);
             },
-            [&](type::RValue::Relation const& s) {
+            [&](value::Expression::LValue const&) {
+                queue.emplace_back(pointer);
+            },
+            [&](value::Expression::Relation const& s) {
                 auto op1 = s.first;
                 if (s.second.size() == 2) {
-                    auto lhs =
-                        rvalue_type_pointer_from_rvalue(s.second.at(0)->value);
-                    auto rhs =
-                        rvalue_type_pointer_from_rvalue(s.second.at(1)->value);
-                    rvalue_pointer_to_queue_in_place(
-                        lhs, rvalues_queue, operator_stack, parameter_size);
+                    auto lhs = internal::value::make_value_type_pointer(
+                        s.second.at(0)->value);
+                    auto rhs = internal::value::make_value_type_pointer(
+                        s.second.at(1)->value);
+                    expression_pointer_to_queue_in_place(
+                        lhs, queue, operator_stack, parameter_size);
                     operator_stack.emplace(op1);
-                    rvalue_pointer_to_queue_in_place(
-                        rhs, rvalues_queue, operator_stack, parameter_size);
+                    expression_pointer_to_queue_in_place(
+                        rhs, queue, operator_stack, parameter_size);
                 } else if (s.second.size() == 4) {
                     // ternary
-                    operator_stack.emplace(Operator::B_TERNARY);
-                    operator_stack.emplace(Operator::U_PUSH);
-                    auto ternary_lhs =
-                        rvalue_type_pointer_from_rvalue(s.second.at(2)->value);
-                    auto ternary_rhs =
-                        rvalue_type_pointer_from_rvalue(s.second.at(3)->value);
-                    rvalue_pointer_to_queue_in_place(
-                        ternary_lhs,
-                        rvalues_queue,
-                        operator_stack,
-                        parameter_size);
-                    rvalue_pointer_to_queue_in_place(
-                        ternary_rhs,
-                        rvalues_queue,
-                        operator_stack,
-                        parameter_size);
+                    operator_stack.emplace(type::Operator::B_TERNARY);
+                    operator_stack.emplace(type::Operator::U_PUSH);
+                    auto ternary_lhs = internal::value::make_value_type_pointer(
+                        s.second.at(2)->value);
+                    auto ternary_rhs = internal::value::make_value_type_pointer(
+                        s.second.at(3)->value);
+                    expression_pointer_to_queue_in_place(
+                        ternary_lhs, queue, operator_stack, parameter_size);
+                    expression_pointer_to_queue_in_place(
+                        ternary_rhs, queue, operator_stack, parameter_size);
                     auto ternary_truthy =
-                        rvalue_type_pointer_from_rvalue(s.second.at(0)->value);
+                        internal::value::make_value_type_pointer(
+                            s.second.at(0)->value);
                     operator_stack.emplace(op1);
                     auto ternary_falsey =
-                        rvalue_type_pointer_from_rvalue(s.second.at(1)->value);
-                    rvalue_pointer_to_queue_in_place(
-                        ternary_truthy,
-                        rvalues_queue,
-                        operator_stack,
-                        parameter_size);
-                    rvalue_pointer_to_queue_in_place(
-                        ternary_falsey,
-                        rvalues_queue,
-                        operator_stack,
-                        parameter_size);
+                        internal::value::make_value_type_pointer(
+                            s.second.at(1)->value);
+                    expression_pointer_to_queue_in_place(
+                        ternary_truthy, queue, operator_stack, parameter_size);
+                    expression_pointer_to_queue_in_place(
+                        ternary_falsey, queue, operator_stack, parameter_size);
                 }
-                _balance_queue(rvalues_queue, operator_stack);
-                _associativity_operator_precedence(
-                    op1, rvalues_queue, operator_stack);
+                balance_queue(queue, operator_stack);
+                associativity_operator_precedence(op1, queue, operator_stack);
             },
-            [&](type::RValue::Function const& s) {
-                auto op1 = Operator::U_CALL;
-                RValue_Operator_Stack operator_stack{};
-                auto lhs = rvalue_type_pointer_from_rvalue(s.first);
+            [&](value::Expression::Function const& s) {
+                auto op1 = type::Operator::U_CALL;
+                Operator_Stack operator_stack{};
+                auto lhs = value::make_value_type_pointer(s.first);
 
-                rvalues_queue->emplace_back(lhs);
-                std::deque<RValue::Type_Pointer> parameters{};
+                queue.emplace_back(lhs);
+                std::deque<Expression> parameters{};
 
                 for (auto const& parameter : s.second) {
                     auto param =
-                        rvalue_type_pointer_from_rvalue(parameter->value);
-                    auto name = RValue::make_lvalue(
+                        value::make_value_type_pointer(parameter->value);
+                    auto name = value::make_lvalue(
                         std::format("_p{}", ++(*parameter_size)));
-                    auto lvalue = rvalue_type_pointer_from_rvalue(name);
+                    auto lvalue =
+                        internal::value::make_value_type_pointer(name);
                     parameters.emplace_back(lvalue);
-                    rvalue_pointer_to_queue_in_place(
-                        lvalue, rvalues_queue, operator_stack, parameter_size);
-                    rvalue_pointer_to_queue_in_place(
-                        param, rvalues_queue, operator_stack, parameter_size);
-                    operator_stack.emplace(Operator::B_ASSIGN);
-                    _balance_queue(rvalues_queue, operator_stack);
-                    _associativity_operator_precedence(
-                        Operator::B_ASSIGN, rvalues_queue, operator_stack);
+                    expression_pointer_to_queue_in_place(
+                        lvalue, queue, operator_stack, parameter_size);
+                    expression_pointer_to_queue_in_place(
+                        param, queue, operator_stack, parameter_size);
+                    operator_stack.emplace(type::Operator::B_ASSIGN);
+                    balance_queue(queue, operator_stack);
+                    associativity_operator_precedence(
+                        type::Operator::B_ASSIGN, queue, operator_stack);
                 }
                 operator_stack.emplace(op1);
                 for (auto const& param_lvalue : parameters) {
-                    operator_stack.emplace(Operator::U_PUSH);
-                    rvalue_pointer_to_queue_in_place(
-                        param_lvalue,
-                        rvalues_queue,
-                        operator_stack,
-                        parameter_size);
+                    operator_stack.emplace(type::Operator::U_PUSH);
+                    expression_pointer_to_queue_in_place(
+                        param_lvalue, queue, operator_stack, parameter_size);
                 }
-
-                _balance_queue(rvalues_queue, operator_stack);
-                _associativity_operator_precedence(
-                    op1, rvalues_queue, operator_stack);
+                balance_queue(queue, operator_stack);
+                associativity_operator_precedence(op1, queue, operator_stack);
             },
-            [&](type::RValue::Symbol const& s) {
-                auto op1 = Operator::B_ASSIGN;
-                auto lhs = rvalue_type_pointer_from_rvalue(s.first);
-                auto rhs = rvalue_type_pointer_from_rvalue(s.second->value);
-                rvalue_pointer_to_queue_in_place(
-                    lhs, rvalues_queue, operator_stack, parameter_size);
-                rvalue_pointer_to_queue_in_place(
-                    rhs, rvalues_queue, operator_stack, parameter_size);
+            [&](value::Expression::Symbol const& s) {
+                auto op1 = type::Operator::B_ASSIGN;
+                auto lhs = internal::value::make_value_type_pointer(s.first);
+                auto rhs =
+                    internal::value::make_value_type_pointer(s.second->value);
+                expression_pointer_to_queue_in_place(
+                    lhs, queue, operator_stack, parameter_size);
+                expression_pointer_to_queue_in_place(
+                    rhs, queue, operator_stack, parameter_size);
                 operator_stack.emplace(op1);
 
-                _balance_queue(rvalues_queue, operator_stack);
-                _associativity_operator_precedence(
-                    op1, rvalues_queue, operator_stack);
+                balance_queue(queue, operator_stack);
+                associativity_operator_precedence(op1, queue, operator_stack);
             } },
-        *rvalue_pointer);
+        *pointer);
 }
 
 /**
- * @brief List of rvalues to queue of operators and operands
+ * @brief List of expressions to queue of operators and operands
  */
-void rvalues_to_queue(
-    RValue_Types const& rvalues,
-    RValue_Queue_PTR& rvalues_queue)
+std::unique_ptr<Queue> make_queue_from_expression_operands(
+    Expressions const& items)
 {
     int parameter_size = 0;
-    RValue_Operator_Stack operator_stack{};
-    for (type::RValue::Type_Pointer const& rvalue : rvalues) {
-        rvalue_pointer_to_queue_in_place(
-            rvalue, rvalues_queue, operator_stack, &parameter_size);
+    Queue queue = Queue{};
+    Operator_Stack operator_stack{};
+    for (Expression const& item : items) {
+        expression_pointer_to_queue_in_place(
+            item, queue, operator_stack, &parameter_size);
     }
+    return std::make_unique<Queue>(queue);
 }
 
 /**
  * @brief type::RValue to queue of operators and operands
  */
-void rvalues_to_queue(
-    type::RValue::Type_Pointer const& rvalue,
-    RValue_Queue_PTR& rvalues_queue)
+std::unique_ptr<Queue> make_queue_from_expression_operands(
+    Expression const& item)
 {
     int parameter_size = 0;
-    RValue_Operator_Stack operator_stack{};
-    rvalue_pointer_to_queue_in_place(
-        rvalue, rvalues_queue, operator_stack, &parameter_size);
-}
+    Queue queue = Queue{};
+    Operator_Stack operator_stack{};
+    expression_pointer_to_queue_in_place(
+        item, queue, operator_stack, &parameter_size);
 
-/**
- * @brief RValue::Value tuple as a string
- */
-std::string dump_value_type(
-    type::RValue::Value type,
-    std::string_view separator)
-{
-    using namespace type;
-    std::ostringstream os;
-    os << "(";
-    std::visit(
-        util::overload{
-            [&](int i) {
-                os << i << separator << LITERAL_TYPE.at("int").first
-                   << separator << LITERAL_TYPE.at("int").second;
-            },
-            [&](long i) {
-                os << i << separator << LITERAL_TYPE.at("long").first
-                   << separator << LITERAL_TYPE.at("long").second;
-            },
-            [&](float i) {
-                os << i << separator << LITERAL_TYPE.at("float").first
-                   << separator << LITERAL_TYPE.at("float").second;
-            },
-            [&](double i) {
-                os << i << separator << LITERAL_TYPE.at("double").first
-                   << separator << LITERAL_TYPE.at("double").second;
-            },
-            [&](bool i) {
-                os << std::boolalpha << i << separator
-                   << LITERAL_TYPE.at("bool").first << separator
-                   << LITERAL_TYPE.at("bool").second;
-            },
-            [&]([[maybe_unused]] std::monostate i) {
-                os << "null" << separator << LITERAL_TYPE.at("null").first
-                   << separator << LITERAL_TYPE.at("null").second;
-            },
-            [&](credence::type::Byte i) {
-                os << i << separator << LITERAL_TYPE.at("byte").first
-                   << separator << type.second.second;
-            },
-            [&](char i) {
-                os << "'" << static_cast<unsigned int>(i) << "'" << separator
-                   << LITERAL_TYPE.at("char").first << separator
-                   << LITERAL_TYPE.at("char").second;
-            },
-            [&]([[maybe_unused]] std::string const& s) {
-                if (s == "__WORD__") {
-                    // pointer
-                    os << "__WORD__" << separator
-                       << LITERAL_TYPE.at("word").first << separator
-                       << LITERAL_TYPE.at("word").second;
-                } else {
-                    os << "\"" << std::get<std::string>(type.first) << "\""
-                       << separator << "string" << separator
-                       << std::get<std::string>(type.first).size();
-                }
-            },
-        },
-        type.first);
-    os << ")";
-    return os.str();
-}
-
-/**
- * @brief Rvalue type to string of unwrapped data
- */
-std::string rvalue_to_string(
-    type::RValue::Type const& rvalue,
-    bool separate,
-    std::string_view separator)
-{
-    using namespace credence::type;
-    auto oss = std::ostringstream();
-    auto space = separate ? " " : "";
-    std::visit(
-        util::overload{
-            [&](std::monostate) {},
-            [&](RValue::RValue_Pointer const&) {},
-            [&](RValue::Value const& s) { oss << dump_value_type(s) << space; },
-            [&](RValue::Value_Pointer const& s) {
-                for (auto const& value : s) {
-                    oss << dump_value_type(value, separator) << space;
-                }
-            },
-            [&](RValue::LValue const& s) { oss << s.first << space; },
-            [&](RValue::Unary const& s) {
-                oss << s.first
-                    << rvalue_to_string(s.second->value, true, separator)
-                    << space;
-            },
-            [&](RValue::Relation const& s) {
-                for (auto const& relation : s.second) {
-                    oss << rvalue_to_string(relation->value, true, separator)
-                        << space;
-                }
-            },
-            [&](RValue::Function const& s) { oss << s.first.first << space; },
-            [&](RValue::Symbol const& s) { oss << s.first.first << space; } },
-        rvalue);
-    return oss.str();
+    return std::make_unique<Queue>(queue);
 }
 
 /**
  * @brief Queue to string of operators and operands in reverse-polish notation
  */
-std::string queue_of_rvalues_to_string(
-    RValue_Queue_PTR const& rvalues_queue,
+std::string queue_of_expressions_to_string(
+    Queue const& queue,
     std::string_view separator)
 {
-    using namespace type;
     auto oss = std::ostringstream();
-    for (auto& item : *rvalues_queue) {
+    for (auto& item : queue) {
+        // clang-format off
         std::visit(
-            util::overload{ [&](type::Operator op) {
-                               oss << type::operator_to_string(op) << " ";
-                           },
-                            [&](type::RValue::Type_Pointer const& s) {
-                                oss << rvalue_to_string(*s, true, separator);
-                            }
-
+            util::overload{
+                [&](type::Operator op) {
+                    oss << type::operator_to_string(op) << " ";
+                },
+                [&](Expression const& s) {
+                    oss << internal::value::expression_type_to_string(
+                        *s, true, separator);
+                }
             },
             item);
+        // clang-format on
     }
     return oss.str();
 }
+
+/**************************************************************************
+ *
+ *                      (+++++++++++)
+ *                 (++++)
+ *              (+++)
+ *            (+++)
+ *           (++)
+ *           [~]
+ *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
+ *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
+ *      [|  %___________________           | |~~~~~~~~            |
+ *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
+ *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
+ *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
+ *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *------------------------------------------------
+ ***************************************************************************/
+
+} // namespace queue
 
 } // namespace credence

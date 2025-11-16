@@ -18,10 +18,10 @@
 
 #include <credence/ir/ita.h>    // for ITA
 #include <credence/operators.h> // for Operator
-#include <credence/queue.h>     // for RValue_Queue
+#include <credence/queue.h>     // for Queue
 #include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for RValue
 #include <credence/util.h>      // for AST_Node
+#include <credence/value.h>     // for Expression
 #include <cstddef>              // for size_t
 #include <functional>           // for identity
 #include <initializer_list>     // for initializer_list
@@ -59,17 +59,10 @@ namespace credence {
 
 namespace ir {
 
-using RValue_Instructions = std::pair<ITA::Instructions, RValue_Queue>;
+using Expression_Instructions = std::pair<ITA::Instructions, queue::Queue>;
+using Temporary_Instructions = std::pair<std::string, ITA::Instructions>;
 
 namespace detail {
-
-using Operand_Stack = std::stack<type::RValue::Type_Pointer>;
-using Temporary_Stack = std::stack<std::string>;
-
-std::pair<std::string, std::size_t> insert_create_temp_from_operand(
-    type::RValue::Type_Pointer operand,
-    ITA::Instructions& instructions,
-    int* temporary);
 /**
  * @brief
  * Binary operators and temporary stack to instructions
@@ -112,25 +105,48 @@ std::pair<std::string, std::size_t> insert_create_temp_from_operand(
  * for the final binary expression.
  */
 
-void binary_operands_balanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    ITA::Instructions& instructions,
-    type::Operator op,
-    int* temporary);
+struct Temporary
+{
+    Temporary() = delete;
+    explicit Temporary(int* index)
+        : temporary_index(index)
+    {
+    }
+    using Operand = internal::value::Expression::Type_Pointer;
+    using Operands = std::vector<Operand>;
+    using Instructions = ITA::Instructions;
+    using Operand_Stack = std::stack<Operand>;
+    using Temporary_Stack = std::stack<std::string>;
 
-void binary_operands_unbalanced_temporary_stack(
-    std::stack<type::RValue::Type_Pointer>& operand_stack,
-    std::stack<std::string>& temporary_stack,
-    ITA::Instructions& instructions,
-    int* temporary);
+    internal::value::Size insert_and_create_temporary_from_operand(
+        Operand& operand);
 
-std::pair<std::string, ITA::Instructions>
-instruction_temporary_from_rvalue_operand(
-    type::RValue::Type_Pointer& operand,
-    int* temporary_size);
+    void unary_operand_to_temporary_stack(type::Operator op);
 
-constexpr inline bool is_in_place_unary_operator(type::Operator op)
+    void assignment_operands_to_temporary_stack();
+
+    void binary_operands_to_temporary_stack(type::Operator op);
+
+    void binary_operands_balanced_temporary_stack(type::Operator op);
+
+    void binary_operands_unbalanced_temporary_stack(type::Operator op);
+
+    void from_call_operands_to_temporary_instructions();
+    void from_push_operands_to_temporary_instructions();
+
+    Temporary_Instructions instruction_temporary_from_expression_operand(
+        Operand& operand);
+
+    Instructions instructions{};
+    Operand_Stack operand_stack{};
+
+  private:
+    int* temporary_index;
+    int parameters_size{ 0 };
+    Temporary_Stack temporary_stack{};
+};
+
+constexpr bool is_in_place_unary_operator(type::Operator op)
 {
     const auto unary_types = { type::Operator::PRE_DEC,
                                type::Operator::POST_DEC,
@@ -141,15 +157,15 @@ constexpr inline bool is_in_place_unary_operator(type::Operator op)
 
 } // namespace detail
 
-ITA::Instructions rvalue_queue_to_temp_instructions(
-    RValue_Queue* queue,
-    int* temporary);
+ITA::Instructions queue_to_temporary_instructions(
+    queue::Queue& queue,
+    int* index);
 
-RValue_Instructions rvalue_node_to_list_of_temp_instructions(
+Expression_Instructions expression_node_to_temporary_instructions(
     Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
-    int* temporary);
+    int* temporary_index);
 
 } // namespace ir
 

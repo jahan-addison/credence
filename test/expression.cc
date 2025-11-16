@@ -1,16 +1,16 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
-#include <credence/rvalue.h> // for RValue_Parser
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for Value_Type, RValue, Type_, Byte
-#include <deque>             // for deque
-#include <map>               // for map
-#include <memory>            // for shared_ptr
-#include <simplejson.h>      // for JSON
-#include <string>            // for basic_string, string
-#include <tuple>             // for get, tie
-#include <utility>           // for pair, make_pair, get
-#include <variant>           // for get, monostate
+#include <credence/expression.h> // for Expression_Parser
+#include <credence/symbol.h>     // for Symbol_Table
+#include <credence/value.h> // for credence::internal::value::Literal, credence::internal::value::Expression, Type_, Byte
+#include <deque>            // for deque
+#include <map>              // for map
+#include <memory>           // for shared_ptr
+#include <simplejson.h>     // for JSON
+#include <string>           // for basic_string, string
+#include <tuple>            // for get, tie
+#include <utility>          // for pair, make_pair, get
+#include <variant>          // for get, monostate
 
 using namespace credence;
 using namespace credence::type;
@@ -60,7 +60,7 @@ struct Fixture
     ~Fixture() = default;
 };
 
-TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -118,8 +118,9 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
         "         \"node\" : \"number_literal\",\n                    \"root\" "
         ": 10\n                  },\n                  \"root\" : [\"^\"]\n    "
         "            }]");
-    auto temp = RValue_Parser(obj);
-    RValue::Value null = type::NULL_LITERAL;
+    auto temp = Expression_Parser(obj);
+    credence::internal::value::Literal null =
+        internal::value::Expression::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("c", null);
@@ -127,11 +128,11 @@ TEST_CASE("rvalue.cc: RValue_Parser::rvalue_expression")
     temp.symbols_.table_.emplace("getchar", null);
     // check all
     for (auto& rvalue : obj["test"].array_range()) {
-        CHECK_NOTHROW(temp.from_rvalue(rvalue));
+        CHECK_NOTHROW(temp.parse_from_node(rvalue));
     }
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::function_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -145,23 +146,34 @@ TEST_CASE("rvalue.cc: RValue_Parser::function_expression")
         "       \"root\" : \"y\"\n                    }, {\n                   "
         "   \"node\" : \"lvalue\",\n                      \"root\" : \"z\"\n   "
         "                 }]\n}\n                    ");
-    auto temp = RValue_Parser(obj);
-    RValue::Value null = type::NULL_LITERAL;
+    auto temp = Expression_Parser(obj);
+    credence::internal::value::Literal null =
+        internal::value::Expression::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("y", null);
     temp.symbols_.table_.emplace("putchar", null);
     temp.symbols_.table_.emplace("z", null);
 
-    auto test1 = temp.from_function_expression(obj["test"]);
-    auto function = get<RValue::Function>(test1.value);
+    auto test1 = temp.from_function_expression_node(obj["test"]);
+    auto function =
+        get<credence::internal::value::Expression::Function>(test1.value);
     // parameters
-    CHECK(get<RValue::LValue>(function.second[0]->value).first == "x");
-    CHECK(get<RValue::LValue>(function.second[1]->value).first == "y");
-    CHECK(get<RValue::LValue>(function.second[2]->value).first == "z");
+    CHECK(
+        get<credence::internal::value::Expression::LValue>(
+            function.second[0]->value)
+            .first == "x");
+    CHECK(
+        get<credence::internal::value::Expression::LValue>(
+            function.second[1]->value)
+            .first == "y");
+    CHECK(
+        get<credence::internal::value::Expression::LValue>(
+            function.second[2]->value)
+            .first == "z");
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -180,23 +192,30 @@ TEST_CASE("rvalue.cc: RValue_Parser::evaluated_expression")
         "   },\n                    \"node\" : \"indirect_lvalue\",\n          "
         "          \"root\" : [\"*\"]\n                  }\n                "
         "}]");
-    auto temp = RValue_Parser(obj);
-    RValue::Value null = type::NULL_LITERAL;
+    auto temp = Expression_Parser(obj);
+    credence::internal::value::Literal null =
+        internal::value::Expression::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
 
     auto expressions = obj["test"].to_deque();
-    auto test1 = temp.from_evaluated_expression(expressions.at(0));
-    auto expr1 = get<RValue::RValue_Pointer>(test1.value);
+    auto test1 = temp.from_evaluated_expression_node(expressions.at(0));
+    auto expr1 =
+        get<credence::internal::value::Expression::Pointer>(test1.value);
     CHECK(
-        get<RValue::Relation>(get<RValue::RValue_Pointer>(expr1->value)->value)
+        get<credence::internal::value::Expression::Relation>(
+            get<credence::internal::value::Expression::Pointer>(expr1->value)
+                ->value)
             .first == Operator::B_MUL);
-    auto test2 = temp.from_evaluated_expression(expressions.at(1));
-    auto expr2 = get<RValue::RValue_Pointer>(test2.value);
-    CHECK(get<RValue::LValue>(expr2->value).first == "*x");
+    auto test2 = temp.from_evaluated_expression_node(expressions.at(1));
+    auto expr2 =
+        get<credence::internal::value::Expression::Pointer>(test2.value);
+    CHECK(
+        get<credence::internal::value::Expression::LValue>(expr2->value)
+            .first == "*x");
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -249,10 +268,11 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
         "\"number_literal\",\n      \"root\": 10\n    },\n    \"root\": "
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
-    auto temp = RValue_Parser(obj);
-    RValue::Value null = type::NULL_LITERAL;
+    auto temp = Expression_Parser(obj);
+    credence::internal::value::Literal null =
+        internal::value::Expression::NULL_LITERAL;
 
-    std::vector<RValue::RValue_Pointer> arguments{};
+    std::vector<credence::internal::value::Expression::Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
 
     auto relation_expressions = obj["test"].to_deque();
@@ -260,61 +280,126 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_relation_expression")
     // forgive me
     using std::get;
 
-    auto test1 = temp.from_relation_expression(relation_expressions.at(0));
-    CHECK(std::get<RValue::Relation>(test1.value).first == Operator::B_MUL);
-    arguments = std::get<RValue::Relation>(test1.value).second;
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    auto test1 = temp.from_relation_expression_node(relation_expressions.at(0));
     CHECK(
-        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-        10);
+        std::get<credence::internal::value::Expression::Relation>(test1.value)
+            .first == Operator::B_MUL);
+    arguments =
+        std::get<credence::internal::value::Expression::Relation>(test1.value)
+            .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(arguments[1]->value)
+                .first) == 10);
 
     // ternary relation test
-    auto test2 = temp.from_relation_expression(relation_expressions.at(1));
-    CHECK(std::get<RValue::Relation>(test2.value).first == Operator::R_LE);
-    arguments = std::move(std::get<RValue::Relation>(test2.value).second);
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
-    CHECK(get<int>(get<RValue::Value>(arguments[1]->value).first) == 5);
-    CHECK(get<int>(get<RValue::Value>(arguments[2]->value).first) == 10);
-    CHECK(get<int>(get<RValue::Value>(arguments[3]->value).first) == 1);
-
-    auto test3 = temp.from_relation_expression(relation_expressions.at(2));
-    CHECK(std::get<RValue::Relation>(test3.value).first == Operator::R_EQUAL);
-    arguments = std::move(std::get<RValue::Relation>(test3.value).second);
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+    auto test2 = temp.from_relation_expression_node(relation_expressions.at(1));
     CHECK(
-        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 5);
-
-    auto test4 = temp.from_relation_expression(relation_expressions.at(3));
-    CHECK(std::get<RValue::Relation>(test4.value).first == Operator::R_NEQUAL);
-    arguments = std::move(std::get<RValue::Relation>(test4.value).second);
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+        std::get<credence::internal::value::Expression::Relation>(test2.value)
+            .first == Operator::R_LE);
+    arguments = std::move(
+        std::get<credence::internal::value::Expression::Relation>(test2.value)
+            .second);
     CHECK(
-        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 5);
-
-    auto test5 = temp.from_relation_expression(relation_expressions.at(4));
-    CHECK(std::get<RValue::Relation>(test5.value).first == Operator::XOR);
-    arguments = std::move(std::get<RValue::Relation>(test5.value).second);
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
     CHECK(
-        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 0);
-
-    auto test6 = temp.from_relation_expression(relation_expressions.at(5));
-    CHECK(std::get<RValue::Relation>(test6.value).first == Operator::R_LT);
-    arguments = std::move(std::get<RValue::Relation>(test6.value).second);
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+        get<int>(get<credence::internal::value::Literal>(arguments[1]->value)
+                     .first) == 5);
     CHECK(
-        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) == 5);
-
-    auto test7 = temp.from_relation_expression(relation_expressions.at(6));
-    CHECK(std::get<RValue::Relation>(test7.value).first == Operator::R_LE);
-    arguments = std::move(std::get<RValue::Relation>(test7.value).second);
-    CHECK(std::get<RValue::LValue>(arguments[0]->value).first == "x");
+        get<int>(get<credence::internal::value::Literal>(arguments[2]->value)
+                     .first) == 10);
     CHECK(
-        std::get<int>(std::get<RValue::Value>(arguments[1]->value).first) ==
-        10);
+        get<int>(get<credence::internal::value::Literal>(arguments[3]->value)
+                     .first) == 1);
+
+    auto test3 = temp.from_relation_expression_node(relation_expressions.at(2));
+    CHECK(
+        std::get<credence::internal::value::Expression::Relation>(test3.value)
+            .first == Operator::R_EQUAL);
+    arguments = std::move(
+        std::get<credence::internal::value::Expression::Relation>(test3.value)
+            .second);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(arguments[1]->value)
+                .first) == 5);
+
+    auto test4 = temp.from_relation_expression_node(relation_expressions.at(3));
+    CHECK(
+        std::get<credence::internal::value::Expression::Relation>(test4.value)
+            .first == Operator::R_NEQUAL);
+    arguments = std::move(
+        std::get<credence::internal::value::Expression::Relation>(test4.value)
+            .second);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(arguments[1]->value)
+                .first) == 5);
+
+    auto test5 = temp.from_relation_expression_node(relation_expressions.at(4));
+    CHECK(
+        std::get<credence::internal::value::Expression::Relation>(test5.value)
+            .first == Operator::XOR);
+    arguments = std::move(
+        std::get<credence::internal::value::Expression::Relation>(test5.value)
+            .second);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(arguments[1]->value)
+                .first) == 0);
+
+    auto test6 = temp.from_relation_expression_node(relation_expressions.at(5));
+    CHECK(
+        std::get<credence::internal::value::Expression::Relation>(test6.value)
+            .first == Operator::R_LT);
+    arguments = std::move(
+        std::get<credence::internal::value::Expression::Relation>(test6.value)
+            .second);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(arguments[1]->value)
+                .first) == 5);
+
+    auto test7 = temp.from_relation_expression_node(relation_expressions.at(6));
+    CHECK(
+        std::get<credence::internal::value::Expression::Relation>(test7.value)
+            .first == Operator::R_LE);
+    arguments = std::move(
+        std::get<credence::internal::value::Expression::Relation>(test7.value)
+            .second);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(
+            arguments[0]->value)
+            .first == "x");
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(arguments[1]->value)
+                .first) == 10);
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -365,57 +450,94 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_unary_expression")
         "},\n                  \"node\" : \"unary_expression\",\n          "
         "    "
         "    \"root\" : [\"!\"]\n                }]");
-    auto temp = RValue_Parser(obj);
+    auto temp = Expression_Parser(obj);
 
-    RValue::Value null = type::NULL_LITERAL;
+    credence::internal::value::Literal null =
+        internal::value::Expression::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
 
     auto unary_expressions = obj["test"].to_deque();
-    std::shared_ptr<RValue> lvalue, constant;
+    std::shared_ptr<credence::internal::value::Expression> lvalue, constant;
 
-    auto test1 = temp.from_unary_expression(unary_expressions.at(0));
-    lvalue = std::get<RValue::Unary>(test1.value).second;
-    CHECK(std::get<RValue::Unary>(test1.value).first == Operator::POST_INC);
-    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
-
-    auto test2 = temp.from_unary_expression(unary_expressions.at(1));
-    lvalue = std::get<RValue::Unary>(test2.value).second;
-    CHECK(std::get<RValue::Unary>(test2.value).first == Operator::PRE_INC);
-    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
-
-    auto test3 = temp.from_unary_expression(unary_expressions.at(2));
-    lvalue = std::get<RValue::Unary>(test3.value).second;
-    CHECK(std::get<RValue::Unary>(test3.value).first == Operator::U_ADDR_OF);
-    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
-
-    auto test4 = temp.from_unary_expression(unary_expressions.at(3));
-    constant = std::get<RValue::Unary>(test4.value).second;
+    auto test1 = temp.from_unary_expression_node(unary_expressions.at(0));
+    lvalue = std::get<credence::internal::value::Expression::Unary>(test1.value)
+                 .second;
     CHECK(
-        std::get<RValue::Unary>(test4.value).first ==
-        Operator::U_ONES_COMPLEMENT);
-    CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
-
-    auto test5 = temp.from_unary_expression(unary_expressions.at(4));
-    lvalue = std::get<RValue::Unary>(test5.value).second;
+        std::get<credence::internal::value::Expression::Unary>(test1.value)
+            .first == Operator::POST_INC);
     CHECK(
-        std::get<RValue::Unary>(test5.value).first == Operator::U_INDIRECTION);
-    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
+        std::get<credence::internal::value::Expression::LValue>(lvalue->value)
+            .first == "x");
 
-    auto test6 = temp.from_unary_expression(unary_expressions.at(5));
-    constant = std::get<RValue::Unary>(test6.value).second;
-    CHECK(std::get<RValue::Unary>(test6.value).first == Operator::U_MINUS);
-    CHECK(std::get<int>(std::get<RValue::Value>(constant->value).first) == 5);
+    auto test2 = temp.from_unary_expression_node(unary_expressions.at(1));
+    lvalue = std::get<credence::internal::value::Expression::Unary>(test2.value)
+                 .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::Unary>(test2.value)
+            .first == Operator::PRE_INC);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(lvalue->value)
+            .first == "x");
 
-    auto test7 = temp.from_unary_expression(unary_expressions.at(6));
-    lvalue = std::get<RValue::Unary>(test7.value).second;
-    CHECK(std::get<RValue::Unary>(test7.value).first == Operator::U_NOT);
-    CHECK(std::get<RValue::LValue>(lvalue->value).first == "x");
+    auto test3 = temp.from_unary_expression_node(unary_expressions.at(2));
+    lvalue = std::get<credence::internal::value::Expression::Unary>(test3.value)
+                 .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::Unary>(test3.value)
+            .first == Operator::U_ADDR_OF);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(lvalue->value)
+            .first == "x");
+
+    auto test4 = temp.from_unary_expression_node(unary_expressions.at(3));
+    constant =
+        std::get<credence::internal::value::Expression::Unary>(test4.value)
+            .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::Unary>(test4.value)
+            .first == Operator::U_ONES_COMPLEMENT);
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(constant->value)
+                .first) == 5);
+
+    auto test5 = temp.from_unary_expression_node(unary_expressions.at(4));
+    lvalue = std::get<credence::internal::value::Expression::Unary>(test5.value)
+                 .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::Unary>(test5.value)
+            .first == Operator::U_INDIRECTION);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(lvalue->value)
+            .first == "x");
+
+    auto test6 = temp.from_unary_expression_node(unary_expressions.at(5));
+    constant =
+        std::get<credence::internal::value::Expression::Unary>(test6.value)
+            .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::Unary>(test6.value)
+            .first == Operator::U_MINUS);
+    CHECK(
+        std::get<int>(
+            std::get<credence::internal::value::Literal>(constant->value)
+                .first) == 5);
+
+    auto test7 = temp.from_unary_expression_node(unary_expressions.at(6));
+    lvalue = std::get<credence::internal::value::Expression::Unary>(test7.value)
+                 .second;
+    CHECK(
+        std::get<credence::internal::value::Expression::Unary>(test7.value)
+            .first == Operator::U_NOT);
+    CHECK(
+        std::get<credence::internal::value::Expression::LValue>(lvalue->value)
+            .first == "x");
 }
 
 TEST_CASE_FIXTURE(
     Fixture,
-    "rvalue.cc: RValue_Parser::from_assignment_expression")
+    "rvalue.cc: Expression_Parser::from_assignment_expression")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
@@ -430,27 +552,36 @@ TEST_CASE_FIXTURE(
         "    "
         "   },\n                  \"root\" : [\"=\", null]\n               "
         " }");
-    auto temp = RValue_Parser(obj["symbols"]);
+    auto temp = Expression_Parser(obj["symbols"]);
     // no declaration with `auto' or `extern', should throw
-    CHECK_THROWS(temp.from_assignment_expression(obj["test"]));
+    CHECK_THROWS(temp.from_assignment_expression_node(obj["test"]));
 
-    Value_Type value_type = type::NULL_LITERAL;
+    credence::internal::value::Literal value_type =
+        internal::value::Expression::NULL_LITERAL;
 
-    Value_Type assigned_type = { 5, LITERAL_TYPE.at("int") };
+    credence::internal::value::Literal assigned_type = {
+        5, internal::value::TYPE_LITERAL.at("int")
+    };
 
     temp.symbols_.table_.emplace("x", value_type);
 
-    auto expr = temp.from_assignment_expression(obj["test"]);
+    auto expr = temp.from_assignment_expression_node(obj["test"]);
 
-    auto lhs = std::get<RValue::Symbol>(expr.value).first;
-    auto* rhs = &std::get<RValue::Symbol>(expr.value).second;
+    auto lhs =
+        std::get<credence::internal::value::Expression::Symbol>(expr.value)
+            .first;
+    auto* rhs =
+        &std::get<credence::internal::value::Expression::Symbol>(expr.value)
+             .second;
 
     CHECK(lhs.first == "x");
     CHECK(lhs.second == value_type);
-    CHECK(std::get<Value_Type>((*rhs)->value) == assigned_type);
+    CHECK(
+        std::get<credence::internal::value::Literal>((*rhs)->value) ==
+        assigned_type);
 }
 
-TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
+TEST_CASE_FIXTURE(Fixture, "rvalue.cc: Expression_Parser::is_symbol")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
@@ -458,19 +589,20 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: RValue_Parser::is_symbol")
         "{\"node\":  \"lvalue\","
         "\"root\": \"x\""
         "}");
-    auto temp = RValue_Parser(obj["test"]);
+    auto temp = Expression_Parser(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
 
-    auto temp2 = RValue_Parser(obj["symbols"]);
+    auto temp2 = Expression_Parser(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
-    Value_Type value_type = type::NULL_LITERAL;
+    credence::internal::value::Literal value_type =
+        internal::value::Expression::NULL_LITERAL;
     temp2.symbols_.set_symbol_by_name("x", value_type);
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::from_lvalue_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -489,8 +621,9 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
         "    "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
         "\"root\" : \"z\"\n              }]");
-    auto temp = RValue_Parser(obj);
-    RValue::Value empty_value = std::make_pair('0', std::make_pair("byte", 50));
+    auto temp = Expression_Parser(obj);
+    credence::internal::value::Literal empty_value =
+        std::make_pair('0', std::make_pair("byte", 50));
     auto lvalues = obj["test"].to_deque();
     auto [vector, pointer, normal] =
         std::tie(lvalues.at(0), lvalues.at(1), lvalues.at(2));
@@ -498,18 +631,18 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_lvalue_expression")
     temp.symbols_.table_["y"] = empty_value;
     temp.symbols_.table_["z"] = empty_value;
     // test vector
-    auto test1 = temp.from_lvalue_expression(vector);
+    auto test1 = temp.from_lvalue_expression_node(vector);
     CHECK(test1.first == "x[50]");
     // test pointer
-    auto test2 = temp.from_lvalue_expression(pointer);
+    auto test2 = temp.from_lvalue_expression_node(pointer);
     CHECK(test2.first == "*y");
     // normal variable
-    auto test3 = temp.from_lvalue_expression(normal);
+    auto test3 = temp.from_lvalue_expression_node(normal);
     CHECK(test3.first == "z");
     CHECK(test3.second == empty_value);
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
+TEST_CASE("rvalue.cc: Expression_Parser::from_indirect_identifier")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -519,14 +652,15 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_indirect_identifier")
         "               \"node\" : \"indirect_lvalue\",\n                "
         "\"root\" : [\"*\"]\n              }");
 
-    auto temp = RValue_Parser(obj["test"]);
-    CHECK_THROWS(temp.from_indirect_identifier(obj["test"]));
-    RValue::Value value = std::make_pair('0', std::make_pair("byte", 50));
+    auto temp = Expression_Parser(obj["test"]);
+    CHECK_THROWS(temp.from_indirect_identifier_node(obj["test"]));
+    credence::internal::value::Literal value =
+        std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = value;
-    auto test = temp.from_indirect_identifier(obj["test"]);
+    auto test = temp.from_indirect_identifier_node(obj["test"]);
     CHECK(test == value);
 }
-TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
+TEST_CASE("ir/tble.cc: Expression_Parser::from_vector_idenfitier")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -537,14 +671,15 @@ TEST_CASE("ir/tble.cc: RValue_Parser::from_vector_idenfitier")
         " "
         "\"root\" : \"x\"\n              }");
 
-    auto temp = RValue_Parser(obj["test"]);
-    CHECK_THROWS(temp.from_vector_idenfitier(obj["test"]));
-    Value_Type test = std::make_pair('0', std::make_pair("byte", 50));
+    auto temp = Expression_Parser(obj["test"]);
+    CHECK_THROWS(temp.from_vector_idenfitier_node(obj["test"]));
+    credence::internal::value::Literal test =
+        std::make_pair('0', std::make_pair("byte", 50));
     temp.symbols_.table_["x"] = test;
-    CHECK(temp.from_vector_idenfitier(obj["test"]) == test);
+    CHECK(temp.from_vector_idenfitier_node(obj["test"]) == test);
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
+TEST_CASE("rvalue.cc: Expression_Parser::from_constant_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -552,15 +687,15 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_constant_expression")
         "\"root\": 10"
         "}");
 
-    auto temp = RValue_Parser(obj);
-    auto data = temp.from_constant_expression(obj["test"]);
+    auto temp = Expression_Parser(obj);
+    auto data = temp.from_constant_expression_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
     CHECK(type.first == "int");
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
+TEST_CASE("rvalue.cc: Expression_Parser::from_number_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -568,30 +703,30 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_number_literal")
         "\"root\": 10"
         "}");
 
-    auto temp = RValue_Parser(obj);
-    auto data = temp.from_number_literal(obj["test"]);
+    auto temp = Expression_Parser(obj);
+    auto data = temp.from_number_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
     CHECK(type.first == "int");
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_string_literal")
+TEST_CASE("rvalue.cc: Expression_Parser::from_string_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
         "{\n                  \"node\" : \"string_literal\",\n                 "
         " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
-    auto temp = RValue_Parser(obj);
-    auto data = temp.from_string_literal(obj["test"]);
+    auto temp = Expression_Parser(obj);
+    auto data = temp.from_string_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<std::string>(value) == "hello world");
     CHECK(type.first == "string");
     CHECK(type.second == std::string{ "hello world" }.size());
 }
 
-TEST_CASE("rvalue.cc: RValue_Parser::from_constant_literal")
+TEST_CASE("rvalue.cc: Expression_Parser::from_constant_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -599,8 +734,8 @@ TEST_CASE("rvalue.cc: RValue_Parser::from_constant_literal")
         "\"root\": \"x\""
         "}");
 
-    auto temp = RValue_Parser(obj);
-    auto data = temp.from_constant_literal(obj["test"]);
+    auto temp = Expression_Parser(obj);
+    auto data = temp.from_constant_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<char>(value) == 'x');
     CHECK(type.first == "char");

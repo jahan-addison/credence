@@ -17,7 +17,7 @@
 
 #include <algorithm>            // for copy, max
 #include <credence/operators.h> // for Operator
-#include <credence/types.h>     // for RValue
+#include <credence/value.h>     // for Expression, ...
 #include <deque>                // for deque
 #include <memory>               // for make_unique, unique_ptr
 #include <stack>                // for stack
@@ -26,73 +26,35 @@
 #include <variant>              // for variant
 #include <vector>               // for vector
 
-/**************************************************************************
- *
- *           [~]
- *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
- *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
- *      [|  %___________________           | |~~~~~~~~            |
- *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
- *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
- *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
- *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- ***************************************************************************/
-
 namespace credence {
 
-using RValue_Queue_Item =
-    std::variant<type::Operator, type::RValue::Type_Pointer>;
+namespace queue {
 
-using RValue_Operator_Stack = std::stack<type::Operator>;
+/**
+ * @brief
+ *
+ *  Shunting-yard queue and operator stack of expressions
+ */
 
-using RValue_Types = std::vector<type::RValue::Type_Pointer>;
+using Expression = internal::value::Expression::Type_Pointer;
+using Expressions = std::vector<Expression>;
+using Operator_Stack = std::stack<type::Operator>;
 
-using RValue_Queue = std::deque<RValue_Queue_Item>;
+using Type = internal::value::Expression::Type;
+using Item = std::variant<type::Operator, Expression>;
 
-using RValue_Queue_PTR = std::unique_ptr<RValue_Queue>;
+using Queue = std::deque<Item>;
 
-inline RValue_Queue_PTR make_rvalue_queue()
-{
-    return std::make_unique<RValue_Queue>();
-}
+std::unique_ptr<Queue> make_queue_from_expression_operands(
+    Expressions const& items);
 
-void rvalues_to_queue(
-    RValue_Types const& rvalues,
-    RValue_Queue_PTR& rvalues_queue);
+std::unique_ptr<Queue> make_queue_from_expression_operands(
+    Expression const& item);
 
-void rvalues_to_queue(
-    type::RValue::Type_Pointer const& rvalue,
-    RValue_Queue_PTR& rvalues_queue);
-
-std::string rvalue_to_string(
-    type::RValue::Type const& rvalue,
-    bool separate = true,
+std::string queue_of_expressions_to_string(
+    Queue const& queue,
     std::string_view separator = ":");
 
-std::string queue_of_rvalues_to_string(
-    RValue_Queue_PTR const& rvalues_queue,
-    std::string_view separator = ":");
-
-std::string dump_value_type(
-    type::RValue::Value,
-    std::string_view separator = ":");
+} // namespace queue
 
 } // namespace credence
-
-/**************************************************************************
- *
- *                      (+++++++++++)
- *                 (++++)
- *              (+++)
- *            (+++)
- *           (++)
- *           [~]
- *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
- *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
- *      [|  %___________________           | |~~~~~~~~            |
- *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
- *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
- *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
- *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *------------------------------------------------
- ***************************************************************************/

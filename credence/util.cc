@@ -1,15 +1,13 @@
 
 #include <credence/util.h>
 
-#include <credence/assert.h>   // for credence_error
-#include <credence/ir/ita.h>   // for ITA
-#include <credence/ir/table.h> // for Table
-#include <filesystem>          // for file_size, path
-#include <format>              // for format, format_string
-#include <fstream>             // for basic_ofstream, basic_ifstream, basic...
-#include <iostream>            // for cout
-#include <memory>              // for unique_ptr
-#include <sstream>             // for basic_ostringstream
+#include <credence/assert.h> // for credence_error
+#include <filesystem>        // for file_size, path
+#include <format>            // for format, format_string
+#include <fstream>           // for basic_ofstream, basic_ifstream, basic...
+#include <iostream>          // for cout
+#include <memory>            // for unique_ptr
+#include <sstream>           // for basic_ostringstream
 
 namespace credence {
 

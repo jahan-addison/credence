@@ -17,7 +17,7 @@
 #pragma once
 
 #include <credence/ir/table.h> // for Table
-#include <credence/typeinfo.h> // for LValue, RValue, Data_Type, ...
+#include <credence/types.h>    // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>     // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <ostream>             // for ostream
 #include <utility>             // for move
@@ -55,7 +55,7 @@ class Backend
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    virtual void from_func_start_ita(typeinfo::semantic::Label const& name) = 0;
+    virtual void from_func_start_ita(type::semantic::Label const& name) = 0;
     virtual void from_func_end_ita() = 0;
     virtual void from_cmp_ita(ITA_Inst const& inst) = 0;
     virtual void from_mov_ita(ITA_Inst const& inst) = 0;

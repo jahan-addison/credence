@@ -18,7 +18,7 @@
 
 #include <algorithm>           // for find
 #include <credence/ir/table.h> // for Table
-#include <credence/typeinfo.h> // for LValue, RValue, Data_Type, ...
+#include <credence/types.h>    // for LValue, RValue, Data_Type, ...
 #include <deque>               // for deque
 #include <string>              // for basic_string, string
 #include <tuple>               // for tuple
@@ -70,9 +70,10 @@
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
-#define make_integral_relational_entry(T, op)                                                  \
-    m::pattern | std::string{STRINGIFY(T)} = [&] {                                             \
-        result = type::integral_from_type<T>(lhs_imm) op type::integral_from_type<T>(rhs_imm); \
+#define make_integral_relational_entry(T, op)                   \
+    m::pattern | std::string{STRINGIFY(T)} = [&] {              \
+        result = type::integral_from_type<T>(lhs_imm) op    \
+        type::integral_from_type<T>(rhs_imm);               \
     }
 
 #define make_string_relational_entry(op)                                       \
@@ -322,12 +323,11 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 Register get_accumulator_register_from_size(
     Operand_Size size = Operand_Size::Dword);
 
-constexpr Operand_Size get_size_from_table_rvalue(
-    typeinfo::Data_Type const& rvalue)
+constexpr Operand_Size get_size_from_table_rvalue(type::Data_Type const& rvalue)
 {
     namespace m = matchit;
-    using T = typeinfo::semantic::Type;
-    T type = typeinfo::get_type_from_rvalue_data_type(rvalue);
+    using T = type::semantic::Type;
+    T type = type::get_type_from_rvalue_data_type(rvalue);
     return m::match(type)(
         m::pattern | m::or_(T{ "int" }, T{ "string" }) =
             [&] { return Operand_Size::Dword; },
@@ -342,11 +342,11 @@ using Stack_Offset = std::size_t;
 
 inline constexpr auto O_NUL = std::monostate{};
 
-using Immediate = typeinfo::Data_Type;
+using Immediate = type::Data_Type;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
 using Instructions =
-    std::deque<std::variant<typeinfo::semantic::Label, Instruction>>;
+    std::deque<std::variant<type::semantic::Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, detail::Instructions>;
 
 Immediate get_result_from_trivial_integral_expression(

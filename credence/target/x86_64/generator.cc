@@ -4,7 +4,7 @@
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
 #include <credence/target/target.h> // for align_up_to_16
-#include <credence/typeinfo.h>      // for LValue, RValue, Data_Type, ...
+#include <credence/types.h>         // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>          // for substring_count_of, contains
 #include <cstddef>                  // for size_t
 #include <deque>                    // for deque
@@ -46,7 +46,7 @@ void Code_Generator::emit(std::ostream& os)
                     os << ", " << emit_storage_device(src);
                 os << std::endl;
             },
-            [&](typeinfo::semantic::Label const& s) {
+            [&](type::semantic::Label const& s) {
                 os << s << ":" << std::endl;
             } },
                 inst);
@@ -112,7 +112,7 @@ void Code_Generator::build()
             m::pattern | ir_i(FUNC_START) =
                 [&] {
                     auto symbol = std::get<1>(instructions.at(ita_index - 1));
-                    auto name = typeinfo::get_label_as_human_readable(symbol);
+                    auto name = type::get_label_as_human_readable(symbol);
                     current_frame = name;
                     set_table_stack_frame(name);
                     from_func_start_ita(name);
@@ -129,7 +129,7 @@ void Code_Generator::build()
     }
 }
 
-void Code_Generator::from_func_start_ita(typeinfo::semantic::Label const& name)
+void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
 {
     CREDENCE_ASSERT(table_->functions.contains(name));
     stack.clear();
@@ -159,8 +159,7 @@ Code_Generator::Storage Code_Generator::get_storage_device(Operand_Size size)
     }
 }
 
-void Code_Generator::set_table_stack_frame(
-    typeinfo::semantic::Label const& name)
+void Code_Generator::set_table_stack_frame(type::semantic::Label const& name)
 {
     table_->set_stack_frame(name);
 }
@@ -190,7 +189,7 @@ void Code_Generator::from_push_ita(ITA_Inst const& inst)
 
 void Code_Generator::from_locl_ita(ITA_Inst const& inst)
 {
-    typeinfo::semantic::LValue lvalue = std::get<1>(inst);
+    type::semantic::LValue lvalue = std::get<1>(inst);
     stack.make(lvalue);
 }
 
@@ -201,18 +200,18 @@ void Code_Generator::from_cmp_ita([[maybe_unused]] ITA_Inst const& inst)
 
 void Code_Generator::from_mov_ita(ITA_Inst const& inst)
 {
-    typeinfo::semantic::LValue lhs = std::get<1>(inst);
+    type::semantic::LValue lhs = std::get<1>(inst);
     auto symbols = table_->get_stack_frame_symbols();
-    if (!typeinfo::is_temporary(lhs)) {
+    if (!type::is_temporary(lhs)) {
         CREDENCE_ASSERT(stack.contains(lhs));
-        typeinfo::semantic::RValue rhs =
+        type::semantic::RValue rhs =
             ir::get_rvalue_from_mov_qaudruple(inst).first;
-        if (typeinfo::is_rvalue_data_type(rhs)) {
-            auto imm = typeinfo::get_symbol_type_size_from_rvalue_string(rhs);
+        if (type::is_rvalue_data_type(rhs)) {
+            auto imm = type::get_symbol_type_size_from_rvalue_string(rhs);
             stack.set_address_from_immediate(lhs, imm);
             auto lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, imm);
-        } else if (typeinfo::is_temporary(rhs)) {
+        } else if (type::is_temporary(rhs)) {
             auto acc = get_accumulator_register_from_size();
             stack.set_address_from_accumulator(lhs, acc);
             auto lhs_storage = stack.get(lhs).first;
@@ -226,10 +225,30 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             addiis(instructions_, mov, lhs_storage, acc);
         } else {
             Storage lhs_storage = stack.get(lhs).first;
-            if (typeinfo::is_unary_operator(rhs)) {
+            if (type::is_unary_operator(rhs)) {
                 auto symbol = symbols.get_symbol_by_name(lhs);
-                auto unary_op = typeinfo::get_unary_operator(rhs);
+                auto unary_op = type::get_unary_operator(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
+            } else if (type::is_binary_operator(rhs)) {
+                auto op = type::get_binary_operator(rhs);
+                std::cout << "op: '" << op << "' " << rhs << std::endl;
+                // @TODO: need to turn this into a function
+                auto lhs_s = get_storage_device(Operand_Size::Dword);
+                auto rhs_s = get_storage_device(Operand_Size::Dword);
+                Storage_Operands operands = { lhs_s, rhs_s };
+                if (type::is_binary_arithmetic_operator(rhs)) {
+                    auto instruction =
+                        from_arithmetic_expression_operands(operands, op);
+                    detail::insert(instructions_, instruction.second);
+                } else if (type::is_relation_binary_operator(rhs)) {
+                    auto instruction =
+                        from_relational_expression_operands(operands, op);
+                    detail::insert(instructions_, instruction.second);
+                } else if (type::is_bitwise_operator(rhs)) {
+                    auto instruction =
+                        from_bitwise_expression_operands(operands, op);
+                    detail::insert(instructions_, instruction.second);
+                }
             } else {
                 auto symbol = symbols.get_symbol_by_name(rhs);
                 addiis(instructions_, mov, lhs_storage, symbol);
@@ -242,19 +261,19 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
 }
 
 Code_Generator::Storage Code_Generator::get_storage_from_temporary_lvalue(
-    typeinfo::semantic::LValue const& lvalue,
+    type::semantic::LValue const& lvalue,
     std::string const& op)
 {
     Storage storage{};
-    if (typeinfo::is_rvalue_data_type(lvalue)) {
+    if (type::is_rvalue_data_type(lvalue)) {
         auto acc = get_accumulator_register_from_size();
-        storage = typeinfo::get_symbol_type_size_from_rvalue_string(lvalue);
+        storage = type::get_symbol_type_size_from_rvalue_string(lvalue);
         if (!temporary_expansion) {
             temporary_expansion = true;
             auto lookbehind = table_->instructions[ita_index];
-            typeinfo::semantic::RValue rvalue =
+            type::semantic::RValue rvalue =
                 ir::get_rvalue_from_mov_qaudruple(lookbehind).first;
-            if (!typeinfo::is_binary_datatype_expression(rvalue))
+            if (!type::is_binary_datatype_expression(rvalue))
                 addiis(instructions_, mov, acc, storage);
         }
     } else if (stack.contains(lvalue) and not stack.empty_at(lvalue)) {
@@ -300,23 +319,23 @@ void Code_Generator::insert_from_temporary_immediate_rvalues(
 {
     auto imm_l = std::get<Immediate>(lhs);
     auto imm_r = std::get<Immediate>(rhs);
-    if (std::ranges::find(typeinfo::arithmetic_binary_operators, op) !=
-        typeinfo::arithmetic_binary_operators.end()) {
+    if (std::ranges::find(type::arithmetic_binary_operators, op) !=
+        type::arithmetic_binary_operators.end()) {
         auto imm = detail::get_result_from_trivial_integral_expression(
             imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size();
         addiis(instructions_, mov, acc, imm);
     } else if (
-        std::ranges::find(typeinfo::relation_binary_operators, op) !=
-        typeinfo::arithmetic_binary_operators.end()) {
+        std::ranges::find(type::relation_binary_operators, op) !=
+        type::arithmetic_binary_operators.end()) {
         auto imm = detail::get_result_from_trivial_relational_expression(
             imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
         special_register = acc;
         addiis(instructions_, mov, acc, imm);
     } else if (
-        std::ranges::find(typeinfo::bitwise_operators, op) !=
-        typeinfo::bitwise_operators.end()) {
+        std::ranges::find(type::bitwise_binary_operators, op) !=
+        type::bitwise_binary_operators.end()) {
         auto imm = detail::get_result_from_trivial_bitwise_expression(
             imm_l, op, imm_r);
         auto acc = get_accumulator_register_from_size();
@@ -356,12 +375,11 @@ void Code_Generator::from_ita_unary_expression(
 }
 
 void Code_Generator::from_temporary_unary_operator_expression(
-    typeinfo::semantic::RValue const& expr)
+    type::semantic::RValue const& expr)
 {
-    CREDENCE_ASSERT(typeinfo::is_unary_operator(expr));
-    auto op = typeinfo::get_unary_operator(expr);
-    typeinfo::semantic::RValue rvalue =
-        typeinfo::get_unary_rvalue_reference(expr);
+    CREDENCE_ASSERT(type::is_unary_operator(expr));
+    auto op = type::get_unary_operator(expr);
+    type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
     get_storage_from_temporary_lvalue(rvalue, op);
     if (stack.contains(rvalue)) {
         auto size = stack.get(rvalue).second;
@@ -369,17 +387,17 @@ void Code_Generator::from_temporary_unary_operator_expression(
         from_ita_unary_expression(op, dest);
     } else {
         auto size = detail::get_size_from_table_rvalue(
-            typeinfo::get_symbol_type_size_from_rvalue_string(rvalue));
+            type::get_symbol_type_size_from_rvalue_string(rvalue));
         Storage dest = get_accumulator_register_from_size(size);
         from_ita_unary_expression(op, dest);
     }
 }
 
 void Code_Generator::from_temporary_binary_operator_expression(
-    typeinfo::semantic::RValue const& expr)
+    type::semantic::RValue const& expr)
 {
-    CREDENCE_ASSERT(typeinfo::is_binary_operator(expr));
-    auto expression = typeinfo::from_rvalue_binary_expression(expr);
+    CREDENCE_ASSERT(type::is_binary_operator(expr));
+    auto expression = type::from_rvalue_binary_expression(expr);
     auto lhs = std::get<0>(expression);
     auto rhs = std::get<1>(expression);
     auto op = std::get<2>(expression);
@@ -394,28 +412,28 @@ void Code_Generator::from_temporary_binary_operator_expression(
     if (is_variant(Immediate, lhs_s))
         std::swap(lhs_s, rhs_s);
     Storage_Operands operands = { lhs_s, rhs_s };
-    if (typeinfo::is_binary_arithmetic_operator(expr)) {
+    if (type::is_binary_arithmetic_operator(expr)) {
         auto inst = from_arithmetic_expression_operands(operands, op);
         detail::insert(instructions_, inst.second);
-    } else if (typeinfo::is_relation_binary_operator(expr)) {
+    } else if (type::is_relation_binary_operator(expr)) {
         auto inst = from_relational_expression_operands(operands, op);
         detail::insert(instructions_, inst.second);
-    } else if (typeinfo::is_bitwise_operator(expr)) {
+    } else if (type::is_bitwise_operator(expr)) {
         auto inst = from_bitwise_expression_operands(operands, op);
         detail::insert(instructions_, inst.second);
     }
 }
 
 void Code_Generator::insert_from_temporary_table_rvalue(
-    typeinfo::semantic::RValue const& expr)
+    type::semantic::RValue const& expr)
 {
     auto symbols = table_->get_stack_frame_symbols();
-    if (typeinfo::is_binary_operator(expr)) {
+    if (type::is_binary_operator(expr)) {
         from_temporary_binary_operator_expression(expr);
-    } else if (typeinfo::is_unary_operator(expr)) {
+    } else if (type::is_unary_operator(expr)) {
         from_temporary_unary_operator_expression(expr);
-    } else if (typeinfo::is_rvalue_data_type(expr)) {
-        auto imm = typeinfo::get_symbol_type_size_from_rvalue_string(expr);
+    } else if (type::is_rvalue_data_type(expr)) {
+        auto imm = type::get_symbol_type_size_from_rvalue_string(expr);
         addiill(instructions_, mov, eax, imm);
     } else {
         auto imm = symbols.get_symbol_by_name(expr);
@@ -439,7 +457,7 @@ void Code_Generator::from_leave_ita()
 void Code_Generator::from_label_ita(ITA_Inst const& inst)
 {
     instructions_.emplace_back(
-        typeinfo::get_label_as_human_readable(std::get<1>(inst)));
+        type::get_label_as_human_readable(std::get<1>(inst)));
 }
 
 Code_Generator::Instruction_Pair

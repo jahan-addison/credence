@@ -105,7 +105,6 @@ cpmaddpackage(
   GITHUB_REPOSITORY
   jeremy-rifkin/cpptrace)
 
-
 cpmaddpackage(
   NAME
   eternal

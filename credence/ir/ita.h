@@ -15,22 +15,21 @@
  */
 #pragma once
 
-#include <algorithm>         // for copy, max
-#include <compare>           // for operator<, strong_ordering
+#include <compare>           // for operator<, _CmpUnspecifiedParam
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for RValue
-#include <credence/util.h>   // for AST_Node, to_constexpr_string, CREDENCE...
-#include <deque>             // for operator==, _Deque_iterator, deque, ope...
+#include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLE...
+#include <credence/value.h>  // for Expression, Literal
+#include <deque>             // for deque, operator<=>, operator==
 #include <matchit.h>         // for matchit
-#include <optional>          // for nullopt, optional
+#include <optional>          // for nullopt, nullopt_t, optional
+#include <ostream>           // for operator<<, basic_ostream, endl
 #include <simplejson.h>      // for JSON
-#include <sstream>           // for operator<<, ostream, basic_ostream, endl
+#include <sstream>           // for ostream
 #include <stack>             // for stack
-#include <string>            // for allocator, string, operator+, basic_string
+#include <string>            // for basic_string, string, operator+
 #include <string_view>       // for string_view
 #include <tuple>             // for tuple, make_tuple
-#include <utility>           // for make_pair, pair
-#include <variant>           // for variant
+#include <utility>           // for pair, make_pair
 #include <vector>            // for vector
 
 namespace credence {
@@ -86,7 +85,7 @@ class ITA
         std::tuple<Instruction, std::string, std::string, std::string>;
     using Instructions = std::deque<Quadruple>;
     using Node = util::AST_Node;
-    using Vector_Decay_Ref = std::vector<type::RValue::Value>;
+    using Vector_Decay_Ref = std::vector<internal::value::Literal>;
     using Parameters = std::vector<std::string>;
     using Tail_Branch = std::optional<Quadruple>;
     using Branch_Comparator = std::pair<std::string, Instructions>;
@@ -321,7 +320,7 @@ class ITA
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_rvalue_statement(Node const& node);
     std::vector<std::string> build_from_rvalue_expression(
-        type::RValue::Type& rvalue);
+        internal::value::Expression::Type & rvalue);
 
   private:
     void insert_branch_block_instructions(

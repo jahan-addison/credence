@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-#include <credence/rvalue.h>
+#include <credence/expression.h>
 
+#include <algorithm>            // for __find, find
 #include <credence/assert.h>    // for assert_equal_impl, CREDENCE_ASSERT_NODE
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for RValue, LITERAL_TYPE, WORD_LITERAL
 #include <credence/util.h>      // for AST_Node, unescape_string
-#include <deque>                // for operator==, _Deque_iterator
-#include <format>               // for format, format_string
-#include <functional>           // for identity
+#include <credence/value.h>     // for make_lvalue, Expression, TYPE_LITERAL
+#include <format>               // for format
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
-#include <memory>               // for shared_ptr, allocator, make_shared
-#include <ranges>               // for __find_fn, find
+#include <memory>               // for make_shared
 #include <simplejson.h>         // for JSON, JSON_String
 #include <string>               // for basic_string, operator==, char_traits
-#include <string_view>          // for basic_string_view, operator<=>
-#include <utility>              // for pair, make_pair, move
+#include <string_view>          // for basic_string_view
+#include <utility>              // for make_pair, pair, move
 #include <variant>              // for variant
 
 namespace credence {
@@ -40,154 +38,160 @@ namespace credence {
 namespace m = matchit;
 
 /**
- * @brief Parse rvalue ast node into type::RValue struct type pointer
+ * @brief Parse expression ast node into Expression struct type pointer
  */
-type::RValue RValue_Parser::from_rvalue(Node const& node)
+Expression_Parser::Expression Expression_Parser::parse_from_node(
+    Node const& node)
 {
 
-    auto rvalue = type::RValue{};
-    auto rvalue_type = node["node"].to_string();
+    auto expression = Expression{};
+    auto node_type = node["node"].to_string();
 
-    m::match(rvalue_type)(
+    m::match(node_type)(
         // cppcheck-suppress syntaxError
         m::pattern | "constant_literal" =
-            [&] { rvalue.value = from_constant_expression(node); },
+            [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "number_literal" =
-            [&] { rvalue.value = from_constant_expression(node); },
+            [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "string_literal" =
-            [&] { rvalue.value = from_constant_expression(node); },
-        m::pattern |
-            "lvalue" = [&] { rvalue.value = from_lvalue_expression(node); },
+            [&] { expression.value = from_constant_expression_node(node); },
+        m::pattern | "lvalue" =
+            [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "vector_lvalue" =
-            [&] { rvalue.value = from_lvalue_expression(node); },
+            [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "function_expression" =
             [&] {
-                rvalue.value = std::make_shared<type::RValue>(
-                    from_function_expression(node));
+                expression.value = std::make_shared<Expression>(
+                    from_function_expression_node(node));
             },
         m::pattern | "evaluated_expression" =
             [&] {
-                rvalue.value = std::make_shared<type::RValue>(
-                    from_evaluated_expression(node));
+                expression.value = std::make_shared<Expression>(
+                    from_evaluated_expression_node(node));
             },
         m::pattern | "relation_expression" =
             [&] {
-                rvalue.value = std::make_shared<type::RValue>(
-                    from_relation_expression(node));
+                expression.value = std::make_shared<Expression>(
+                    from_relation_expression_node(node));
             },
         m::pattern | "ternary_expression" =
             [&] {
-                rvalue.value = std::make_shared<type::RValue>(
-                    from_ternary_expression(node));
+                expression.value = std::make_shared<Expression>(
+                    from_ternary_expression_node(node));
             },
         m::pattern | "indirect_lvalue" =
-            [&] { rvalue.value = from_lvalue_expression(node); },
+            [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "assignment_expression" =
             [&] {
-                rvalue.value = std::make_shared<type::RValue>(
-                    from_assignment_expression(node));
+                expression.value = std::make_shared<Expression>(
+                    from_assignment_expression_node(node));
             },
         m::pattern | m::_ =
             [&] {
-                if (std::ranges::find(unary_types_, rvalue_type) !=
-                    unary_types_.end()) {
-                    rvalue.value = std::make_shared<type::RValue>(
-                        from_unary_expression(node));
+                if (std::ranges::find(unary_types, node_type) !=
+                    unary_types.end()) {
+                    expression.value = std::make_shared<Expression>(
+                        from_unary_expression_node(node));
                 } else {
                     credence_error(
-                        std::format("Invalid rvalue type `{}`", rvalue_type));
+                        std::format("Invalid ast node type `{}`", node_type));
                 }
             });
-    return rvalue;
+    return expression;
 }
 
 /**
- * @brief Build rvalue from function call expression
+ * @brief Build expression from function call expression
  */
-type::RValue RValue_Parser::from_function_expression(Node const& node)
+Expression_Parser::Expression Expression_Parser::from_function_expression_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_expression");
     CREDENCE_ASSERT(node["right"].to_deque().size() >= 1);
-    type::RValue rvalue{};
-    auto param_node = node["right"].to_deque();
+    Expression expression{};
     Parameters parameters{};
+    auto param_node = node["right"].to_deque();
     // if the size of parameters is 1 and its only
     // param is "null", (i.e. [null]) it's empty
     if (!param_node.empty() and not param_node.front().is_null())
         for (auto& param : param_node) {
-            parameters.emplace_back(shared_ptr_from_rvalue(param));
+            parameters.emplace_back(make_expression_pointer_from_ast(param));
         }
-    auto lhs = from_lvalue_expression(node["left"]);
-    rvalue.value = std::make_pair(lhs, parameters);
-    return rvalue;
+    auto lhs = from_lvalue_expression_node(node["left"]);
+    expression.value = internal::value::Expression::Function{ lhs, parameters };
+    return expression;
 }
 
 /**
- * @brief An rvalue wrapped in parenthesis, pre-evaluated
+ * @brief An expression wrapped in parenthesis, pre-evaluated
  */
-type::RValue RValue_Parser::from_evaluated_expression(Node const& node)
+Expression_Parser::Expression Expression_Parser::from_evaluated_expression_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "evaluated_expression");
-    type::RValue rvalue{};
-    rvalue.value = shared_ptr_from_rvalue(node["root"]);
-    return rvalue;
+    Expression expression{};
+    expression.value = make_expression_pointer_from_ast(node["root"]);
+    return expression;
 }
 
 /**
- * @brief Ternary relation rvalue
+ * @brief Ternary relation expression
  */
-type::RValue RValue_Parser::from_ternary_expression(Node const& node)
+Expression_Parser::Expression Expression_Parser::from_ternary_expression_node(
+    Node const& node)
 {
-    type::RValue rvalue{};
+    Expression expression{};
     Parameters blocks{};
     auto conditional = node["left"];
     auto ternary = node["right"];
     if (node["root"].to_deque().size() == 0)
-        return rvalue;
+        return expression;
     auto op = node["root"].to_deque().front().to_string();
-    blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
-    blocks.emplace_back(shared_ptr_from_rvalue(ternary["root"]));
-    blocks.emplace_back(shared_ptr_from_rvalue(ternary["left"]));
-    blocks.emplace_back(shared_ptr_from_rvalue(ternary["right"]));
-    rvalue.value =
+    blocks.emplace_back(make_expression_pointer_from_ast(node["left"]));
+    blocks.emplace_back(make_expression_pointer_from_ast(ternary["root"]));
+    blocks.emplace_back(make_expression_pointer_from_ast(ternary["left"]));
+    blocks.emplace_back(make_expression_pointer_from_ast(ternary["right"]));
+    expression.value =
         std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
-    return rvalue;
+    return expression;
 }
 
 /**
- * @brief Relation to sum type of operator and chain of rvalues
+ * @brief Relation to sum type of operator and chain of expressions
  */
-type::RValue RValue_Parser::from_relation_expression(Node const& node)
+Expression_Parser::Expression Expression_Parser::from_relation_expression_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "relation_expression");
-    type::RValue rvalue{};
+    Expression expression{};
     Parameters blocks{};
     if (node.has_key("right") and
         node["right"]["node"].to_string() == "ternary_expression") {
-        rvalue = from_ternary_expression(node);
+        expression = from_ternary_expression_node(node);
     } else {
         auto op = node["root"].to_deque().front().to_string();
-        blocks.emplace_back(shared_ptr_from_rvalue(node["left"]));
-        blocks.emplace_back(shared_ptr_from_rvalue(node["right"]));
-        rvalue.value =
+        blocks.emplace_back(make_expression_pointer_from_ast(node["left"]));
+        blocks.emplace_back(make_expression_pointer_from_ast(node["right"]));
+        expression.value =
             std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
     }
-    return rvalue;
+    return expression;
 }
 
 /**
  * @brief Unary operator expression to algebraic pair
  */
-type::RValue RValue_Parser::from_unary_expression(Node const& node)
+Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
+    Node const& node)
 {
     using namespace type;
     auto unary_type = node["node"].to_string();
 
     CREDENCE_ASSERT_MESSAGE(
-        std::ranges::find(unary_types_, unary_type) != unary_types_.end(),
+        std::ranges::find(unary_types, unary_type) != unary_types.end(),
         std::format("Invalid unary expression type `{}`", unary_type));
 
-    RValue rvalue{};
+    Expression expression{};
     std::map<std::string, Operator> const other_unary = {
         { "!", Operator::U_NOT },         { "~", Operator::U_ONES_COMPLEMENT },
         { "*", Operator::U_INDIRECTION }, { "-", Operator::U_MINUS },
@@ -195,7 +199,7 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
     };
 
     if (node["root"].JSON_type() != util::AST_Node::Class::Array)
-        return rvalue;
+        return expression;
 
     CREDENCE_ASSERT(node["root"].to_deque().size() >= 1);
 
@@ -205,48 +209,49 @@ type::RValue RValue_Parser::from_unary_expression(Node const& node)
         m::pattern | "pre_inc_dec_expression" =
             [&] {
                 if (op == "++") {
-                    auto rhs = std::make_shared<type::RValue>(
-                        from_rvalue(node["left"]));
-                    rvalue.value = std::make_pair(Operator::PRE_INC, rhs);
+                    auto rhs = std::make_shared<Expression>(
+                        parse_from_node(node["left"]));
+                    expression.value = std::make_pair(Operator::PRE_INC, rhs);
 
                 } else if (op == "--") {
-                    auto rhs = std::make_shared<type::RValue>(
-                        from_rvalue(node["left"]));
-                    rvalue.value = std::make_pair(Operator::PRE_DEC, rhs);
+                    auto rhs = std::make_shared<Expression>(
+                        parse_from_node(node["left"]));
+                    expression.value = std::make_pair(Operator::PRE_DEC, rhs);
                 }
             },
         m::pattern | "post_inc_dec_expression" =
             [&] {
                 if (op == "++") {
-                    auto rhs = std::make_shared<type::RValue>(
-                        from_rvalue(node["right"]));
-                    rvalue.value = std::make_pair(Operator::POST_INC, rhs);
+                    auto rhs = std::make_shared<Expression>(
+                        parse_from_node(node["right"]));
+                    expression.value = std::make_pair(Operator::POST_INC, rhs);
 
                 } else if (op == "--") {
-                    auto rhs = std::make_shared<type::RValue>(
-                        from_rvalue(node["right"]));
-                    rvalue.value =
+                    auto rhs = std::make_shared<Expression>(
+                        parse_from_node(node["right"]));
+                    expression.value =
                         std::make_pair(Operator::POST_DEC, std::move(rhs));
                 }
             },
         m::pattern | "address_of_expression" =
             [&] {
                 CREDENCE_ASSERT_EQUAL(op, "&");
-                auto rhs = shared_ptr_from_rvalue(node["left"]);
-                rvalue.value = std::make_pair(Operator::U_ADDR_OF, rhs);
+                auto rhs = make_expression_pointer_from_ast(node["left"]);
+                expression.value = std::make_pair(Operator::U_ADDR_OF, rhs);
             },
         m::pattern | m::_ =
             [&] {
-                auto rhs = shared_ptr_from_rvalue(node["left"]);
-                rvalue.value = std::make_pair(other_unary.at(op), rhs);
+                auto rhs = make_expression_pointer_from_ast(node["left"]);
+                expression.value = std::make_pair(other_unary.at(op), rhs);
             });
-    return rvalue;
+    return expression;
 }
 
 /**
  * @brief Parse assignment expression into pairs of LHS and RHS
  */
-type::RValue RValue_Parser::from_assignment_expression(Node const& node)
+Expression_Parser::Expression
+Expression_Parser::from_assignment_expression_node(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "assignment_expression");
     CREDENCE_ASSERT(node.has_key("left"));
@@ -260,18 +265,19 @@ type::RValue RValue_Parser::from_assignment_expression(Node const& node)
             left_child_node["root"].to_string(),
             internal_symbols_);
 
-    auto lhs = from_lvalue_expression(left_child_node);
-    auto rhs = shared_ptr_from_rvalue(right_child_node);
-    type::RValue rvalue = type::RValue{};
-    rvalue.value = std::make_pair(lhs, rhs);
+    auto lhs = from_lvalue_expression_node(left_child_node);
+    auto rhs = make_expression_pointer_from_ast(right_child_node);
+    Expression expression = Expression{};
+    expression.value = make_pair(lhs, rhs);
 
-    return rvalue;
+    return expression;
 }
 
 /**
  * @brief Parse lvalue expression data types
  */
-type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
+Expression_Parser::Expression::LValue
+Expression_Parser::from_lvalue_expression_node(Node const& node)
 {
     auto constant_type = node["node"].to_string();
 
@@ -291,40 +297,41 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
                 credence_compile_error(
                     "identifier does not exist", name, internal_symbols_);
             else
-                symbols_.set_symbol_by_name(name, type::WORD_LITERAL);
+                symbols_.set_symbol_by_name(
+                    name, internal::value::Expression::WORD_LITERAL);
         }
     }
-    type::RValue::LValue lvalue{};
+    Expression::LValue lvalue{};
     m::match(node["node"].to_string())(
         m::pattern | "lvalue" =
             [&] {
                 auto name = node["root"].to_string();
                 if (symbols_.is_pointer(name))
-                    lvalue = type::RValue::make_lvalue(name);
+                    lvalue = internal::value::make_lvalue(name);
                 else
-                    lvalue = type::RValue::make_lvalue(
+                    lvalue = internal::value::make_lvalue(
                         name, symbols_.get_symbol_by_name(name));
             },
         m::pattern | "vector_lvalue" =
             [&] {
-                auto offset_rvalue = node["left"]["root"];
-                if (offset_rvalue.JSON_type() ==
+                auto offset_value = node["left"]["root"];
+                if (offset_value.JSON_type() ==
                     util::AST_Node::Class::Integral) {
-                    lvalue = type::RValue::make_lvalue(
+                    lvalue = internal::value::make_lvalue(
                         std::format(
                             "{}[{}]",
                             node["root"].to_string(),
-                            offset_rvalue.to_int()));
+                            offset_value.to_int()));
                 } else
-                    lvalue = type::RValue::make_lvalue(
+                    lvalue = internal::value::make_lvalue(
                         std::format(
                             "{}[{}]",
                             node["root"].to_string(),
-                            offset_rvalue.to_string()));
+                            offset_value.to_string()));
             },
         m::pattern | "indirect_lvalue" =
             [&] {
-                lvalue = type::RValue::make_lvalue(
+                lvalue = internal::value::make_lvalue(
                     std::format("*{}", node["left"]["root"].to_string()));
             });
     return lvalue;
@@ -333,21 +340,23 @@ type::RValue::LValue RValue_Parser::from_lvalue_expression(Node const& node)
 /**
  * @brief Parse constant expression data types
  */
-type::RValue::Value RValue_Parser::from_constant_expression(Node const& node)
+Expression_Parser::Literal Expression_Parser::from_constant_expression_node(
+    Node const& node)
 {
     return m::match(node["node"].to_string())(
+        m::pattern | "constant_literal" =
+            [&] { return from_constant_literal_node(node); },
         m::pattern |
-            "constant_literal" = [&] { return from_constant_literal(node); },
+            "number_literal" = [&] { return from_number_literal_node(node); },
         m::pattern |
-            "number_literal" = [&] { return from_number_literal(node); },
-        m::pattern |
-            "string_literal" = [&] { return from_string_literal(node); });
+            "string_literal" = [&] { return from_string_literal_node(node); });
 }
 
 /**
  * @brief Parse lvalue to pointer data type
  */
-type::RValue::Value RValue_Parser::from_indirect_identifier(Node const& node)
+Expression_Parser::Literal Expression_Parser::from_indirect_identifier_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "indirect_lvalue");
     CREDENCE_ASSERT(node.has_key("left"));
@@ -364,7 +373,8 @@ type::RValue::Value RValue_Parser::from_indirect_identifier(Node const& node)
 /**
  * @brief Parse fixed-size vector (array) lvalue
  */
-type::RValue::Value RValue_Parser::from_vector_idenfitier(Node const& node)
+Expression_Parser::Literal Expression_Parser::from_vector_idenfitier_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_lvalue");
 
@@ -381,17 +391,19 @@ type::RValue::Value RValue_Parser::from_vector_idenfitier(Node const& node)
 /**
  * @brief Parse number literal node into symbols
  */
-type::RValue::Value RValue_Parser::from_number_literal(Node const& node)
+Expression_Parser::Literal Expression_Parser::from_number_literal_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "number_literal");
     return { static_cast<int>(node["root"].to_int()),
-             type::LITERAL_TYPE.at("int") };
+             internal::value::TYPE_LITERAL.at("int") };
 }
 
 /**
  * @brief Parse string literal node into symbols
  */
-type::RValue::Value RValue_Parser::from_string_literal(Node const& node)
+Expression_Parser::Literal Expression_Parser::from_string_literal_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "string_literal");
     auto string_literal = util::unescape_string(node["root"].to_string());
@@ -403,11 +415,12 @@ type::RValue::Value RValue_Parser::from_string_literal(Node const& node)
 /**
  * @brief Parse constant literal node into symbols
  */
-type::RValue::Value RValue_Parser::from_constant_literal(Node const& node)
+Expression_Parser::Literal Expression_Parser::from_constant_literal_node(
+    Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "constant_literal");
     return { static_cast<char>(node["root"].to_string()[0]),
-             type::LITERAL_TYPE.at("char") };
+             internal::value::TYPE_LITERAL.at("char") };
 }
 
 } // namespace credence

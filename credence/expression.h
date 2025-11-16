@@ -18,17 +18,11 @@
 
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for RValue
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <deque>             // for deque
-#include <initializer_list>  // for initializer_list
-#include <memory>            // for allocator, make_shared
-#include <set>               // for set
+#include <credence/value.h>  // for Expression, Literal
+#include <memory>            // for make_shared
 #include <simplejson.h>      // for JSON
-#include <string>            // for basic_string, string
-#include <string_view>       // for string_view
-#include <tuple>             // for tuple
-#include <variant>           // for variant
+#include <string>            // for basic_string, strin
 #include <vector>            // for vector
 
 namespace credence {
@@ -36,19 +30,28 @@ namespace credence {
 /**
  * @brief
  * LL(1) top-down Parser of expression ast nodes to
- * type::RValue data structures.
+ * Expression data structures.
  *
  * See types.h for details.
  */
-class RValue_Parser
+class Expression_Parser
 {
 
   public:
-    RValue_Parser(RValue_Parser const&) = delete;
-    RValue_Parser& operator=(RValue_Parser const&) = delete;
+    Expression_Parser(Expression_Parser const&) = delete;
+    Expression_Parser& operator=(Expression_Parser const&) = delete;
+
+  private:
+    using Expression = internal::value::Expression;
+    using Literal = internal::value::Literal;
 
   public:
-    explicit RValue_Parser(
+    using Expression_PTR = internal::value::Expression::Pointer;
+    using Node = util::AST_Node;
+    using Parameters = std::vector<Expression_PTR>;
+
+  public:
+    explicit Expression_Parser(
         util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
@@ -56,7 +59,7 @@ class RValue_Parser
     {
     }
 
-    explicit RValue_Parser(
+    explicit Expression_Parser(
         util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols,
         Symbol_Table<> const& globals)
@@ -66,32 +69,31 @@ class RValue_Parser
     {
     }
 
-    ~RValue_Parser() = default;
+    ~Expression_Parser() = default;
 
   public:
-    static inline type::RValue make_rvalue(
+    static inline Expression parse(
         util::AST_Node const& node,
         util::AST_Node const& internals,
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
     {
-        auto rvalue = RValue_Parser{ internals, symbols, globals };
-        return rvalue.from_rvalue(node);
+        auto expression = Expression_Parser{ internals, symbols, globals };
+        return expression.parse_from_node(node);
     }
 
   public:
-    using Node = util::AST_Node;
-    using Parameters = std::vector<type::RValue::RValue_Pointer>;
-    type::RValue from_rvalue(Node const& node);
+    Expression parse_from_node(Node const& node);
 
-    inline type::RValue::RValue_Pointer shared_ptr_from_rvalue(Node const& node)
+    inline Expression_PTR make_expression_pointer_from_ast(Node const& node)
     {
-        return std::make_shared<type::RValue>(from_rvalue(node));
+        return std::make_shared<internal::value::Expression>(
+            parse_from_node(node));
     }
 
-    inline type::RValue from_rvalue_expression(Node const& node)
+    inline Expression from_rvalue_expression(Node const& node)
     {
-        return from_rvalue(node);
+        return parse_from_node(node);
     }
 
   public:
@@ -108,35 +110,35 @@ class RValue_Parser
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_evaluated_expression(Node const& node);
-    type::RValue from_function_expression(Node const& node);
+    Expression from_evaluated_expression_node(Node const& node);
+    Expression from_function_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_relation_expression(Node const& node);
+    Expression from_relation_expression_node(Node const& node);
 
   private:
-    type::RValue from_ternary_expression(Node const& node);
+    Expression from_ternary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_unary_expression(Node const& node);
+    Expression from_unary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue::LValue from_lvalue_expression(Node const& node);
-    type::RValue::Value from_indirect_identifier(Node const& node);
-    type::RValue::Value from_vector_idenfitier(Node const& node);
+    Expression::LValue from_lvalue_expression_node(Node const& node);
+    Literal from_indirect_identifier_node(Node const& node);
+    Literal from_vector_idenfitier_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue from_assignment_expression(Node const& node);
+    Expression from_assignment_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::RValue::Value from_constant_expression(Node const& node);
-    type::RValue::Value from_number_literal(Node const& node);
-    type::RValue::Value from_string_literal(Node const& node);
-    type::RValue::Value from_constant_literal(Node const& node);
+    Literal from_constant_expression_node(Node const& node);
+    Literal from_number_literal_node(Node const& node);
+    Literal from_string_literal_node(Node const& node);
+    Literal from_constant_literal_node(Node const& node);
 
   private:
     // clang-format on
-    const std::array<std::string, 6> unary_types_ = {
+    const std::array<std::string, 6> unary_types = {
         "pre_inc_dec_expression", "post_inc_dec_expression", "indirect_lvalue",
         "unary_indirection",      "address_of_expression",   "unary_expression"
     };
@@ -149,14 +151,14 @@ class RValue_Parser
 
 // clang-format on
 
-inline type::RValue::RValue_Pointer make_rvalue(
+inline Expression_Parser::Expression_PTR parse_node_as_expression(
     util::AST_Node const& node,
     util::AST_Node const& internals,
     Symbol_Table<> const& symbols = {},
     Symbol_Table<> const& globals = {})
 {
-    return std::make_shared<type::RValue>(
-        RValue_Parser::make_rvalue(node, internals, symbols, globals));
+    return std::make_shared<internal::value::Expression>(
+        Expression_Parser::parse(node, internals, symbols, globals));
 }
 
 } // namespace credence
