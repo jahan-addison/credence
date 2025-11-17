@@ -64,15 +64,14 @@ using Parameters = std::vector<std::string>;
 
 // clang-format off
 constexpr auto unary_operators =
-    { "++", "--", "*", "&", "-", "+", "~", "!", "~" };
+    { "++", "--", "*", "&", "-", "+", "~", "!" };
 constexpr auto arithmetic_binary_operators =
     { "*", "/", "-", "+", "%" };
 constexpr auto bitwise_binary_operators =
     { "<<", ">>", "|", "^", "&" };
 constexpr auto relation_binary_operators =
     { "==", "!=", "<",  "&&",
-    "||", ">",  "<=", ">=" };
-
+      "||", ">",  "<=", ">=" };
 constexpr auto integral_unary_types =
     { "int", "double", "float", "long" };
 
@@ -138,9 +137,7 @@ constexpr bool is_binary_arithmetic_operator(RValue_Reference rvalue)
     auto test = std::ranges::find_if(
         arithmetic_binary_operators.begin(),
         arithmetic_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
+        [&](std::string_view s) { return rvalue == s; });
     return test != arithmetic_binary_operators.end();
 }
 
@@ -165,9 +162,7 @@ constexpr bool is_bitwise_binary_operator(RValue_Reference rvalue)
     auto test = std::ranges::find_if(
         bitwise_binary_operators.begin(),
         bitwise_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
+        [&](std::string_view s) { return rvalue == s; });
     return test != bitwise_binary_operators.end();
 }
 
@@ -192,9 +187,7 @@ constexpr bool is_relation_binary_operator(RValue_Reference rvalue)
     auto test = std::ranges::find_if(
         relation_binary_operators.begin(),
         relation_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
+        [&](std::string_view s) { return rvalue == s; });
     return test != relation_binary_operators.end();
 }
 
@@ -256,13 +249,22 @@ constexpr bool is_unary_operator(RValue_Reference rvalue)
 /**
  * @brief Check if an expression contains binary operator
  */
-constexpr bool is_binary_operator(semantic::RValue const& rvalue)
+constexpr bool is_binary_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
     return is_binary_arithmetic_expression(rvalue) or
            is_relation_binary_expression(rvalue) or
            is_bitwise_binary_expression(rvalue);
+}
+
+/**
+ * @brief Check if an operator is binary operator
+ */
+constexpr bool is_binary_operator(semantic::RValue const& op)
+{
+    return is_binary_arithmetic_operator(op) or
+           is_relation_binary_operator(op) or is_bitwise_binary_operator(op);
 }
 
 /**
@@ -417,6 +419,39 @@ constexpr bool is_binary_datatype_expression(semantic::RValue const& rvalue)
     if (!is_rvalue_data_type(std::get<1>(test)))
         return false;
     return true;
+}
+
+/**
+ * @brief Check if symbol is an expression with two temporaries
+ */
+constexpr bool is_temporary_datatype_binary_expression(
+    semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = from_rvalue_binary_expression(rvalue);
+    if (!is_temporary(std::get<0>(test)))
+        return false;
+    if (!is_temporary(std::get<1>(test)))
+        return false;
+    return true;
+}
+
+/**
+ * @brief Check if an operand is a temporary lvalue
+ */
+constexpr std::string is_temporary_operand_binary_expression(
+    semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return std::string{};
+    auto test = from_rvalue_binary_expression(rvalue);
+    if (is_temporary(std::get<0>(test)))
+        return "left";
+    if (is_temporary(std::get<1>(test)))
+        return "right";
+
+    return std::string{};
 }
 
 } // namespace type

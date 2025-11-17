@@ -59,6 +59,11 @@ struct Stack
     {
         return stack_address.contains(lvalue);
     }
+    constexpr inline bool is_allocated(LValue const& lvalue)
+    {
+        return stack_address.contains(lvalue) and not empty_at(lvalue);
+    }
+
     constexpr detail::Operand_Size get_operand_size_from_offset(Offset offset);
     constexpr Offset allocate(Operand_Size operand);
     constexpr void set_address_from_accumulator(
@@ -136,8 +141,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
     detail::Stack stack{};
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
-    Storage get_storage_from_lvalue(
-        type::semantic::LValue const& lvalue,
+    Storage get_storage_from_value_type(
+        type::semantic::RValue const& rvalue,
         std::string const& op);
 
     // clang-format off
@@ -147,13 +152,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& op,
         Storage const& dest);
     Instruction_Pair from_bitwise_expression_operands(
-        Storage_Operands& operands,
+        Storage_Operands const& operands,
         std::string const& binary_op);
     Instruction_Pair from_arithmetic_expression_operands(
-        Storage_Operands& operands,
+        Storage_Operands const& operands,
         std::string const& binary_op);
     Instruction_Pair from_relational_expression_operands(
-        Storage_Operands& operands,
+        Storage_Operands const& operands,
         std::string const& binary_op);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -171,6 +176,10 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Storage& lhs,
         std::string const& op,
         Storage& rhs);
+    Immediate get_from_immediate_rvalues(
+        Storage& lhs,
+        std::string const& op,
+        Storage& rhs);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(Storage const& storage);
@@ -182,7 +191,6 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format on
     inline void reset_o_register()
     {
-        using namespace detail;
         // clang-format off
         available_qword_register = {
             Register::rdi, Register::r8,  Register::r9,

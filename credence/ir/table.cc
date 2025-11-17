@@ -244,7 +244,7 @@ void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
         rvalue_symbol = from_rvalue_unary_expression(
             lhs, rhs, type::get_unary_operator(rhs));
 
-    if (type::is_binary_operator(rhs))
+    if (type::is_binary_expression(rhs))
         rvalue_symbol = type::Data_Type{ rhs, "word", sizeof(void*) };
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and rvalue.second.empty())

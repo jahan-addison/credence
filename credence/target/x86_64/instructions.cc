@@ -51,6 +51,24 @@ Immediate get_result_from_trivial_relational_expression(
     return detail::make_int_immediate(result, "byte");
 }
 
+std::string get_storage_as_string(Storage const& storage)
+{
+    std::ostringstream result{};
+    std::visit(
+        util::overload{
+            [&](std::monostate) {},
+            [&](Stack_Offset const& s) {
+                result << std::format("stack offset: {}", s);
+            },
+            [&](Register const& s) { result << s; },
+            [&](Immediate const& s) {
+                result << type::get_value_from_rvalue_data_type(s);
+            },
+        },
+        storage);
+    return result.str();
+}
+
 Immediate get_result_from_trivial_integral_expression(
     Immediate const& lhs,
     std::string const& op,

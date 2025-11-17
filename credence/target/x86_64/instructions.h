@@ -20,6 +20,7 @@
 #include <credence/ir/table.h> // for Table
 #include <credence/types.h>    // for LValue, RValue, Data_Type, ...
 #include <deque>               // for deque
+#include <ostream>             // for ostream
 #include <string>              // for basic_string, string
 #include <tuple>               // for tuple
 #include <utility>             // for pair
@@ -73,8 +74,8 @@
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
-#define make_integral_relational_entry(T, op)                   \
-    m::pattern | std::string{STRINGIFY(T)} = [&] {              \
+#define make_integral_relational_entry(T, op)               \
+    m::pattern | std::string{STRINGIFY(T)} = [&] {          \
         result = type::integral_from_type<T>(lhs_imm) op    \
         type::integral_from_type<T>(rhs_imm);               \
     }
@@ -130,11 +131,13 @@ enum class Register
 
 constexpr const auto QWORD_REGISTER = {
     Register::rdi, Register::r8,  Register::r9,
-    Register::rsi, Register::rdx, Register::rcx
+    Register::rsi, Register::rdx, Register::rcx,
+    Register::rax
 };
 constexpr const auto DWORD_REGISTER = {
-    Register::rdi, Register::r8,  Register::r9,
-    Register::rsi, Register::rdx, Register::rcx
+    Register::edi, Register::r8d,  Register::r9d,
+    Register::esi, Register::edx, Register::ecx,
+    Register::eax
 };
 
 enum class Mnemonic
@@ -178,7 +181,6 @@ T trivial_bitwise_from_numeric_table_type(
     std::string const& op,
     std::string const& rhs)
 {
-    T result{ 0 };
     T imm_l = type::integral_from_type<T>(lhs);
     T imm_r = type::integral_from_type<T>(rhs);
     if (op == ">>")
@@ -194,7 +196,7 @@ T trivial_bitwise_from_numeric_table_type(
             case '|':
                 return imm_l | imm_r;
         }
-    return result;
+    return 0;
 }
 
 enum class Operand_Size : std::size_t
@@ -232,8 +234,10 @@ constexpr Operand_Size get_size_from_accumulator_register(Register acc)
         return Operand_Size::Word;
     } else if (is_qword_register(acc)) {
         return Operand_Size::Qword;
-    } else {
+    } else if (is_dword_register(acc)) {
         return Operand_Size::Dword;
+    } else {
+        return Operand_Size::Empty;
     }
 }
 
@@ -369,6 +373,8 @@ inline Instructions make()
 {
     return Instructions{};
 }
+
+std::string get_storage_as_string(Storage const& storage);
 
 inline void insert(Instructions& to, Instructions const& from)
 {
