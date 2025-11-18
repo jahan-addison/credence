@@ -22,6 +22,7 @@
 #include <credence/operators.h>  // for Operator, operator_to_string
 #include <credence/queue.h>      // for make_queue_from_expression_operands
 #include <credence/symbol.h>     // for Symbol_Table
+#include <credence/types.h>      // for is_temporary
 #include <credence/util.h>       // for AST_Node, overload
 #include <credence/value.h>      // for Expression, make_value_type_pointer
 #include <deque>                 // for deque, operator==, _Deque_iterator
@@ -452,11 +453,14 @@ void Temporary::unary_operand_to_temporary_stack(Operator op)
                     // if the temporary stack has a single
                     // lvalue, pop to its own temporary first
                     auto operand1 = temporary_stack.top();
-                    temporary_stack.pop();
-                    auto last_expression =
-                        ITA::make_temporary(temporary_index, operand1);
-                    instructions.emplace_back(last_expression);
-                    temporary_stack.emplace(std::get<1>(last_expression));
+                    if (!type::is_temporary(
+                            operand1)) { // prevent _tx = _tx assignments
+                        temporary_stack.pop();
+                        auto last_expression =
+                            ITA::make_temporary(temporary_index, operand1);
+                        instructions.emplace_back(last_expression);
+                        temporary_stack.emplace(std::get<1>(last_expression));
+                    }
                 }
                 auto rhs =
                     instruction_temporary_from_expression_operand(operand1);
@@ -638,7 +642,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
  * @brief
  * Construct a set of ITA instructions from an expression queue.
  */
-ITA::Instructions queue_to_temporary_instructions(
+ITA::Instructions expression_queue_to_temporary_instructions(
     queue::Queue& queue,
     int* index)
 {
@@ -761,7 +765,7 @@ Expression_Instructions expression_node_to_temporary_instructions(
         }
         auto queue = queue::make_queue_from_expression_operands(operands);
         auto instructions =
-            queue_to_temporary_instructions(*queue, temporary_index);
+            expression_queue_to_temporary_instructions(*queue, temporary_index);
         return std::make_pair(instructions, *queue);
 
     } else {
@@ -769,7 +773,7 @@ Expression_Instructions expression_node_to_temporary_instructions(
             Expression_Parser::parse(node, details, symbols).value);
         auto queue = queue::make_queue_from_expression_operands(type_pointer);
         auto instructions =
-            queue_to_temporary_instructions(*queue, temporary_index);
+            expression_queue_to_temporary_instructions(*queue, temporary_index);
         return std::make_pair(instructions, *queue);
     }
 }

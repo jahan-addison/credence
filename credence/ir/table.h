@@ -44,10 +44,6 @@ namespace ir {
 void emit(std::ostream& os,
 util::AST_Node const& symbols,
 util::AST_Node const& ast);
-
-std::pair<std::string, std::string>
-get_rvalue_from_mov_qaudruple(
-    ITA::Quadruple const& instruction);
 // clang-format on
 
 namespace detail {

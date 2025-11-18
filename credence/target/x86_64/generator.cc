@@ -231,7 +231,7 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
         CREDENCE_ASSERT(stack.contains(lhs));
 
         if (type::is_rvalue_data_type(rhs)) {
-            auto imm = type::get_symbol_type_size_from_rvalue_string(rhs);
+            auto imm = type::get_rvalue_datatype_from_string(rhs);
             stack.set_address_from_immediate(lhs, imm);
             Storage lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, imm);
@@ -283,7 +283,7 @@ Code_Generator::Storage Code_Generator::get_storage_from_value_type(
     Storage storage{};
     if (type::is_rvalue_data_type(rvalue)) {
         auto acc = get_accumulator_register_from_size();
-        storage = type::get_symbol_type_size_from_rvalue_string(rvalue);
+        storage = type::get_rvalue_datatype_from_string(rvalue);
         if (!temporary_expansion) {
             temporary_expansion = true;
             auto lookbehind = table_->instructions[ita_index];
@@ -371,7 +371,7 @@ void Code_Generator::insert_from_table_expression(
     } else if (type::is_unary_operator(expr)) {
         from_unary_operator_expression(expr);
     } else if (type::is_rvalue_data_type(expr)) {
-        auto imm = type::get_symbol_type_size_from_rvalue_string(expr);
+        auto imm = type::get_rvalue_datatype_from_string(expr);
         addiill(instructions_, mov, eax, imm);
     } else {
         auto imm = symbols.get_symbol_by_name(expr);
@@ -484,7 +484,7 @@ void Code_Generator::from_unary_operator_expression(
         from_ita_unary_expression(op, dest);
     } else {
         auto size = detail::get_size_from_table_rvalue(
-            type::get_symbol_type_size_from_rvalue_string(rvalue));
+            type::get_rvalue_datatype_from_string(rvalue));
         Storage dest = get_accumulator_register_from_size(size);
         from_ita_unary_expression(op, dest);
     }

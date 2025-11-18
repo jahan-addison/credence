@@ -290,8 +290,7 @@ constexpr bool is_temporary(RValue_Reference rvalue)
  *
  * e.g. "(10:int:4)" -> 10, "int", 4UL
  */
-inline Data_Type get_symbol_type_size_from_rvalue_string(
-    semantic::RValue const& rvalue)
+inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue)
 {
     CREDENCE_ASSERT(util::substring_count_of(rvalue, ":") == 2);
     size_t search = rvalue.find_last_of(":");

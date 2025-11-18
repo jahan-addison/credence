@@ -251,7 +251,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
         "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
         "\"definitions\"\n}\n");
     auto bitwise_constant = LOAD_JSON_FROM_STRING(
-        "\n{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
+        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
         "[{\n            \"left\" : [{\n                \"node\" : "
         "\"lvalue\",\n                \"root\" : \"x\"\n              }, {\n   "
@@ -274,8 +274,8 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
         "{\n                    \"left\" : {\n                      \"node\" : "
         "\"evaluated_expression\",\n                      \"root\" : {\n       "
         "                 \"left\" : {\n                          \"node\" : "
-        "\"number_literal\",\n                          \"root\" : 5\n         "
-        "               },\n                        \"node\" : "
+        "\"number_literal\",\n                          \"root\" : 10\n        "
+        "                },\n                        \"node\" : "
         "\"relation_expression\",\n                        \"right\" : {\n     "
         "                     \"node\" : \"lvalue\",\n                         "
         " \"root\" : \"x\"\n                        },\n                       "
@@ -293,20 +293,22 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
         "\"left\" : {\n                    \"node\" : \"lvalue\",\n            "
         "        \"root\" : \"z\"\n                  },\n                  "
         "\"node\" : \"assignment_expression\",\n                  \"right\" : "
-        "{\n                    \"left\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"x\"\n                 "
-        "   },\n                    \"node\" : \"relation_expression\",\n      "
-        "              \"right\" : {\n                      \"left\" : {\n     "
-        "                   \"node\" : \"lvalue\",\n                        "
-        "\"root\" : \"y\"\n                      },\n                      "
-        "\"node\" : \"unary_expression\",\n                      \"root\" : "
-        "[\"~\"]\n                    },\n                    \"root\" : "
-        "[\"&\"]\n                  },\n                  \"root\" : [\"=\"]\n "
-        "               }]],\n            \"node\" : \"statement\",\n          "
-        "  \"root\" : \"rvalue\"\n          }],\n        \"node\" : "
-        "\"statement\",\n        \"root\" : \"block\"\n      },\n      "
-        "\"root\" : \"main\"\n    }],\n  \"node\" : \"program\",\n  \"root\" : "
-        "\"definitions\"\n}\n");
+        "{\n                    \"left\" : {\n                      \"left\" : "
+        "{\n                        \"node\" : \"lvalue\",\n                   "
+        "     \"root\" : \"x\"\n                      },\n                     "
+        " \"node\" : \"unary_expression\",\n                      \"root\" : "
+        "[\"~\"]\n                    },\n                    \"node\" : "
+        "\"relation_expression\",\n                    \"right\" : {\n         "
+        "             \"left\" : {\n                        \"node\" : "
+        "\"lvalue\",\n                        \"root\" : \"y\"\n               "
+        "       },\n                      \"node\" : \"unary_expression\",\n   "
+        "                   \"root\" : [\"~\"]\n                    },\n       "
+        "             \"root\" : [\"&\"]\n                  },\n               "
+        "   \"root\" : [\"=\"]\n                }]],\n            \"node\" : "
+        "\"statement\",\n            \"root\" : \"rvalue\"\n          }],\n    "
+        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
+        "},\n      \"root\" : \"main\"\n    }],\n  \"node\" : \"program\",\n  "
+        "\"root\" : \"definitions\"\n}\n");
     auto switch_main_function = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
         "\"function_definition\",\n      \"right\" : {\n        \"left\" : "
@@ -561,13 +563,14 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
     LOCL z;
     _t2 = ~ (10:int:4);
     x = _t2;
-    _t3 = (5:int:4) ^ x;
+    _t3 = (10:int:4) ^ x;
     _t4 = (2:int:4) >> (1:int:4);
     _t5 = _t3 | _t4;
     y = _t5;
-    _t6 = ~ y;
-    _t7 = _t6;
-    z = x & _t7;
+    _t6 = ~ x;
+    _t7 = ~ y;
+    _t8 = _t6 & _t7;
+    z = _t8;
 _L1:
     LEAVE;
  EndFunc ;
@@ -1271,24 +1274,24 @@ TEST_CASE_FIXTURE(
     REQUIRE(test6 == "u");
 }
 
-TEST_CASE("ir/table.cc: Table::get_symbol_type_size_from_rvalue_string")
+TEST_CASE("ir/table.cc: Table::get_rvalue_datatype_from_string")
 {
     auto [test1_1, test1_2, test1_3] =
-        credence::type::get_symbol_type_size_from_rvalue_string("(10:int:4)");
+        credence::type::get_rvalue_datatype_from_string("(10:int:4)");
     auto [test2_1, test2_2, test2_3] =
-        credence::type::get_symbol_type_size_from_rvalue_string(
+        credence::type::get_rvalue_datatype_from_string(
             std::format("(10.005:float:{})", sizeof(float)));
     auto [test3_1, test3_2, test3_3] =
-        credence::type::get_symbol_type_size_from_rvalue_string(
+        credence::type::get_rvalue_datatype_from_string(
             std::format("(10.000000000000000005:double:{})", sizeof(double)));
     auto [test4_1, test4_2, test4_3] =
-        credence::type::get_symbol_type_size_from_rvalue_string(
+        credence::type::get_rvalue_datatype_from_string(
             std::format("('0':byte:{})", sizeof(char)));
     auto [test5_1, test5_2, test5_3] =
-        credence::type::get_symbol_type_size_from_rvalue_string(
+        credence::type::get_rvalue_datatype_from_string(
             std::format("(__WORD__:word:{})", sizeof(void*)));
     auto [test6_1, test6_2, test6_3] =
-        credence::type::get_symbol_type_size_from_rvalue_string(
+        credence::type::get_rvalue_datatype_from_string(
             std::format(
                 "(\"hello this is a very long string\":string:{})",
                 std::string{ "hello this is a very long string" }.size()));

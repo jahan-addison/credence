@@ -27,31 +27,6 @@ namespace ir {
 namespace m = matchit;
 
 /**
- * @brief Get the rvalue and unary operator from a VARIABLE instruction
- */
-std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
-    ITA::Quadruple const& instruction)
-{
-    std::string rvalue{};
-    std::string unary{};
-
-    auto r2 = std::get<2>(instruction);
-    auto r3 = std::get<3>(instruction);
-
-    if (type::is_unary_operator(r2))
-        unary = type::get_unary_operator(r2);
-    if (!r2.empty())
-        rvalue += r2;
-
-    if (type::is_unary_operator(r3))
-        unary = type::get_unary_operator(r3);
-    if (!r3.empty())
-        rvalue += r3;
-
-    return { rvalue, unary };
-}
-
-/**
  * @brief Construct table and type-checking pass on a set of ITA instructions
  */
 ITA::Instructions Table::build_from_ita_instructions()
@@ -163,7 +138,7 @@ void Table::build_vector_definitions_from_globals(Symbol_Table<>& globals)
         for (auto const& item : symbol.second) {
             auto key = std::to_string(index++);
             vectors[symbol.first]->data[key] =
-                type::get_symbol_type_size_from_rvalue_string(
+                type::get_rvalue_datatype_from_string(
                     internal::value::expression_type_to_string(item));
         }
     }
@@ -248,7 +223,7 @@ void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
         rvalue_symbol = type::Data_Type{ rhs, "word", sizeof(void*) };
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and rvalue.second.empty())
-        rvalue_symbol = type::get_symbol_type_size_from_rvalue_string(rhs);
+        rvalue_symbol = type::get_rvalue_datatype_from_string(rhs);
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and
         type::is_unary_operator(rvalue.second))
@@ -350,7 +325,7 @@ void Table::from_pointer_or_vector_assignment(
                 // update the lhs vector, if applicable
                 if (vectors.contains(lhs_lvalue))
                     vectors[lhs_lvalue]->data[offset] =
-                        type::get_symbol_type_size_from_rvalue_string(rvalue);
+                        type::get_rvalue_datatype_from_string(rvalue);
             }
         }
     } else {
@@ -787,7 +762,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
         auto temp_rvalue =
             type::get_unary_rvalue_reference(frame->temporary[lvalue]);
         CREDENCE_ASSERT(type::is_rvalue_data_type(temp_rvalue));
-        auto rdt = type::get_symbol_type_size_from_rvalue_string(temp_rvalue);
+        auto rdt = type::get_rvalue_datatype_from_string(temp_rvalue);
         assert_integral_unary_expression(
             lvalue, frame->temporary[lvalue], std::get<1>(rdt));
         return rdt;
@@ -795,11 +770,12 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
         auto symbol = locals.get_symbol_by_name(rvalue);
         auto type = std::get<1>(symbol);
         if (type == "word") {
+            type::Data_Type local_rvalue{};
             auto rhs = type::get_unary_rvalue_reference(std::get<0>(symbol));
-            auto local_rvalue =
-                locals.is_defined(rhs)
-                    ? locals.get_symbol_by_name(rhs)
-                    : type::get_symbol_type_size_from_rvalue_string(rhs);
+            local_rvalue = locals.is_defined(rhs)
+                               ? locals.get_symbol_by_name(rhs)
+                               : type::get_rvalue_datatype_from_string(rhs);
+
             auto local_rvalue_reference =
                 type::get_value_from_rvalue_data_type(local_rvalue);
             if (type::is_unary_operator(local_rvalue_reference)) {

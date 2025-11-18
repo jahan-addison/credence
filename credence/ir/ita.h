@@ -36,8 +36,6 @@ namespace credence {
 
 namespace ir {
 
-namespace m = matchit;
-
 /**
  * @brief
  * Instruction Tuple Abstraction or ITA of program flow,
@@ -425,6 +423,9 @@ inline ITA::Instructions make_ITA_instructions(
 {
     return ITA::make_ITA_instructions(internals_symbols, definitions);
 }
+
+std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
+    ITA::Quadruple const& instruction);
 
 } // namespace ir
 

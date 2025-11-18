@@ -22,6 +22,7 @@
 #include <credence/ir/temporary.h> // for expression_node_to_temporary_inst...
 #include <credence/queue.h>        // for value_type_pointer_to_string
 #include <credence/symbol.h>       // for Symbol_Table
+#include <credence/types.h>        // for get_unary_operator, ...
 #include <credence/util.h>         // for AST_Node, AST
 #include <credence/value.h>        // for Expression, get_expression_type
 #include <format>                  // for format
@@ -37,9 +38,37 @@ namespace credence {
 
 namespace ir {
 
+namespace m = matchit;
+
+/**
+ * @brief Get the rvalue and unary operator from a VARIABLE instruction
+ */
+std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
+    ITA::Quadruple const& instruction)
+{
+    std::string rvalue{};
+    std::string unary{};
+
+    auto r2 = std::get<2>(instruction);
+    auto r3 = std::get<3>(instruction);
+
+    if (type::is_unary_operator(r2))
+        unary = type::get_unary_operator(r2);
+    if (!r2.empty())
+        rvalue += r2;
+
+    if (type::is_unary_operator(r3))
+        unary = type::get_unary_operator(r3);
+    if (!r3.empty())
+        rvalue += r3;
+
+    return { rvalue, unary };
+}
+
 /**
  * @brief Construct a set of ita instructions from a set of definitions
- *   A set of definitions constitute a B program
+ *
+ *  A set of definitions constitute a B program.
  *
  *   Definition grammar:
  *

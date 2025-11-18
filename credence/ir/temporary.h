@@ -105,13 +105,16 @@ namespace detail {
  * for the final binary expression.
  */
 
-struct Temporary
+class Temporary
 {
+  public:
     Temporary() = delete;
     explicit Temporary(int* index)
         : temporary_index(index)
     {
     }
+
+  public:
     using Operand = internal::value::Expression::Type_Pointer;
     using Operands = std::vector<Operand>;
     using Instructions = ITA::Instructions;
@@ -121,22 +124,21 @@ struct Temporary
     internal::value::Size insert_and_create_temporary_from_operand(
         Operand& operand);
 
+  public:
     void unary_operand_to_temporary_stack(type::Operator op);
-
     void assignment_operands_to_temporary_stack();
-
     void binary_operands_to_temporary_stack(type::Operator op);
-
     void binary_operands_balanced_temporary_stack(type::Operator op);
-
     void binary_operands_unbalanced_temporary_stack(type::Operator op);
 
+  public:
     void from_call_operands_to_temporary_instructions();
     void from_push_operands_to_temporary_instructions();
 
     Temporary_Instructions instruction_temporary_from_expression_operand(
         Operand& operand);
 
+  public:
     Instructions instructions{};
     Operand_Stack operand_stack{};
 
@@ -157,7 +159,7 @@ constexpr bool is_in_place_unary_operator(type::Operator op)
 
 } // namespace detail
 
-ITA::Instructions queue_to_temporary_instructions(
+ITA::Instructions expression_queue_to_temporary_instructions(
     queue::Queue& queue,
     int* index);
 
