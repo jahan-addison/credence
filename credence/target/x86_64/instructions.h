@@ -123,10 +123,12 @@ namespace credence::target::x86_64::detail {
 // clang-format off
 enum class Register
 {
-    rbp, rsp, rax, rbx, rcx, rdx, rsi, rdi,
-    r8, r9, r10, r11, r12, r13, r14, ebp,
-    esp, eax, ebx, edx, ecx, esi, edi, r8d, ax,
-    r9d, r10d, r11d, r12d, r13d, r14d, r15d, al
+    rbp, rsp, rax, rbx, rcx,
+    rdx, rsi, rdi, r8, r9, r10,
+    r11, r12, r13, r14, ebp, di,
+    esp, eax, ebx, edx, ecx, esi,
+    edi, r8d,  ax, r9d, r10d, r11d,
+    r12d, r13d, r14d, r15d, al, dil
 };
 
 constexpr const auto QWORD_REGISTER = {
@@ -280,10 +282,19 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         REGISTER_OSTREAM(r13d);
         REGISTER_OSTREAM(r14d);
         REGISTER_OSTREAM(r15d);
+        REGISTER_OSTREAM(di);
+        REGISTER_OSTREAM(dil);
         REGISTER_OSTREAM(al);
         REGISTER_OSTREAM(ax);
     }
     return os;
+}
+
+inline std::string register_as_string(Register device)
+{
+    std::ostringstream buf{};
+    buf << device;
+    return buf.str();
 }
 
 constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
@@ -327,10 +338,8 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
     return os;
 }
 
-Register get_accumulator_register_from_size(
-    Operand_Size size = Operand_Size::Dword);
-
-constexpr Operand_Size get_size_from_table_rvalue(type::Data_Type const& rvalue)
+constexpr Operand_Size get_operand_size_from_rvalue_datatype(
+    type::Data_Type const& rvalue)
 {
     namespace m = matchit;
     using T = type::semantic::Type;

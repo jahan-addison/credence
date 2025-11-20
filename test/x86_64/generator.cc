@@ -227,3 +227,33 @@ _L1:
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("relation_constant", expected);
 }
+
+TEST_CASE("target/x86_64: fixture: bitwise_constant_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov eax, dword ptr [rbp - 4]
+    xor eax, 10
+    or eax, 1
+    mov dword ptr [rbp - 8], eax
+    mov eax, dword ptr [rbp - 4]
+    not eax
+    mov edi, dword ptr [rbp - 8]
+    not edi
+    and eax, edi
+    mov dword ptr [rbp - 12], eax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_constant_1", expected);
+}

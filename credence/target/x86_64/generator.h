@@ -141,9 +141,12 @@ class Code_Generator final : public target::Backend<detail::Storage>
     detail::Stack stack{};
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
-    Storage get_storage_from_value_type(
-        type::semantic::RValue const& rvalue,
-        std::string const& op);
+    constexpr Register get_second_register_from_size(
+        Operand_Size size = Operand_Size::Dword);
+    constexpr Register get_accumulator_register_from_storage(
+       Storage const& storage);
+    Storage get_storage_for_binary_operator(
+        type::semantic::RValue const& rvalue);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -162,7 +165,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& binary_op);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void insert_from_table_expression(type::semantic::RValue const& expr);
+    void insert_from_temporary_lvalue(type::semantic::LValue const& lvalue);
     void insert_from_op_operands(
         Storage_Operands& operands,
         std::string const& op);
@@ -170,12 +173,12 @@ class Code_Generator final : public target::Backend<detail::Storage>
         type::semantic::RValue const& expr);
     void from_bitwise_operator_expression(
         type::semantic::RValue const& expr);
-    void from_unary_operator_expression(
+    void from_temporary_unary_operator_expression(
         type::semantic::RValue const& expr);
     void insert_from_immediate_rvalues(
-        Storage& lhs,
+        Immediate const& lhs,
         std::string const& op,
-        Storage& rhs);
+        Immediate const& rhs);
     Immediate get_from_immediate_rvalues(
         Storage& lhs,
         std::string const& op,
@@ -188,8 +191,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Storage get_storage_device(
         detail::Operand_Size size = detail::Operand_Size::Qword);
-    // clang-format on
-    inline void reset_o_register()
+    inline void reset_avail_registers()
     {
         // clang-format off
         available_qword_register = {
@@ -202,13 +204,37 @@ class Code_Generator final : public target::Backend<detail::Storage>
         };
         // clang-format on
     }
+    inline bool is_instruction_temporary()
+    {
+        return type::is_temporary(std::get<1>(table_->instructions[ita_index]));
+    }
+    inline bool last_instruction_is_assignment()
+    {
+        if (ita_index < 1)
+            return false;
+        auto last = table_->instructions[ita_index - 1];
+        return std::get<0>(last) == ir::ITA::Instruction::MOV and
+               not type::is_temporary(std::get<1>(last));
+    }
+    inline bool next_instruction_is_temporary()
+    {
+        if (table_->instructions.size() < ita_index + 1)
+            return false;
+        auto next = table_->instructions[ita_index + 1];
+        return std::get<0>(next) == ir::ITA::Instruction::MOV and
+               type::is_temporary(std::get<1>(next));
+    }
 
   private:
     std::string current_frame{};
     std::size_t ita_index{ 0 };
     std::size_t constant_index{ 0 };
+
     Register special_register = Register::eax;
-    bool temporary_expansion{ false };
+
+    std::deque<Immediate> immediate_stack{};
+    std::deque<Storage> temporary_stack{};
+    bool is_temporary_expansion{ false };
     Instructions instructions_;
     Instructions data_;
 };

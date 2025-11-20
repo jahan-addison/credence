@@ -15,7 +15,7 @@
  */
 
 #include "generator.h"
-#include "instructions.h"           // for get_size_from_table_rvalue, Imm...
+#include "instructions.h" // for get_operand_size_from_rvalue_datatype, Imm...
 #include <credence/assert.h>        // for CREDENCE_ASSERT
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
@@ -25,6 +25,7 @@
 #include <cstddef>                  // for size_t
 #include <deque>                    // for deque
 #include <format>                   // for format
+#include <functional>               // for std::function
 #include <matchit.h>                // for pattern, PatternHelper, Pattern...
 #include <memory>                   // for shared_ptr
 #include <ostream>                  // for basic_ostream, operator<<, endl
@@ -190,7 +191,7 @@ void Code_Generator::from_func_end_ita()
         auto a_imm = detail::make_u32_int_immediate(stack_alloc);
         addiill(instructions_, add, rsp, a_imm);
     }
-    reset_o_register();
+    reset_avail_registers();
 }
 
 void Code_Generator::from_push_ita(ITA_Inst const& inst)
@@ -220,23 +221,20 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
     type::semantic::LValue lhs = std::get<1>(inst);
     auto symbols = table_->get_stack_frame_symbols();
 
-    type::semantic::RValue rhs = get_rvalue_from_mov_qaudruple(inst).first;
+    auto rhs = get_rvalue_from_mov_qaudruple(inst).first;
 
     if (type::is_temporary(lhs)) {
-        if (type::is_temporary(rhs))
-            return;
-        insert_from_table_expression(table_->from_temporary_lvalue(lhs));
+        is_temporary_expansion = true;
+        insert_from_temporary_lvalue(lhs);
 
     } else {
         CREDENCE_ASSERT(stack.contains(lhs));
-
+        is_temporary_expansion = false;
         if (type::is_rvalue_data_type(rhs)) {
             auto imm = type::get_rvalue_datatype_from_string(rhs);
             stack.set_address_from_immediate(lhs, imm);
             Storage lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, imm);
-            temporary_expansion = false;
-            return;
         }
 
         if (type::is_temporary(rhs)) {
@@ -244,8 +242,6 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
             stack.set_address_from_accumulator(lhs, acc);
             Storage lhs_storage = stack.get(lhs).first;
             addiis(instructions_, mov, lhs_storage, acc);
-            temporary_expansion = false;
-            return;
         }
 
         Storage lhs_storage = stack.get(lhs).first;
@@ -256,88 +252,185 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
                 get_accumulator_register_from_size(stack.get(rhs).second);
             addiis(instructions_, mov, acc, rhs_storage);
             addiis(instructions_, mov, lhs_storage, acc);
-            temporary_expansion = false;
-            return;
         }
 
         if (type::is_unary_operator(rhs)) {
-            auto symbol = symbols.get_symbol_by_name(lhs);
             auto unary_op = type::get_unary_operator(rhs);
             from_ita_unary_expression(unary_op, lhs_storage);
-            temporary_expansion = false;
-            return;
         }
 
-        if (type::is_binary_expression(rhs)) {
+        if (type::is_binary_expression(rhs))
             from_binary_operator_expression(rhs);
-            temporary_expansion = false;
-            return;
-        }
     }
 }
 
-Code_Generator::Storage Code_Generator::get_storage_from_value_type(
-    type::semantic::RValue const& rvalue,
-    [[maybe_unused]] std::string const& op)
+void Code_Generator::from_temporary_unary_operator_expression(
+    type::semantic::RValue const& expr)
 {
-    Storage storage{};
-    if (type::is_rvalue_data_type(rvalue)) {
-        auto acc = get_accumulator_register_from_size();
-        storage = type::get_rvalue_datatype_from_string(rvalue);
-        if (!temporary_expansion) {
-            temporary_expansion = true;
-            auto lookbehind = table_->instructions[ita_index];
-            type::semantic::RValue temp_rvalue =
-                ir::get_rvalue_from_mov_qaudruple(lookbehind).first;
-            if (!type::is_binary_expression(temp_rvalue))
-                addiis(instructions_, mov, acc, storage);
-        }
-    } else if (stack.contains(rvalue)) {
-        storage = get_accumulator_register_from_size(stack.get(rvalue).second);
-        auto address = stack.get(rvalue).first;
-        Storage_Operands operands = { storage, address };
-        if (!temporary_expansion) {
-            temporary_expansion = true;
-            if (!type::is_binary_expression(rvalue))
-                addiis(instructions_, mov, storage, address);
-        } else {
-            storage = address;
-        }
+    CREDENCE_ASSERT(type::is_unary_operator(expr));
+    auto op = type::get_unary_operator(expr);
+    type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
+    if (stack.contains(rvalue)) {
+        auto size = stack.get(rvalue).second;
+        auto acc = next_instruction_is_temporary() and
+                           not last_instruction_is_assignment()
+                       ? get_second_register_from_size(size)
+                       : get_accumulator_register_from_size(size);
+        addiis(instructions_, mov, acc, stack.get(rvalue).first);
+        if (next_instruction_is_temporary())
+            temporary_stack.emplace_back(stack.get(rvalue).first);
+        from_ita_unary_expression(op, acc);
     } else {
-        storage = get_accumulator_register_from_size();
+        auto immediate = type::get_rvalue_datatype_from_string(rvalue);
+        auto size = detail::get_operand_size_from_rvalue_datatype(immediate);
+        auto acc = next_instruction_is_temporary() and
+                           not last_instruction_is_assignment()
+                       ? get_second_register_from_size(size)
+                       : get_accumulator_register_from_size(size);
+        if (next_instruction_is_temporary())
+            temporary_stack.emplace_back(immediate);
+        addiis(instructions_, mov, acc, immediate);
+        from_ita_unary_expression(op, acc);
     }
+}
 
-    return storage;
+Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
+    type::semantic::RValue const& rvalue)
+{
+    if (type::is_rvalue_data_type(rvalue)) {
+        return type::get_rvalue_datatype_from_string(rvalue);
+    }
+    if (stack.contains(rvalue))
+        return stack.get(rvalue).first;
+
+    return get_accumulator_register_from_size();
+}
+
+inline auto get_rvalue_pair_as_immediate(
+    type::semantic::RValue const& lhs,
+    type::semantic::RValue const& rhs)
+{
+    return std::make_pair(
+        type::get_rvalue_datatype_from_string(lhs),
+        type::get_rvalue_datatype_from_string(rhs));
 }
 
 void Code_Generator::from_binary_operator_expression(
-    type::semantic::RValue const& expr)
+    type::semantic::LValue const& expr)
 {
     CREDENCE_ASSERT(type::is_binary_expression(expr));
     auto expression = type::from_rvalue_binary_expression(expr);
+    Storage lhs_s{ std::monostate{} };
+    Storage rhs_s{ std::monostate{} };
     auto [lhs, rhs, op] = expression;
-    auto lhs_s = get_storage_from_value_type(lhs, op);
-    auto rhs_s = get_storage_from_value_type(rhs, op);
+    auto is_immediate = [&](type::semantic::RValue const& rvalue) {
+        return type::is_rvalue_data_type(rvalue);
+    };
+    auto is_address = [&](type::semantic::RValue const& rvalue) {
+        return stack.is_allocated(rvalue);
+    };
+    auto is_temporary = [&](type::semantic::RValue const& rvalue) {
+        return type::is_temporary(rvalue);
+    };
 
-    // if both operands are temporary lvalues, get the last
-    // instruction where the immediate rvalue was assigned
-    if (type::is_temporary_datatype_binary_expression(expr) and
-        instructions_.size() > 1) {
-        auto lookbehind = std::get<detail::Instruction>(instructions_.back());
-        instructions_.erase(instructions_.begin() + instructions_.size() - 1);
-        rhs_s = std::get<2>(lookbehind);
+    auto immediate = false;
+
+    m::match(lhs, rhs)(
+        m::pattern |
+            m::ds(m::app(is_immediate, true), m::app(is_immediate, true)) =
+            [&] {
+                auto [lhs_i, rhs_i] = get_rvalue_pair_as_immediate(lhs, rhs);
+                lhs_s = lhs_i;
+                rhs_s = rhs_i;
+                insert_from_immediate_rvalues(lhs_i, op, rhs_i);
+                immediate = true;
+            },
+        m::pattern | m::ds(m::app(is_address, true), m::app(is_address, true)) =
+            [&] {
+                lhs_s =
+                    get_accumulator_register_from_size(stack.get(lhs).second);
+                addiis(instructions_, mov, lhs_s, stack.get(lhs).first);
+                rhs_s = stack.get(rhs).first;
+            },
+        m::pattern |
+            m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
+            [&] {
+                auto size = detail::get_size_from_accumulator_register(
+                    get_accumulator_register_from_size());
+                auto acc = get_accumulator_register_from_size();
+                lhs_s = acc;
+                if (!immediate_stack.empty()) {
+                    rhs_s = immediate_stack.back();
+                    immediate_stack.pop_back();
+                } else {
+                    CREDENCE_ASSERT(!temporary_stack.empty());
+                    auto immediate = temporary_stack.front();
+                    temporary_stack.pop_front();
+                    auto intermediate = get_second_register_from_size(size);
+                    rhs_s = intermediate;
+                }
+            },
+        m::pattern |
+            m::ds(m::app(is_address, true), m::app(is_address, false)) =
+            [&] {
+                lhs_s = stack.get(lhs).first;
+                rhs_s = get_storage_for_binary_operator(rhs);
+                if (last_instruction_is_assignment()) {
+                    auto acc = get_accumulator_register_from_size(
+                        stack.get(lhs).second);
+                    addiis(instructions_, mov, acc, stack.get(lhs).first);
+                }
+                if (is_temporary(rhs)) {
+                    lhs_s = get_accumulator_register_from_size(
+                        stack.get(lhs).second);
+                    rhs_s = stack.get(lhs).first;
+                }
+                if (is_instruction_temporary()) {
+                    lhs_s = get_accumulator_register_from_size(
+                        stack.get(lhs).second);
+                }
+            },
+        m::pattern |
+            m::ds(m::app(is_address, false), m::app(is_address, true)) =
+            [&] {
+                lhs_s = get_storage_for_binary_operator(lhs);
+                rhs_s = stack.get(rhs).first;
+                if (last_instruction_is_assignment()) {
+                    auto acc = get_accumulator_register_from_size(
+                        stack.get(rhs).second);
+                    addiis(instructions_, mov, acc, stack.get(rhs).first);
+                }
+                if (is_temporary(lhs)) {
+                    rhs_s = stack.get(rhs).first;
+                    rhs_s = get_accumulator_register_from_size(
+                        stack.get(rhs).second);
+                }
+                if (is_instruction_temporary()) {
+                    rhs_s = get_accumulator_register_from_size(
+                        stack.get(rhs).second);
+                }
+            },
+        m::pattern |
+            m::ds(m::app(is_temporary, true), m::app(is_temporary, false)) =
+            [&] {
+                lhs_s = get_accumulator_register_from_size();
+                rhs_s = get_storage_for_binary_operator(rhs);
+            },
+        m::pattern |
+            m::ds(m::app(is_temporary, false), m::app(is_temporary, true)) =
+            [&] {
+                lhs_s = get_storage_for_binary_operator(lhs);
+                rhs_s = get_accumulator_register_from_size();
+            },
+        m::pattern | m::ds(m::_, m::_) =
+            [&] {
+                lhs_s = get_storage_for_binary_operator(lhs);
+                rhs_s = get_storage_for_binary_operator(rhs);
+            });
+    if (!immediate) {
+        Storage_Operands operands = { lhs_s, rhs_s };
+        insert_from_op_operands(operands, op);
     }
-
-    if (is_variant(Immediate, lhs_s) and is_variant(Immediate, rhs_s)) {
-        insert_from_immediate_rvalues(lhs_s, op, rhs_s);
-        return;
-    }
-    if (is_variant(Immediate, lhs_s) or
-        (is_variant(detail::Stack_Offset, lhs_s)))
-        std::swap(lhs_s, rhs_s);
-
-    Storage_Operands operands = { lhs_s, rhs_s };
-    insert_from_op_operands(operands, op);
 }
 
 void Code_Generator::insert_from_op_operands(
@@ -362,25 +455,26 @@ void Code_Generator::insert_from_op_operands(
     }
 }
 
-void Code_Generator::insert_from_table_expression(
-    type::semantic::RValue const& expr)
+void Code_Generator::insert_from_temporary_lvalue(
+    type::semantic::LValue const& lvalue)
 {
-    auto symbols = table_->get_stack_frame_symbols();
-    if (type::is_binary_expression(expr)) {
-        from_binary_operator_expression(expr);
-    } else if (type::is_unary_operator(expr)) {
-        from_unary_operator_expression(expr);
-    } else if (type::is_rvalue_data_type(expr)) {
-        auto imm = type::get_rvalue_datatype_from_string(expr);
+    auto temporary = table_->from_temporary_lvalue(lvalue);
+    if (type::is_binary_expression(temporary)) {
+        from_binary_operator_expression(temporary);
+    } else if (type::is_unary_operator(temporary)) {
+        from_temporary_unary_operator_expression(temporary);
+    } else if (type::is_rvalue_data_type(temporary)) {
+        auto imm = type::get_rvalue_datatype_from_string(temporary);
         addiill(instructions_, mov, eax, imm);
     } else {
-        auto imm = symbols.get_symbol_by_name(expr);
+        auto symbols = table_->get_stack_frame_symbols();
+        auto imm = symbols.get_symbol_by_name(temporary);
         addiill(instructions_, mov, eax, imm);
     }
 }
 
-constexpr detail::Register Code_Generator::get_accumulator_register_from_size(
-    Operand_Size size)
+constexpr Code_Generator::Register
+Code_Generator::get_accumulator_register_from_size(Operand_Size size)
 {
     namespace m = matchit;
     if (special_register != Register::eax) {
@@ -395,25 +489,59 @@ constexpr detail::Register Code_Generator::get_accumulator_register_from_size(
         m::pattern | m::_ = [&] { return Register::eax; });
 }
 
-void Code_Generator::insert_from_immediate_rvalues(
-    Storage& lhs,
-    std::string const& op,
-    Storage& rhs)
+constexpr Code_Generator::Register
+Code_Generator::get_second_register_from_size(Operand_Size size)
 {
-    auto imm_l = std::get<Immediate>(lhs);
-    auto imm_r = std::get<Immediate>(rhs);
+    namespace m = matchit;
+    return m::match(size)(
+        m::pattern | Operand_Size::Qword = [&] { return Register::rdi; },
+        m::pattern | Operand_Size::Word = [&] { return Register::di; },
+        m::pattern | Operand_Size::Byte = [&] { return Register::dil; },
+        m::pattern | m::_ = [&] { return Register::edi; });
+}
 
+constexpr Code_Generator::Register
+Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
+{
+    namespace m = matchit;
+    Register accumulator{};
+    std::visit(
+        util::overload{
+            [&](std::monostate) { accumulator = Register::eax; },
+            [&](detail::Stack_Offset const& offset) {
+                auto size = stack.get_operand_size_from_offset(offset);
+                accumulator = get_accumulator_register_from_size(size);
+            },
+
+            [&](Register const& device) { accumulator = device; },
+            [&](Immediate const& immediate) {
+                auto size =
+                    detail::get_operand_size_from_rvalue_datatype(immediate);
+                accumulator = get_accumulator_register_from_size(size);
+            }
+
+        },
+        storage);
+    return accumulator;
+}
+
+void Code_Generator::insert_from_immediate_rvalues(
+    Immediate const& lhs,
+    std::string const& op,
+    Immediate const& rhs)
+{
     if (type::is_binary_arithmetic_operator(op)) {
-        auto imm = detail::get_result_from_trivial_integral_expression(
-            imm_l, op, imm_r);
-        auto acc = get_accumulator_register_from_size();
+        auto imm =
+            detail::get_result_from_trivial_integral_expression(lhs, op, rhs);
+        auto acc = get_accumulator_register_from_size(
+            detail::get_operand_size_from_rvalue_datatype(lhs));
         addiis(instructions_, mov, acc, imm);
         return;
     }
 
     if (type::is_relation_binary_operator(op)) {
-        auto imm = detail::get_result_from_trivial_relational_expression(
-            imm_l, op, imm_r);
+        auto imm =
+            detail::get_result_from_trivial_relational_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
         special_register = acc;
         addiis(instructions_, mov, acc, imm);
@@ -421,10 +549,14 @@ void Code_Generator::insert_from_immediate_rvalues(
     }
 
     if (type::is_bitwise_binary_operator(op)) {
-        auto imm = detail::get_result_from_trivial_bitwise_expression(
-            imm_l, op, imm_r);
-        auto acc = get_accumulator_register_from_size();
-        addiis(instructions_, mov, acc, imm);
+        auto imm =
+            detail::get_result_from_trivial_bitwise_expression(lhs, op, rhs);
+        auto acc = get_accumulator_register_from_size(
+            detail::get_operand_size_from_rvalue_datatype(lhs));
+        if (!is_temporary_expansion)
+            addiis(instructions_, mov, acc, imm);
+        else
+            immediate_stack.emplace_back(imm);
         return;
     }
 
@@ -469,25 +601,6 @@ void Code_Generator::from_ita_unary_expression(
             std::string{ "-" } = [&] { instructions = detail::neg(dest); },
         m::pattern | std::string{ "+" } = [&] {});
     detail::insert(instructions_, instructions.second);
-}
-
-void Code_Generator::from_unary_operator_expression(
-    type::semantic::RValue const& expr)
-{
-    CREDENCE_ASSERT(type::is_unary_operator(expr));
-    auto op = type::get_unary_operator(expr);
-    type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
-    get_storage_from_value_type(rvalue, op);
-    if (stack.contains(rvalue)) {
-        auto size = stack.get(rvalue).second;
-        Storage dest = get_accumulator_register_from_size(size);
-        from_ita_unary_expression(op, dest);
-    } else {
-        auto size = detail::get_size_from_table_rvalue(
-            type::get_rvalue_datatype_from_string(rvalue));
-        Storage dest = get_accumulator_register_from_size(size);
-        from_ita_unary_expression(op, dest);
-    }
 }
 
 void Code_Generator::from_return_ita(Storage const& dest)
@@ -563,8 +676,8 @@ Code_Generator::from_bitwise_expression_operands(
             },
         m::pattern | std::string{ "^" } =
             [&] {
-                auto acc = get_accumulator_register_from_size();
-                // addiis(instructions.second, mov, acc, operands.second);
+                auto acc =
+                    get_accumulator_register_from_storage(operands.first);
                 instructions = detail::b_xor(acc, operands.second);
             },
         m::pattern | std::string{ "&" } =
@@ -661,7 +774,7 @@ constexpr void detail::Stack::set_address_from_immediate(
     LValue const& lvalue,
     Immediate const& rvalue)
 {
-    auto operand_size = detail::get_size_from_table_rvalue(rvalue);
+    auto operand_size = detail::get_operand_size_from_rvalue_datatype(rvalue);
     auto value_size = detail::get_size_from_operand_size(operand_size);
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
