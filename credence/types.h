@@ -247,7 +247,7 @@ constexpr bool is_unary_operator(RValue_Reference rvalue)
 }
 
 /**
- * @brief Check if an expression contains binary operator
+ * @brief Check if an expression contains binary operators
  */
 constexpr bool is_binary_expression(semantic::RValue const& rvalue)
 {

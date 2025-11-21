@@ -25,6 +25,7 @@
 #include <credence/types.h>         // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <deque>                    // for deque
+#include <functional>               // for std::function
 #include <initializer_list>         // for initializer_list
 #include <map>                      // for map
 #include <numeric>                  // for accumulate
@@ -204,6 +205,20 @@ class Code_Generator final : public target::Backend<detail::Storage>
         };
         // clang-format on
     }
+
+  private:
+    using Operand_Lambda = std::function<bool(type::semantic::RValue)>;
+    Operand_Lambda is_immediate = [&](type::semantic::RValue const& rvalue) {
+        return type::is_rvalue_data_type(rvalue);
+    };
+    Operand_Lambda is_address = [&](type::semantic::RValue const& rvalue) {
+        return stack.is_allocated(rvalue);
+    };
+    Operand_Lambda is_temporary = [&](type::semantic::RValue const& rvalue) {
+        return type::is_temporary(rvalue);
+    };
+
+  private:
     inline bool is_instruction_temporary()
     {
         return type::is_temporary(std::get<1>(table_->instructions[ita_index]));
@@ -233,8 +248,6 @@ class Code_Generator final : public target::Backend<detail::Storage>
     Register special_register = Register::eax;
 
     std::deque<Immediate> immediate_stack{};
-    std::deque<Storage> temporary_stack{};
-    bool is_temporary_expansion{ false };
     Instructions instructions_;
     Instructions data_;
 };

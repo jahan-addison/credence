@@ -124,11 +124,12 @@ namespace credence::target::x86_64::detail {
 enum class Register
 {
     rbp, rsp, rax, rbx, rcx,
-    rdx, rsi, rdi, r8, r9, r10,
-    r11, r12, r13, r14, ebp, di,
-    esp, eax, ebx, edx, ecx, esi,
-    edi, r8d,  ax, r9d, r10d, r11d,
-    r12d, r13d, r14d, r15d, al, dil
+    rdx, rsi, rdi, r8, r9,
+    r10, r11, r12, r13, r14,
+    ebp, di, esp, eax, ebx,
+    edx, ecx, esi, edi, r8d,
+    ax, r9d, r10d, r11d, r12d,
+    r13d, r14d, r15d, al, dil
 };
 
 constexpr const auto QWORD_REGISTER = {

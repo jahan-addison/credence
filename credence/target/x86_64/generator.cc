@@ -224,44 +224,43 @@ void Code_Generator::from_mov_ita(ITA_Inst const& inst)
     auto rhs = get_rvalue_from_mov_qaudruple(inst).first;
 
     if (type::is_temporary(lhs)) {
-        is_temporary_expansion = true;
         insert_from_temporary_lvalue(lhs);
-
-    } else {
-        CREDENCE_ASSERT(stack.contains(lhs));
-        is_temporary_expansion = false;
-        if (type::is_rvalue_data_type(rhs)) {
-            auto imm = type::get_rvalue_datatype_from_string(rhs);
-            stack.set_address_from_immediate(lhs, imm);
-            Storage lhs_storage = stack.get(lhs).first;
-            addiis(instructions_, mov, lhs_storage, imm);
-        }
-
-        if (type::is_temporary(rhs)) {
-            auto acc = get_accumulator_register_from_size();
-            stack.set_address_from_accumulator(lhs, acc);
-            Storage lhs_storage = stack.get(lhs).first;
-            addiis(instructions_, mov, lhs_storage, acc);
-        }
-
-        Storage lhs_storage = stack.get(lhs).first;
-
-        if (stack.contains(rhs)) {
-            Storage rhs_storage = stack.get(rhs).first;
-            auto acc =
-                get_accumulator_register_from_size(stack.get(rhs).second);
-            addiis(instructions_, mov, acc, rhs_storage);
-            addiis(instructions_, mov, lhs_storage, acc);
-        }
-
-        if (type::is_unary_operator(rhs)) {
-            auto unary_op = type::get_unary_operator(rhs);
-            from_ita_unary_expression(unary_op, lhs_storage);
-        }
-
-        if (type::is_binary_expression(rhs))
-            from_binary_operator_expression(rhs);
+        return;
     }
+
+    m::match(rhs)(
+        m::pattern | m::app(is_immediate, true) =
+            [&] {
+                auto imm = type::get_rvalue_datatype_from_string(rhs);
+                stack.set_address_from_immediate(lhs, imm);
+                Storage lhs_storage = stack.get(lhs).first;
+                addiis(instructions_, mov, lhs_storage, imm);
+            },
+        m::pattern | m::app(is_temporary, true) =
+            [&] {
+                auto acc = get_accumulator_register_from_size();
+                stack.set_address_from_accumulator(lhs, acc);
+                Storage lhs_storage = stack.get(lhs).first;
+                addiis(instructions_, mov, lhs_storage, acc);
+            },
+        m::pattern | m::app(is_address, true) =
+            [&] {
+                Storage lhs_storage = stack.get(lhs).first;
+                Storage rhs_storage = stack.get(rhs).first;
+                auto acc =
+                    get_accumulator_register_from_size(stack.get(rhs).second);
+                addiis(instructions_, mov, acc, rhs_storage);
+                addiis(instructions_, mov, lhs_storage, acc);
+            },
+        m::pattern | m::app(type::is_unary_operator, true) =
+            [&] {
+                Storage lhs_storage = stack.get(lhs).first;
+                auto unary_op = type::get_unary_operator(rhs);
+                from_ita_unary_expression(unary_op, lhs_storage);
+            },
+        m::pattern | m::app(type::is_binary_expression, true) =
+            [&] { from_binary_operator_expression(rhs); },
+        m::pattern | m::_ = [&] { credence_error("unreachable"); });
 }
 
 void Code_Generator::from_temporary_unary_operator_expression(
@@ -277,8 +276,6 @@ void Code_Generator::from_temporary_unary_operator_expression(
                        ? get_second_register_from_size(size)
                        : get_accumulator_register_from_size(size);
         addiis(instructions_, mov, acc, stack.get(rvalue).first);
-        if (next_instruction_is_temporary())
-            temporary_stack.emplace_back(stack.get(rvalue).first);
         from_ita_unary_expression(op, acc);
     } else {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
@@ -287,8 +284,6 @@ void Code_Generator::from_temporary_unary_operator_expression(
                            not last_instruction_is_assignment()
                        ? get_second_register_from_size(size)
                        : get_accumulator_register_from_size(size);
-        if (next_instruction_is_temporary())
-            temporary_stack.emplace_back(immediate);
         addiis(instructions_, mov, acc, immediate);
         from_ita_unary_expression(op, acc);
     }
@@ -323,18 +318,7 @@ void Code_Generator::from_binary_operator_expression(
     Storage lhs_s{ std::monostate{} };
     Storage rhs_s{ std::monostate{} };
     auto [lhs, rhs, op] = expression;
-    auto is_immediate = [&](type::semantic::RValue const& rvalue) {
-        return type::is_rvalue_data_type(rvalue);
-    };
-    auto is_address = [&](type::semantic::RValue const& rvalue) {
-        return stack.is_allocated(rvalue);
-    };
-    auto is_temporary = [&](type::semantic::RValue const& rvalue) {
-        return type::is_temporary(rvalue);
-    };
-
     auto immediate = false;
-
     m::match(lhs, rhs)(
         m::pattern |
             m::ds(m::app(is_immediate, true), m::app(is_immediate, true)) =
@@ -347,10 +331,16 @@ void Code_Generator::from_binary_operator_expression(
             },
         m::pattern | m::ds(m::app(is_address, true), m::app(is_address, true)) =
             [&] {
-                lhs_s =
-                    get_accumulator_register_from_size(stack.get(lhs).second);
-                addiis(instructions_, mov, lhs_s, stack.get(lhs).first);
-                rhs_s = stack.get(rhs).first;
+                if (!last_instruction_is_assignment()) {
+                    lhs_s = get_storage_device(stack.get(lhs).second);
+                    addiis(instructions_, mov, lhs_s, stack.get(lhs).first);
+                    rhs_s = stack.get(rhs).first;
+                } else {
+                    lhs_s = get_accumulator_register_from_size(
+                        stack.get(lhs).second);
+                    addiis(instructions_, mov, lhs_s, stack.get(lhs).first);
+                    rhs_s = stack.get(rhs).first;
+                }
             },
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
@@ -362,10 +352,11 @@ void Code_Generator::from_binary_operator_expression(
                 if (!immediate_stack.empty()) {
                     rhs_s = immediate_stack.back();
                     immediate_stack.pop_back();
+                    if (!immediate_stack.empty()) {
+                        addiis(instructions_, mov, acc, immediate_stack.back());
+                        immediate_stack.pop_back();
+                    }
                 } else {
-                    CREDENCE_ASSERT(!temporary_stack.empty());
-                    auto immediate = temporary_stack.front();
-                    temporary_stack.pop_front();
                     auto intermediate = get_second_register_from_size(size);
                     rhs_s = intermediate;
                 }
@@ -385,9 +376,17 @@ void Code_Generator::from_binary_operator_expression(
                         stack.get(lhs).second);
                     rhs_s = stack.get(lhs).first;
                 }
+
                 if (is_instruction_temporary()) {
-                    lhs_s = get_accumulator_register_from_size(
-                        stack.get(lhs).second);
+                    if (type::is_bitwise_binary_operator(op)) {
+                        auto storage =
+                            get_storage_device(stack.get(lhs).second);
+                        addiis(
+                            instructions_, mov, storage, stack.get(lhs).first);
+                        lhs_s = storage;
+                    } else {
+                        lhs_s = get_accumulator_register_from_storage(lhs_s);
+                    }
                 }
             },
         m::pattern |
@@ -400,15 +399,9 @@ void Code_Generator::from_binary_operator_expression(
                         stack.get(rhs).second);
                     addiis(instructions_, mov, acc, stack.get(rhs).first);
                 }
-                if (is_temporary(lhs)) {
-                    rhs_s = stack.get(rhs).first;
+                if (is_temporary(lhs) or is_instruction_temporary())
                     rhs_s = get_accumulator_register_from_size(
                         stack.get(rhs).second);
-                }
-                if (is_instruction_temporary()) {
-                    rhs_s = get_accumulator_register_from_size(
-                        stack.get(rhs).second);
-                }
             },
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, false)) =
@@ -553,7 +546,7 @@ void Code_Generator::insert_from_immediate_rvalues(
             detail::get_result_from_trivial_bitwise_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(
             detail::get_operand_size_from_rvalue_datatype(lhs));
-        if (!is_temporary_expansion)
+        if (!is_instruction_temporary())
             addiis(instructions_, mov, acc, imm);
         else
             immediate_stack.emplace_back(imm);

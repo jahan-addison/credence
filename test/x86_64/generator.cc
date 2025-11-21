@@ -34,13 +34,6 @@ namespace fs = std::filesystem;
     REQUIRE(test.str() == expected);                                                \
  } while(0)
 
-inline auto fixture_files_root_path()
-{
-    auto fixtures_path = fs::path(ROOT_PATH);
-    fixtures_path.append("test/fixtures/x86_64/ast");
-    return fixtures_path;
-}
-
 TEST_CASE("target/x86_64: fixture: math_constant.b")
 {
     std::string expected = R"x86(
@@ -256,4 +249,100 @@ _L1:
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_constant_1", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: bitwise_2.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov dword ptr [rbp - 8], 5
+    mov eax, dword ptr [rbp - 4]
+    xor eax, dword ptr [rbp - 8]
+    mov edi, dword ptr [rbp - 8]
+    shr edi, 5
+    or eax, edi
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    not eax
+    mov edi, dword ptr [rbp - 8]
+    not edi
+    and eax, edi
+    mov dword ptr [rbp - 12], eax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_2", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: bitwise_3.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov dword ptr [rbp - 8], 5
+    mov eax, dword ptr [rbp - 4]
+    xor eax, dword ptr [rbp - 8]
+    mov edi, dword ptr [rbp - 8]
+    shr edi, dword ptr [rbp - 4]
+    or eax, edi
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    not eax
+    mov edi, dword ptr [rbp - 8]
+    not edi
+    and eax, edi
+    mov dword ptr [rbp - 12], eax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_3", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: bitwise_4.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, 10
+    not eax
+    mov dword ptr [rbp - 4], eax
+    mov dword ptr [rbp - 8], 5
+    mov eax, 30
+    or eax, 15
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
+    not eax
+    mov edi, dword ptr [rbp - 8]
+    not edi
+    and eax, edi
+    mov dword ptr [rbp - 12], eax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_4", expected);
 }
