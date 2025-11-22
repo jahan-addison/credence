@@ -54,7 +54,7 @@ struct ITA_Fixture
     static inline credence::ir::ITA ITA_with_tail_branch(Node const& node)
     {
         auto ita = credence::ir::ITA{ node };
-        auto tail_branch = credence::ir::ITA::make_temporary(&ita.temporary);
+        auto tail_branch = credence::ir::make_temporary(&ita.temporary);
         return ita;
     }
 
@@ -1108,7 +1108,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
 
     auto vectors = obj["test"].to_deque();
     auto ita = ITA_hoisted(obj);
-    credence::ir::ITA::Instructions instructions{};
+    credence::ir::Instructions instructions{};
 
     CHECK_THROWS(ita.build_from_extrn_statement(obj["test"], instructions));
 
@@ -1131,12 +1131,9 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
     CHECK_EQ(ita.symbols_.is_defined("b"), true);
     CHECK_EQ(ita.symbols_.is_defined("c"), true);
     REQUIRE(instructions.size() == 3);
-    REQUIRE(
-        std::get<0>(instructions[0]) == credence::ir::ITA::Instruction::GLOBL);
-    REQUIRE(
-        std::get<0>(instructions[1]) == credence::ir::ITA::Instruction::GLOBL);
-    REQUIRE(
-        std::get<0>(instructions[2]) == credence::ir::ITA::Instruction::GLOBL);
+    REQUIRE(std::get<0>(instructions[0]) == credence::ir::Instruction::GLOBL);
+    REQUIRE(std::get<0>(instructions[1]) == credence::ir::Instruction::GLOBL);
+    REQUIRE(std::get<0>(instructions[2]) == credence::ir::Instruction::GLOBL);
     REQUIRE(std::get<1>(instructions[0]) == "a");
     REQUIRE(std::get<1>(instructions[1]) == "b");
     REQUIRE(std::get<1>(instructions[2]) == "c");
@@ -2918,7 +2915,7 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_auto_statement")
         "\"root\" : \"z\"\n    }],\n  \"node\" : \"statement\",\n  \"root\" : "
         "\"auto\"\n}");
 
-    credence::ir::ITA::Instructions instructions{};
+    credence::ir::Instructions instructions{};
 
     ita_.build_from_auto_statement(obj["test"], instructions);
 

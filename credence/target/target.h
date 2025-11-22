@@ -50,20 +50,20 @@ class Backend
     virtual ~Backend() = default;
 
   public:
-    using ITA_Inst = ir::ITA::Quadruple;
+    using IR_Instruction = ir::Quadruple;
     virtual void emit(std::ostream& os) = 0;
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     virtual void from_func_start_ita(type::semantic::Label const& name) = 0;
     virtual void from_func_end_ita() = 0;
-    virtual void from_cmp_ita(ITA_Inst const& inst) = 0;
-    virtual void from_mov_ita(ITA_Inst const& inst) = 0;
+    virtual void from_cmp_ita(IR_Instruction const& inst) = 0;
+    virtual void from_mov_ita(IR_Instruction const& inst) = 0;
     virtual void from_return_ita(S const& storage) = 0;
     virtual void from_leave_ita() = 0;
-    virtual void from_locl_ita(ITA_Inst const& inst) = 0;
-    virtual void from_label_ita(ITA_Inst const& inst) = 0;
-    virtual void from_push_ita(ITA_Inst const& inst) = 0;
+    virtual void from_locl_ita(IR_Instruction const& inst) = 0;
+    virtual void from_label_ita(IR_Instruction const& inst) = 0;
+    virtual void from_push_ita(IR_Instruction const& inst) = 0;
     // virtual void from_goto_ita() = 0;
     // virtual void from_globl_ita() = 0;
     // virtual void from_if_ita() = 0;

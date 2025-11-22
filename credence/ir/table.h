@@ -105,12 +105,12 @@ struct Function
  * allocation sizes as a pass for platform code generation:
  *
  *      * Instruction address table to functions in the ITA
- *         * Symbolic stack for ITA::Instruction::CALL
+ *         * Symbolic stack for Instruction::CALL
  *      * Function definition map of local labels,
  *         * stack allocation, and depth size
  *      * Vector definition map of vectors
  *         * (arrays) in the global scope
- *      * A set of labels for ITA::Instruction::GOTO jumps
+ *      * A set of labels for Instruction::GOTO jumps
  *
  */
 class Table
@@ -123,9 +123,7 @@ class Table
         : hoisted_symbols_(hoisted_symbols)
     {
     }
-    explicit Table(
-        ITA::Node const& hoisted_symbols,
-        ITA::Instructions& instructions)
+    explicit Table(ITA::Node const& hoisted_symbols, Instructions& instructions)
         : instructions(instructions)
         , hoisted_symbols_(hoisted_symbols)
     {
@@ -148,10 +146,8 @@ class Table
 
   public:
     Stack_Frame stack_frame;
-    ITA::Instructions build_from_ita_instructions();
-    bool stack_frame_contains_ita_instruction(
-        Label name,
-        ITA::Instruction inst);
+    Instructions build_from_ita_instructions();
+    bool stack_frame_contains_ita_instruction(Label name, Instruction inst);
     void build_symbols_from_vector_lvalues();
     void build_vector_definitions_from_globals(Symbol_Table<>& globals);
     RValue from_temporary_lvalue(LValue const& lvalue);
@@ -242,11 +238,11 @@ class Table
     void from_func_end_ita_instruction();
     void from_call_ita_instruction(Label const& label);
     void from_globl_ita_instruction(Label const& label);
-    void from_locl_ita_instruction(ITA::Quadruple const& instruction);
-    void from_push_instruction(ITA::Quadruple const& instruction);
-    void from_pop_instruction(ITA::Quadruple const& instruction);
-    void from_label_ita_instruction(ITA::Quadruple const& instruction);
-    void from_mov_ita_instruction(ITA::Quadruple const& instruction);
+    void from_locl_ita_instruction(Quadruple const& instruction);
+    void from_push_instruction(Quadruple const& instruction);
+    void from_pop_instruction(Quadruple const& instruction);
+    void from_label_ita_instruction(Quadruple const& instruction);
+    void from_mov_ita_instruction(Quadruple const& instruction);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     type::Data_Type from_rvalue_unary_expression(
@@ -287,7 +283,7 @@ class Table
         type::RValue_Reference symbol = "");
 
   public:
-    ITA::Instructions instructions{};
+    Instructions instructions{};
 
   private:
     type::Globals globals{};

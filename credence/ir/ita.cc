@@ -44,7 +44,7 @@ namespace m = matchit;
  * @brief Get the rvalue and unary operator from a VARIABLE instruction
  */
 std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
-    ITA::Quadruple const& instruction)
+    Quadruple const& instruction)
 {
     std::string rvalue{};
     std::string unary{};
@@ -77,7 +77,7 @@ std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
 
  *  Note that vector definitions are scanned first
  */
-ITA::Instructions ITA::build_from_definitions(Node const& node)
+Instructions ITA::build_from_definitions(Node const& node)
 {
 
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "definitions");
@@ -100,7 +100,7 @@ ITA::Instructions ITA::build_from_definitions(Node const& node)
 /**
  * @brief Construct a set of ita instructions from a function definition
  */
-ITA::Instructions ITA::build_from_function_definition(Node const& node)
+Instructions ITA::build_from_function_definition(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_definition");
     Instructions instructions{};
@@ -193,7 +193,7 @@ void ITA::build_from_vector_definition(Node const& node)
     auto name = node["root"].to_string();
     auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
     auto right_child_node = node["right"];
-    Vector_Decay_Ref values_at{};
+    std::vector<internal::value::Literal> values_at{};
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
         credence_compile_error(
@@ -254,7 +254,7 @@ void ITA::build_statement_teardown_branches(
  *
  * @brief Construct a set of ita instructions from a block statement
  */
-ITA::Instructions ITA::build_from_block_statement(
+Instructions ITA::build_from_block_statement(
     Node const& node,
     bool root_function_scope)
 {
@@ -347,12 +347,12 @@ void ITA::insert_branch_jump_and_resume_instructions(
     Instructions& predicate_instructions,
     Instructions& branch_instructions,
     Quadruple const& label,
-    Tail_Branch const& tail)
+    detail::Branch::Last_Branch const& tail)
 {
     predicate_instructions.emplace_back(make_quadruple(
         Instruction::IF,
         build_from_branch_comparator_rvalue(block, predicate_instructions),
-        instruction_to_string(Instruction::GOTO),
+        detail::instruction_to_string(Instruction::GOTO),
         std::get<1>(label)));
 
     if (branch.stack.size() > 2) {
@@ -374,7 +374,7 @@ void ITA::insert_branch_block_instructions(
         insert_instructions(branch_instructions, block_instructions);
 
     } else {
-        auto block_statement = make_block_statement(block);
+        auto block_statement = detail::make_block_statement(block);
         insert_branch_block_instructions(block_statement, branch_instructions);
     }
 }
@@ -408,10 +408,10 @@ std::string ITA::build_from_branch_comparator_rvalue(
             [&] {
                 auto rhs = std::format(
                     "{} {}",
-                    instruction_to_string(Instruction::CMP),
+                    detail::instruction_to_string(Instruction::CMP),
                     internal::value::expression_type_to_string(
                         rvalue.value, false));
-                auto temp = make_temporary(&temporary, rhs);
+                auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
             },
@@ -419,8 +419,8 @@ std::string ITA::build_from_branch_comparator_rvalue(
             [&] {
                 insert_instructions(instructions, comparator_instructions);
                 auto rhs = std::format(
-                    "{} RET", instruction_to_string(Instruction::CMP));
-                auto temp = make_temporary(&temporary, rhs);
+                    "{} RET", detail::instruction_to_string(Instruction::CMP));
+                auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
             },
@@ -440,7 +440,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
 ITA::Branch_Instructions ITA::build_from_case_statement(
     Node const& node,
     std::string const& switch_label,
-    Tail_Branch const& tail)
+    detail::Branch::Last_Branch const& tail)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "case");
@@ -450,7 +450,7 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     bool break_statement = false;
     auto jump = make_temporary();
     auto statements = node["right"].to_deque();
-    auto case_statement = make_block_statement(statements);
+    auto case_statement = detail::make_block_statement(statements);
 
     auto condition =
         Expression_Parser::parse(node["left"], internal_symbols_, symbols_);
@@ -500,7 +500,7 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
     auto blocks = node["right"];
     // get the parent label of the switch statement
     auto tail = branch.get_parent_branch();
-    auto cases = std::stack<Tail_Branch>{};
+    auto cases = std::stack<detail::Branch::Last_Branch>{};
     auto switch_label =
         build_from_branch_comparator_rvalue(predicate, predicate_instructions);
     branch.stack.emplace(tail);
@@ -604,7 +604,7 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
 /**
  * @brief Construct ita instructions from a label statement
  */
-ITA::Instructions ITA::build_from_label_statement(Node const& node)
+Instructions ITA::build_from_label_statement(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "label");
@@ -621,7 +621,7 @@ ITA::Instructions ITA::build_from_label_statement(Node const& node)
 /**
  * @brief Construct a set of ita instructions from a goto statement
  */
-ITA::Instructions ITA::build_from_goto_statement(Node const& node)
+Instructions ITA::build_from_goto_statement(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "goto");
@@ -642,7 +642,7 @@ ITA::Instructions ITA::build_from_goto_statement(Node const& node)
 /**
  * @brief Construct a set of ita instructions from a block statement
  */
-ITA::Instructions ITA::build_from_return_statement(Node const& node)
+Instructions ITA::build_from_return_statement(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "return");
@@ -768,7 +768,7 @@ void ITA::build_from_auto_statement(
 /**
  * @brief Construct a set of ita instructions from an rvalue statement
  */
-ITA::Instructions ITA::build_from_rvalue_statement(Node const& node)
+Instructions ITA::build_from_rvalue_statement(Node const& node)
 {
     CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
     CREDENCE_ASSERT_NODE(node["root"].to_string(), "rvalue");
@@ -784,22 +784,23 @@ ITA::Instructions ITA::build_from_rvalue_statement(Node const& node)
  * @brief Emit a single qaudrupl-tuple to a std::ostream
  *   If indent is true indent with a tab for formatting
  */
-void ITA::emit_to(std::ostream& os, ITA::Quadruple const& ita, bool indent)
+void ITA::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
 { // not constexpr until C++23
-    ITA::Instruction op = std::get<ITA::Instruction>(ita);
+    using namespace detail;
+    Instruction op = std::get<Instruction>(ita);
     // clang-format off
-    const std::initializer_list<ITA::Instruction> lhs_instruction = {
-        ITA::Instruction::GOTO,
-        ITA::Instruction::GLOBL,
-        ITA::Instruction::LOCL,
-        ITA::Instruction::PUSH,
-        ITA::Instruction::LABEL,
-        ITA::Instruction::POP,
-        ITA::Instruction::CALL
+    const std::initializer_list<Instruction> lhs_instruction = {
+        Instruction::GOTO,
+        Instruction::GLOBL,
+        Instruction::LOCL,
+        Instruction::PUSH,
+        Instruction::LABEL,
+        Instruction::POP,
+        Instruction::CALL
     };
     // clang-format on
     if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
-        if (op == ITA::Instruction::LABEL) {
+        if (op == Instruction::LABEL) {
             os << std::get<1>(ita) << ":" << std::endl;
         } else {
             if (indent)
@@ -808,18 +809,17 @@ void ITA::emit_to(std::ostream& os, ITA::Quadruple const& ita, bool indent)
         }
     } else {
         if (indent) {
-            if (op != ITA::Instruction::FUNC_START and
-                op != ITA::Instruction::FUNC_END)
+            if (op != Instruction::FUNC_START and op != Instruction::FUNC_END)
                 os << "    ";
         }
         m::match(op)(
-            m::pattern | ITA::Instruction::RETURN =
+            m::pattern | Instruction::RETURN =
                 [&] {
                     os << op << " " << std::get<1>(ita) << ";" << std::endl;
                 },
             m::pattern |
-                ITA::Instruction::LEAVE = [&] { os << op << ";" << std::endl; },
-            m::pattern | m::or_(ITA::Instruction::IF, ITA::Instruction::JMP_E) =
+                Instruction::LEAVE = [&] { os << op << ";" << std::endl; },
+            m::pattern | m::or_(Instruction::IF, Instruction::JMP_E) =
                 [&] {
                     os << op << " " << std::get<1>(ita) << " "
                        << std::get<2>(ita) << " " << std::get<3>(ita) << ";"
@@ -830,7 +830,7 @@ void ITA::emit_to(std::ostream& os, ITA::Quadruple const& ita, bool indent)
                     os << std::get<1>(ita) << " " << op << " "
                        << std::get<2>(ita) << std::get<3>(ita) << ";"
                        << std::endl;
-                    if (indent and op == ITA::Instruction::FUNC_END)
+                    if (indent and op == Instruction::FUNC_END)
                         os << std::endl << std::endl;
                 }
 
@@ -839,58 +839,9 @@ void ITA::emit_to(std::ostream& os, ITA::Quadruple const& ita, bool indent)
 }
 
 /**
- * @brief Create a statement AST from an rvalue statement or others
- */
-inline util::AST_Node ITA::make_block_statement(
-    std::deque<util::AST_Node> const& blocks)
-{
-    auto block_statement = util::AST::object();
-    block_statement["node"] = util::AST_Node{ "statement" };
-    block_statement["root"] = util::AST_Node{ "block" };
-    block_statement["left"] = util::AST_Node{ blocks };
-
-    return block_statement;
-}
-
-/**
- * @brief Create a statement AST from an rvalue statement or others
- */
-inline util::AST_Node ITA::make_block_statement(util::AST_Node block)
-{
-    auto block_statement = util::AST::object();
-    block_statement["node"] = util::AST_Node{ "statement" };
-    block_statement["root"] = util::AST_Node{ "block" };
-    block_statement["left"].append(block);
-    return block_statement;
-}
-/**
- * @brief Use operator<< to implement nstruction symbol to string
- */
-inline std::string ITA::instruction_to_string(
-    Instruction op) // not constexpr until C++23
-{
-    std::ostringstream os;
-    os << op;
-    return os.str();
-}
-
-/**
- * @brief Use std::ostringstream to implement qaudruple-tuple to string
- */
-inline std::string ITA::quadruple_to_string(
-    ITA::Quadruple const& ita) // not constexpr until C++23
-{
-    std::ostringstream os;
-    os << std::setw(2) << std::get<1>(ita) << std::get<0>(ita)
-       << std::get<2>(ita) << std::get<3>(ita);
-
-    return os.str();
-}
-
-/**
  * @brief Check if AST node is a branch statement node
  */
-constexpr inline bool ITA::Branch::is_branching_statement(std::string_view s)
+constexpr inline bool detail::Branch::is_branching_statement(std::string_view s)
 {
     return std::ranges::find(BRANCH_STATEMENTS, s) != BRANCH_STATEMENTS.end();
 }
@@ -898,7 +849,7 @@ constexpr inline bool ITA::Branch::is_branching_statement(std::string_view s)
 /**
  * @brief Check if a Quadruple instruction is Instruction::GOTO
  */
-constexpr inline bool ITA::Branch::last_instruction_is_jump(
+constexpr inline bool detail::Branch::last_instruction_is_jump(
     Quadruple const& inst)
 {
     return std::get<0>(inst) == Instruction::GOTO;
@@ -907,18 +858,18 @@ constexpr inline bool ITA::Branch::last_instruction_is_jump(
 /**
  * @brief Increment branch level, create return label and add to branch stack
  */
-inline void ITA::Branch::increment_branch_level()
+inline void detail::Branch::increment_branch_level()
 {
     is_branching = true;
     level++;
-    block_level = ITA::make_temporary(temporary);
+    block_level = ir::make_temporary(temporary);
     stack.emplace(block_level);
 }
 
 /**
  * @brief Decrement branch level and pop branch label off the stack
  */
-inline void ITA::Branch::decrement_branch_level(bool not_branching)
+inline void detail::Branch::decrement_branch_level(bool not_branching)
 {
     CREDENCE_ASSERT(level > 1);
     CREDENCE_ASSERT(!stack.empty());
@@ -931,7 +882,7 @@ inline void ITA::Branch::decrement_branch_level(bool not_branching)
 /**
  * @brief Set branching to false, branching is complete
  */
-inline void ITA::Branch::teardown()
+inline void detail::Branch::teardown()
 {
     CREDENCE_ASSERT_EQUAL(level, 1);
     is_branching = false;
@@ -940,7 +891,7 @@ inline void ITA::Branch::teardown()
 /**
  * @brief Get a parent branch or the root branch label from the stack
  */
-inline ITA::Tail_Branch ITA::Branch::get_parent_branch(bool last)
+inline detail::Branch::Last_Branch detail::Branch::get_parent_branch(bool last)
 {
     CREDENCE_ASSERT(root_branch.has_value());
     if (last and stack.size() > 1) {

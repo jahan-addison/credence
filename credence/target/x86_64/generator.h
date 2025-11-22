@@ -114,13 +114,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
     void build();
     void from_func_start_ita(type::semantic::Label const& name) override;
     void from_func_end_ita() override;
-    void from_locl_ita(ITA_Inst const& inst) override;
-    void from_cmp_ita(ITA_Inst const& inst) override;
-    void from_mov_ita(ITA_Inst const& inst) override;
+    void from_locl_ita(IR_Instruction const& inst) override;
+    void from_cmp_ita(IR_Instruction const& inst) override;
+    void from_mov_ita(IR_Instruction const& inst) override;
     void from_return_ita(Storage const& dest) override;
     void from_leave_ita() override;
-    void from_label_ita(ITA_Inst const& inst) override;
-    void from_push_ita(ITA_Inst const& inst) override;
+    void from_label_ita(IR_Instruction const& inst) override;
+    void from_push_ita(IR_Instruction const& inst) override;
     // void from_goto_ita() override;
     // void from_globl_ita() override;
     // void from_if_ita() override;
@@ -228,7 +228,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
         if (ita_index < 1)
             return false;
         auto last = table_->instructions[ita_index - 1];
-        return std::get<0>(last) == ir::ITA::Instruction::MOV and
+        return std::get<0>(last) == ir::Instruction::MOV and
                not type::is_temporary(std::get<1>(last));
     }
     inline bool next_instruction_is_temporary()
@@ -236,7 +236,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
         if (table_->instructions.size() < ita_index + 1)
             return false;
         auto next = table_->instructions[ita_index + 1];
-        return std::get<0>(next) == ir::ITA::Instruction::MOV and
+        return std::get<0>(next) == ir::Instruction::MOV and
                type::is_temporary(std::get<1>(next));
     }
 

@@ -59,8 +59,8 @@ namespace credence {
 
 namespace ir {
 
-using Expression_Instructions = std::pair<ITA::Instructions, queue::Queue>;
-using Temporary_Instructions = std::pair<std::string, ITA::Instructions>;
+using Expression_Instructions = std::pair<ir::Instructions, queue::Queue>;
+using Temporary_Instructions = std::pair<std::string, ir::Instructions>;
 
 namespace detail {
 /**
@@ -117,7 +117,7 @@ class Temporary
   public:
     using Operand = internal::value::Expression::Type_Pointer;
     using Operands = std::vector<Operand>;
-    using Instructions = ITA::Instructions;
+    using Instructions = ir::Instructions;
     using Operand_Stack = std::stack<Operand>;
     using Temporary_Stack = std::stack<std::string>;
 
@@ -159,7 +159,7 @@ constexpr bool is_in_place_unary_operator(type::Operator op)
 
 } // namespace detail
 
-ITA::Instructions expression_queue_to_temporary_instructions(
+Instructions expression_queue_to_temporary_instructions(
     queue::Queue& queue,
     int* index);
 

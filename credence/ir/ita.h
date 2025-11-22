@@ -36,6 +36,243 @@ namespace credence {
 
 namespace ir {
 
+enum class Instruction
+{
+    FUNC_START,
+    FUNC_END,
+    LABEL,
+    GOTO,
+    LOCL,
+    GLOBL,
+    IF,
+    JMP_E,
+    PUSH,
+    POP,
+    CALL,
+    CMP,
+    MOV,
+    RETURN,
+    LEAVE,
+    NOOP
+};
+
+using Quadruple =
+    std::tuple<Instruction, std::string, std::string, std::string>;
+using Instructions = std::deque<Quadruple>;
+
+/**
+ * @brief Create a qaudruple-tuple from 4 operands, 3 optional
+ */
+constexpr Quadruple make_quadruple(
+    Instruction op,
+    std::string const& s1 = "",
+    std::string const& s2 = "",
+    std::string const& s3 = "")
+{
+    return std::make_tuple(op, s1, s2, s3);
+}
+
+/**
+ * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
+ * size Set as a Instruction::MOV instruction with the right-hamd-side
+ */
+constexpr inline Quadruple make_temporary(
+    int* temporary_size,
+    std::string const& temp)
+{
+    return make_quadruple(
+        Instruction::MOV,
+        std::string{ "_t" } +
+            util::to_constexpr_string<int>(++(*temporary_size)),
+        temp);
+}
+
+/**
+ * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
+ * size Set as a standlone Instruction::LABEL instruction
+ */
+constexpr inline Quadruple make_temporary(int* temporary_size)
+{
+    return make_quadruple(
+        Instruction::LABEL,
+        std::string{ "_L" } +
+            util::to_constexpr_string<int>(++(*temporary_size)),
+        "");
+}
+
+namespace detail {
+
+/**
+ * @brief Create a statement AST from an rvalue statement or others
+ */
+inline util::AST_Node make_block_statement(
+    std::deque<util::AST_Node> const& blocks)
+{
+    auto block_statement = util::AST::object();
+    block_statement["node"] = util::AST_Node{ "statement" };
+    block_statement["root"] = util::AST_Node{ "block" };
+    block_statement["left"] = util::AST_Node{ blocks };
+
+    return block_statement;
+}
+
+/**
+ * @brief Create a statement AST from an rvalue statement or others
+ */
+inline util::AST_Node make_block_statement(util::AST_Node block)
+{
+    auto block_statement = util::AST::object();
+    block_statement["node"] = util::AST_Node{ "statement" };
+    block_statement["root"] = util::AST_Node{ "block" };
+    block_statement["left"].append(block);
+    return block_statement;
+}
+
+constexpr std::ostream& operator<<(std::ostream& os, Instruction const& op)
+{
+    switch (op) {
+        case Instruction::FUNC_START:
+            os << "BeginFunc";
+            break;
+        case Instruction::FUNC_END:
+            os << "EndFunc";
+            break;
+        case Instruction::LABEL:
+            break;
+        case Instruction::MOV:
+            os << "=";
+            break;
+        case Instruction::NOOP:
+            os << "";
+            break;
+        case Instruction::CMP:
+            os << "CMP";
+            break;
+        case Instruction::RETURN:
+            os << "RET";
+            break;
+        case Instruction::GLOBL:
+            os << "GLOBL";
+            break;
+        case Instruction::LOCL:
+            os << "LOCL";
+            break;
+        case Instruction::LEAVE:
+            os << "LEAVE";
+            break;
+        case Instruction::JMP_E:
+            os << "JMP_E";
+            break;
+        case Instruction::IF:
+            os << "IF";
+            break;
+        case Instruction::PUSH:
+            os << "PUSH";
+            break;
+        case Instruction::POP:
+            os << "POP";
+            break;
+        case Instruction::CALL:
+            os << "CALL";
+            break;
+        case Instruction::GOTO:
+            os << "GOTO";
+            break;
+        default:
+            os << "null";
+            break;
+    }
+    return os;
+}
+
+/**
+ * @brief Use operator<< to implement instruction symbol to string
+ */
+inline std::string instruction_to_string(
+    Instruction op) // not constexpr until C++23
+{
+    std::ostringstream os;
+    os << op;
+    return os.str();
+}
+
+/**
+ * @brief Use std::ostringstream to implement qaudruple-tuple to string
+ */
+inline std::string quadruple_to_string(
+    Quadruple const& ita) // not constexpr until C++23
+{
+    std::ostringstream os;
+    os << std::setw(2) << std::get<1>(ita) << std::get<0>(ita)
+       << std::get<2>(ita) << std::get<3>(ita);
+
+    return os.str();
+}
+
+/**
+ * @brief An object of branch state during ITA construction,
+ * including a return label stack and passing of instructions
+ */
+class Branch
+{
+  public:
+    Branch() = delete;
+    ~Branch() = default;
+    explicit Branch(int* temporary)
+        : temporary(temporary)
+    {
+    }
+
+  public:
+    using Last_Branch = std::optional<Quadruple>;
+    using Branch_Comparator = std::pair<std::string, Instructions>;
+    using Branch_Instructions = std::pair<Instructions, Instructions>;
+
+  public:
+    static constexpr auto BRANCH_STATEMENTS = { "if", "while", "case" };
+
+  public:
+    constexpr static bool is_branching_statement(std::string_view s);
+    constexpr static bool last_instruction_is_jump(Quadruple const& inst);
+
+  public:
+    /**
+     * @brief Construct root branch label and set to root block
+     */
+    constexpr inline void set_root_branch(int* temporary_index)
+    {
+        if (level == 1) {
+            // _L1 label is reserved for function scope resume
+            root_branch = make_quadruple(
+                Instruction::LABEL,
+                std::string{ "_L" } +
+                    util::to_constexpr_string<int>(++(*temporary_index)),
+                "");
+            set_block_to_root();
+        }
+    }
+    void increment_branch_level();
+    void decrement_branch_level(bool not_branching = false);
+    void teardown();
+    Last_Branch get_parent_branch(bool last = false);
+    constexpr inline bool is_root_level() { return level == 1; }
+    constexpr inline bool is_branch_level() { return level > 1; }
+    constexpr inline void set_block_to_root() { block_level = root_branch; }
+    constexpr inline Last_Branch get_root_branch() { return root_branch; }
+
+  public:
+    std::stack<Last_Branch> stack{};
+
+  private:
+    Last_Branch root_branch;
+    Last_Branch block_level;
+    bool is_branching = false;
+    int level = 1;
+    int* temporary;
+};
+
+} // namespace detail
+
 /**
  * @brief
  * Instruction Tuple Abstraction or ITA of program flow,
@@ -58,95 +295,29 @@ class ITA
     }
 
   public:
-    enum class Instruction
-    {
-        FUNC_START,
-        FUNC_END,
-        LABEL,
-        GOTO,
-        LOCL,
-        GLOBL,
-        IF,
-        JMP_E,
-        PUSH,
-        POP,
-        CALL,
-        CMP,
-        MOV,
-        RETURN,
-        LEAVE,
-        NOOP
-    };
+    using Node = util::AST_Node;
 
   public:
-    using Quadruple =
-        std::tuple<Instruction, std::string, std::string, std::string>;
-    using Instructions = std::deque<Quadruple>;
-    using Node = util::AST_Node;
-    using Vector_Decay_Ref = std::vector<internal::value::Literal>;
-    using Parameters = std::vector<std::string>;
-    using Tail_Branch = std::optional<Quadruple>;
-    using Branch_Comparator = std::pair<std::string, Instructions>;
-    using Branch_Instructions = std::pair<Instructions, Instructions>;
-
-    constexpr friend std::ostream& operator<<(
+    friend constexpr std::ostream& detail::operator<<(
         std::ostream& os,
-        ITA::Instruction const& op)
+        Instruction const& instruction);
+
+  public:
+    /**
+     * @brief Create a temporary (e.g. _L5) label from the
+     * current temporary size Set as a Instruction::LABEL
+     */
+    constexpr inline Quadruple make_temporary()
     {
-        switch (op) {
-            case ITA::Instruction::FUNC_START:
-                os << "BeginFunc";
-                break;
-            case ITA::Instruction::FUNC_END:
-                os << "EndFunc";
-                break;
-            case ITA::Instruction::LABEL:
-                break;
-            case ITA::Instruction::MOV:
-                os << "=";
-                break;
-            case ITA::Instruction::NOOP:
-                os << "";
-                break;
-            case ITA::Instruction::CMP:
-                os << "CMP";
-                break;
-            case ITA::Instruction::RETURN:
-                os << "RET";
-                break;
-            case ITA::Instruction::GLOBL:
-                os << "GLOBL";
-                break;
-            case ITA::Instruction::LOCL:
-                os << "LOCL";
-                break;
-            case ITA::Instruction::LEAVE:
-                os << "LEAVE";
-                break;
-            case ITA::Instruction::JMP_E:
-                os << "JMP_E";
-                break;
-            case ITA::Instruction::IF:
-                os << "IF";
-                break;
-            case ITA::Instruction::PUSH:
-                os << "PUSH";
-                break;
-            case ITA::Instruction::POP:
-                os << "POP";
-                break;
-            case ITA::Instruction::CALL:
-                os << "CALL";
-                break;
-            case ITA::Instruction::GOTO:
-                os << "GOTO";
-                break;
-            default:
-                os << "null";
-                break;
-        }
-        return os;
+        return make_quadruple(
+            Instruction::LABEL,
+            std::string{ "_L" } + util::to_constexpr_string<int>(++temporary),
+            "");
     }
+
+  private:
+    using Branch_Instructions = detail::Branch::Branch_Instructions;
+    using Parameters = std::vector<std::string>;
 
   public:
     /**
@@ -162,7 +333,7 @@ class ITA
   public:
     static void emit_to(
         std::ostream& os,
-        ITA::Quadruple const& ita,
+        Quadruple const& ita,
         bool indent = false);
     /**
      * @brief Emit a std::deque of instructions to a std::ostream
@@ -182,7 +353,7 @@ class ITA
         }
     }
     /**
-     * @brief Emit ITA::instructions_ field to an std::ostream
+     * @brief Emit Instructions_ field to an std::ostream
      */
     inline void emit(std::ostream& os)
     { // not constexpr until C++23
@@ -190,7 +361,7 @@ class ITA
             emit_to(os, i);
     }
     /**
-     * @brief Emit ITA::instructions_ field to an std::ostream
+     * @brief Emit Instructions_ field to an std::ostream
      *   If indent is true indent with a tab for formatting
      */
     inline void emit(std::ostream& os, bool indent)
@@ -201,68 +372,9 @@ class ITA
 
   public:
     /**
-     * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
-     * size Set as a Instruction::MOV instruction with the right-hamd-side
+     * @brief Instructions factory method
      */
-    static constexpr inline Quadruple make_temporary(
-        int* temporary_size,
-        std::string const& temp)
-    {
-        return make_quadruple(
-            Instruction::MOV,
-            std::string{ "_t" } +
-                util::to_constexpr_string<int>(++(*temporary_size)),
-            temp);
-    }
-    /**
-     * @brief Create a temporary (e.g. _L5) label from the
-     * current temporary size Set as a Instruction::LABEL
-     */
-    constexpr inline Quadruple make_temporary()
-    {
-        return make_quadruple(
-            Instruction::LABEL,
-            std::string{ "_L" } + util::to_constexpr_string<int>(++temporary),
-            "");
-    }
-
-    /**
-     * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
-     * size Set as a standlone Instruction::LABEL instruction
-     */
-    static constexpr inline Quadruple make_temporary(int* temporary_size)
-    {
-        return make_quadruple(
-            Instruction::LABEL,
-            std::string{ "_L" } +
-                util::to_constexpr_string<int>(++(*temporary_size)),
-            "");
-    }
-
-    /**
-     * @brief Create a qaudruple-tuple from 4 operands, 3 optional
-     */
-    static constexpr inline Quadruple make_quadruple(
-        Instruction op,
-        std::string const& s1 = "",
-        std::string const& s2 = "",
-        std::string const& s3 = "")
-    {
-        return std::make_tuple(op, s1, s2, s3);
-    }
-
-  public:
-    static util::AST_Node make_block_statement(
-        std::deque<util::AST_Node> const& blocks);
-    static util::AST_Node make_block_statement(util::AST_Node block);
-    static std::string instruction_to_string(Instruction op);
-    static std::string quadruple_to_string(Quadruple const& ita);
-
-  public:
-    /**
-     * @brief ITA::Instructions factory method
-     */
-    static inline ITA::Instructions make_ITA_instructions(
+    static inline Instructions make_ITA_instructions(
         ITA::Node const& internal_symbols,
         ITA::Node const& node)
     {
@@ -294,13 +406,16 @@ class ITA
         Instructions& instructions);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Branch_Instructions build_from_switch_statement(Node const& node);
+    Branch_Instructions build_from_switch_statement(
+        Node const& node);
     Branch_Instructions build_from_case_statement(
         Node const& node,
         std::string const& switch_label,
-        Tail_Branch const& tail);
-    Branch_Instructions build_from_while_statement(Node const& node);
-    Branch_Instructions build_from_if_statement(Node const& node);
+        detail::Branch::Last_Branch const& tail);
+    Branch_Instructions build_from_while_statement(
+        Node const& node);
+    Branch_Instructions build_from_if_statement(
+        Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_label_statement(Node const& node);
@@ -329,7 +444,7 @@ class ITA
         Instructions& predicate_instructions,
         Instructions& branch_instructions,
         Quadruple const& label,
-        Tail_Branch const& tail = std::nullopt);
+        detail::Branch::Last_Branch const& tail = std::nullopt);
 
     std::string build_from_branch_comparator_rvalue(
         Node const& block,
@@ -343,71 +458,18 @@ class ITA
     Instructions instructions_;
 
   private:
-    /**
-     * @brief An object of branch state during ITA construction,
-     * including a return label stack and passing of instructions
-     */
-    class Branch
-    {
-      public:
-        Branch() = delete;
-        ~Branch() = default;
-        explicit Branch(int* temporary)
-            : temporary(temporary)
-        {
-        }
-
-      public:
-        static constexpr auto BRANCH_STATEMENTS = { "if", "while", "case" };
-
-      public:
-        constexpr static bool is_branching_statement(std::string_view s);
-        constexpr static bool last_instruction_is_jump(Quadruple const& inst);
-
-      public:
-        /**
-         * @brief Construct root branch label and set to root block
-         */
-        constexpr inline void set_root_branch(ITA& ita)
-        {
-            if (level == 1) {
-                // _L1 label is reserved for function scope resume
-                root_branch = ita.make_temporary();
-                set_block_to_root();
-            }
-        }
-        void increment_branch_level();
-        void decrement_branch_level(bool not_branching = false);
-        void teardown();
-        Tail_Branch get_parent_branch(bool last = false);
-        constexpr inline bool is_root_level() { return level == 1; }
-        constexpr inline bool is_branch_level() { return level > 1; }
-        constexpr inline void set_block_to_root() { block_level = root_branch; }
-        constexpr inline Tail_Branch get_root_branch() { return root_branch; }
-
-      public:
-        std::stack<Tail_Branch> stack{};
-
-      private:
-        Tail_Branch root_branch;
-        Tail_Branch block_level;
-        bool is_branching = false;
-        int level = 1;
-        int* temporary;
-    };
-
-  private:
-    Branch branch{ &temporary };
-    inline Branch_Instructions make_statement_instructions()
+    detail::Branch branch{ &temporary };
+    inline detail::Branch::Branch_Instructions make_statement_instructions()
     {
         return std::make_pair(Instructions{}, Instructions{});
     }
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     inline void make_root_branch()
     {
         temporary = 0;
-        branch.set_root_branch(*this);
+        branch.set_root_branch(&temporary);
     }
     util::AST_Node internal_symbols_;
     Symbol_Table<> symbols_{};
@@ -417,7 +479,7 @@ class ITA
 
 // clang-format on
 
-inline ITA::Instructions make_ITA_instructions(
+inline Instructions make_ITA_instructions(
     util::AST_Node const& internals_symbols,
     util::AST_Node const& definitions)
 {
@@ -425,7 +487,7 @@ inline ITA::Instructions make_ITA_instructions(
 }
 
 std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
-    ITA::Quadruple const& instruction);
+    Quadruple const& instruction);
 
 } // namespace ir
 

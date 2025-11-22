@@ -29,48 +29,48 @@ namespace m = matchit;
 /**
  * @brief Construct table and type-checking pass on a set of ITA instructions
  */
-ITA::Instructions Table::build_from_ita_instructions()
+Instructions Table::build_from_ita_instructions()
 {
     bool skip = false;
-    ITA::Instruction last_instruction = ITA::Instruction::NOOP;
+    Instruction last_instruction = Instruction::NOOP;
 
     build_symbols_from_vector_lvalues();
 
     for (instruction_index = 0; instruction_index < instructions.size();
          instruction_index++) {
         auto instruction = instructions.at(instruction_index);
-        m::match(std::get<ITA::Instruction>(instruction))(
-            m::pattern | ITA::Instruction::FUNC_START =
+        m::match(std::get<Instruction>(instruction))(
+            m::pattern | Instruction::FUNC_START =
                 [&] {
                     from_func_start_ita_instruction(
                         std::get<1>(instructions.at(instruction_index - 1)));
                 },
-            m::pattern | ITA::Instruction::FUNC_END =
+            m::pattern | Instruction::FUNC_END =
                 [&] { from_func_end_ita_instruction(); },
-            m::pattern | ITA::Instruction::GLOBL =
+            m::pattern | Instruction::GLOBL =
                 [&] { from_globl_ita_instruction(std::get<1>(instruction)); },
-            m::pattern | ITA::Instruction::LOCL =
+            m::pattern | Instruction::LOCL =
                 [&] { from_locl_ita_instruction(instruction); },
-            m::pattern | ITA::Instruction::PUSH =
-                [&] { from_push_instruction(instruction); },
-            m::pattern | ITA::Instruction::CALL =
+            m::pattern |
+                Instruction::PUSH = [&] { from_push_instruction(instruction); },
+            m::pattern | Instruction::CALL =
                 [&] { from_call_ita_instruction(std::get<1>(instruction)); },
-            m::pattern | ITA::Instruction::POP =
-                [&] { from_pop_instruction(instruction); },
-            m::pattern | ITA::Instruction::MOV =
+            m::pattern |
+                Instruction::POP = [&] { from_pop_instruction(instruction); },
+            m::pattern | Instruction::MOV =
                 [&] { from_mov_ita_instruction(instruction); },
-            m::pattern | ITA::Instruction::LABEL =
+            m::pattern | Instruction::LABEL =
                 [&] { from_label_ita_instruction(instruction); },
-            m::pattern | ITA::Instruction::GOTO =
+            m::pattern | Instruction::GOTO =
                 [&] {
-                    if (last_instruction == ITA::Instruction::GOTO)
+                    if (last_instruction == Instruction::GOTO)
                         skip = true;
                 });
         if (skip) {
             instructions.erase(instructions.begin() + instruction_index);
             skip = false;
         }
-        last_instruction = std::get<ITA::Instruction>(instruction);
+        last_instruction = std::get<Instruction>(instruction);
     }
     return instructions;
 }
@@ -96,7 +96,7 @@ void Table::build_symbols_from_vector_lvalues()
 /**
  * @brief Construct table entry from locl (auto) instruction
  */
-void Table::from_locl_ita_instruction(ITA::Quadruple const& instruction)
+void Table::from_locl_ita_instruction(Quadruple const& instruction)
 {
     auto label = std::get<1>(instruction);
     if (is_stack_frame()) {
@@ -159,7 +159,7 @@ void Table::from_call_ita_instruction(Label const& label)
 /**
  * @brief add label and label instruction address entry from LABEL instruction
  */
-void Table::from_label_ita_instruction(ITA::Quadruple const& instruction)
+void Table::from_label_ita_instruction(Quadruple const& instruction)
 {
     Label label = std::get<1>(instruction);
     if (is_stack_frame()) {
@@ -188,7 +188,7 @@ void Table::from_label_ita_instruction(ITA::Quadruple const& instruction)
  *  Then assign symbols to the table and allocate them as a local on the
  *  frame stack
  */
-void Table::from_mov_ita_instruction(ITA::Quadruple const& instruction)
+void Table::from_mov_ita_instruction(Quadruple const& instruction)
 {
     LValue lhs = std::get<1>(instruction);
     auto rvalue = get_rvalue_from_mov_qaudruple(instruction);
@@ -596,7 +596,7 @@ void detail::Function::set_parameters_from_symbolic_label(
 /**
  * @brief Push an RValue operand onto the symbolic frame stack
  */
-void Table::from_push_instruction(ITA::Quadruple const& instruction)
+void Table::from_push_instruction(Quadruple const& instruction)
 {
     RValue operand = std::get<1>(instruction);
     if (is_stack_frame())
@@ -606,7 +606,7 @@ void Table::from_push_instruction(ITA::Quadruple const& instruction)
 /**
  * @brief Pop off the top of the symbolic frame stack based on operand size
  */
-void Table::from_pop_instruction(ITA::Quadruple const& instruction)
+void Table::from_pop_instruction(Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
@@ -805,18 +805,14 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
  * @brief Search the ita instructions set in
  * a stack frame for a specific instruction
  */
-bool Table::stack_frame_contains_ita_instruction(
-    Label name,
-    ITA::Instruction inst)
+bool Table::stack_frame_contains_ita_instruction(Label name, Instruction inst)
 {
     CREDENCE_ASSERT(functions.contains(name));
     auto frame = functions.at(name);
     auto search = std::ranges::find_if(
         instructions.begin() + frame->address_location[0],
         instructions.begin() + frame->address_location[1],
-        [&](ir::ITA::Quadruple const& quad) {
-            return std::get<0>(quad) == inst;
-        });
+        [&](ir::Quadruple const& quad) { return std::get<0>(quad) == inst; });
     return search != instructions.begin() + frame->address_location[1];
 }
 

@@ -772,11 +772,11 @@ TEST_CASE_FIXTURE(
 {
     auto table = make_table_with_frame(VECTOR_SYMBOLS);
     auto& locals = table.get_stack_frame_symbols();
-    auto test1 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::LOCL, "snide", "", ""
+    auto test1 = credence::ir::Quadruple{
+        credence::ir::Instruction::LOCL, "snide", "", ""
     };
-    auto test2 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::LOCL, "*ptr", "", ""
+    auto test2 = credence::ir::Quadruple{
+        credence::ir::Instruction::LOCL, "*ptr", "", ""
     };
     REQUIRE_NOTHROW(table.from_locl_ita_instruction(test1));
     REQUIRE_NOTHROW(table.from_locl_ita_instruction(test2));
@@ -927,8 +927,8 @@ TEST_CASE_FIXTURE(
     auto table = make_table_with_frame(make_node());
     auto frame = table.get_stack_frame();
     table.instruction_index = 5;
-    auto test1 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::LABEL, "_L1", "", ""
+    auto test1 = credence::ir::Quadruple{
+        credence::ir::Instruction::LABEL, "_L1", "", ""
     };
     REQUIRE_NOTHROW(table.from_label_ita_instruction(test1));
     REQUIRE_THROWS(table.from_label_ita_instruction(test1));
@@ -940,20 +940,20 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_mov_ita_instruction")
 {
     auto table = make_table_with_frame(VECTOR_SYMBOLS);
     auto frame = table.get_stack_frame();
-    auto test1 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::MOV, "_t1", "(5:int:4)", ""
+    auto test1 = credence::ir::Quadruple{
+        credence::ir::Instruction::MOV, "_t1", "(5:int:4)", ""
     };
-    auto test2 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::MOV, "a", "(10:int:4)", ""
+    auto test2 = credence::ir::Quadruple{
+        credence::ir::Instruction::MOV, "a", "(10:int:4)", ""
     };
-    auto test3 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::MOV, "z", "mess", ""
+    auto test3 = credence::ir::Quadruple{
+        credence::ir::Instruction::MOV, "z", "mess", ""
     };
-    auto test4 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::MOV, "y", "*mess", ""
+    auto test4 = credence::ir::Quadruple{
+        credence::ir::Instruction::MOV, "y", "*mess", ""
     };
-    auto test5 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::MOV,
+    auto test5 = credence::ir::Quadruple{
+        credence::ir::Instruction::MOV,
         "z",
         "--",
         "x",
@@ -1067,11 +1067,11 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_push_instruction")
 {
     auto table = make_table_with_frame(make_node());
-    auto push_instruction = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::PUSH, "_p1", "", ""
+    auto push_instruction = credence::ir::Quadruple{
+        credence::ir::Instruction::PUSH, "_p1", "", ""
     };
-    auto push_instruction2 = credence::ir::ITA::Quadruple{
-        credence::ir::ITA::Instruction::PUSH, "_p2", "", ""
+    auto push_instruction2 = credence::ir::Quadruple{
+        credence::ir::Instruction::PUSH, "_p2", "", ""
     };
     table.from_push_instruction(push_instruction);
     REQUIRE(table.stack.size() == 1);
@@ -1085,10 +1085,10 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_pop_instruction")
 {
     auto table = make_table_with_frame(make_node());
     auto pop_instruction =
-        credence::ir::ITA::Quadruple{ credence::ir::ITA::Instruction::POP,
-                                      std::format("{}", sizeof(void*) * 2),
-                                      "",
-                                      "" };
+        credence::ir::Quadruple{ credence::ir::Instruction::POP,
+                                 std::format("{}", sizeof(void*) * 2),
+                                 "",
+                                 "" };
 
     table.stack.emplace_back("5");
     table.stack.emplace_back("a");

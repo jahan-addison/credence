@@ -36,7 +36,7 @@
 #include <utility>                  // for pair, make_pair
 #include <variant>                  // for get, holds_alternative, monostate
 
-#define ir_i(name) credence::ir::ITA::Instruction::name
+#define ir_i(name) credence::ir::Instruction::name
 
 namespace credence::target::x86_64 {
 
@@ -125,7 +125,7 @@ void Code_Generator::build()
     ita_index = 0UL;
     for (; ita_index < instructions.size(); ita_index++) {
         auto inst = instructions[ita_index];
-        ir::ITA::Instruction ita_inst = std::get<0>(inst);
+        ir::Instruction ita_inst = std::get<0>(inst);
         m::match(ita_inst)(
             m::pattern | ir_i(FUNC_START) =
                 [&] {
@@ -158,7 +158,7 @@ void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
     adiild(instructions_, push, rbp);
     addiilrs(instructions_, mov_, rbp, rsp);
     if (table_->stack_frame_contains_ita_instruction(
-            current_frame, ir::ITA::Instruction::CALL)) {
+            current_frame, ir::Instruction::CALL)) {
         auto imm = detail::make_u32_int_immediate(stack_alloc);
         addiill(instructions_, sub, rsp, imm);
     }
@@ -187,14 +187,14 @@ void Code_Generator::from_func_end_ita()
     auto frame = table_->functions[current_frame];
     auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
     if (table_->stack_frame_contains_ita_instruction(
-            current_frame, ir::ITA::Instruction::CALL)) {
+            current_frame, ir::Instruction::CALL)) {
         auto a_imm = detail::make_u32_int_immediate(stack_alloc);
         addiill(instructions_, add, rsp, a_imm);
     }
     reset_avail_registers();
 }
 
-void Code_Generator::from_push_ita(ITA_Inst const& inst)
+void Code_Generator::from_push_ita(IR_Instruction const& inst)
 {
     auto lvalue = std::get<1>(inst);
     auto frame = table_->functions[current_frame];
@@ -205,18 +205,18 @@ void Code_Generator::from_push_ita(ITA_Inst const& inst)
     addiis(instructions_, mov, storage, symbol);
 }
 
-void Code_Generator::from_locl_ita(ITA_Inst const& inst)
+void Code_Generator::from_locl_ita(IR_Instruction const& inst)
 {
     type::semantic::LValue lvalue = std::get<1>(inst);
     stack.make(lvalue);
 }
 
-void Code_Generator::from_cmp_ita([[maybe_unused]] ITA_Inst const& inst)
+void Code_Generator::from_cmp_ita([[maybe_unused]] IR_Instruction const& inst)
 {
     table_->set_stack_frame(current_frame);
 }
 
-void Code_Generator::from_mov_ita(ITA_Inst const& inst)
+void Code_Generator::from_mov_ita(IR_Instruction const& inst)
 {
     type::semantic::LValue lhs = std::get<1>(inst);
     auto symbols = table_->get_stack_frame_symbols();
@@ -609,7 +609,7 @@ void Code_Generator::from_leave_ita()
     addiie(instructions_, ret);
 }
 
-void Code_Generator::from_label_ita(ITA_Inst const& inst)
+void Code_Generator::from_label_ita(IR_Instruction const& inst)
 {
     instructions_.emplace_back(
         type::get_label_as_human_readable(std::get<1>(inst)));
