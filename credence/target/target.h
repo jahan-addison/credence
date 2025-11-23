@@ -26,7 +26,7 @@ namespace credence {
 
 namespace target {
 
-inline unsigned int align_up_to_16(unsigned int n)
+constexpr unsigned int align_up_to_16(unsigned int n)
 {
     const unsigned int ALIGNMENT = 16;
     const unsigned int MASK = ALIGNMENT - 1; // MASK = 15 (0xF)

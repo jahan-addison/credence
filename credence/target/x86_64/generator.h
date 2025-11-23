@@ -40,18 +40,28 @@ namespace credence::target::x86_64 {
 
 namespace detail {
 
-struct Stack
+class Stack
 {
+  public:
+    explicit Stack() = default;
+    Stack(Stack const&) = delete;
+    Stack& operator=(Stack const&) = delete;
+
+  public:
     using LValue = type::semantic::LValue;
     using RValue = type::semantic::RValue;
     using Offset = detail::Stack_Offset;
     using Entry = std::pair<Offset, detail::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
     using Local = Ordered_Map<LValue, Entry>;
+
+  public:
     constexpr void make(LValue const& lvalue);
     constexpr Entry get(LValue const& lvalue);
     constexpr Entry get(Offset offset);
     constexpr inline void clear() { stack_address.clear(); }
+
+  public:
     constexpr inline bool empty_at(LValue const& lvalue)
     {
         return stack_address[lvalue].second == detail::Operand_Size::Empty;
@@ -65,11 +75,15 @@ struct Stack
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
 
+  public:
+    constexpr inline std::string get_lvalue_from_offset(Offset offset);
     constexpr detail::Operand_Size get_operand_size_from_offset(Offset offset);
     constexpr Offset allocate(Operand_Size operand);
     constexpr void set_address_from_accumulator(
         LValue const& lvalue,
         Register acc);
+    constexpr void set_address_from_address(LValue const& lvalue);
+    constexpr void set_address_from_stack(LValue const& lhs, LValue const& rhs);
     constexpr void set_address_from_immediate(
         LValue const& lvalue,
         Immediate const& rvalue);
@@ -186,7 +200,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Storage& rhs);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    std::string emit_storage_device(Storage const& storage);
+    std::string emit_storage_device(
+        Storage const& storage,
+        bool with_prefix = true);
     void set_table_stack_frame(type::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -219,11 +235,15 @@ class Code_Generator final : public target::Backend<detail::Storage>
     };
 
   private:
-    inline bool is_instruction_temporary()
+    inline bool is_ir_instruction_temporary()
     {
         return type::is_temporary(std::get<1>(table_->instructions[ita_index]));
     }
-    inline bool last_instruction_is_assignment()
+    std::string get_ir_instruction_lvalue()
+    {
+        return std::get<1>(table_->instructions[ita_index]);
+    }
+    inline bool last_ir_instruction_is_assignment()
     {
         if (ita_index < 1)
             return false;
@@ -231,7 +251,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
         return std::get<0>(last) == ir::Instruction::MOV and
                not type::is_temporary(std::get<1>(last));
     }
-    inline bool next_instruction_is_temporary()
+    inline bool next_ir_instruction_is_temporary()
     {
         if (table_->instructions.size() < ita_index + 1)
             return false;
@@ -245,7 +265,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
     std::size_t ita_index{ 0 };
     std::size_t constant_index{ 0 };
 
-    Register special_register = Register::eax;
+    Register special_register{ Register::eax };
+    bool address_assignment{ false };
 
     std::deque<Immediate> immediate_stack{};
     Instructions instructions_;

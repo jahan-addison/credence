@@ -65,6 +65,8 @@ using Parameters = std::vector<std::string>;
 // clang-format off
 constexpr auto unary_operators =
     { "++", "--", "*", "&", "-", "+", "~", "!" };
+constexpr auto arithmetic_unary_operators =
+    { "++", "--", "-", "+" };
 constexpr auto arithmetic_binary_operators =
     { "*", "/", "-", "+", "%" };
 constexpr auto bitwise_binary_operators =
@@ -139,6 +141,15 @@ constexpr bool is_binary_arithmetic_operator(RValue_Reference rvalue)
         arithmetic_binary_operators.end(),
         [&](std::string_view s) { return rvalue == s; });
     return test != arithmetic_binary_operators.end();
+}
+
+constexpr bool is_unary_arithmetic_operator(RValue_Reference rvalue)
+{
+    auto test = std::ranges::find_if(
+        arithmetic_unary_operators.begin(),
+        arithmetic_unary_operators.end(),
+        [&](std::string_view s) { return rvalue == s; });
+    return test != arithmetic_unary_operators.end();
 }
 
 /**

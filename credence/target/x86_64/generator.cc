@@ -48,27 +48,33 @@ void Code_Generator::emit(std::ostream& os)
     os << std::endl;
     os << ".intel_syntax noprefix" << std::endl;
     os << std::endl;
-    // clang-format off
+
     for (auto const& inst : instructions_) {
         std::visit(
             util::overload{
-            [&](detail::Instruction const& s) {
-                Mnemonic inst = std::get<0>(s);
-                os << "    " << inst;
-                Storage dest = std::get<1>(s);
-                Storage src = std::get<2>(s);
-                if (!is_variant(std::monostate, dest))
-                    os << " " << emit_storage_device(dest);
-                if (!is_variant(std::monostate, src))
-                    os << ", " << emit_storage_device(src);
-                os << std::endl;
-            },
-            [&](type::semantic::Label const& s) {
-                os << s << ":" << std::endl;
-            } },
-                inst);
+                [&](detail::Instruction const& s) {
+                    auto [mnemonic, dest, src] = s;
+                    bool storage_size = true;
+
+                    if (detail::is_qword_storage_mnemonic(mnemonic))
+                        storage_size = false;
+
+                    os << detail::tabwidth(4) << mnemonic;
+
+                    if (!is_variant(std::monostate, dest))
+                        os << " " << emit_storage_device(dest, storage_size);
+
+                    if (!is_variant(std::monostate, src))
+                        os << ", " << emit_storage_device(src, storage_size);
+
+                    os << std::endl;
+                },
+
+                [&](type::semantic::Label const& s) {
+                    os << s << ":" << std::endl;
+                } },
+            inst);
     }
-    // clang-format on
     os << std::endl;
 }
 
@@ -87,12 +93,14 @@ void emit(
     generator.emit(os);
 }
 
-std::string Code_Generator::emit_storage_device(Storage const& storage)
+std::string Code_Generator::emit_storage_device(
+    Storage const& storage,
+    bool with_prefix)
 {
     std::string sloc;
     std::visit(
         util::overload{
-            [&]([[maybe_unused]] std::monostate s) {},
+            [&](std::monostate) {},
             [&](detail::Stack::Offset s) {
                 auto size = stack.get_operand_size_from_offset(s);
                 CREDENCE_ASSERT(size != Operand_Size::Empty);
@@ -106,8 +114,10 @@ std::string Code_Generator::emit_storage_device(Storage const& storage)
                     m::pattern |
                         Operand_Size::Byte = [&] { return "byte ptr"; },
                     m::pattern | m::_ = [&] { return "dword ptr"; });
-
-                sloc = std::format("{} [rbp - {}]", prefix, s);
+                if (with_prefix)
+                    sloc = std::format("{} [rbp - {}]", prefix, s);
+                else
+                    sloc = std::format("[rbp - {}]", s);
             },
             [&](Register s) {
                 std::stringstream ss{};
@@ -155,12 +165,12 @@ void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
     set_table_stack_frame(name);
     auto frame = table_->functions[current_frame];
     auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
-    adiild(instructions_, push, rbp);
-    addiilrs(instructions_, mov_, rbp, rsp);
+    add_i_ld(instructions_, push, rbp);
+    add_i_llrs(instructions_, mov_, rbp, rsp);
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::Instruction::CALL)) {
         auto imm = detail::make_u32_int_immediate(stack_alloc);
-        addiill(instructions_, sub, rsp, imm);
+        add_i_ll(instructions_, sub, rsp, imm);
     }
 }
 
@@ -189,7 +199,7 @@ void Code_Generator::from_func_end_ita()
     if (table_->stack_frame_contains_ita_instruction(
             current_frame, ir::Instruction::CALL)) {
         auto a_imm = detail::make_u32_int_immediate(stack_alloc);
-        addiill(instructions_, add, rsp, a_imm);
+        add_i_ll(instructions_, add, rsp, a_imm);
     }
     reset_avail_registers();
 }
@@ -202,18 +212,15 @@ void Code_Generator::from_push_ita(IR_Instruction const& inst)
     auto symbol = locals.get_symbol_by_name(lvalue);
     auto storage = get_storage_device();
 
-    addiis(instructions_, mov, storage, symbol);
+    add_i_s(instructions_, mov, storage, symbol);
 }
 
-void Code_Generator::from_locl_ita(IR_Instruction const& inst)
+void Code_Generator::from_locl_ita([[maybe_unused]] IR_Instruction const& inst)
 {
-    type::semantic::LValue lvalue = std::get<1>(inst);
-    stack.make(lvalue);
 }
 
 void Code_Generator::from_cmp_ita([[maybe_unused]] IR_Instruction const& inst)
 {
-    table_->set_stack_frame(current_frame);
 }
 
 void Code_Generator::from_mov_ita(IR_Instruction const& inst)
@@ -234,28 +241,38 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 stack.set_address_from_immediate(lhs, imm);
                 Storage lhs_storage = stack.get(lhs).first;
-                addiis(instructions_, mov, lhs_storage, imm);
+                add_i_s(instructions_, mov, lhs_storage, imm);
             },
         m::pattern | m::app(is_temporary, true) =
             [&] {
-                auto acc = get_accumulator_register_from_size();
-                stack.set_address_from_accumulator(lhs, acc);
-                Storage lhs_storage = stack.get(lhs).first;
-                addiis(instructions_, mov, lhs_storage, acc);
+                if (address_assignment) {
+                    stack.set_address_from_address(lhs);
+                    address_assignment = false;
+                    Storage lhs_storage = stack.get(lhs).first;
+                    add_i_s(instructions_, mov, lhs_storage, Register::rax);
+                } else {
+                    auto acc = get_accumulator_register_from_size();
+                    stack.set_address_from_accumulator(lhs, acc);
+                    Storage lhs_storage = stack.get(lhs).first;
+                    add_i_s(instructions_, mov, lhs_storage, acc);
+                }
             },
         m::pattern | m::app(is_address, true) =
             [&] {
+                CREDENCE_ASSERT(stack.get(rhs).second != Operand_Size::Empty);
+                stack.set_address_from_stack(lhs, rhs);
                 Storage lhs_storage = stack.get(lhs).first;
                 Storage rhs_storage = stack.get(rhs).first;
                 auto acc =
                     get_accumulator_register_from_size(stack.get(rhs).second);
-                addiis(instructions_, mov, acc, rhs_storage);
-                addiis(instructions_, mov, lhs_storage, acc);
+                add_i_s(instructions_, mov, acc, rhs_storage);
+                add_i_s(instructions_, mov, lhs_storage, acc);
             },
         m::pattern | m::app(type::is_unary_operator, true) =
             [&] {
                 Storage lhs_storage = stack.get(lhs).first;
                 auto unary_op = type::get_unary_operator(rhs);
+                auto rvalue = type::get_unary_rvalue_reference(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
             },
         m::pattern | m::app(type::is_binary_expression, true) =
@@ -270,21 +287,27 @@ void Code_Generator::from_temporary_unary_operator_expression(
     auto op = type::get_unary_operator(expr);
     type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
     if (stack.contains(rvalue)) {
+        if (op == "&") {
+            address_assignment = true;
+            from_ita_unary_expression(op, stack.get(rvalue).first);
+            special_register = Register::rax;
+            return;
+        }
         auto size = stack.get(rvalue).second;
-        auto acc = next_instruction_is_temporary() and
-                           not last_instruction_is_assignment()
+        auto acc = next_ir_instruction_is_temporary() and
+                           not last_ir_instruction_is_assignment()
                        ? get_second_register_from_size(size)
                        : get_accumulator_register_from_size(size);
-        addiis(instructions_, mov, acc, stack.get(rvalue).first);
+        add_i_s(instructions_, mov, acc, stack.get(rvalue).first);
         from_ita_unary_expression(op, acc);
     } else {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
         auto size = detail::get_operand_size_from_rvalue_datatype(immediate);
-        auto acc = next_instruction_is_temporary() and
-                           not last_instruction_is_assignment()
+        auto acc = next_ir_instruction_is_temporary() and
+                           not last_ir_instruction_is_assignment()
                        ? get_second_register_from_size(size)
                        : get_accumulator_register_from_size(size);
-        addiis(instructions_, mov, acc, immediate);
+        add_i_s(instructions_, mov, acc, immediate);
         from_ita_unary_expression(op, acc);
     }
 }
@@ -331,14 +354,14 @@ void Code_Generator::from_binary_operator_expression(
             },
         m::pattern | m::ds(m::app(is_address, true), m::app(is_address, true)) =
             [&] {
-                if (!last_instruction_is_assignment()) {
+                if (!last_ir_instruction_is_assignment()) {
                     lhs_s = get_storage_device(stack.get(lhs).second);
-                    addiis(instructions_, mov, lhs_s, stack.get(lhs).first);
+                    add_i_s(instructions_, mov, lhs_s, stack.get(lhs).first);
                     rhs_s = stack.get(rhs).first;
                 } else {
                     lhs_s = get_accumulator_register_from_size(
                         stack.get(lhs).second);
-                    addiis(instructions_, mov, lhs_s, stack.get(lhs).first);
+                    add_i_s(instructions_, mov, lhs_s, stack.get(lhs).first);
                     rhs_s = stack.get(rhs).first;
                 }
             },
@@ -353,7 +376,8 @@ void Code_Generator::from_binary_operator_expression(
                     rhs_s = immediate_stack.back();
                     immediate_stack.pop_back();
                     if (!immediate_stack.empty()) {
-                        addiis(instructions_, mov, acc, immediate_stack.back());
+                        add_i_s(
+                            instructions_, mov, acc, immediate_stack.back());
                         immediate_stack.pop_back();
                     }
                 } else {
@@ -366,10 +390,10 @@ void Code_Generator::from_binary_operator_expression(
             [&] {
                 lhs_s = stack.get(lhs).first;
                 rhs_s = get_storage_for_binary_operator(rhs);
-                if (last_instruction_is_assignment()) {
+                if (last_ir_instruction_is_assignment()) {
                     auto acc = get_accumulator_register_from_size(
                         stack.get(lhs).second);
-                    addiis(instructions_, mov, acc, stack.get(lhs).first);
+                    add_i_s(instructions_, mov, acc, stack.get(lhs).first);
                 }
                 if (is_temporary(rhs)) {
                     lhs_s = get_accumulator_register_from_size(
@@ -377,11 +401,11 @@ void Code_Generator::from_binary_operator_expression(
                     rhs_s = stack.get(lhs).first;
                 }
 
-                if (is_instruction_temporary()) {
+                if (is_ir_instruction_temporary()) {
                     if (type::is_bitwise_binary_operator(op)) {
                         auto storage =
                             get_storage_device(stack.get(lhs).second);
-                        addiis(
+                        add_i_s(
                             instructions_, mov, storage, stack.get(lhs).first);
                         lhs_s = storage;
                     } else {
@@ -394,12 +418,12 @@ void Code_Generator::from_binary_operator_expression(
             [&] {
                 lhs_s = get_storage_for_binary_operator(lhs);
                 rhs_s = stack.get(rhs).first;
-                if (last_instruction_is_assignment()) {
+                if (last_ir_instruction_is_assignment()) {
                     auto acc = get_accumulator_register_from_size(
                         stack.get(rhs).second);
-                    addiis(instructions_, mov, acc, stack.get(rhs).first);
+                    add_i_s(instructions_, mov, acc, stack.get(rhs).first);
                 }
-                if (is_temporary(lhs) or is_instruction_temporary())
+                if (is_temporary(lhs) or is_ir_instruction_temporary())
                     rhs_s = get_accumulator_register_from_size(
                         stack.get(rhs).second);
             },
@@ -458,11 +482,11 @@ void Code_Generator::insert_from_temporary_lvalue(
         from_temporary_unary_operator_expression(temporary);
     } else if (type::is_rvalue_data_type(temporary)) {
         auto imm = type::get_rvalue_datatype_from_string(temporary);
-        addiill(instructions_, mov, eax, imm);
+        add_i_ll(instructions_, mov, eax, imm);
     } else {
         auto symbols = table_->get_stack_frame_symbols();
         auto imm = symbols.get_symbol_by_name(temporary);
-        addiill(instructions_, mov, eax, imm);
+        add_i_ll(instructions_, mov, eax, imm);
     }
 }
 
@@ -528,7 +552,7 @@ void Code_Generator::insert_from_immediate_rvalues(
             detail::get_result_from_trivial_integral_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(
             detail::get_operand_size_from_rvalue_datatype(lhs));
-        addiis(instructions_, mov, acc, imm);
+        add_i_s(instructions_, mov, acc, imm);
         return;
     }
 
@@ -537,7 +561,7 @@ void Code_Generator::insert_from_immediate_rvalues(
             detail::get_result_from_trivial_relational_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
         special_register = acc;
-        addiis(instructions_, mov, acc, imm);
+        add_i_s(instructions_, mov, acc, imm);
         return;
     }
 
@@ -546,8 +570,8 @@ void Code_Generator::insert_from_immediate_rvalues(
             detail::get_result_from_trivial_bitwise_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(
             detail::get_operand_size_from_rvalue_datatype(lhs));
-        if (!is_instruction_temporary())
-            addiis(instructions_, mov, acc, imm);
+        if (!is_ir_instruction_temporary())
+            add_i_s(instructions_, mov, acc, imm);
         else
             immediate_stack.emplace_back(imm);
         return;
@@ -590,6 +614,12 @@ void Code_Generator::from_ita_unary_expression(
             std::string{ "--" } = [&] { instructions = detail::dec(dest); },
         m::pattern |
             std::string{ "~" } = [&] { instructions = detail::b_not(dest); },
+        m::pattern | std::string{ "&" } =
+            [&] {
+                auto acc =
+                    get_accumulator_register_from_size(Operand_Size::Qword);
+                instructions = detail::lea(acc, dest);
+            },
         m::pattern |
             std::string{ "-" } = [&] { instructions = detail::neg(dest); },
         m::pattern | std::string{ "+" } = [&] {});
@@ -598,15 +628,15 @@ void Code_Generator::from_ita_unary_expression(
 
 void Code_Generator::from_return_ita(Storage const& dest)
 {
-    addiilr(instructions_, mov, dest, eax);
+    add_i_llr(instructions_, mov, dest, eax);
 }
 
 void Code_Generator::from_leave_ita()
 {
     if (current_frame == "main")
-        addiilrs(instructions_, xor_, eax, eax);
-    adiild(instructions_, pop, rbp);
-    addiie(instructions_, ret);
+        add_i_llrs(instructions_, xor_, eax, eax);
+    add_i_ld(instructions_, pop, rbp);
+    add_i_e(instructions_, ret);
 }
 
 void Code_Generator::from_label_ita(IR_Instruction const& inst)
@@ -630,7 +660,7 @@ Code_Generator::from_arithmetic_expression_operands(
         m::pattern | std::string{ "/" } =
             [&] {
                 auto storage = get_storage_device(Operand_Size::Dword);
-                addiis(instructions.second, mov, storage, operands.first);
+                add_i_s(instructions.second, mov, storage, operands.first);
                 instructions = detail::div(storage, operands.second);
             },
         m::pattern | std::string{ "-" } =
@@ -645,7 +675,7 @@ Code_Generator::from_arithmetic_expression_operands(
             [&] {
                 auto storage = get_storage_device(Operand_Size::Dword);
                 special_register = Register::edx;
-                addiis(instructions.second, mov, storage, operands.first);
+                add_i_s(instructions.second, mov, storage, operands.first);
                 instructions = detail::mod(storage, operands.second);
             });
     return instructions;
@@ -767,25 +797,54 @@ constexpr void detail::Stack::set_address_from_immediate(
     LValue const& lvalue,
     Immediate const& rvalue)
 {
-    auto operand_size = detail::get_operand_size_from_rvalue_datatype(rvalue);
-    auto value_size = detail::get_size_from_operand_size(operand_size);
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
+    auto operand_size = get_operand_size_from_rvalue_datatype(rvalue);
+    auto value_size = get_size_from_operand_size(operand_size);
     size += value_size;
-    stack_address[lvalue].first = size;
-    stack_address[lvalue].second = operand_size;
+    stack_address.insert(lvalue, { size, operand_size });
 }
 
 constexpr void detail::Stack::set_address_from_accumulator(
     LValue const& lvalue,
     Register acc)
 {
-    auto register_size = detail::get_size_from_accumulator_register(acc);
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
+    auto register_size = get_size_from_accumulator_register(acc);
     size += detail::get_size_from_operand_size(register_size);
-    stack_address[lvalue].first = size;
-    stack_address[lvalue].second = register_size;
+    stack_address.insert(lvalue, { size, register_size });
+}
+
+constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
+{
+    auto word_size = Operand_Size::Qword;
+    size = align_up_to_16(size + detail::get_size_from_operand_size(word_size));
+    stack_address.insert(lvalue, { size, word_size });
+}
+
+constexpr void detail::Stack::set_address_from_stack(
+    LValue const& lhs,
+    LValue const& rhs)
+{
+    if (stack_address[lhs].second != Operand_Size::Empty)
+        return;
+    auto operand_size = get(rhs).second;
+    size += detail::get_size_from_operand_size(operand_size);
+    stack_address.insert(lhs, { size, operand_size });
+}
+
+constexpr inline std::string detail::Stack::get_lvalue_from_offset(
+    Offset offset)
+{
+    auto search = std::ranges::find_if(
+        stack_address.begin(), stack_address.end(), [&](Pair const& pair) {
+            return pair.second.first == offset;
+        });
+    if (search != stack_address.end())
+        return search->first;
+    else
+        return "";
 }
 
 } // namespace x86_64

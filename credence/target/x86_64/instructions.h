@@ -44,31 +44,31 @@
 #define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
     detail::Instruction_Pair name(detail::Storage const& src)
 
-#define addiis(inst, op, lhs, rhs)      \
+#define add_i_s(inst, op, lhs, rhs)      \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
 
-#define addiill(inst, op, lhs, rhs)     \
+#define add_i_ll(inst, op, lhs, rhs)     \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, rhs})
 
-#define addiilr(inst, op, lhs, rhs)     \
+#define add_i_llr(inst, op, lhs, rhs)     \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, Register::rhs})
 
-#define addiilrs(inst, op, lhs, rhs)    \
+#define add_i_llrs(inst, op, lhs, rhs)    \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
 
-#define addiie(inst, op)                \
+#define add_i_e(inst, op)                \
     inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
 
-#define addiid(inst, op, dest)          \
+#define add_i_d(inst, op, dest)          \
     inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
 
-#define adiild(inst, op, dest)          \
+#define add_i_ld(inst, op, dest)          \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::dest, detail::O_NUL})
 
-#define addiils(inst, op, dest)         \
+#define add_i_ls(inst, op, dest)         \
     inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
 
-#define addii(inst, op, lhs, rhs)       \
+#define add_i(inst, op, lhs, rhs)       \
     inst.emplace_back(detail::Instruction{op, lhs, rhs})
 
 #define STRINGIFY2(X) #X
@@ -152,6 +152,10 @@ enum class Mnemonic
     cmp, sete, setne, setl, setg,
     setle, setge, mov_, and_, or_,
     xor_, not_, shl, shr
+};
+
+constexpr const auto QWORD_STORAGE_MNEMONIC = {
+    mn(lea)
 };
 
 // clang-format on
@@ -366,6 +370,19 @@ using Instructions =
     std::deque<std::variant<type::semantic::Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, detail::Instructions>;
 
+inline Instructions make() noexcept
+{
+    return Instructions{};
+}
+
+constexpr std::string tabwidth(unsigned int t)
+{
+    std::string tab{};
+    for (; t > 0; t--)
+        tab += " ";
+    return tab;
+}
+
 Immediate get_result_from_trivial_integral_expression(
     Immediate const& lhs,
     std::string const& op,
@@ -379,9 +396,12 @@ Immediate get_result_from_trivial_bitwise_expression(
     std::string const& op,
     Immediate const& rhs);
 
-inline Instructions make()
+constexpr bool is_qword_storage_mnemonic(Mnemonic inst)
 {
-    return Instructions{};
+    return std::ranges::find(
+               QWORD_STORAGE_MNEMONIC.begin(),
+               QWORD_STORAGE_MNEMONIC.end(),
+               inst) != QWORD_STORAGE_MNEMONIC.end();
 }
 
 std::string get_storage_as_string(Storage const& storage);
@@ -428,5 +448,7 @@ DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
+// pointers
+DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lea);
 
 } // namespace x86_64::detail

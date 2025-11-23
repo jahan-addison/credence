@@ -126,14 +126,14 @@ Instruction_Pair add_2ary_inst(
     Storage const& src)
 {
     auto instructions = make();
-    addii(instructions, mnemonic, dest, src);
+    add_i(instructions, mnemonic, dest, src);
     return { dest, instructions };
 }
 
 Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
 {
     auto instructions = make();
-    addii(instructions, mnemonic, src, O_NUL);
+    add_i(instructions, mnemonic, src, O_NUL);
     return { src, instructions };
 }
 
@@ -145,18 +145,18 @@ Instruction_Pair mul(Storage const& dest, Storage const& src)
 Instruction_Pair div(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiie(inst, cdq);
-    addiis(inst, mov, dest, src);
-    addiid(inst, idiv, dest);
+    add_i_e(inst, cdq);
+    add_i_s(inst, mov, dest, src);
+    add_i_d(inst, idiv, dest);
     return { src, inst };
 }
 
 Instruction_Pair mod(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiie(inst, cdq);
-    addiis(inst, mov, dest, src);
-    addiid(inst, idiv, dest);
+    add_i_e(inst, cdq);
+    add_i_s(inst, mov, dest, src);
+    add_i_d(inst, idiv, dest);
     return { rr(edx), inst };
 }
 
@@ -188,66 +188,66 @@ Instruction_Pair neg(Storage const& dest)
 Instruction_Pair r_eq(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, src);
-    adiild(inst, sete, al);
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, src);
+    add_i_ld(inst, sete, al);
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_neq(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, src);
-    adiild(inst, setne, al);
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, src);
+    add_i_ld(inst, setne, al);
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_lt(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, src);
-    adiild(inst, setl, al);
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, src);
+    add_i_ld(inst, setl, al);
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_gt(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, src);
-    adiild(inst, setg, al);
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, src);
+    add_i_ld(inst, setg, al);
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_le(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, src);
-    adiild(inst, setle, al);
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, src);
+    add_i_ld(inst, setle, al);
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_ge(Storage const& dest, Storage const& src)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, src);
-    adiild(inst, setge, al);
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, src);
+    add_i_ld(inst, setge, al);
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
@@ -284,13 +284,18 @@ Instruction_Pair b_not(Storage const& dest)
 Instruction_Pair u_not(Storage const& dest)
 {
     auto inst = make();
-    addiill(inst, mov, eax, dest);
-    addiill(inst, cmp, eax, make_int_immediate(0));
-    adiild(inst, setne, al);
-    addiis(inst, xor_, rr(al), make_int_immediate(-1));
-    addiis(inst, and_, rr(al), make_int_immediate(1));
-    addiilrs(inst, mov, eax, al);
+    add_i_ll(inst, mov, eax, dest);
+    add_i_ll(inst, cmp, eax, make_int_immediate(0));
+    add_i_ld(inst, setne, al);
+    add_i_s(inst, xor_, rr(al), make_int_immediate(-1));
+    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
+}
+
+Instruction_Pair lea(Storage const& dest, Storage const& src)
+{
+    return add_2ary_inst(mn(lea), dest, src);
 }
 
 } // namespace x86_64::detail

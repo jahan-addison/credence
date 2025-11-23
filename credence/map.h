@@ -59,6 +59,16 @@ class Ordered_Map
         }
         return data[key_to_index[key]].second;
     }
+
+    constexpr Value& operator[](Key const& key) const
+    {
+        if (!contains(key)) {
+            data.emplace_back(key, Value());
+            key_to_index[key] = data.size() - 1;
+        }
+        return data[key_to_index.at(key)].second;
+    }
+
     constexpr inline Entry first() { return data.front(); }
     constexpr inline Entry last() { return data.back(); }
     constexpr inline Entry prev()
@@ -73,14 +83,6 @@ class Ordered_Map
     constexpr inline std::size_t size() { return data.size(); }
     constexpr inline bool empty() { return data.empty(); }
 
-    constexpr Value& operator[](Key const& key) const
-    {
-        if (!contains(key)) {
-            data.emplace_back(key, Value());
-            key_to_index[key] = data.size() - 1;
-        }
-        return data[key_to_index.at(key)].second;
-    }
     constexpr bool contains(Key const& key) const
     {
         return key_to_index.contains(key);
