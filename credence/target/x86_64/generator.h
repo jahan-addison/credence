@@ -44,8 +44,8 @@ class Stack
 {
   public:
     explicit Stack() = default;
-    Stack(Stack const&) = delete;
-    Stack& operator=(Stack const&) = delete;
+    Stack(Stack const&) = default;
+    Stack& operator=(Stack const&) = default;
 
   public:
     using LValue = type::semantic::LValue;
@@ -76,8 +76,10 @@ class Stack
     }
 
   public:
-    constexpr inline std::string get_lvalue_from_offset(Offset offset);
-    constexpr detail::Operand_Size get_operand_size_from_offset(Offset offset);
+    constexpr inline std::string get_lvalue_from_offset(Offset offset) const;
+    constexpr detail::Operand_Size get_operand_size_from_offset(
+        Offset offset) const;
+
     constexpr Offset allocate(Operand_Size operand);
     constexpr void set_address_from_accumulator(
         LValue const& lvalue,
@@ -92,6 +94,24 @@ class Stack
     Offset size{ 0 };
     Local stack_address{};
 };
+
+constexpr std::string emit_immediate_storage(Immediate const& immediate);
+constexpr std::string emit_stack_storage(
+    Stack const& stack,
+    Stack::Offset offset,
+    bool with_size = true);
+std::string emit_register_storage(Register device, bool with_size = false);
+
+namespace flag {
+
+enum Instruction_Flag : unsigned int
+{
+    None = 0,
+    Address = 1 << 0,
+    Indirect = 1 << 1
+};
+
+} // namespace flag
 
 } // namespace detail
 
@@ -125,7 +145,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build();
+    void build_instructions();
     void from_func_start_ita(type::semantic::Label const& name) override;
     void from_func_end_ita() override;
     void from_locl_ita(IR_Instruction const& inst) override;
@@ -165,10 +185,14 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    std::string emit_storage_device(
+        Storage const& storage,
+        bool with_size);
     Instruction_Pair from_ita_expression(type::semantic::RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
-        Storage const& dest);
+        Storage const& dest,
+        Storage const& src = detail::O_NUL);
     Instruction_Pair from_bitwise_expression_operands(
         Storage_Operands const& operands,
         std::string const& binary_op);
@@ -200,9 +224,6 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Storage& rhs);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    std::string emit_storage_device(
-        Storage const& storage,
-        bool with_prefix = true);
     void set_table_stack_frame(type::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -266,11 +287,16 @@ class Code_Generator final : public target::Backend<detail::Storage>
     std::size_t constant_index{ 0 };
 
     Register special_register{ Register::eax };
-    bool address_assignment{ false };
 
+  private:
     std::deque<Immediate> immediate_stack{};
-    Instructions instructions_;
-    Instructions data_;
+    bool address_ir_assignment{ false };
+
+  private:
+    void set_instruction_flag(detail::flag::Instruction_Flag set_flag);
+    Ordered_Map<unsigned int, unsigned int> instruction_flag{};
+    Instructions instructions_{};
+    Instructions data_{};
 };
 
 void emit(

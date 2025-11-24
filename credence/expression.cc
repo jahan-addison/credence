@@ -47,6 +47,15 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
     auto expression = Expression{};
     auto node_type = node["node"].to_string();
 
+    // pointer indirection assignment:
+    // i.e. "*k = 10", "*e = *k++", etc.
+    if (node.has_key("left") and
+        node["left"]["node"].to_string() == "assignment_expression") {
+        expression.value =
+            std::make_shared<Expression>(from_assignment_expression_node(node));
+        return expression;
+    }
+
     m::match(node_type)(
         // cppcheck-suppress syntaxError
         m::pattern | "constant_literal" =
@@ -253,24 +262,46 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
 Expression_Parser::Expression
 Expression_Parser::from_assignment_expression_node(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "assignment_expression");
-    CREDENCE_ASSERT(node.has_key("left"));
-    CREDENCE_ASSERT(node.has_key("right"));
+    if (node["left"]["node"].to_string() == "assignment_expression") {
+        // pointer indirection assignment:
+        // i.e. "*k = 10", "*e = *k++", etc.
+        auto indirect_node = util::AST::object();
+        indirect_node["node"] = "indirect_lvalue";
+        indirect_node["left"] = node["left"]["left"];
+        indirect_node["root"][0] = "*";
+        auto left_child_node = indirect_node;
+        auto right_child_node = node["left"]["right"];
+        if (!is_symbol(left_child_node["left"]))
+            credence_compile_error(
+                "identifier of assignment not declared with 'auto' or 'extrn'",
+                left_child_node["left"]["root"].to_string(),
+                internal_symbols_);
+        auto lhs = from_lvalue_expression_node(left_child_node);
+        auto rhs = make_expression_pointer_from_ast(right_child_node);
+        Expression expression = Expression{};
+        expression.value = make_pair(lhs, rhs);
+        return expression;
+    } else {
+        CREDENCE_ASSERT_NODE(node["node"].to_string(), "assignment_expression");
 
-    auto left_child_node = node["left"];
-    auto right_child_node = node["right"];
-    if (!is_symbol(left_child_node))
-        credence_compile_error(
-            "identifier of assignment not declared with 'auto' or 'extrn'",
-            left_child_node["root"].to_string(),
-            internal_symbols_);
+        CREDENCE_ASSERT(node.has_key("left"));
+        CREDENCE_ASSERT(node.has_key("right"));
 
-    auto lhs = from_lvalue_expression_node(left_child_node);
-    auto rhs = make_expression_pointer_from_ast(right_child_node);
-    Expression expression = Expression{};
-    expression.value = make_pair(lhs, rhs);
+        auto left_child_node = node["left"];
+        auto right_child_node = node["right"];
+        if (!is_symbol(left_child_node))
+            credence_compile_error(
+                "identifier of assignment not declared with 'auto' or 'extrn'",
+                left_child_node["root"].to_string(),
+                internal_symbols_);
 
-    return expression;
+        auto lhs = from_lvalue_expression_node(left_child_node);
+        auto rhs = make_expression_pointer_from_ast(right_child_node);
+        Expression expression = Expression{};
+        expression.value = make_pair(lhs, rhs);
+
+        return expression;
+    }
 }
 
 /**
@@ -280,7 +311,6 @@ Expression_Parser::Expression::LValue
 Expression_Parser::from_lvalue_expression_node(Node const& node)
 {
     auto constant_type = node["node"].to_string();
-
     if (!symbols_.is_defined(node["root"].to_string()) and
         !symbols_.is_defined(node["left"]["root"].to_string())) {
         std::string name{};
@@ -331,8 +361,13 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
             },
         m::pattern | "indirect_lvalue" =
             [&] {
-                lvalue = internal::value::make_lvalue(
-                    std::format("*{}", node["left"]["root"].to_string()));
+                if (node["left"].has_key("left")) {
+                    lvalue = internal::value::make_lvalue(
+                        std::format(
+                            "*{}", node["left"]["left"]["root"].to_string()));
+                } else
+                    lvalue = internal::value::make_lvalue(
+                        std::format("*{}", node["left"]["root"].to_string()));
             });
     return lvalue;
 }
@@ -363,7 +398,7 @@ Expression_Parser::Literal Expression_Parser::from_indirect_identifier_node(
     if (!is_symbol(node["left"]))
         credence_compile_error(
             "indirect identifier not defined, did you forget to declare with "
-            "auto or extrn? No symbol found",
+            "auto or extrn?",
             node["root"].to_string(),
             internal_symbols_);
 

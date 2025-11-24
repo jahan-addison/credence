@@ -37,9 +37,9 @@ class Ordered_Map
     constexpr explicit Ordered_Map() = default;
 
   public:
-    constexpr Ordered_Map(Ordered_Map const&) = default;
-    constexpr Ordered_Map& operator=(Ordered_Map const&) = default;
-    constexpr Ordered_Map(Ordered_Map&& other) = default;
+    Ordered_Map(Ordered_Map const&) = default;
+    Ordered_Map& operator=(Ordered_Map const&) = default;
+    Ordered_Map(Ordered_Map&& other) = default;
 
   public:
     constexpr void insert(Key const& key, Value const& value)

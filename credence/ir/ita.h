@@ -432,8 +432,6 @@ class ITA
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_rvalue_statement(Node const& node);
-    std::vector<std::string> build_from_expression_node(
-        internal::value::Expression::Type & rvalue);
 
   private:
     void insert_branch_block_instructions(
