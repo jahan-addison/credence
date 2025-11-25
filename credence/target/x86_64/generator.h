@@ -95,16 +95,11 @@ class Stack
     Local stack_address{};
 };
 
-constexpr std::string emit_immediate_storage(Immediate const& immediate);
-constexpr std::string emit_stack_storage(
-    Stack const& stack,
-    Stack::Offset offset,
-    bool with_size = true);
-std::string emit_register_storage(Register device, bool with_size = false);
-
 namespace flag {
 
-enum Instruction_Flag : unsigned int
+using flags = unsigned int;
+
+enum Instruction_Flag : flags
 {
     None = 0,
     Address = 1 << 0,
@@ -112,6 +107,16 @@ enum Instruction_Flag : unsigned int
 };
 
 } // namespace flag
+
+constexpr std::string emit_immediate_storage(Immediate const& immediate);
+std::string emit_stack_storage(
+    Stack const& stack,
+    Stack::Offset offset,
+    flag::flags flags);
+std::string emit_register_storage(
+    Register device,
+    Operand_Size size,
+    flag::flags flags);
 
 } // namespace detail
 
@@ -187,7 +192,8 @@ class Code_Generator final : public target::Backend<detail::Storage>
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(
         Storage const& storage,
-        bool with_size);
+        Operand_Size size,
+        detail::flag::flags flag);
     Instruction_Pair from_ita_expression(type::semantic::RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
@@ -205,6 +211,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void insert_from_temporary_lvalue(type::semantic::LValue const& lvalue);
+    void insert_from_rvalue(type::semantic::RValue const& rvalue);
     void insert_from_op_operands(
         Storage_Operands& operands,
         std::string const& op);
@@ -244,6 +251,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     }
 
   private:
+    Storage get_lvalue_address(type::semantic::LValue const& lvalue);
     using Operand_Lambda = std::function<bool(type::semantic::RValue)>;
     Operand_Lambda is_immediate = [&](type::semantic::RValue const& rvalue) {
         return type::is_rvalue_data_type(rvalue);
@@ -254,6 +262,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
     Operand_Lambda is_temporary = [&](type::semantic::RValue const& rvalue) {
         return type::is_temporary(rvalue);
     };
+
+  private:
+    Operand_Size get_operand_size_from_storage(Storage const& storage);
 
   private:
     inline bool is_ir_instruction_temporary()
@@ -294,7 +305,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   private:
     void set_instruction_flag(detail::flag::Instruction_Flag set_flag);
-    Ordered_Map<unsigned int, unsigned int> instruction_flag{};
+    Ordered_Map<unsigned int, detail::flag::flags> instruction_flag{};
     Instructions instructions_{};
     Instructions data_{};
 };

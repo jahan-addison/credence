@@ -248,7 +248,7 @@ constexpr semantic::RValue get_unary_rvalue_reference(
 /**
  * @brief Check if an expression contains unary operator
  */
-constexpr bool is_unary_operator(RValue_Reference rvalue)
+constexpr bool is_unary_expression(RValue_Reference rvalue)
 {
     if (util::substring_count_of(rvalue, " ") >= 2)
         return false;

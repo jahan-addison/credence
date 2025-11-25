@@ -215,7 +215,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
 
     type::Data_Type rvalue_symbol = type::NULL_RVALUE_LITERAL;
 
-    if (type::is_unary_operator(rhs))
+    if (type::is_unary_expression(rhs))
         rvalue_symbol = from_rvalue_unary_expression(
             lhs, rhs, type::get_unary_operator(rhs));
 
@@ -226,7 +226,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
         rvalue_symbol = type::get_rvalue_datatype_from_string(rhs);
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and
-        type::is_unary_operator(rvalue.second))
+        type::is_unary_expression(rvalue.second))
         rvalue_symbol = from_rvalue_unary_expression(lhs, rhs, rvalue.second);
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL)
@@ -373,7 +373,9 @@ void Table::from_trivial_vector_assignment(
 /**
  * @brief Reassigns pointers and vectors, or scalers and dereferenced
  * pointers
- *
+
+ * Note: To get a better idea of how this function works,
+ * check the test cases in test/fixtures/types
  */
 void Table::safely_reassign_pointers_or_vectors(
     LValue const& lvalue,
@@ -385,7 +387,7 @@ void Table::safely_reassign_pointers_or_vectors(
         util::overload{
             [&](RValue const& value) {
                 // the right-hand-side must be a pointer, vector, or
-                // indirect lvalue
+                // lvalue dereference
                 if (is_trivial_vector_assignment(lvalue, value)) {
                     // special case for trivial global vectors
                     if (vectors.contains(lvalue) and
@@ -412,28 +414,63 @@ void Table::safely_reassign_pointers_or_vectors(
                     }
                     return;
                 }
-                if (!locals.is_pointer(lvalue) or
-                    not locals.is_pointer(value)) {
-                    // do not allow dereferencing of null pointers
-                    if (indirection) {
+                // Check that the left-hand-side is a pointer to a valid address
+                if (!type::is_unary_expression(lvalue) and
+                    (not locals.is_pointer(lvalue) or
+                     not locals.is_pointer(value))) {
+                    if (indirection and not type::is_rvalue_data_type(value))
                         construct_error(
-                            "invalid pointer assignment, right-hand-side "
-                            "is a "
-                            "dereferenced null pointer",
+                            std::format(
+                                "invalid pointer assignment, right-hand-side "
+                                "'{}' is an invalid rvalue",
+                                value),
                             lvalue);
-                    } else {
+                    else if (!indirection)
                         // the lvalue and rvalue must both be pointers
                         construct_error(
                             std::format(
                                 "invalid pointer assignment, "
-                                "left-hand-side "
-                                "\"{}\" "
-                                "and right-hand-side must both be pointers",
+                                "left-hand-side '{}' and right-hand-side must "
+                                "both be pointers",
                                 lvalue),
                             value);
-                        locals.set_symbol_by_name(lvalue, value);
-                    }
                 }
+                // dereference assignment, check for invalid or null pointers
+                if (type::is_unary_expression(lvalue) or
+                    type::is_unary_expression(value)) {
+                    auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
+                    if (!locals.is_pointer(lhs_lvalue))
+                        construct_error(
+                            "invalid lvalue pointer dereference, "
+                            "left-hand-side is a non-pointer",
+                            lhs_lvalue);
+                    auto rhs_rvalue = type::get_unary_rvalue_reference(value);
+                    if (!type::is_rvalue_data_type(rhs_rvalue) or
+                        !locals.is_pointer(rhs_rvalue)) {
+                        if (rhs_rvalue == "NULL")
+                            construct_error(
+                                "invalid pointer dereference, "
+                                "right-hand-side is a null pointer!",
+                                lvalue);
+                        else if (!locals.is_pointer(rhs_rvalue))
+                            construct_error(
+                                std::format(
+                                    "invalid pointer dereference on '{}', "
+                                    "right-hand-side is a null pointer!",
+                                    lvalue),
+                                value);
+                    }
+                    auto symbol = locals.get_pointer_by_name(rhs_rvalue);
+                    if (type::is_rvalue_data_type(rhs_rvalue)) {
+                        locals.set_symbol_by_name(
+                            symbol,
+                            type::get_rvalue_datatype_from_string(rhs_rvalue));
+                    } else {
+                        locals.set_symbol_by_name(symbol, rhs_rvalue);
+                    }
+                    return;
+                }
+                locals.set_symbol_by_name(lvalue, value);
             },
             [&](type::Data_Type const& value) {
                 if (!indirection and locals.is_pointer(lvalue))
@@ -641,7 +678,7 @@ type::Data_Type Table::from_rvalue_unary_expression(
                         rvalue);
                 LValue indirection = locals.get_pointer_by_name(rhs_lvalue);
                 from_pointer_or_vector_assignment(lvalue, indirection, true);
-                return locals.get_symbol_by_name(lvalue);
+                return type::Data_Type{ lvalue, "word", sizeof(void*) };
             },
         m::pattern | "&" =
             [&] {
@@ -778,7 +815,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
 
             auto local_rvalue_reference =
                 type::get_value_from_rvalue_data_type(local_rvalue);
-            if (type::is_unary_operator(local_rvalue_reference)) {
+            if (type::is_unary_expression(local_rvalue_reference)) {
                 auto lvalue_symbol = locals.get_symbol_by_name(lvalue);
                 auto lvalue_type =
                     type::get_type_from_rvalue_data_type(lvalue_symbol);

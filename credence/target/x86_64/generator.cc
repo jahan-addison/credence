@@ -49,30 +49,38 @@ void Code_Generator::emit(std::ostream& os)
     os << ".intel_syntax noprefix" << std::endl;
     os << std::endl;
 
-    for (auto const& inst : instructions_) {
+    for (std::size_t index = 0; index < instructions_.size(); index++) {
+        auto inst = instructions_[index];
         std::visit(
+            // clang-format off
             util::overload{
-                [&](detail::Instruction const& s) {
-                    auto [mnemonic, dest, src] = s;
-                    bool storage_size = true;
+            [&](detail::Instruction const& s) {
+                auto [mnemonic, dest, src] = s;
 
-                    if (detail::is_qword_storage_mnemonic(mnemonic))
-                        storage_size = false;
+                auto flags = instruction_flag.contains(index)
+                    ? instruction_flag[index] : 0UL;
 
-                    os << detail::tabwidth(4) << mnemonic;
+                os << detail::tabwidth(4) << mnemonic;
 
-                    if (!is_empty_storage(dest))
-                        os << " " << emit_storage_device(dest, storage_size);
-                    if (!is_empty_storage(src))
-                        os << ", " << emit_storage_device(src, storage_size);
+                auto size = get_operand_size_from_storage(src);
 
-                    os << std::endl;
-                },
+                if (!is_empty_storage(dest)) {
+                    os << " " << emit_storage_device(dest, size, flags);
+                    if (flags & detail::flag::Indirect and is_variant(Register, src))
+                        flags &= ~ detail::flag::Indirect;
+                }
 
-                [&](type::semantic::Label const& s) {
-                    os << s << ":" << std::endl;
-                } },
-            inst);
+                if (!is_empty_storage(src))
+                    os << ", " << emit_storage_device(src, size, flags);
+
+                os << std::endl;
+            },
+
+            [&](type::semantic::Label const& s) {
+                os << s << ":" << std::endl;
+            } },
+        inst);
+        // clang-format on
     }
     os << std::endl;
 }
@@ -109,30 +117,30 @@ constexpr std::string detail::emit_immediate_storage(Immediate const& immediate)
     return type::get_value_from_rvalue_data_type(immediate);
 }
 
-constexpr std::string detail::emit_stack_storage(
+std::string detail::emit_stack_storage(
     Stack const& stack,
     Stack::Offset offset,
-    bool with_size)
+    flag::flags flags)
 {
     std::string as_str{};
     auto size = stack.get_operand_size_from_offset(offset);
     std::string prefix = storage_prefix_from_operand_size(size);
-    if (with_size)
-        as_str = std::format("{} [rbp - {}]", prefix, offset);
-    else
+    if (flags & flag::Address)
         as_str = std::format("[rbp - {}]", offset);
+    else
+        as_str = std::format("{} [rbp - {}]", prefix, offset);
     return as_str;
 }
 
 std::string detail::emit_register_storage(
     Register device,
-    bool with_size) // not constexpr until C++23
+    Operand_Size size,
+    flag::flags flags)
 {
     std::stringstream as_str{};
-    auto size =
-        is_qword_register(device) ? Operand_Size::Qword : Operand_Size::Dword;
+
     auto prefix = storage_prefix_from_operand_size(size);
-    if (with_size)
+    if (flags & flag::Indirect)
         as_str << std::format("{} [{}]", prefix, get_storage_as_string(device));
     else
         as_str << device;
@@ -142,16 +150,17 @@ std::string detail::emit_register_storage(
 
 std::string Code_Generator::emit_storage_device(
     Storage const& storage,
-    bool with_size)
+    Operand_Size size,
+    detail::flag::flags flags)
 {
     m::Id<detail::Stack::Offset> s;
     m::Id<Register> r;
     m::Id<Immediate> i;
     return m::match(storage)(
         m::pattern | m::as<detail::Stack::Offset>(s) =
-            [&] { return detail::emit_stack_storage(stack, *s, with_size); },
+            [&] { return detail::emit_stack_storage(stack, *s, flags); },
         m::pattern | m::as<Register>(r) =
-            [&] { return detail::emit_register_storage(*r); },
+            [&] { return detail::emit_register_storage(*r, size, flags); },
         m::pattern | m::as<Immediate>(i) =
             [&] { return detail::emit_immediate_storage(*i); });
 }
@@ -267,7 +276,7 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 stack.set_address_from_immediate(lhs, imm);
-                Storage lhs_storage = stack.get(lhs).first;
+                Storage lhs_storage = get_lvalue_address(lhs);
                 add_i_s(instructions_, mov, lhs_storage, imm);
             },
         m::pattern | m::app(is_temporary, true) =
@@ -279,8 +288,9 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
                     add_i_s(instructions_, mov, lhs_storage, Register::rax);
                 } else {
                     auto acc = get_accumulator_register_from_size();
-                    stack.set_address_from_accumulator(lhs, acc);
-                    Storage lhs_storage = stack.get(lhs).first;
+                    if (!type::is_unary_expression(lhs))
+                        stack.set_address_from_accumulator(lhs, acc);
+                    Storage lhs_storage = get_lvalue_address(lhs);
                     add_i_s(instructions_, mov, lhs_storage, acc);
                 }
             },
@@ -295,9 +305,9 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
                 add_i_s(instructions_, mov, acc, rhs_storage);
                 add_i_s(instructions_, mov, lhs_storage, acc);
             },
-        m::pattern | m::app(type::is_unary_operator, true) =
+        m::pattern | m::app(type::is_unary_expression, true) =
             [&] {
-                Storage lhs_storage = stack.get(lhs).first;
+                Storage lhs_storage = get_lvalue_address(lhs);
                 auto unary_op = type::get_unary_operator(rhs);
                 auto rvalue = type::get_unary_rvalue_reference(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
@@ -310,7 +320,7 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
 void Code_Generator::from_temporary_unary_operator_expression(
     type::semantic::RValue const& expr)
 {
-    CREDENCE_ASSERT(type::is_unary_operator(expr));
+    CREDENCE_ASSERT(type::is_unary_expression(expr));
     auto op = type::get_unary_operator(expr);
     type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
     if (stack.contains(rvalue)) {
@@ -395,7 +405,7 @@ void Code_Generator::from_binary_operator_expression(
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
             [&] {
-                auto size = detail::get_size_from_accumulator_register(
+                auto size = detail::get_operand_size_from_register(
                     get_accumulator_register_from_size());
                 auto acc = get_accumulator_register_from_size();
                 lhs_s = acc;
@@ -492,7 +502,7 @@ void Code_Generator::insert_from_op_operands(
     } else if (type::is_bitwise_binary_operator(op)) {
         auto inst = from_bitwise_expression_operands(operands, op);
         detail::insert(instructions_, inst.second);
-    } else if (type::is_unary_operator(op)) {
+    } else if (type::is_unary_expression(op)) {
         from_ita_unary_expression(op, operands.first);
     } else {
         credence_error(std::format("unreachable: operator {}", op));
@@ -503,16 +513,21 @@ void Code_Generator::insert_from_temporary_lvalue(
     type::semantic::LValue const& lvalue)
 {
     auto temporary = table_->from_temporary_lvalue(lvalue);
-    if (type::is_binary_expression(temporary)) {
-        from_binary_operator_expression(temporary);
-    } else if (type::is_unary_operator(temporary)) {
-        from_temporary_unary_operator_expression(temporary);
-    } else if (type::is_rvalue_data_type(temporary)) {
-        auto imm = type::get_rvalue_datatype_from_string(temporary);
+    insert_from_rvalue(temporary);
+}
+
+void Code_Generator::insert_from_rvalue(type::semantic::RValue const& rvalue)
+{
+    if (type::is_binary_expression(rvalue)) {
+        from_binary_operator_expression(rvalue);
+    } else if (type::is_unary_expression(rvalue)) {
+        from_temporary_unary_operator_expression(rvalue);
+    } else if (type::is_rvalue_data_type(rvalue)) {
+        auto imm = type::get_rvalue_datatype_from_string(rvalue);
         add_i_ll(instructions_, mov, eax, imm);
     } else {
         auto symbols = table_->get_stack_frame_symbols();
-        auto imm = symbols.get_symbol_by_name(temporary);
+        auto imm = symbols.get_symbol_by_name(rvalue);
         add_i_ll(instructions_, mov, eax, imm);
     }
 }
@@ -644,6 +659,7 @@ void Code_Generator::from_ita_unary_expression(
             std::string{ "~" } = [&] { instructions = detail::b_not(dest); },
         m::pattern | std::string{ "&" } =
             [&] {
+                set_instruction_flag(detail::flag::Address);
                 auto acc =
                     get_accumulator_register_from_size(Operand_Size::Qword);
                 instructions = detail::lea(acc, dest);
@@ -651,7 +667,6 @@ void Code_Generator::from_ita_unary_expression(
         m::pattern | std::string{ "*" } =
             [&] {
                 auto acc = get_accumulator_register_from_storage(dest);
-                instructions.first = acc;
                 add_i_s(instructions.second, mov, acc, dest);
                 set_instruction_flag(detail::flag::Indirect);
                 add_i_s(instructions.second, mov, acc, src);
@@ -790,7 +805,7 @@ void Code_Generator::set_instruction_flag(
     detail::flag::Instruction_Flag set_flag)
 {
     if (!instructions_.empty()) {
-        unsigned int index = instructions_.size() - 1;
+        unsigned int index = instructions_.size();
         if (!instruction_flag.contains(index))
             instruction_flag[index] = set_flag;
         else
@@ -798,21 +813,40 @@ void Code_Generator::set_instruction_flag(
     }
 }
 
+detail::Operand_Size Code_Generator::get_operand_size_from_storage(
+    Storage const& storage)
+{
+    namespace m = matchit;
+    m::Id<detail::Stack::Offset> s;
+    m::Id<Immediate> i;
+    m::Id<Register> r;
+    return m::match(storage)(
+        m::pattern | m::as<detail::Stack::Offset>(s) =
+            [&] { return stack.get_operand_size_from_offset(*s); },
+        m::pattern | m::as<Immediate>(i) =
+            [&] { return detail::get_operand_size_from_rvalue_datatype(*i); },
+        m::pattern | m::as<Register>(r) =
+            [&] { return detail::get_operand_size_from_register(*r); },
+        m::pattern | m::_ = [&] { return Operand_Size::Empty; });
+}
+
+Code_Generator::Storage Code_Generator::get_lvalue_address(
+    type::semantic::LValue const& lvalue)
+{
+    if (type::is_unary_expression(lvalue)) {
+        auto storage =
+            stack.get(type::get_unary_rvalue_reference(lvalue)).first;
+        add_i_s(instructions_, mov, Register::rax, storage);
+        set_instruction_flag(detail::flag::Indirect);
+        return Register::rax;
+    } else {
+        return stack.get(lvalue).first;
+    }
+}
+
 constexpr detail::Stack::Entry detail::Stack::get(LValue const& lvalue)
 {
     return stack_address[lvalue];
-}
-
-constexpr void detail::Stack::make(LValue const& lvalue)
-{
-    stack_address[lvalue] = { 0, Operand_Size::Empty };
-}
-
-constexpr detail::Stack::Offset detail::Stack::allocate(Operand_Size operand)
-{
-    auto alloc = get_size_from_operand_size(operand);
-    size += alloc;
-    return size;
 }
 
 constexpr detail::Stack::Entry detail::Stack::get(Offset offset)
@@ -825,6 +859,18 @@ constexpr detail::Stack::Entry detail::Stack::get(Offset offset)
         return { 0, Operand_Size::Empty };
     else
         return find->second;
+}
+
+constexpr void detail::Stack::make(LValue const& lvalue)
+{
+    stack_address[lvalue] = { 0, Operand_Size::Empty };
+}
+
+constexpr detail::Stack::Offset detail::Stack::allocate(Operand_Size operand)
+{
+    auto alloc = get_size_from_operand_size(operand);
+    size += alloc;
+    return size;
 }
 
 constexpr detail::Operand_Size detail::Stack::get_operand_size_from_offset(
@@ -859,7 +905,7 @@ constexpr void detail::Stack::set_address_from_accumulator(
 {
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
-    auto register_size = get_size_from_accumulator_register(acc);
+    auto register_size = get_operand_size_from_register(acc);
     size += detail::get_size_from_operand_size(register_size);
     stack_address.insert(lvalue, { size, register_size });
 }

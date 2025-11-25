@@ -66,11 +66,10 @@ struct Vector
 };
 
 /**
- * Symbolic ITA function stack frame allocation
+ * Symbolic function stack frame
  */
 struct Function
 {
-    Function() = delete;
     explicit Function(type::semantic::Label const& label)
         : symbol(label)
     {
@@ -111,7 +110,6 @@ struct Function
  *      * Vector definition map of vectors
  *         * (arrays) in the global scope
  *      * A set of labels for Instruction::GOTO jumps
- *
  */
 class Table
 {

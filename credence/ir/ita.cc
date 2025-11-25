@@ -52,12 +52,12 @@ std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
     auto r2 = std::get<2>(instruction);
     auto r3 = std::get<3>(instruction);
 
-    if (type::is_unary_operator(r2))
+    if (type::is_unary_expression(r2))
         unary = type::get_unary_operator(r2);
     if (!r2.empty())
         rvalue += r2;
 
-    if (type::is_unary_operator(r3))
+    if (type::is_unary_expression(r3))
         unary = type::get_unary_operator(r3);
     if (!r3.empty())
         rvalue += r3;

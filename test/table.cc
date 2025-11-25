@@ -92,7 +92,8 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
         false, false, false, false,
         false, true,  true,  false,
         false, true,  false, false,
-        false, false, false, true
+        false, false, false, true,
+        false, true
     };
     // clang-format on
     auto type_fixtures_path = fs::path(ROOT_PATH);
@@ -103,12 +104,25 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
             fs::path(type_fixtures_path).append(std::format("{}.json", i));
         auto path_contents =
             json::JSON::load_file(file_path.string()).to_deque();
-        if (*status)
-            REQUIRE_NOTHROW(make_table_with_global_symbols(
-                path_contents[1], path_contents[0]));
-        else
-            REQUIRE_THROWS(make_table_with_global_symbols(
-                path_contents[1], path_contents[0]));
+        if (*status) {
+            try {
+                make_table_with_global_symbols(
+                    path_contents[1], path_contents[0]);
+            } catch (...) {
+                FAIL(
+                    std::format(
+                        "FAIL: Expected '{}.json' to NOT throw exception", i));
+            }
+        } else
+            try {
+                make_table_with_global_symbols(
+                    path_contents[1], path_contents[0]);
+                FAIL(
+                    std::format(
+                        "FAIL: Expected '{}.json' to throw exception", i));
+            } catch (...) {
+                // expected
+            }
     }
 }
 
@@ -1211,16 +1225,16 @@ TEST_CASE_FIXTURE(
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
 {
     auto table = make_table(make_node());
-    auto test1 = credence::type::is_unary_operator("*k");
-    auto test2 = credence::type::is_unary_operator("!x");
-    auto test3 = credence::type::is_unary_operator("~1000");
-    auto test4 = credence::type::is_unary_operator("&z_1");
-    auto test5 = credence::type::is_unary_operator("-100");
-    auto test6 = credence::type::is_unary_operator("u++");
-    auto test7 = credence::type::is_unary_operator("--u");
-    auto test8 = credence::type::is_unary_operator("u");
-    auto test9 = credence::type::is_unary_operator("500");
-    auto test10 = credence::type::is_unary_operator("k[20]");
+    auto test1 = credence::type::is_unary_expression("*k");
+    auto test2 = credence::type::is_unary_expression("!x");
+    auto test3 = credence::type::is_unary_expression("~1000");
+    auto test4 = credence::type::is_unary_expression("&z_1");
+    auto test5 = credence::type::is_unary_expression("-100");
+    auto test6 = credence::type::is_unary_expression("u++");
+    auto test7 = credence::type::is_unary_expression("--u");
+    auto test8 = credence::type::is_unary_expression("u");
+    auto test9 = credence::type::is_unary_expression("500");
+    auto test10 = credence::type::is_unary_expression("k[20]");
 
     REQUIRE(test1 == true);
     REQUIRE(test2 == true);

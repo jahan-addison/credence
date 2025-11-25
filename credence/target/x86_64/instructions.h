@@ -235,7 +235,7 @@ constexpr bool is_dword_register(Register r)
            DWORD_REGISTER.end();
 }
 
-constexpr Operand_Size get_size_from_accumulator_register(Register acc)
+constexpr Operand_Size get_operand_size_from_register(Register acc)
 {
     if (acc == Register::al) {
         return Operand_Size::Byte;

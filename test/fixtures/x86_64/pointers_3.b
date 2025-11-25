@@ -1,8 +1,6 @@
 main() {
-    auto *a,b,*c;
+    auto *a,b;
     b = 100;
-    c = &b;
-    a = c;
+    a = &b;
     *a = 10;
-    *c = *a;
 }
