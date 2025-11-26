@@ -50,6 +50,7 @@ class Stack
   public:
     using LValue = type::semantic::LValue;
     using RValue = type::semantic::RValue;
+    using Type = type::semantic::Type;
     using Offset = detail::Stack_Offset;
     using Entry = std::pair<Offset, detail::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
@@ -85,6 +86,7 @@ class Stack
         LValue const& lvalue,
         Register acc);
     constexpr void set_address_from_address(LValue const& lvalue);
+    constexpr void set_address_from_type(LValue const& lvalue, Type type);
     constexpr void set_address_from_stack(LValue const& lhs, LValue const& rhs);
     constexpr void set_address_from_immediate(
         LValue const& lvalue,

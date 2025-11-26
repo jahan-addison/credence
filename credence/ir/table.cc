@@ -6,7 +6,7 @@
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/queue.h>  // for value_type_pointer_to_string
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for get_type_from_rvalue_data_type, get_u...
+#include <credence/types.h>  // for get_type_from_local_lvalue, get_u...
 #include <credence/util.h>   // for contains, AST_Node, is_numeric, subst...
 #include <cstddef>           // for size_t
 #include <deque>             // for __deque_iterator, operator==
@@ -314,8 +314,8 @@ void Table::from_pointer_or_vector_assignment(
                         "with "
                         "type {} is not the same type ({})",
                         rvalue,
-                        get_type_from_rvalue_data_type(lvalue),
-                        type::get_type_from_rvalue_data_type(
+                        get_type_from_local_lvalue(lvalue),
+                        type::get_type_from_local_lvalue(
                             rvalue_symbol.value())),
                     lvalue);
             vectors[lhs_lvalue]->data[offset] = rvalue_symbol.value();
@@ -344,10 +344,9 @@ void Table::from_pointer_or_vector_assignment(
                 lvalue, type::get_unary_rvalue_reference(rvalue));
         } else {
             if (!rvalue_symbol.has_value()) {
-                safely_reassign_pointers_or_vectors(
-                    lvalue, rvalue, indirection);
+                reassign_valid_pointers_or_vectors(lvalue, rvalue, indirection);
             } else {
-                safely_reassign_pointers_or_vectors(
+                reassign_valid_pointers_or_vectors(
                     lvalue, rvalue_symbol.value(), indirection);
             }
         }
@@ -377,7 +376,7 @@ void Table::from_trivial_vector_assignment(
  * Note: To get a better idea of how this function works,
  * check the test cases in test/fixtures/types
  */
-void Table::safely_reassign_pointers_or_vectors(
+void Table::reassign_valid_pointers_or_vectors(
     LValue const& lvalue,
     type::RValue_Reference_Type const& rvalue,
     bool indirection)
@@ -393,7 +392,7 @@ void Table::safely_reassign_pointers_or_vectors(
                     if (vectors.contains(lvalue) and
                         not vectors.contains(value)) {
                         auto vector_rvalue = vectors[lvalue]->data.at("0");
-                        if (get_type_from_rvalue_data_type(lvalue) != "null" and
+                        if (get_type_from_local_lvalue(lvalue) != "null" and
                             !lhs_rhs_type_is_equal(value, vector_rvalue))
                             construct_error(
                                 std::format(
@@ -403,9 +402,9 @@ void Table::safely_reassign_pointers_or_vectors(
                                     "with "
                                     "type \"{}\" is not the same type ({})",
                                     value,
-                                    type::get_type_from_rvalue_data_type(
+                                    type::get_type_from_local_lvalue(
                                         vector_rvalue),
-                                    get_type_from_rvalue_data_type(value)),
+                                    get_type_from_local_lvalue(value)),
                                 lvalue);
                         from_trivial_vector_assignment(lvalue, vector_rvalue);
                     } else if (
@@ -479,7 +478,7 @@ void Table::safely_reassign_pointers_or_vectors(
                         "pointer to non-pointer rvalue",
                         lvalue);
                 // the lvalue and rvalue vector data entry type must match
-                if (get_type_from_rvalue_data_type(lvalue) != "null" and
+                if (get_type_from_local_lvalue(lvalue) != "null" and
                     !lhs_rhs_type_is_equal(lvalue, value))
                     construct_error(
                         std::format(
@@ -488,8 +487,8 @@ void Table::safely_reassign_pointers_or_vectors(
                             "with "
                             "type \"{}\" is not the same type ({})",
                             lvalue,
-                            get_type_from_rvalue_data_type(lvalue),
-                            type::get_type_from_rvalue_data_type(value)),
+                            get_type_from_local_lvalue(lvalue),
+                            type::get_type_from_local_lvalue(value)),
                         lvalue);
                 locals.set_symbol_by_name(lvalue, value);
             } },
@@ -499,7 +498,7 @@ void Table::safely_reassign_pointers_or_vectors(
 /**
  * @brief Get the type from a symbol in the local stack frame
  */
-Table::Type Table::get_type_from_rvalue_data_type(LValue const& lvalue)
+Table::Type Table::get_type_from_local_lvalue(LValue const& lvalue)
 {
     auto& locals = get_stack_frame_symbols();
     if (util::contains(lvalue, "[")) {
@@ -509,6 +508,26 @@ Table::Type Table::get_type_from_rvalue_data_type(LValue const& lvalue)
         return std::get<1>(vectors[lhs_lvalue]->data[offset]);
     }
     return std::get<1>(locals.get_symbol_by_name(lvalue));
+}
+
+/**
+ * @brief Get the size from a symbol in the local stack frame
+ */
+Table::Size Table::get_size_from_local_lvalue(LValue const& lvalue)
+{
+    auto& locals = get_stack_frame_symbols();
+    if (util::contains(lvalue, "[")) {
+        is_boundary_out_of_range(lvalue);
+        auto lhs_lvalue = type::from_lvalue_offset(lvalue);
+        auto offset = type::from_pointer_offset(lvalue);
+        return std::get<2>(vectors[lhs_lvalue]->data[offset]);
+    }
+    if (get_type_from_local_lvalue(lvalue) == "word" and
+        locals.is_defined(type::get_unary_rvalue_reference(lvalue))) {
+        return std::get<2>(locals.get_symbol_by_name(
+            type::get_unary_rvalue_reference(lvalue)));
+    }
+    return std::get<2>(locals.get_symbol_by_name(lvalue));
 }
 
 /**
@@ -771,7 +790,7 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
                 rhs),
             lhs);
 
-    from_type_invalid_assignment(lhs, rhs);
+    type_invalid_assignment_check(lhs, rhs);
     locals.set_symbol_by_name(lhs, locals.get_symbol_by_name(rhs));
 }
 
@@ -818,7 +837,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
             if (type::is_unary_expression(local_rvalue_reference)) {
                 auto lvalue_symbol = locals.get_symbol_by_name(lvalue);
                 auto lvalue_type =
-                    type::get_type_from_rvalue_data_type(lvalue_symbol);
+                    type::get_type_from_local_lvalue(lvalue_symbol);
                 if (lvalue_type != "word")
                     assert_integral_unary_expression(
                         lvalue,
@@ -867,12 +886,12 @@ Table::Table_PTR Table::build_from_ast(
 /**
  * @brief Type checking on lvalue and rvalue
  */
-inline void Table::from_type_invalid_assignment(
+inline void Table::type_invalid_assignment_check(
     LValue const& lvalue,
     RValue const& rvalue)
 {
     auto& locals = get_stack_frame_symbols();
-    if (get_type_from_rvalue_data_type(lvalue) == "null")
+    if (get_type_from_local_lvalue(lvalue) == "null")
         return;
     if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue))
         return;
@@ -882,19 +901,19 @@ inline void Table::from_type_invalid_assignment(
                 "invalid lvalue assignment, right-hand-side \"{}\" "
                 "with type {} is not the same type ({})",
                 rvalue,
-                get_type_from_rvalue_data_type(rvalue),
-                get_type_from_rvalue_data_type(lvalue)),
+                get_type_from_local_lvalue(rvalue),
+                get_type_from_local_lvalue(lvalue)),
             lvalue);
 }
 
 /**
  * @brief Type checking on lvalue and value data type
  */
-inline void Table::from_type_invalid_assignment(
+inline void Table::type_invalid_assignment_check(
     LValue const& lvalue,
     type::Data_Type const& rvalue)
 {
-    if (get_type_from_rvalue_data_type(lvalue) == "null")
+    if (get_type_from_local_lvalue(lvalue) == "null")
         return;
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
         construct_error(
@@ -902,8 +921,8 @@ inline void Table::from_type_invalid_assignment(
                 "invalid lvalue assignment, right-hand-side \"{}\" "
                 "with type {} is not the same type ({})",
                 std::get<0>(rvalue),
-                type::get_type_from_rvalue_data_type(rvalue),
-                get_type_from_rvalue_data_type(lvalue)),
+                type::get_type_from_local_lvalue(rvalue),
+                get_type_from_local_lvalue(lvalue)),
             lvalue);
 }
 

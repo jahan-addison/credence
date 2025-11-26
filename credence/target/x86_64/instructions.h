@@ -350,7 +350,21 @@ constexpr Operand_Size get_operand_size_from_rvalue_datatype(
 {
     namespace m = matchit;
     using T = type::semantic::Type;
-    T type = type::get_type_from_rvalue_data_type(rvalue);
+    T type = type::get_type_from_local_lvalue(rvalue);
+    return m::match(type)(
+        m::pattern | m::or_(T{ "int" }, T{ "string" }) =
+            [&] { return Operand_Size::Dword; },
+        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
+            [&] { return Operand_Size::Qword; },
+        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
+        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
+        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
+}
+
+constexpr Operand_Size get_operand_size_from_type(type::semantic::Type type)
+{
+    namespace m = matchit;
+    using T = type::semantic::Type;
     return m::match(type)(
         m::pattern | m::or_(T{ "int" }, T{ "string" }) =
             [&] { return Operand_Size::Dword; },

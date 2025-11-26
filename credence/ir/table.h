@@ -132,6 +132,7 @@ class Table
   private:
     using LValue = type::semantic::LValue;
     using Type = type::semantic::Type;
+    using Size = type::semantic::Size;
     using RValue = type::semantic::RValue;
     using Label = type::semantic::Label;
 
@@ -156,7 +157,8 @@ class Table
     /**
      * @brief Get the type from a local in the stack frame
      */
-    Type get_type_from_rvalue_data_type(LValue const& lvalue);
+    Type get_type_from_local_lvalue(LValue const& lvalue);
+    Size get_size_from_local_lvalue(LValue const& lvalue);
 
   public:
     inline bool is_vector_or_pointer(RValue const& rvalue)
@@ -171,14 +173,14 @@ class Table
     /** Left-hand-side and right-hand-side type equality check */
     inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
     {
-        return get_type_from_rvalue_data_type(lhs) ==
-               get_type_from_rvalue_data_type(rhs);
+        return get_type_from_local_lvalue(lhs) ==
+               get_type_from_local_lvalue(rhs);
     }
     inline bool lhs_rhs_type_is_equal(
         LValue const& lhs,
         type::Data_Type const& rvalue)
     {
-        return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
+        return get_type_from_local_lvalue(lhs) == std::get<1>(rvalue);
     }
 
     /**
@@ -255,16 +257,16 @@ class Table
         LValue& rhs,
         bool indirection = false);
     void is_boundary_out_of_range(RValue const& rvalue);
-    void from_type_invalid_assignment(
+    void type_invalid_assignment_check(
         LValue const& lvalue,
         RValue const& rvalue);
-    void from_type_invalid_assignment(
+    void type_invalid_assignment_check(
         LValue const& lvalue,
         type::Data_Type const& rvalue);
     void from_trivial_vector_assignment(
         LValue const& lhs,
         type::Data_Type const& rvalue);
-    void safely_reassign_pointers_or_vectors(
+    void reassign_valid_pointers_or_vectors(
         LValue const& lvalue,
         type::RValue_Reference_Type const& rvalue,
         bool indirection = false);

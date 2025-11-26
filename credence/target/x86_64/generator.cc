@@ -251,8 +251,27 @@ void Code_Generator::from_push_ita(IR_Instruction const& inst)
     add_i_s(instructions_, mov, storage, symbol);
 }
 
-void Code_Generator::from_locl_ita([[maybe_unused]] IR_Instruction const& inst)
+void Code_Generator::from_locl_ita(IR_Instruction const& inst)
 {
+    auto locl_lvalue = std::get<1>(inst);
+    // `auto *t' pointer storage
+    if (type::is_unary_expression(locl_lvalue)) {
+        auto lvalue = type::get_unary_rvalue_reference(std::get<1>(inst));
+        stack.set_address_from_address(lvalue);
+        return;
+    }
+    auto frame = table_->functions[current_frame];
+    auto& locals = table_->get_stack_frame_symbols();
+    // immediate relational rvalue, the storage will be the al register
+    if (type::is_relation_binary_expression(
+            type::get_value_from_rvalue_data_type(
+                locals.get_symbol_by_name(locl_lvalue)))) {
+        stack.set_address_from_accumulator(locl_lvalue, Register::al);
+    } else {
+        // get stack storage size from type table
+        auto type = table_->get_type_from_local_lvalue(locl_lvalue);
+        stack.set_address_from_type(locl_lvalue, type);
+    }
 }
 
 void Code_Generator::from_cmp_ita([[maybe_unused]] IR_Instruction const& inst)
@@ -275,14 +294,12 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
         m::pattern | m::app(is_immediate, true) =
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
-                stack.set_address_from_immediate(lhs, imm);
                 Storage lhs_storage = get_lvalue_address(lhs);
                 add_i_s(instructions_, mov, lhs_storage, imm);
             },
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_ir_assignment) {
-                    stack.set_address_from_address(lhs);
                     address_ir_assignment = false;
                     Storage lhs_storage = stack.get(lhs).first;
                     add_i_s(instructions_, mov, lhs_storage, Register::rax);
@@ -297,7 +314,6 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
         m::pattern | m::app(is_address, true) =
             [&] {
                 CREDENCE_ASSERT(stack.get(rhs).second != Operand_Size::Empty);
-                stack.set_address_from_stack(lhs, rhs);
                 Storage lhs_storage = stack.get(lhs).first;
                 Storage rhs_storage = stack.get(rhs).first;
                 auto acc =
@@ -910,11 +926,32 @@ constexpr void detail::Stack::set_address_from_accumulator(
     stack_address.insert(lvalue, { size, register_size });
 }
 
+constexpr void detail::Stack::set_address_from_type(
+    LValue const& lvalue,
+    Type type)
+{
+    if (stack_address[lvalue].second != Operand_Size::Empty)
+        return;
+
+    auto operand_size = get_operand_size_from_type(type);
+    auto value_size = get_size_from_operand_size(operand_size);
+
+    if (get_lvalue_from_offset(size + value_size).empty()) {
+        size += value_size;
+        stack_address.insert(lvalue, { size, operand_size });
+    } else {
+        size = size + value_size + value_size;
+    }
+}
+
 constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
 {
-    auto word_size = Operand_Size::Qword;
-    size = align_up_to_16(size + detail::get_size_from_operand_size(word_size));
-    stack_address.insert(lvalue, { size, word_size });
+    auto qword_size = Operand_Size::Qword;
+    size = size == 0
+               ? get_size_from_operand_size(qword_size)
+               : align_up_to_16(
+                     size + detail::get_size_from_operand_size(qword_size));
+    stack_address.insert(lvalue, { size, qword_size });
 }
 
 constexpr void detail::Stack::set_address_from_stack(

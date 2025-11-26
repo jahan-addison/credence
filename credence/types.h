@@ -212,6 +212,18 @@ constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
 }
 
 /**
+ * @brief Data type tuple to string
+ */
+inline std::string data_type_value_to_string(Data_Type const& value)
+{
+    return std::format(
+        "({}:{}:{})",
+        std::get<0>(value),
+        std::get<1>(value),
+        std::get<2>(value));
+}
+
+/**
  * @brief Get a label as human readable object
  *    e.g. "__main(argc, argv)" -> "main"
  */
@@ -378,7 +390,7 @@ constexpr semantic::RValue get_binary_operator(RValue_Reference rvalue)
 /**
  * @brief Get the type from a local in the stack frame
  */
-constexpr semantic::Type get_type_from_rvalue_data_type(Data_Type const& rvalue)
+constexpr semantic::Type get_type_from_local_lvalue(Data_Type const& rvalue)
 {
     return std::get<1>(rvalue);
 }
