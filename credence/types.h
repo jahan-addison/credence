@@ -20,6 +20,7 @@
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <credence/value.h>  // for Expression
 #include <deque>             // for deque
+#include <fmt/format.h>      // for format
 #include <initializer_list>  // for initializer_list
 #include <memory>            // for allocator, make_shared
 #include <set>               // for set
@@ -216,7 +217,7 @@ constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
  */
 inline std::string data_type_value_to_string(Data_Type const& value)
 {
-    return std::format(
+    return fmt::format(
         "({}:{}:{})",
         std::get<0>(value),
         std::get<1>(value),
@@ -338,7 +339,7 @@ constexpr bool is_temporary(RValue_Reference rvalue)
  */
 inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue)
 {
-    CREDENCE_ASSERT(util::substring_count_of(rvalue, ":") == 2);
+    credence_assert(util::substring_count_of(rvalue, ":") == 2);
     size_t search = rvalue.find_last_of(":");
     auto bytes = std::string{ rvalue.begin() + search + 1, rvalue.end() - 1 };
     auto type_search = rvalue.substr(0, search - 1).find_last_of(":") + 1;

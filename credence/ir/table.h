@@ -18,7 +18,7 @@
 #include <algorithm>         // for remove_if, __any_of, __find_if, any_of
 #include <array>             // for array
 #include <cctype>            // for isspace
-#include <credence/assert.h> // for CREDENCE_ASSERT
+#include <credence/error.h>  // for credence_assert
 #include <credence/ir/ita.h> // for ITA
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/symbol.h> // for Symbol_Table
@@ -193,8 +193,8 @@ class Table
     {
         if (std::ranges::find(type::integral_unary_types, type) ==
             type::integral_unary_types.end())
-            construct_error(
-                std::format(
+            table_error(
+                fmt::format(
                     "invalid numeric unary expression on lvalue, lvalue "
                     "type "
                     "\"{}\" is not a numeric type",
@@ -218,7 +218,7 @@ class Table
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
     inline std::shared_ptr<detail::Function> get_stack_frame()
     {
-        CREDENCE_ASSERT(is_stack_frame());
+        credence_assert(is_stack_frame());
         return stack_frame.value();
     }
 
@@ -278,9 +278,10 @@ class Table
     type::semantic::Address instruction_index{ 0 };
     // clang-format on
   private:
-    void construct_error(
-        type::RValue_Reference message,
-        type::RValue_Reference symbol = "");
+    void table_error(
+        std::string_view message,
+        type::RValue_Reference symbol,
+        std::source_location const& location = std::source_location::current());
 
   public:
     Instructions instructions{};

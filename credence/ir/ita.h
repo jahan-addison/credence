@@ -253,7 +253,7 @@ class Branch
     }
     void increment_branch_level();
     void decrement_branch_level(bool not_branching = false);
-    void teardown();
+    constexpr void teardown();
     Last_Branch get_parent_branch(bool last = false);
     constexpr inline bool is_root_level() { return level == 1; }
     constexpr inline bool is_branch_level() { return level > 1; }
@@ -451,6 +451,12 @@ class ITA
   CREDENCE_PRIVATE_UNLESS_TESTED:
     int temporary{ 0 };
     // clang-format on
+
+  private:
+    void ita_error(
+        std::string_view message,
+        std::string_view symbol,
+        std::source_location const& location = std::source_location::current());
 
   private:
     Instructions instructions_;

@@ -137,6 +137,12 @@ class Expression_Parser
     Literal from_constant_literal_node(Node const& node);
 
   private:
+    void expression_parser_error(
+        std::string_view message,
+        std::string_view symbol,
+        std::source_location const& location = std::source_location::current());
+
+  private:
     // clang-format on
     const std::array<std::string, 6> unary_types = {
         "pre_inc_dec_expression", "post_inc_dec_expression", "indirect_lvalue",

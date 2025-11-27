@@ -246,7 +246,6 @@ make install
 * `cxxopts` - Lightweight commandline parser
 * `matchit` - Pattern matching
 * `fmt` - fast and constexpr string formatting
-* `cpptrace` - Stack traces for runtime errors until C++23
 * `eternal` - `constexpr` lookup tables
 * `pybind11`
 

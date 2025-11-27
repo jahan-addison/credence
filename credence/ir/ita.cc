@@ -17,7 +17,7 @@
 #include <credence/ir/ita.h>
 
 #include <algorithm>               // for __find, find
-#include <credence/assert.h>       // for assert_equal_impl, CREDENCE_ASSER...
+#include <credence/error.h>        // for assert_equal_impl, CREDENCE_ASSER...
 #include <credence/expression.h>   // for Expression_Parser
 #include <credence/ir/temporary.h> // for expression_node_to_temporary_inst...
 #include <credence/queue.h>        // for value_type_pointer_to_string
@@ -79,8 +79,7 @@ std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
  */
 Instructions ITA::build_from_definitions(Node const& node)
 {
-
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "definitions");
+    credence_assert_equal(node["root"].to_string(), "definitions");
     Instructions instructions{};
     auto definitions = node["left"].array_range();
     for (auto& definition : definitions)
@@ -102,7 +101,7 @@ Instructions ITA::build_from_definitions(Node const& node)
  */
 Instructions ITA::build_from_function_definition(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_definition");
+    credence_assert_equal(node["node"].to_string(), "function_definition");
     Instructions instructions{};
     auto name = node["root"].to_string();
     auto parameters = node["left"];
@@ -171,7 +170,6 @@ constexpr std::string ITA::build_function_label_from_parameters(
     Parameters const& parameters)
 {
 
-    using namespace fmt::literals;
     auto label = std::string{ "__" };
     label.append(name);
     label.append("(");
@@ -191,23 +189,22 @@ constexpr std::string ITA::build_function_label_from_parameters(
  */
 void ITA::build_from_vector_definition(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_definition");
-    CREDENCE_ASSERT(node.has_key("right"));
+    credence_assert_equal(node["node"].to_string(), "vector_definition");
+    credence_assert(node.has_key("right"));
     auto name = node["root"].to_string();
     auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
     auto right_child_node = node["right"];
     std::vector<internal::value::Literal> values_at{};
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
-        credence_compile_error(
+        ita_error(
             fmt::format(
                 "invalid vector definition, right-hand-side allocation of "
                 "\"{}\" items is out of range; expected no more than \"{}\" "
                 "items ",
                 right_child_node.to_deque().size(),
                 size),
-            name,
-            internal_symbols_);
+            name);
 
     globals_.set_symbol_by_name(name, values_at);
     for (auto& child_node : right_child_node.array_range()) {
@@ -261,8 +258,8 @@ Instructions ITA::build_from_block_statement(
     Node const& node,
     bool root_function_scope)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "block");
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "block");
 
     auto [instructions, branches] = make_statement_instructions();
     auto statements = node["left"];
@@ -445,8 +442,8 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     std::string const& switch_label,
     detail::Branch::Last_Branch const& tail)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "case");
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "case");
 
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
@@ -495,8 +492,8 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
  */
 ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "switch");
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "switch");
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
     auto predicate = node["left"];
@@ -531,8 +528,8 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
  */
 ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "while");
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "while");
 
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
@@ -562,8 +559,8 @@ ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
  */
 ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "if");
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "if");
 
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
@@ -609,9 +606,9 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
  */
 Instructions ITA::build_from_label_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "label");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "label");
+    credence_assert(node.has_key("left"));
     Instructions instructions{};
     auto statement = node["left"];
     Expression_Parser parser{ internal_symbols_, symbols_ };
@@ -626,9 +623,9 @@ Instructions ITA::build_from_label_statement(Node const& node)
  */
 Instructions ITA::build_from_goto_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "goto");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "goto");
+    credence_assert(node.has_key("left"));
     Instructions instructions{};
     Expression_Parser parser{ internal_symbols_, symbols_ };
     auto statement = node["left"];
@@ -647,9 +644,9 @@ Instructions ITA::build_from_goto_statement(Node const& node)
  */
 Instructions ITA::build_from_return_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "return");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "return");
+    credence_assert(node.has_key("left"));
     Instructions instructions{};
     auto return_statement = node["left"];
 
@@ -684,9 +681,9 @@ void ITA::build_from_extrn_statement(
     Node const& node,
     Instructions& instructions)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "extrn");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "extrn");
+    credence_assert(node.has_key("left"));
     auto left_child_node = node["left"];
     for (auto& ident : left_child_node.array_range()) {
         auto name = ident["root"].to_string();
@@ -696,8 +693,7 @@ void ITA::build_from_extrn_statement(
             instructions.emplace_back(make_quadruple(Instruction::GLOBL, name));
 
         } else {
-            credence_compile_error(
-                "symbol not defined in global scope", name, internal_symbols_);
+            ita_error("symbol not defined in global scope", name);
         }
     }
 }
@@ -709,9 +705,9 @@ void ITA::build_from_auto_statement(
     Node const& node,
     Instructions& instructions)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "auto");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "auto");
+    credence_assert(node.has_key("left"));
     auto left_child_node = node["left"];
     for (auto& ident : left_child_node.array_range()) {
         m::match(ident["node"].to_string())(
@@ -720,10 +716,9 @@ void ITA::build_from_auto_statement(
                     auto name = ident["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        credence_compile_error(
+                        ita_error(
                             "identifier is already defined in auto declaration",
-                            name,
-                            internal_symbols_);
+                            name);
 
 #endif
                     instructions.emplace_back(
@@ -737,10 +732,9 @@ void ITA::build_from_auto_statement(
                     auto name = ident["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        credence_compile_error(
+                        ita_error(
                             "identifier is already defined in auto declaration",
-                            name,
-                            internal_symbols_);
+                            name);
 
 #endif
                     instructions.emplace_back(
@@ -754,10 +748,9 @@ void ITA::build_from_auto_statement(
                     auto name = ident["left"]["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        credence_compile_error(
+                        ita_error(
                             "identifier is already defined in auto declaration",
-                            name,
-                            internal_symbols_);
+                            name);
 
 #endif
                     instructions.emplace_back(make_quadruple(
@@ -773,9 +766,9 @@ void ITA::build_from_auto_statement(
  */
 Instructions ITA::build_from_rvalue_statement(Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "statement");
-    CREDENCE_ASSERT_NODE(node["root"].to_string(), "rvalue");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "statement");
+    credence_assert_equal(node["root"].to_string(), "rvalue");
+    credence_assert(node.has_key("left"));
     auto statement = node["left"];
 
     return expression_node_to_temporary_instructions(
@@ -874,8 +867,8 @@ inline void detail::Branch::increment_branch_level()
  */
 inline void detail::Branch::decrement_branch_level(bool not_branching)
 {
-    CREDENCE_ASSERT(level > 1);
-    CREDENCE_ASSERT(!stack.empty());
+    credence_assert(level > 1);
+    credence_assert(!stack.empty());
     level--;
     if (not_branching)
         is_branching = false;
@@ -885,18 +878,18 @@ inline void detail::Branch::decrement_branch_level(bool not_branching)
 /**
  * @brief Set branching to false, branching is complete
  */
-inline void detail::Branch::teardown()
+constexpr inline void detail::Branch::teardown()
 {
-    CREDENCE_ASSERT_EQUAL(level, 1);
+    credence_assert_equal(level, 1);
     is_branching = false;
 }
 
 /**
  * @brief Get a parent branch or the root branch label from the stack
  */
-inline detail::Branch::Last_Branch detail::Branch::get_parent_branch(bool last)
+detail::Branch::Last_Branch detail::Branch::get_parent_branch(bool last)
 {
-    CREDENCE_ASSERT(root_branch.has_value());
+    credence_assert(root_branch.has_value());
     if (last and stack.size() > 1) {
         auto top = stack.top();
         stack.pop();
@@ -905,6 +898,17 @@ inline detail::Branch::Last_Branch detail::Branch::get_parent_branch(bool last)
         return previous;
     } else
         return stack.empty() ? root_branch : stack.top();
+}
+
+/**
+ * @brief Raise error expressing parsing error
+ */
+inline void ITA::ita_error(
+    std::string_view message,
+    std::string_view symbol,
+    std::source_location const& location)
+{
+    credence_compile_error(location, message, symbol, internal_symbols_);
 }
 
 } // namespace ir

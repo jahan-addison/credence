@@ -15,8 +15,8 @@
  */
 
 #include "generator.h"
-#include "instructions.h" // for get_operand_size_from_rvalue_datatype, Imm...
-#include <credence/assert.h>        // for CREDENCE_ASSERT
+#include "instructions.h"   // for get_operand_size_from_rvalue_datatype, Imm...
+#include <credence/error.h> // for credence_assert
 #include <credence/ir/ita.h>        // for ITA
 #include <credence/ir/table.h>      // for Table
 #include <credence/target/target.h> // for align_up_to_16
@@ -207,7 +207,7 @@ void Code_Generator::build_instructions()
 
 void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
 {
-    CREDENCE_ASSERT(table_->functions.contains(name));
+    credence_assert(table_->functions.contains(name));
     stack.clear();
     current_frame = name;
     set_table_stack_frame(name);
@@ -328,7 +328,7 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
             },
         m::pattern | m::app(is_address, true) =
             [&] {
-                CREDENCE_ASSERT(stack.get(rhs).second != Operand_Size::Empty);
+                credence_assert(stack.get(rhs).second != Operand_Size::Empty);
                 Storage lhs_storage = stack.get(lhs).first;
                 Storage rhs_storage = stack.get(rhs).first;
                 auto acc =
@@ -350,7 +350,7 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
 void Code_Generator::from_temporary_unary_operator_expression(
     type::semantic::RValue const& expr)
 {
-    CREDENCE_ASSERT(type::is_unary_expression(expr));
+    credence_assert(type::is_unary_expression(expr));
     auto op = type::get_unary_operator(expr);
     type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
     if (stack.contains(rvalue)) {
@@ -403,7 +403,7 @@ inline auto get_rvalue_pair_as_immediate(
 void Code_Generator::from_binary_operator_expression(
     type::semantic::LValue const& expr)
 {
-    CREDENCE_ASSERT(type::is_binary_expression(expr));
+    credence_assert(type::is_binary_expression(expr));
     auto expression = type::from_rvalue_binary_expression(expr);
     Storage lhs_s{ std::monostate{} };
     Storage rhs_s{ std::monostate{} };
@@ -562,9 +562,9 @@ void Code_Generator::insert_from_unary_to_unary_assignment(
     m::match(lhs_op, rhs_op)(
         // *t = *k deference to dereference assignment
         m::pattern | m::ds("*", "*") = [&] {
-            CREDENCE_ASSERT(
+            credence_assert(
                 stack.get(lhs_lvalue).second != Operand_Size::Empty);
-            CREDENCE_ASSERT(
+            credence_assert(
                 stack.get(rhs_lvalue).second != Operand_Size::Empty);
             auto acc = get_accumulator_register_from_size(Operand_Size::Qword);
             Storage lhs_storage = stack.get(lhs_lvalue).first;

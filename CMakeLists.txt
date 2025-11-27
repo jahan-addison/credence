@@ -101,14 +101,6 @@ CPMAddPackage("gh:fmtlib/fmt#12.1.0")
 
 cpmaddpackage(
   NAME
-  cpptrace
-  VERSION
-  1.0.4
-  GITHUB_REPOSITORY
-  jeremy-rifkin/cpptrace)
-
-cpmaddpackage(
-  NAME
   eternal
   VERSION
   1.0.1
@@ -143,9 +135,9 @@ target_include_directories(
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts fmt::fmt
-                         matchit cpptrace::cpptrace simplejson "${eternal_SOURCE_DIR}/include")
+                         matchit simplejson "${eternal_SOURCE_DIR}/include")
 target_link_libraries(
   ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts fmt::fmt
-                         matchit cpptrace::cpptrace simplejson eternal)
+                         matchit simplejson eternal)
 
 include(cmake/doctest.cmake)

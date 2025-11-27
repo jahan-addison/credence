@@ -15,7 +15,6 @@ target_link_libraries(
   Test_Suite
   doctest::doctest
   Python3::Python
-  cpptrace::cpptrace
   fmt::fmt
   pybind11::headers
   matchit

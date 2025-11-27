@@ -17,7 +17,7 @@
 #include <credence/expression.h>
 
 #include <algorithm>            // for __find, find
-#include <credence/assert.h>    // for assert_equal_impl, CREDENCE_ASSERT_NODE
+#include <credence/error.h>     // for assert_equal_impl, credence_assert_equal
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/util.h>      // for AST_Node, unescape_string
@@ -115,8 +115,8 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
 Expression_Parser::Expression Expression_Parser::from_function_expression_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "function_expression");
-    CREDENCE_ASSERT(node["right"].to_deque().size() >= 1);
+    credence_assert_equal(node["node"].to_string(), "function_expression");
+    credence_assert(node["right"].to_deque().size() >= 1);
     Expression expression{};
     Parameters parameters{};
     auto param_node = node["right"].to_deque();
@@ -137,7 +137,7 @@ Expression_Parser::Expression Expression_Parser::from_function_expression_node(
 Expression_Parser::Expression Expression_Parser::from_evaluated_expression_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "evaluated_expression");
+    credence_assert_equal(node["node"].to_string(), "evaluated_expression");
     Expression expression{};
     expression.value = make_expression_pointer_from_ast(node["root"]);
     return expression;
@@ -171,7 +171,7 @@ Expression_Parser::Expression Expression_Parser::from_ternary_expression_node(
 Expression_Parser::Expression Expression_Parser::from_relation_expression_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "relation_expression");
+    credence_assert_equal(node["node"].to_string(), "relation_expression");
     Expression expression{};
     Parameters blocks{};
     if (node.has_key("right") and
@@ -196,7 +196,7 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
     using namespace type;
     auto unary_type = node["node"].to_string();
 
-    CREDENCE_ASSERT_MESSAGE(
+    credence_assert_message(
         std::ranges::find(unary_types, unary_type) != unary_types.end(),
         fmt::format("Invalid unary expression type `{}`", unary_type));
 
@@ -210,7 +210,7 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
     if (node["root"].JSON_type() != util::AST_Node::Class::Array)
         return expression;
 
-    CREDENCE_ASSERT(node["root"].to_deque().size() >= 1);
+    credence_assert(node["root"].to_deque().size() >= 1);
 
     auto op = node["root"].to_deque().front().to_string();
 
@@ -244,7 +244,7 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
             },
         m::pattern | "address_of_expression" =
             [&] {
-                CREDENCE_ASSERT_EQUAL(op, "&");
+                credence_assert_equal(op, "&");
                 auto rhs = make_expression_pointer_from_ast(node["left"]);
                 expression.value = std::make_pair(Operator::U_ADDR_OF, rhs);
             },
@@ -272,28 +272,27 @@ Expression_Parser::from_assignment_expression_node(Node const& node)
         auto left_child_node = indirect_node;
         auto right_child_node = node["left"]["right"];
         if (!is_symbol(left_child_node["left"]))
-            credence_compile_error(
+            expression_parser_error(
                 "identifier of assignment not declared with 'auto' or 'extrn'",
-                left_child_node["left"]["root"].to_string(),
-                internal_symbols_);
+                left_child_node["left"]["root"].to_string());
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
         Expression expression = Expression{};
         expression.value = make_pair(lhs, rhs);
         return expression;
     } else {
-        CREDENCE_ASSERT_NODE(node["node"].to_string(), "assignment_expression");
+        credence_assert_equal(
+            node["node"].to_string(), "assignment_expression");
 
-        CREDENCE_ASSERT(node.has_key("left"));
-        CREDENCE_ASSERT(node.has_key("right"));
+        credence_assert(node.has_key("left"));
+        credence_assert(node.has_key("right"));
 
         auto left_child_node = node["left"];
         auto right_child_node = node["right"];
         if (!is_symbol(left_child_node))
-            credence_compile_error(
+            expression_parser_error(
                 "identifier of assignment not declared with 'auto' or 'extrn'",
-                left_child_node["root"].to_string(),
-                internal_symbols_);
+                left_child_node["root"].to_string());
 
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
@@ -324,8 +323,7 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
-                credence_compile_error(
-                    "identifier does not exist", name, internal_symbols_);
+                expression_parser_error("identifier does not exist", name);
             else
                 symbols_.set_symbol_by_name(
                     name, internal::value::Expression::WORD_LITERAL);
@@ -393,14 +391,13 @@ Expression_Parser::Literal Expression_Parser::from_constant_expression_node(
 Expression_Parser::Literal Expression_Parser::from_indirect_identifier_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "indirect_lvalue");
-    CREDENCE_ASSERT(node.has_key("left"));
+    credence_assert_equal(node["node"].to_string(), "indirect_lvalue");
+    credence_assert(node.has_key("left"));
     if (!is_symbol(node["left"]))
-        credence_compile_error(
+        expression_parser_error(
             "indirect identifier not defined, did you forget to declare with "
             "auto or extrn?",
-            node["root"].to_string(),
-            internal_symbols_);
+            node["root"].to_string());
 
     return symbols_.get_symbol_by_name(node["left"]["root"].to_string());
 }
@@ -411,14 +408,13 @@ Expression_Parser::Literal Expression_Parser::from_indirect_identifier_node(
 Expression_Parser::Literal Expression_Parser::from_vector_idenfitier_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "vector_lvalue");
+    credence_assert_equal(node["node"].to_string(), "vector_lvalue");
 
     if (!is_symbol(node))
-        credence_compile_error(
+        expression_parser_error(
             "vector not defined, did you forget to declare with "
             "auto or extrn? No symbol found",
-            node["root"].to_string(),
-            internal_symbols_);
+            node["root"].to_string());
 
     return symbols_.get_symbol_by_name(node["root"].to_string());
 }
@@ -429,7 +425,7 @@ Expression_Parser::Literal Expression_Parser::from_vector_idenfitier_node(
 Expression_Parser::Literal Expression_Parser::from_number_literal_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "number_literal");
+    credence_assert_equal(node["node"].to_string(), "number_literal");
     return { static_cast<int>(node["root"].to_int()),
              internal::value::TYPE_LITERAL.at("int") };
 }
@@ -440,7 +436,7 @@ Expression_Parser::Literal Expression_Parser::from_number_literal_node(
 Expression_Parser::Literal Expression_Parser::from_string_literal_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "string_literal");
+    credence_assert_equal(node["node"].to_string(), "string_literal");
     auto string_literal = util::unescape_string(node["root"].to_string());
     return { string_literal.substr(1, string_literal.size() - 2),
              { "string",
@@ -453,9 +449,20 @@ Expression_Parser::Literal Expression_Parser::from_string_literal_node(
 Expression_Parser::Literal Expression_Parser::from_constant_literal_node(
     Node const& node)
 {
-    CREDENCE_ASSERT_NODE(node["node"].to_string(), "constant_literal");
+    credence_assert_equal(node["node"].to_string(), "constant_literal");
     return { static_cast<char>(node["root"].to_string()[0]),
              internal::value::TYPE_LITERAL.at("char") };
+}
+
+/**
+ * @brief Raise error expressing parsing error
+ */
+inline void Expression_Parser::expression_parser_error(
+    std::string_view message,
+    std::string_view symbol,
+    std::source_location const& location)
+{
+    credence_compile_error(location, message, symbol, internal_symbols_);
 }
 
 } // namespace credence

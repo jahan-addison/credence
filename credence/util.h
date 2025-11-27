@@ -123,6 +123,8 @@ constexpr inline std::string to_constexpr_string(T const& val)
         if (negative)
             s.insert(0, 1, '-');
         return s;
+    } else if constexpr (std::is_same_v<T, uint_least32_t>) {
+        return std::to_string(val);
     } else if constexpr (std::is_same_v<T, double>) {
         return "double_val";
     } else if constexpr (std::is_convertible_v<T, std::string_view>) {

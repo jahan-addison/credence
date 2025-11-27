@@ -1,7 +1,7 @@
 #include <credence/ir/table.h>
 
 #include <algorithm>         // for __find_if, find_if
-#include <credence/assert.h> // for CREDENCE_ASSERT, credence_compile_error
+#include <credence/error.h>  // for credence_assert, credence_compile_error
 #include <credence/ir/ita.h> // for ITA, make_ITA_instructions
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/queue.h>  // for value_type_pointer_to_string
@@ -117,7 +117,7 @@ void Table::from_locl_ita_instruction(Quadruple const& instruction)
 void Table::from_globl_ita_instruction(Label const& label)
 {
     if (!vectors.contains(label))
-        construct_error("extrn statement failed, symbol does not exist", label);
+        table_error("extrn statement failed, symbol does not exist", label);
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
         get_stack_frame()->locals.set_symbol_by_name(
@@ -150,10 +150,8 @@ void Table::build_vector_definitions_from_globals(Symbol_Table<>& globals)
 void Table::from_call_ita_instruction(Label const& label)
 {
     if (!labels.contains(label) and not hoisted_symbols_.has_key(label))
-        construct_error(
-            fmt::format(
-                "function call failed, '{}' identifier is not a function",
-                label));
+        table_error(
+            "function call failed, identifier is not a function", label);
 }
 
 /**
@@ -165,7 +163,7 @@ void Table::from_label_ita_instruction(Quadruple const& instruction)
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
         if (frame->labels.contains(label))
-            construct_error(
+            table_error(
                 fmt::format(
                     "symbol of symbolic label is already "
                     "defined"),
@@ -230,13 +228,12 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
         rvalue_symbol = from_rvalue_unary_expression(lhs, rhs, rvalue.second);
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL)
-        construct_error(
-            fmt::format("invalid lvalue assignment on '{}'", lhs), rhs);
+        table_error(fmt::format("invalid lvalue assignment on '{}'", lhs), rhs);
 
     type::semantic::Size size = std::get<2>(rvalue_symbol);
 
     if (size > std::numeric_limits<unsigned int>::max())
-        construct_error(
+        table_error(
             fmt::format("right-hand-side exceeds maximum byte size '{}'", rhs),
             lhs);
     if (!frame->locals.is_defined(lhs)) {
@@ -290,7 +287,7 @@ void Table::from_pointer_or_vector_assignment(
         if (!frame->is_parameter(offset) and
             (!vectors.contains(safe_rvalue) or
              not vectors[safe_rvalue]->data.contains(offset)))
-            construct_error(
+            table_error(
                 fmt::format(
                     "invalid vector assignment, rvalue vector value at '{}' "
                     "does not exist",
@@ -307,7 +304,7 @@ void Table::from_pointer_or_vector_assignment(
         // the rhs is a vector too, check accessed types
         if (rvalue_symbol.has_value()) {
             if (!lhs_rhs_type_is_equal(lhs_lvalue, rvalue_symbol.value()))
-                construct_error(
+                table_error(
                     fmt::format(
                         "invalid lvalue assignment, right-hand-side \"{}\" "
                         "with "
@@ -332,7 +329,7 @@ void Table::from_pointer_or_vector_assignment(
         if (rvalue.starts_with("&")) {
             // the left-hand-side must be a pointer
             if (!indirection and not locals.is_pointer(lvalue))
-                construct_error(
+                table_error(
                     fmt::format(
                         "invalid pointer assignment, lvalue \"{}\" is not "
                         "a "
@@ -393,7 +390,7 @@ void Table::reassign_valid_pointers_or_vectors(
                         auto vector_rvalue = vectors[lvalue]->data.at("0");
                         if (get_type_from_rvalue_data_type(lvalue) != "null" and
                             !lhs_rhs_type_is_equal(value, vector_rvalue))
-                            construct_error(
+                            table_error(
                                 fmt::format(
                                     "invalid lvalue assignment, "
                                     "left-hand-side "
@@ -425,22 +422,27 @@ void Table::reassign_valid_pointers_or_vectors(
                         locals.set_symbol_by_name(lvalue, value);
                         return; // Ok
                     }
+                    auto human_symbol =
+                        type::is_rvalue_data_type(value)
+                            ? type::get_value_from_rvalue_data_type(
+                                  type::get_rvalue_datatype_from_string(value))
+                            : value;
                     if (indirection)
-                        construct_error(
+                        table_error(
                             fmt::format(
                                 "invalid pointer assignment, "
                                 "left-hand-side '{}' and "
                                 "right-hand-side must "
                                 "both be pointers",
                                 lvalue),
-                            value);
+                            human_symbol);
                     else
-                        construct_error(
+                        table_error(
                             fmt::format(
                                 "invalid pointer assignment, "
                                 "right-hand-side "
-                                "'{}' is an invalid rvalue",
-                                value),
+                                "'{}' is not a pointer",
+                                human_symbol),
                             lvalue);
                 }
                 // dereference assignment, check for invalid or null pointers
@@ -448,7 +450,7 @@ void Table::reassign_valid_pointers_or_vectors(
                     type::is_dereference_expression(value)) {
                     auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
                     if (!locals.is_pointer(lhs_lvalue))
-                        construct_error(
+                        table_error(
                             "invalid lvalue pointer dereference, "
                             "left-hand-side is a non-pointer",
                             lhs_lvalue);
@@ -456,12 +458,12 @@ void Table::reassign_valid_pointers_or_vectors(
                     if (!type::is_rvalue_data_type(rhs_rvalue) or
                         !locals.is_pointer(rhs_rvalue)) {
                         if (rhs_rvalue == "NULL")
-                            construct_error(
+                            table_error(
                                 "invalid pointer dereference, "
                                 "right-hand-side is a null pointer!",
                                 lvalue);
                         else if (!locals.is_pointer(rhs_rvalue))
-                            construct_error(
+                            table_error(
                                 fmt::format(
                                     "invalid pointer dereference on '{}', "
                                     "right-hand-side is a null pointer!",
@@ -474,14 +476,14 @@ void Table::reassign_valid_pointers_or_vectors(
             },
             [&](type::Data_Type const& value) {
                 if (!indirection and locals.is_pointer(lvalue))
-                    construct_error(
+                    table_error(
                         "invalid lvalue assignment, left-hand-side is a "
                         "pointer to non-pointer rvalue",
                         lvalue);
                 // the lvalue and rvalue vector data entry type must match
                 if (get_type_from_rvalue_data_type(lvalue) != "null" and
                     !lhs_rhs_type_is_equal(lvalue, value))
-                    construct_error(
+                    table_error(
                         fmt::format(
                             "invalid lvalue assignment, left-hand-side "
                             "\"{}\" "
@@ -537,12 +539,12 @@ Table::Size Table::get_size_from_local_lvalue(LValue const& lvalue)
  */
 void Table::is_boundary_out_of_range(RValue const& rvalue)
 {
-    CREDENCE_ASSERT(util::contains(rvalue, "["));
-    CREDENCE_ASSERT(util::contains(rvalue, "]"));
+    credence_assert(util::contains(rvalue, "["));
+    credence_assert(util::contains(rvalue, "]"));
     auto lvalue = type::from_lvalue_offset(rvalue);
     auto offset = type::from_pointer_offset(rvalue);
     if (!vectors.contains(lvalue))
-        construct_error(
+        table_error(
             fmt::format(
                 "invalid vector assignment, vector lvalue \"{}\" does not "
                 "exist",
@@ -552,21 +554,21 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
         auto global_symbol = hoisted_symbols_[lvalue];
         auto ul_offset = std::stoul(offset);
         if (ul_offset > detail::Vector::max_size)
-            construct_error(
+            table_error(
                 fmt::format(
                     "invalid rvalue, integer offset \"{}\" is "
                     "buffer-overflow",
                     ul_offset),
                 rvalue);
         if (!vectors.contains(lvalue))
-            construct_error(
+            table_error(
                 fmt::format(
                     "invalid vector assignment, right-hand-side does not "
                     "exist \"{}\"",
                     lvalue),
                 rvalue);
         if (ul_offset > vectors[lvalue]->size - 1)
-            construct_error(
+            table_error(
                 fmt::format(
                     "invalid out-of-range vector assignment \"{}\" at "
                     "index "
@@ -580,7 +582,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
         auto& locals = get_stack_frame_symbols();
         if (!locals.is_defined(offset) and
             not stack_frame->is_parameter(offset))
-            construct_error(
+            table_error(
                 fmt::format("invalid vector offset \"{}\"", offset), rvalue);
     }
 }
@@ -590,7 +592,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
  */
 void Table::set_stack_frame(Label const& label)
 {
-    CREDENCE_ASSERT(functions.contains(label));
+    credence_assert(functions.contains(label));
     stack_frame = functions[label];
 }
 
@@ -603,7 +605,7 @@ void Table::from_func_start_ita_instruction(Label const& label)
     Label human_label = type::get_label_as_human_readable(label);
     address_table.set_symbol_by_name(label, instruction_index - 1);
     if (labels.contains(human_label))
-        construct_error(
+        table_error(
             fmt::format("function symbol is already defined"), human_label);
 
     functions[human_label] =
@@ -667,7 +669,7 @@ void Table::from_pop_instruction(Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
-    CREDENCE_ASSERT(pop_size <= stack.size());
+    credence_assert(pop_size <= stack.size());
     for (std::size_t i = pop_size; i > 0; i--) {
         if (is_stack_frame())
             stack.pop_back();
@@ -690,7 +692,7 @@ type::Data_Type Table::from_rvalue_unary_expression(
             [&] {
                 auto rhs_lvalue = rvalue.substr(1);
                 if (locals.is_pointer(lvalue))
-                    construct_error(
+                    table_error(
                         fmt::format(
                             "indirection on invalid lvalue, "
                             "left-hand-side is a pointer",
@@ -703,7 +705,7 @@ type::Data_Type Table::from_rvalue_unary_expression(
         m::pattern | "&" =
             [&] {
                 if (!locals.is_defined(rvalue))
-                    construct_error(
+                    table_error(
                         fmt::format(
                             "invalid pointer assignment, right-hand-side "
                             "is "
@@ -777,14 +779,14 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
     auto& locals = get_stack_frame_symbols();
 
     if (!locals.is_defined(lhs))
-        construct_error(
+        table_error(
             fmt::format(
                 "invalid lvalue assignment \"{}\", left-hand-side is not "
                 "initialized",
                 lhs),
             rhs);
     if (!locals.is_defined(rhs))
-        construct_error(
+        table_error(
             fmt::format(
                 "invalid lvalue assignment \"{}\", right-hand-side is not "
                 "initialized",
@@ -807,7 +809,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
 
     auto rvalue = type::get_unary_rvalue_reference(lvalue);
     if (!locals.is_defined(rvalue) and not frame->temporary.contains(rvalue))
-        construct_error(
+        table_error(
             fmt::format(
                 "invalid numeric unary expression, lvalue symbol \"{}\" is "
                 "not "
@@ -818,7 +820,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
     if (frame->temporary.contains(lvalue)) {
         auto temp_rvalue =
             type::get_unary_rvalue_reference(frame->temporary[lvalue]);
-        CREDENCE_ASSERT(type::is_rvalue_data_type(temp_rvalue));
+        credence_assert(type::is_rvalue_data_type(temp_rvalue));
         auto rdt = type::get_rvalue_datatype_from_string(temp_rvalue);
         assert_integral_unary_expression(
             lvalue, frame->temporary[lvalue], std::get<1>(rdt));
@@ -864,7 +866,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
  */
 bool Table::stack_frame_contains_ita_instruction(Label name, Instruction inst)
 {
-    CREDENCE_ASSERT(functions.contains(name));
+    credence_assert(functions.contains(name));
     auto frame = functions.at(name);
     auto search = std::ranges::find_if(
         instructions.begin() + frame->address_location[0],
@@ -897,7 +899,7 @@ inline void Table::type_invalid_assignment_check(
     if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue))
         return;
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
-        construct_error(
+        table_error(
             fmt::format(
                 "invalid lvalue assignment, right-hand-side \"{}\" "
                 "with type {} is not the same type ({})",
@@ -917,7 +919,7 @@ inline void Table::type_invalid_assignment_check(
     if (get_type_from_rvalue_data_type(lvalue) == "null")
         return;
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
-        construct_error(
+        table_error(
             fmt::format(
                 "invalid lvalue assignment, right-hand-side \"{}\" "
                 "with type {} is not the same type ({})",
@@ -930,20 +932,16 @@ inline void Table::type_invalid_assignment_check(
 /**
  * @brief Raise error with stack frame symbol
  */
-inline void Table::construct_error(
+inline void Table::table_error(
     std::string_view message,
-    type::RValue_Reference symbol)
+    type::RValue_Reference symbol,
+    std::source_location const& location)
 {
-#ifdef CREDENCE_TEST
-    throw std::runtime_error(
-        fmt::format("{} from \"{}\"", message.data(), symbol));
-#else
     credence_compile_error(
-        fmt::format(
-            "{} in function \"{}\"", message, get_stack_frame()->symbol),
+        location,
+        fmt::format("{} in function '{}'", message, get_stack_frame()->symbol),
         symbol,
         hoisted_symbols_);
-#endif
 }
 
 /**

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <credence/assert.h>   // for credence_cpptrace_stack_trace, creden...
+#include <credence/error.h>    // for Credence_Exception
 #include <credence/ir/table.h> // emit_complete_ita
 #include <credence/util.h>     // for AST_Node, capitalize,
 #include <cxxopts.hpp>         // for value, ParseResult, OptionAdder, Opti...
@@ -176,13 +176,14 @@ int main(int argc, const char* argv[])
                   << "Credence Error :: " << "\033[31m" << what << "\033[0m"
                   << std::endl;
         return 1;
-    } catch (const std::exception& e) {
-        std::cerr << "Error :: " << e.what() << std::endl;
-        credence::credence_cpptrace_stack_trace();
+    } catch (credence::detail::Credence_Exception const& e) {
+        auto what = credence::util::capitalize(e.what());
+        std::cerr << std::endl
+                  << "Credence Error :: " << "\033[31m" << what << "\033[0m"
+                  << std::endl;
         return 1;
     } catch (...) {
         std::cerr << "Exception occurred: " << std::endl;
-        credence::credence_cpptrace_stack_trace();
         return 1;
     }
 

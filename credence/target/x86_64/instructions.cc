@@ -58,7 +58,7 @@ std::string get_storage_as_string(Storage const& storage)
         util::overload{
             [&](std::monostate) {},
             [&](Stack_Offset const& s) {
-                result << std::format("stack offset: {}", s);
+                result << fmt::format("stack offset: {}", s);
             },
             [&](Register const& s) { result << s; },
             [&](Immediate const& s) {

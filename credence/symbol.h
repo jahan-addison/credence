@@ -16,13 +16,13 @@
 
 #pragma once
 
-#include <credence/assert.h> // for CREDENCE_ASSERT_MESSAGE
-#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <credence/value.h>  // for Literal, Array, ...
-#include <fmt/format.h>      // for format
-#include <map>               // for map
-#include <string>            // for basic_string, string
-#include <utility>           // for make_pair, move
+#include <credence/error.h> // for credence_assert_message
+#include <credence/util.h>  // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <credence/value.h> // for Literal, Array, ...
+#include <fmt/format.h>     // for format
+#include <map>              // for map
+#include <string>           // for basic_string, string
+#include <utility>          // for make_pair, move
 
 namespace credence {
 
@@ -92,7 +92,7 @@ class Symbol_Table
 
     inline T get_symbol_by_name(std::string const& name) const
     {
-        CREDENCE_ASSERT_MESSAGE(
+        credence_assert_message(
             table_.find(name) != table_.end(),
             fmt::format("symbol not found `{}`", name));
         return table_.at(name);
@@ -100,7 +100,7 @@ class Symbol_Table
 
     inline Pointer get_pointer_by_name(std::string const& name) const
     {
-        CREDENCE_ASSERT_MESSAGE(
+        credence_assert_message(
             addr_.find(name) != addr_.end(),
             fmt::format("address symbol not found `{}`", name));
         return addr_.at(name);
