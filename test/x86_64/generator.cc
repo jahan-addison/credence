@@ -415,3 +415,35 @@ _L1:
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_3", expected);
 }
+
+TEST_CASE("target/x86_64: fixture: pointers_3.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov dword ptr [rbp - 12], 100
+    lea rax, [rbp - 12]
+    mov qword ptr [rbp - 8], rax
+    mov rax, qword ptr [rbp - 8]
+    mov qword ptr [rbp - 24], rax
+    mov eax, 20
+    add eax, 10
+    add eax, 10
+    mov rax, qword ptr [rbp - 24]
+    mov dword ptr [rax], eax
+    mov rax, qword ptr [rbp - 24]
+    mov edi, dword ptr [rax]
+    mov rax, qword ptr [rbp - 8]
+    mov dword ptr [rax], edi
+    mov dword ptr [rbp - 12], 5
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_4", expected);
+}

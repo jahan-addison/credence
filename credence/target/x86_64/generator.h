@@ -105,16 +105,19 @@ enum Instruction_Flag : flags
 {
     None = 0,
     Address = 1 << 0,
-    Indirect = 1 << 1
+    Indirect = 1 << 1,
+    Indirect_Source = 1 << 2
 };
 
 } // namespace flag
 
 constexpr std::string emit_immediate_storage(Immediate const& immediate);
+
 std::string emit_stack_storage(
     Stack const& stack,
     Stack::Offset offset,
     flag::flags flags);
+
 std::string emit_register_storage(
     Register device,
     Operand_Size size,
@@ -190,6 +193,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     Storage get_storage_for_binary_operator(
         type::semantic::RValue const& rvalue);
 
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     std::string emit_storage_device(
@@ -212,6 +216,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
         std::string const& binary_op);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    void insert_from_unary_to_unary_assignment(
+        type::semantic::LValue const& lhs,
+        type::semantic::LValue const& rhs);
     void insert_from_temporary_lvalue(type::semantic::LValue const& lvalue);
     void insert_from_rvalue(type::semantic::RValue const& rvalue);
     void insert_from_op_operands(
@@ -307,6 +314,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
 
   private:
     void set_instruction_flag(detail::flag::Instruction_Flag set_flag);
+    void set_instruction_flag(detail::flag::flags flags);
     Ordered_Map<unsigned int, detail::flag::flags> instruction_flag{};
     Instructions instructions_{};
     Instructions data_{};

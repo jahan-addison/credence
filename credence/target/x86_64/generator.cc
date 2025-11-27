@@ -51,35 +51,44 @@ void Code_Generator::emit(std::ostream& os)
 
     for (std::size_t index = 0; index < instructions_.size(); index++) {
         auto inst = instructions_[index];
+        // clang-format off
         std::visit(
-            // clang-format off
             util::overload{
-            [&](detail::Instruction const& s) {
-                auto [mnemonic, dest, src] = s;
+                [&](detail::Instruction const& s) {
+                    auto [mnemonic, dest, src] = s;
 
-                auto flags = instruction_flag.contains(index)
-                    ? instruction_flag[index] : 0UL;
+                    auto flags = instruction_flag.contains(index)
+                                     ? instruction_flag[index]
+                                     : 0UL;
 
-                os << detail::tabwidth(4) << mnemonic;
+                    os << detail::tabwidth(4) << mnemonic;
 
-                auto size = get_operand_size_from_storage(src);
+                    auto size = get_operand_size_from_storage(src);
+                    if (!is_empty_storage(dest)) {
+                        if (flags & detail::flag::Address)
+                            size = get_operand_size_from_storage(dest);
+                        os << " " << emit_storage_device(dest, size, flags);
+                        if (flags & detail::flag::Indirect and
+                            is_variant(Register, src))
+                            flags &= ~detail::flag::Indirect;
+                    }
 
-                if (!is_empty_storage(dest)) {
-                    os << " " << emit_storage_device(dest, size, flags);
-                    if (flags & detail::flag::Indirect and is_variant(Register, src))
-                        flags &= ~ detail::flag::Indirect;
-                }
+                    if (!is_empty_storage(src)) {
+                        if (flags & detail::flag::Indirect_Source)
+                            flags |= detail::flag::Indirect;
+                        os << ", " << emit_storage_device(src, size, flags);
+                        flags &=
+                            ~(detail::flag::Indirect |
+                              detail::flag::Indirect_Source);
+                    }
 
-                if (!is_empty_storage(src))
-                    os << ", " << emit_storage_device(src, size, flags);
+                    os << std::endl;
+                },
 
-                os << std::endl;
-            },
-
-            [&](type::semantic::Label const& s) {
-                os << s << ":" << std::endl;
-            } },
-        inst);
+                [&](type::semantic::Label const& s) {
+                    os << s << ":" << std::endl;
+                } },
+            inst);
         // clang-format on
     }
     os << std::endl;
@@ -254,8 +263,7 @@ void Code_Generator::from_push_ita(IR_Instruction const& inst)
 void Code_Generator::from_locl_ita(IR_Instruction const& inst)
 {
     auto locl_lvalue = std::get<1>(inst);
-    // `auto *t' pointer storage
-    if (type::is_unary_expression(locl_lvalue)) {
+    if (type::is_dereference_expression(locl_lvalue)) {
         auto lvalue = type::get_unary_rvalue_reference(std::get<1>(inst));
         stack.set_address_from_address(lvalue);
         return;
@@ -268,8 +276,8 @@ void Code_Generator::from_locl_ita(IR_Instruction const& inst)
                 locals.get_symbol_by_name(locl_lvalue)))) {
         stack.set_address_from_accumulator(locl_lvalue, Register::al);
     } else {
-        // get stack storage size from type table
-        auto type = table_->get_type_from_local_lvalue(locl_lvalue);
+        // get storage size from type table
+        auto type = table_->get_type_from_rvalue_data_type(locl_lvalue);
         stack.set_address_from_type(locl_lvalue, type);
     }
 }
@@ -280,13 +288,17 @@ void Code_Generator::from_cmp_ita([[maybe_unused]] IR_Instruction const& inst)
 
 void Code_Generator::from_mov_ita(IR_Instruction const& inst)
 {
-    type::semantic::LValue lhs = std::get<1>(inst);
-    auto symbols = table_->get_stack_frame_symbols();
-
+    auto lhs = std::get<1>(inst);
     auto rhs = get_rvalue_from_mov_qaudruple(inst).first;
+    auto symbols = table_->get_stack_frame_symbols();
 
     if (type::is_temporary(lhs)) {
         insert_from_temporary_lvalue(lhs);
+        return;
+    }
+
+    if (type::is_unary_expression(lhs) and type::is_unary_expression(rhs)) {
+        insert_from_unary_to_unary_assignment(lhs, rhs);
         return;
     }
 
@@ -325,7 +337,6 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
             [&] {
                 Storage lhs_storage = get_lvalue_address(lhs);
                 auto unary_op = type::get_unary_operator(rhs);
-                auto rvalue = type::get_unary_rvalue_reference(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
             },
         m::pattern | m::app(type::is_binary_expression, true) =
@@ -530,6 +541,43 @@ void Code_Generator::insert_from_temporary_lvalue(
 {
     auto temporary = table_->from_temporary_lvalue(lvalue);
     insert_from_rvalue(temporary);
+}
+
+void Code_Generator::insert_from_unary_to_unary_assignment(
+    type::semantic::LValue const& lhs,
+    type::semantic::LValue const& rhs)
+{
+    auto lhs_lvalue = type::get_unary_rvalue_reference(lhs);
+    auto rhs_lvalue = type::get_unary_rvalue_reference(rhs);
+
+    auto lhs_op = type::get_unary_operator(lhs);
+    auto rhs_op = type::get_unary_operator(rhs);
+
+    auto frame = table_->functions[current_frame];
+    auto& locals = table_->get_stack_frame_symbols();
+
+    m::match(lhs_op, rhs_op)(
+        // *t = *k deference to dereference assignment
+        m::pattern | m::ds("*", "*") = [&] {
+            CREDENCE_ASSERT(
+                stack.get(lhs_lvalue).second != Operand_Size::Empty);
+            CREDENCE_ASSERT(
+                stack.get(rhs_lvalue).second != Operand_Size::Empty);
+            auto acc = get_accumulator_register_from_size(Operand_Size::Qword);
+            Storage lhs_storage = stack.get(lhs_lvalue).first;
+            Storage rhs_storage = stack.get(rhs_lvalue).first;
+            auto size = detail::get_operand_size_from_type(
+                type::get_type_from_rvalue_data_type(locals.get_symbol_by_name(
+                    locals.get_pointer_by_name(lhs_lvalue))));
+            auto temp = get_second_register_from_size(size);
+            add_i_s(instructions_, mov, acc, rhs_storage);
+            set_instruction_flag(
+                detail::flag::Indirect_Source | detail::flag::Address);
+            add_i_s(instructions_, mov, temp, acc);
+            add_i_s(instructions_, mov, acc, lhs_storage);
+            set_instruction_flag(detail::flag::Indirect);
+            add_i_s(instructions_, mov, acc, temp);
+        });
 }
 
 void Code_Generator::insert_from_rvalue(type::semantic::RValue const& rvalue)
@@ -829,6 +877,17 @@ void Code_Generator::set_instruction_flag(
     }
 }
 
+void Code_Generator::set_instruction_flag(detail::flag::flags flags)
+{
+    if (!instructions_.empty()) {
+        unsigned int index = instructions_.size();
+        if (!instruction_flag.contains(index))
+            instruction_flag[index] = flags;
+        else
+            instruction_flag[index] |= flags;
+    }
+}
+
 detail::Operand_Size Code_Generator::get_operand_size_from_storage(
     Storage const& storage)
 {
@@ -947,10 +1006,7 @@ constexpr void detail::Stack::set_address_from_type(
 constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
 {
     auto qword_size = Operand_Size::Qword;
-    size = size == 0
-               ? get_size_from_operand_size(qword_size)
-               : align_up_to_16(
-                     size + detail::get_size_from_operand_size(qword_size));
+    size = align_up_to_8(size + detail::get_size_from_operand_size(qword_size));
     stack_address.insert(lvalue, { size, qword_size });
 }
 

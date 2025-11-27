@@ -34,6 +34,13 @@ constexpr unsigned int align_up_to_16(unsigned int n)
     return (n + MASK) & (~MASK);
 }
 
+constexpr unsigned int align_up_to_8(unsigned int n)
+{
+    const unsigned int ALIGNMENT = 8;
+    const unsigned int MASK = ALIGNMENT - 1;
+    return (n + MASK) & (~MASK);
+}
+
 template<typename S>
 class Backend
 {

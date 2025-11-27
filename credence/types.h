@@ -258,6 +258,19 @@ constexpr semantic::RValue get_unary_rvalue_reference(
 }
 
 /**
+ * @brief Get unary operator from ITA rvalue string
+ */
+constexpr semantic::RValue get_unary_operator(RValue_Reference rvalue)
+{
+    auto it = std::ranges::find_if(unary_operators, [&](std::string_view op) {
+        return rvalue.find(op) != std::string_view::npos;
+    });
+    if (it == unary_operators.end())
+        return "";
+    return *it;
+}
+
+/**
  * @brief Check if an expression contains unary operator
  */
 constexpr bool is_unary_expression(RValue_Reference rvalue)
@@ -267,6 +280,16 @@ constexpr bool is_unary_expression(RValue_Reference rvalue)
     return std::ranges::any_of(unary_operators, [&](std::string_view x) {
         return rvalue.starts_with(x) or rvalue.ends_with(x);
     });
+}
+
+/**
+ * @brief Check if an expression contains unary operator
+ */
+constexpr bool is_dereference_expression(RValue_Reference rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") >= 2)
+        return false;
+    return get_unary_operator(rvalue) == "*";
 }
 
 /**
@@ -347,19 +370,6 @@ constexpr Binary_Expression from_rvalue_binary_expression(
 }
 
 /**
- * @brief Get unary operator from ITA rvalue string
- */
-constexpr semantic::RValue get_unary_operator(RValue_Reference rvalue)
-{
-    auto it = std::ranges::find_if(unary_operators, [&](std::string_view op) {
-        return rvalue.find(op) != std::string_view::npos;
-    });
-    if (it == unary_operators.end())
-        return "";
-    return *it;
-}
-
-/**
  * @brief Get binary operator from ITA rvalue string
  */
 constexpr semantic::RValue get_binary_operator(RValue_Reference rvalue)
@@ -390,7 +400,7 @@ constexpr semantic::RValue get_binary_operator(RValue_Reference rvalue)
 /**
  * @brief Get the type from a local in the stack frame
  */
-constexpr semantic::Type get_type_from_local_lvalue(Data_Type const& rvalue)
+constexpr semantic::Type get_type_from_rvalue_data_type(Data_Type const& rvalue)
 {
     return std::get<1>(rvalue);
 }
@@ -402,6 +412,14 @@ constexpr semantic::RValue get_value_from_rvalue_data_type(
     Data_Type const& rvalue)
 {
     return std::get<0>(rvalue);
+}
+
+/**
+ * @brief Get the type from a local in the stack frame
+ */
+constexpr semantic::Size get_size_from_rvalue_data_type(Data_Type const& rvalue)
+{
+    return std::get<2>(rvalue);
 }
 
 /**

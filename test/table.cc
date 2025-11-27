@@ -1133,7 +1133,7 @@ TEST_CASE_FIXTURE(
     REQUIRE(get<0>(test) == "5");
     REQUIRE(get<0>(test2) == "5");
     REQUIRE(get<0>(test3) == "5");
-    REQUIRE(get<0>(test4) == "a");
+    REQUIRE(get<0>(test4) == "b");
     REQUIRE(get<0>(test5) == "5");
 }
 

@@ -157,7 +157,7 @@ class Table
     /**
      * @brief Get the type from a local in the stack frame
      */
-    Type get_type_from_local_lvalue(LValue const& lvalue);
+    Type get_type_from_rvalue_data_type(LValue const& lvalue);
     Size get_size_from_local_lvalue(LValue const& lvalue);
 
   public:
@@ -173,14 +173,14 @@ class Table
     /** Left-hand-side and right-hand-side type equality check */
     inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
     {
-        return get_type_from_local_lvalue(lhs) ==
-               get_type_from_local_lvalue(rhs);
+        return get_type_from_rvalue_data_type(lhs) ==
+               get_type_from_rvalue_data_type(rhs);
     }
     inline bool lhs_rhs_type_is_equal(
         LValue const& lhs,
         type::Data_Type const& rvalue)
     {
-        return get_type_from_local_lvalue(lhs) == std::get<1>(rvalue);
+        return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
     }
 
     /**

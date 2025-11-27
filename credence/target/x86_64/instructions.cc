@@ -30,11 +30,11 @@ Immediate get_result_from_trivial_relational_expression(
 {
     int result{ 0 };
     // note: operand type checking is done in the table
-    auto type = type::get_type_from_local_lvalue(lhs);
+    auto type = type::get_type_from_rvalue_data_type(lhs);
     auto lhs_imm = type::get_value_from_rvalue_data_type(lhs);
     auto rhs_imm = type::get_value_from_rvalue_data_type(rhs);
-    auto lhs_type = type::get_type_from_local_lvalue(lhs);
-    auto rhs_type = type::get_type_from_local_lvalue(lhs);
+    auto lhs_type = type::get_type_from_rvalue_data_type(lhs);
+    auto rhs_type = type::get_type_from_rvalue_data_type(lhs);
 
     // clang-format off
     m::match(op) (
@@ -74,7 +74,7 @@ Immediate get_result_from_trivial_integral_expression(
     std::string const& op,
     Immediate const& rhs)
 {
-    auto type = type::get_type_from_local_lvalue(lhs);
+    auto type = type::get_type_from_rvalue_data_type(lhs);
     auto lhs_imm = type::get_value_from_rvalue_data_type(lhs);
     auto rhs_imm = type::get_value_from_rvalue_data_type(rhs);
     if (type == "int") {
@@ -104,7 +104,7 @@ Immediate get_result_from_trivial_bitwise_expression(
     std::string const& op,
     Immediate const& rhs)
 {
-    auto type = type::get_type_from_local_lvalue(lhs);
+    auto type = type::get_type_from_rvalue_data_type(lhs);
     auto lhs_imm = type::get_value_from_rvalue_data_type(lhs);
     auto rhs_imm = type::get_value_from_rvalue_data_type(rhs);
     if (type == "int") {
