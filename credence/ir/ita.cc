@@ -25,7 +25,7 @@
 #include <credence/types.h>        // for get_unary_operator, ...
 #include <credence/util.h>         // for AST_Node, AST
 #include <credence/value.h>        // for Expression, get_expression_type
-#include <format>                  // for format
+#include <fmt/compile.h>           // for format
 #include <initializer_list>        // for initializer_list
 #include <iomanip>                 // for operator<<, setw
 #include <matchit.h>               // for pattern, PatternHelper, PatternPi...
@@ -166,11 +166,14 @@ Instructions ITA::build_from_function_definition(Node const& node)
     return instructions;
 }
 
-std::string ITA::build_function_label_from_parameters(
+constexpr std::string ITA::build_function_label_from_parameters(
     std::string_view name,
     Parameters const& parameters)
 {
-    auto label = std::format("__{}", name);
+
+    using namespace fmt::literals;
+    auto label = std::string{ "__" };
+    label.append(name);
     label.append("(");
     if (!parameters.empty()) {
         for (auto it = parameters.begin(); it != parameters.end(); it++) {
@@ -197,7 +200,7 @@ void ITA::build_from_vector_definition(Node const& node)
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
         credence_compile_error(
-            std::format(
+            fmt::format(
                 "invalid vector definition, right-hand-side allocation of "
                 "\"{}\" items is out of range; expected no more than \"{}\" "
                 "items ",
@@ -406,7 +409,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
             },
         m::pattern | m::or_(std::string{ "lvalue" }, std::string{ "literal" }) =
             [&] {
-                auto rhs = std::format(
+                auto rhs = fmt::format(
                     "{} {}",
                     detail::instruction_to_string(Instruction::CMP),
                     internal::value::expression_type_to_string(
@@ -418,7 +421,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
         m::pattern | std::string{ "function" } =
             [&] {
                 insert_instructions(instructions, comparator_instructions);
-                auto rhs = std::format(
+                auto rhs = fmt::format(
                     "{} RET", detail::instruction_to_string(Instruction::CMP));
                 auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
@@ -614,7 +617,7 @@ Instructions ITA::build_from_label_statement(Node const& node)
     Expression_Parser parser{ internal_symbols_, symbols_ };
     auto label = statement.to_deque().front().to_string();
     instructions.emplace_back(
-        make_quadruple(Instruction::LABEL, std::format("__L{}", label), ""));
+        make_quadruple(Instruction::LABEL, fmt::format("__L{}", label), ""));
     return instructions;
 }
 
@@ -632,10 +635,10 @@ Instructions ITA::build_from_goto_statement(Node const& node)
     auto label = statement.to_deque().front().to_string();
     if (!parser.is_defined(label))
         credence_error(
-            std::format("Error: label \"{}\" does not exist", label));
+            fmt::format("Error: label \"{}\" does not exist", label));
 
     instructions.emplace_back(
-        make_quadruple(Instruction::GOTO, std::format("__L{}", label), ""));
+        make_quadruple(Instruction::GOTO, fmt::format("__L{}", label), ""));
     return instructions;
 }
 
@@ -758,7 +761,7 @@ void ITA::build_from_auto_statement(
 
 #endif
                     instructions.emplace_back(make_quadruple(
-                        Instruction::LOCL, std::format("*{}", name)));
+                        Instruction::LOCL, fmt::format("*{}", name)));
                     symbols_.set_symbol_by_name(
                         name, internal::value::Expression::WORD_LITERAL);
                 });

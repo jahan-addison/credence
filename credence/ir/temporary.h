@@ -117,6 +117,7 @@ class Temporary
   public:
     using Operand = internal::value::Expression::Type_Pointer;
     using Operands = std::vector<Operand>;
+    using Operator = type::Operator;
     using Instructions = ir::Instructions;
     using Operand_Stack = std::stack<Operand>;
     using Temporary_Stack = std::stack<std::string>;

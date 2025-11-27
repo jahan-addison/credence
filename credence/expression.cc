@@ -22,7 +22,7 @@
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/util.h>      // for AST_Node, unescape_string
 #include <credence/value.h>     // for make_lvalue, Expression, TYPE_LITERAL
-#include <format>               // for format
+#include <fmt/format.h>         // for format
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
@@ -103,7 +103,7 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
                         from_unary_expression_node(node));
                 } else {
                     credence_error(
-                        std::format("Invalid ast node type `{}`", node_type));
+                        fmt::format("Invalid ast node type `{}`", node_type));
                 }
             });
     return expression;
@@ -198,7 +198,7 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
 
     CREDENCE_ASSERT_MESSAGE(
         std::ranges::find(unary_types, unary_type) != unary_types.end(),
-        std::format("Invalid unary expression type `{}`", unary_type));
+        fmt::format("Invalid unary expression type `{}`", unary_type));
 
     Expression expression{};
     std::map<std::string, Operator> const other_unary = {
@@ -348,13 +348,13 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
                 if (offset_value.JSON_type() ==
                     util::AST_Node::Class::Integral) {
                     lvalue = internal::value::make_lvalue(
-                        std::format(
+                        fmt::format(
                             "{}[{}]",
                             node["root"].to_string(),
                             offset_value.to_int()));
                 } else
                     lvalue = internal::value::make_lvalue(
-                        std::format(
+                        fmt::format(
                             "{}[{}]",
                             node["root"].to_string(),
                             offset_value.to_string()));
@@ -363,11 +363,11 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
             [&] {
                 if (node["left"].has_key("left")) {
                     lvalue = internal::value::make_lvalue(
-                        std::format(
+                        fmt::format(
                             "*{}", node["left"]["left"]["root"].to_string()));
                 } else
                     lvalue = internal::value::make_lvalue(
-                        std::format("*{}", node["left"]["root"].to_string()));
+                        fmt::format("*{}", node["left"]["root"].to_string()));
             });
     return lvalue;
 }

@@ -113,7 +113,7 @@ enum Instruction_Flag : flags
 
 constexpr std::string emit_immediate_storage(Immediate const& immediate);
 
-std::string emit_stack_storage(
+constexpr std::string emit_stack_storage(
     Stack const& stack,
     Stack::Offset offset,
     flag::flags flags);

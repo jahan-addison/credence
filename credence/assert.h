@@ -17,7 +17,7 @@
 #pragma once
 #include <cpptrace/cpptrace.hpp>
 #include <cpptrace/formatting.hpp>
-#include <format>
+#include <fmt/format.h>
 #include <iostream>
 #include <simplejson.h>
 #include <stdexcept>
@@ -78,7 +78,7 @@ inline void credence_compile_error_impl(
     auto symbol = symbol_name.data();
     if (symbols.has_key(symbol)) {
         credence_error(
-            std::format(
+            fmt::format(
                 "\n  >>> Compilation Failure :: on \"{}\" :: {}\n"
                 ">>> from line {} column {}:{}",
                 symbol,
@@ -88,7 +88,7 @@ inline void credence_compile_error_impl(
                 symbols[symbol]["end_column"].to_int()));
     } else {
         credence_error(
-            std::format(
+            fmt::format(
                 "\n  >>> Compilation Failure :: on \"{}\" {}",
                 symbol,
                 message));
@@ -110,7 +110,7 @@ template<typename T1, typename T2>
     [[maybe_unused]] const T2& expected)
 {
     if (actual != expected) {
-        std::cerr << std::format(
+        std::cerr << fmt::format(
             "Credence Assertion: {} == {}\n", actual, expected);
         credence::credence_cpptrace_stack_trace();
         std::abort();

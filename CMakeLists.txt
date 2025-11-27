@@ -97,6 +97,8 @@ cpmaddpackage(
   "SIMPLEJSON_BUILD_EXAMPLES OFF"
   "SIMPLEJSON_BUILD_TESTS OFF")
 
+CPMAddPackage("gh:fmtlib/fmt#12.1.0")
+
 cpmaddpackage(
   NAME
   cpptrace
@@ -140,10 +142,10 @@ target_include_directories(
          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>)
 
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts
+  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts fmt::fmt
                          matchit cpptrace::cpptrace simplejson "${eternal_SOURCE_DIR}/include")
 target_link_libraries(
-  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts
+  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts fmt::fmt
                          matchit cpptrace::cpptrace simplejson eternal)
 
 include(cmake/doctest.cmake)

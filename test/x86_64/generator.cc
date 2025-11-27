@@ -2,7 +2,7 @@
 
 #include <credence/target/x86_64/generator.h> // for emit
 #include <filesystem>                         // for path
-#include <format>                             // for format
+#include <fmt/format.h>                       // for format
 #include <simplejson.h>                       // for JSON
 #include <sstream>                            // for char_traits, basic_ost...
 #include <string>                             // for basic_string, allocator
@@ -27,7 +27,7 @@ namespace fs = std::filesystem;
     auto fixture_path = fs::path(ROOT_PATH);                                        \
     fixture_path.append("test/fixtures/x86_64/ast");                                \
     auto file_path = fs::path(fixture_path)                                         \
-        .append(std::format("{}.json", ast_path));                                  \
+        .append(fmt::format("{}.json", ast_path));                                  \
     auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();    \
     credence::target::x86_64::emit(                                                 \
         test, fixture_content[0], fixture_content[1]);                              \

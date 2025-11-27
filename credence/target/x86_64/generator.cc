@@ -24,7 +24,8 @@
 #include <credence/util.h>          // for substring_count_of, contains
 #include <cstddef>                  // for size_t
 #include <deque>                    // for deque
-#include <format>                   // for format
+#include <fmt/compile.h>            // for fmt::literals
+#include <fmt/format.h>             // for format
 #include <functional>               // for std::function
 #include <matchit.h>                // for pattern, PatternHelper, Pattern...
 #include <memory>                   // for shared_ptr
@@ -126,31 +127,33 @@ constexpr std::string detail::emit_immediate_storage(Immediate const& immediate)
     return type::get_value_from_rvalue_data_type(immediate);
 }
 
-std::string detail::emit_stack_storage(
+constexpr std::string detail::emit_stack_storage(
     Stack const& stack,
     Stack::Offset offset,
     flag::flags flags)
 {
+    using namespace fmt::literals;
     std::string as_str{};
     auto size = stack.get_operand_size_from_offset(offset);
     std::string prefix = storage_prefix_from_operand_size(size);
     if (flags & flag::Address)
-        as_str = std::format("[rbp - {}]", offset);
+        as_str = fmt::format("[rbp - {}]"_cf, offset);
     else
-        as_str = std::format("{} [rbp - {}]", prefix, offset);
+        as_str = fmt::format("{} [rbp - {}]"_cf, prefix, offset);
     return as_str;
 }
 
-std::string detail::emit_register_storage(
+inline std::string detail::emit_register_storage(
     Register device,
     Operand_Size size,
     flag::flags flags)
 {
     std::stringstream as_str{};
-
+    using namespace fmt::literals;
     auto prefix = storage_prefix_from_operand_size(size);
     if (flags & flag::Indirect)
-        as_str << std::format("{} [{}]", prefix, get_storage_as_string(device));
+        as_str << fmt::format(
+            "{} [{}]"_cf, prefix, get_storage_as_string(device));
     else
         as_str << device;
 
@@ -532,7 +535,7 @@ void Code_Generator::insert_from_op_operands(
     } else if (type::is_unary_expression(op)) {
         from_ita_unary_expression(op, operands.first);
     } else {
-        credence_error(std::format("unreachable: operator {}", op));
+        credence_error(fmt::format("unreachable: operator '{}'", op));
     }
 }
 

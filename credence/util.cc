@@ -3,7 +3,7 @@
 
 #include <credence/assert.h> // for credence_error
 #include <filesystem>        // for file_size, path
-#include <format>            // for format, format_string
+#include <fmt/format.h>      // for format, format_string
 #include <fstream>           // for basic_ofstream, basic_ifstream, basic...
 #include <iostream>          // for cout
 #include <memory>            // for unique_ptr
@@ -24,12 +24,12 @@ void write_file_to_path_from_stringstream(
     if (file_name == "stdout") {
         std::cout << oss.str();
     } else {
-        std::ofstream file_(std::format("{}.{}", file_name, ext));
+        std::ofstream file_(fmt::format("{}.{}", file_name, ext));
         if (file_.is_open()) {
             file_ << oss.str();
             file_.close();
         } else {
-            credence_error(std::format("Error creating file: `{}`", file_name));
+            credence_error(fmt::format("Error creating file: `{}`", file_name));
         }
     }
 }

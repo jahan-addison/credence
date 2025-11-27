@@ -181,7 +181,7 @@ int main(int argc, const char* argv[])
         credence::credence_cpptrace_stack_trace();
         return 1;
     } catch (...) {
-        std::cerr << "Unknown exception occurred: " << std::endl;
+        std::cerr << "Exception occurred: " << std::endl;
         credence::credence_cpptrace_stack_trace();
         return 1;
     }

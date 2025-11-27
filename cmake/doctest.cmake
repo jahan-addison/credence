@@ -8,14 +8,15 @@ list(REMOVE_ITEM sources "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/main.cc")
 add_executable(Test_Suite ${sources} ${test_sources})
 
 target_include_directories(
-  Test_Suite PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts matchit
-                    simplejson "${eternal_SOURCE_DIR}/include")
+  Test_Suite PUBLIC Python3::Python pybind11::headers fmt::fmt cxxopts::cxxopts
+                    matchit simplejson "${eternal_SOURCE_DIR}/include")
 
 target_link_libraries(
   Test_Suite
   doctest::doctest
   Python3::Python
   cpptrace::cpptrace
+  fmt::fmt
   pybind11::headers
   matchit
   cxxopts::cxxopts

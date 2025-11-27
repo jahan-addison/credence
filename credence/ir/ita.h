@@ -389,7 +389,7 @@ class ITA
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_function_definition(Node const& node);
     void build_from_vector_definition(Node const& node);
-    std::string build_function_label_from_parameters(
+    constexpr std::string build_function_label_from_parameters(
         std::string_view name,
         Parameters const& parameters);
 

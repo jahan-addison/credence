@@ -19,7 +19,7 @@
 #include <credence/assert.h> // for CREDENCE_ASSERT_MESSAGE
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <credence/value.h>  // for Literal, Array, ...
-#include <format>            // for format
+#include <fmt/format.h>      // for format
 #include <map>               // for map
 #include <string>            // for basic_string, string
 #include <utility>           // for make_pair, move
@@ -94,7 +94,7 @@ class Symbol_Table
     {
         CREDENCE_ASSERT_MESSAGE(
             table_.find(name) != table_.end(),
-            std::format("symbol not found `{}`", name));
+            fmt::format("symbol not found `{}`", name));
         return table_.at(name);
     }
 
@@ -102,7 +102,7 @@ class Symbol_Table
     {
         CREDENCE_ASSERT_MESSAGE(
             addr_.find(name) != addr_.end(),
-            std::format("address symbol not found `{}`", name));
+            fmt::format("address symbol not found `{}`", name));
         return addr_.at(name);
     }
 

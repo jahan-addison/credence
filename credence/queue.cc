@@ -19,7 +19,7 @@
 #include <credence/operators.h> // for Operator, get_precedence, is_le...
 #include <credence/util.h>      // for overload
 #include <credence/value.h>     // for make_value_type_pointer, Expres...
-#include <format>               // for format
+#include <fmt/format.h>         // for format
 #include <mapbox/eternal.hpp>   // for element, map
 #include <memory>               // for shared_ptr, allocator, make_unique
 #include <ostream>              // for operator<<, basic_ostream
@@ -174,7 +174,7 @@ void expression_pointer_to_queue_in_place(
                     auto param =
                         value::make_value_type_pointer(parameter->value);
                     auto name = value::make_lvalue(
-                        std::format("_p{}", ++(*parameter_size)));
+                        fmt::format("_p{}", ++(*parameter_size)));
                     auto lvalue =
                         internal::value::make_value_type_pointer(name);
                     parameters.emplace_back(lvalue);

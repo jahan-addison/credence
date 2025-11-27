@@ -26,7 +26,8 @@
 #include <credence/util.h>       // for AST_Node, overload
 #include <credence/value.h>      // for Expression, make_value_type_pointer
 #include <deque>                 // for deque, operator==, _Deque_iterator
-#include <format>                // for format, format_string
+#include <fmt/compile.h>         // for fmt::literals
+#include <fmt/format.h>          // for format, format_string
 #include <mapbox/eternal.hpp>    // for element, map
 #include <matchit.h>             // for Ds, Meet, _, pattern, ds, match, Wil...
 #include <memory>                // for shared_ptr, __shared_ptr_access, uni...
@@ -67,7 +68,23 @@ namespace credence {
 namespace ir {
 
 namespace m = matchit;
-using namespace type;
+
+constexpr std::string make_binary_temporary_string(
+    std::string_view s1,
+    type::Operator s2,
+    std::string_view s3)
+{
+    using namespace fmt::literals;
+    return fmt::format("{} {} {}"_cf, s1, type::operator_to_string(s2), s3);
+}
+
+constexpr std::string make_unary_temporary_string(
+    type::Operator s1,
+    std::string_view s2)
+{
+    using namespace fmt::literals;
+    return fmt::format("{} {}"_cf, type::operator_to_string(s1), s2);
+}
 
 namespace detail {
 
@@ -95,20 +112,12 @@ void Temporary::binary_operands_balanced_temporary_stack(type::Operator op)
     auto temp_rhs = ir::make_temporary(temporary_index, rhs);
     instructions.emplace_back(temp_rhs);
     temporary_stack.emplace(
-        std::format(
-            "{} {} {}",
-            lhs.first,
-            operator_to_string(op),
-            std::get<1>(temp_rhs)));
+        make_binary_temporary_string(lhs.first, op, std::get<1>(temp_rhs)));
     // an lvalue at the end of a call stack
     if (operand1->index() == 6 and operand_stack.size() == 0) {
         auto temp_lhs = ir::make_temporary(
             temporary_index,
-            std::format(
-                "{} {} {}",
-                lhs.first,
-                operator_to_string(op),
-                std::get<1>(temp_rhs)));
+            make_binary_temporary_string(lhs.first, op, std::get<1>(temp_rhs)));
         instructions.emplace_back(temp_lhs);
     }
 }
@@ -162,25 +171,18 @@ void Temporary::binary_operands_unbalanced_temporary_stack(type::Operator op)
                 }
                 auto operand_temp = ir::make_temporary(
                     temporary_index,
-                    std::format(
-                        "{} {} {}",
-                        std::get<1>(last_lvalue),
-                        operator_to_string(op),
-                        std::get<1>(last)));
+                    make_binary_temporary_string(
+                        std::get<1>(last_lvalue), op, std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
                 temporary_stack.emplace(std::get<1>(operand_temp));
             },
         // cppcheck-suppress syntaxError
         m::pattern | 1 =
             [&] {
-                // clang-format off
-                auto operand_temp =
-                    ir::make_temporary(temporary_index,
-                    std::format("{} {} {}",
-                        rhs_lvalue,
-                        operator_to_string(op),
-                        std::get<1>(last)));
-                // clang-format on
+                auto operand_temp = ir::make_temporary(
+                    temporary_index,
+                    make_binary_temporary_string(
+                        rhs_lvalue, op, std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
                 temporary_stack.emplace(std::get<1>(operand_temp));
             }
@@ -230,8 +232,7 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
 
                 auto unary = ir::make_temporary(
                     temporary_index,
-                    std::format(
-                        "{} {}", operator_to_string(op), std::get<1>(temp)));
+                    make_unary_temporary_string(op, std::get<1>(temp)));
                 instructions.emplace_back(unary);
                 temp_name = std::get<1>(unary);
             },
@@ -246,14 +247,9 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
                         unwrap_lhs_type);
                     auto rhs = instruction_temporary_from_expression_operand(
                         unwrap_rhs_type);
-                    // clang-format off
-                    auto relation =
-                        ir::make_temporary(temporary_index,
-                            std::format("{} {} {}",
-                                lhs.first,
-                                operator_to_string(op),
-                                rhs.first));
-                    // clang-format on
+                    auto relation = ir::make_temporary(
+                        temporary_index,
+                        make_binary_temporary_string(lhs.first, op, rhs.first));
                     instructions.emplace_back(relation);
                     temp_name = std::get<1>(relation);
                 }
@@ -352,8 +348,7 @@ void Temporary::from_call_operands_to_temporary_instructions()
         auto temp_rhs = ir::make_temporary(temporary_index, rhs);
         instructions.emplace_back(temp_rhs);
         temporary_stack.emplace(
-            std::format(
-                "{} {}", operator_to_string(op), std::get<1>(temp_rhs)));
+            make_unary_temporary_string(op, std::get<1>(temp_rhs)));
         instructions.emplace_back(make_quadruple(Instruction::CALL, rhs));
         temporary_stack.emplace(rhs);
     } else {
@@ -363,8 +358,7 @@ void Temporary::from_call_operands_to_temporary_instructions()
             auto temp_rhs = ir::make_temporary(temporary_index, rhs);
             instructions.emplace_back(temp_rhs);
             temporary_stack.emplace(
-                std::format(
-                    "{} {}", operator_to_string(op), std::get<1>(temp_rhs)));
+                make_unary_temporary_string(op, std::get<1>(temp_rhs)));
             instructions.emplace_back(make_quadruple(Instruction::CALL, rhs));
             temporary_stack.emplace(rhs);
         }
@@ -414,7 +408,7 @@ void Temporary::from_call_operands_to_temporary_instructions()
  * I.e., the sub expression "~ 5" was pushed on to a temporary stack, with
  * identifier _t2. We popped it off and used it in our final temporary.
  */
-void Temporary::unary_operand_to_temporary_stack(Operator op)
+void Temporary::unary_operand_to_temporary_stack(type::Operator op)
 {
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
@@ -427,14 +421,9 @@ void Temporary::unary_operand_to_temporary_stack(Operator op)
                 auto operand1 = temporary_stack.top();
                 temporary_stack.pop();
                 auto unary = ir::make_temporary(
-                    temporary_index,
-                    std::format("{} {}", operator_to_string(op), operand1));
+                    temporary_index, make_unary_temporary_string(op, operand1));
                 temporary_stack.emplace(
-                    std::format(
-                        "{} {}",
-                        operator_to_string(op),
-                        std::get<1>(unary),
-                        ""));
+                    make_unary_temporary_string(op, std::get<1>(unary)));
             },
         m::pattern | m::_ =
             [&] {
@@ -469,17 +458,14 @@ void Temporary::unary_operand_to_temporary_stack(Operator op)
                                     Instruction::MOV,
                                     internal::value::expression_type_to_string(
                                         *operand1, false),
-                                    operator_to_string(op),
+                                    type::operator_to_string(op),
                                     rhs.first);
                                 instructions.emplace_back(unary);
                                 operand_stack.emplace(operand1);
                             } else {
                                 auto operand_temp = ir::make_temporary(
                                     temporary_index,
-                                    std::format(
-                                        "{} {}",
-                                        operator_to_string(op),
-                                        rhs.first));
+                                    make_unary_temporary_string(op, rhs.first));
                                 instructions.emplace_back(operand_temp);
                                 temporary_stack.emplace(
                                     std::get<1>(operand_temp));
@@ -490,10 +476,7 @@ void Temporary::unary_operand_to_temporary_stack(Operator op)
                             // pop the last expression as the unary operand
                             auto unary = ir::make_temporary(
                                 temporary_index,
-                                std::format(
-                                    "{} {}",
-                                    operator_to_string(op),
-                                    rhs.first));
+                                make_unary_temporary_string(op, rhs.first));
                             instructions.emplace_back(unary);
                             temporary_stack.emplace(std::get<1>(unary));
                         }
@@ -558,7 +541,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                 temporary_stack.pop();
                 auto last_instruction = ir::make_temporary(
                     temporary_index,
-                    std::format("{} {} {}", lhs, operator_to_string(op), rhs));
+                    make_binary_temporary_string(lhs, op, rhs));
                 instructions.emplace_back(last_instruction);
             },
         // there is exactly one temporary lvalue,
@@ -598,11 +581,8 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                                 // temporary from the last instruction
                                 auto operand_temp = ir::make_temporary(
                                     temporary_index,
-                                    std::format(
-                                        "{} {} {}",
-                                        lhs_name.first,
-                                        operator_to_string(op),
-                                        rhs_name.first));
+                                    make_binary_temporary_string(
+                                        lhs_name.first, op, rhs_name.first));
                                 internal::value::Expression::LValue
                                     temp_lvalue = std::make_pair(
                                         std::get<1>(operand_temp),
@@ -615,11 +595,8 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
 
                             } else {
                                 temporary_stack.emplace(
-                                    std::format(
-                                        "{} {} {}",
-                                        lhs_name.first,
-                                        operator_to_string(op),
-                                        rhs_name.first));
+                                    make_binary_temporary_string(
+                                        lhs_name.first, op, rhs_name.first));
                             }
                         }
 
@@ -637,6 +614,7 @@ Instructions expression_queue_to_temporary_instructions(
     queue::Queue& queue,
     int* index)
 {
+    using namespace credence::type;
     if (queue.empty()) {
         return Instructions{};
     }
@@ -644,7 +622,7 @@ Instructions expression_queue_to_temporary_instructions(
     for (auto& item : queue) {
         std::visit(
             util::overload{
-                [&](type::Operator op) {
+                [&](Operator op) {
                     switch (op) {
                         // relational operators
                         case Operator::R_EQUAL:
