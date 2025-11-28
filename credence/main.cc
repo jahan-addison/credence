@@ -130,50 +130,37 @@ int main(int argc, const char* argv[])
 
         std::ostringstream out_to{};
 
+        const std::string_view extension = m::match(target)(
+            m::pattern | m::or_(sv("x86_64"), sv("arm64"), sv("z80")) =
+                [&] { return "bs"; },
+            m::pattern |
+                m::or_(sv("ast"), sv("syntax")) = [&] { return "bast"; },
+            m::pattern | m::_ = [&] { return "bo"; });
         // clang-format off
         m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "x86_64" =
                 [&]() {
-                    credence::target::x86_64::emit(out_to, symbols, ast["root"]);
+            credence::target::x86_64::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "ir" =
-                [&]() {
-                    credence::ir::emit(out_to, symbols, ast["root"]);
-                },
-            m::pattern | "ast" =
-                [&]() {
-                    if (!ast.is_null())
-                        out_to << ast["root"] << std::endl;
-                },
-            m::pattern | "syntax" =
-                [&]() {
-                    if (!syntax_tree.empty()) {
-                        out_to << syntax_tree << std::endl;
-                    }
-                },
+                [&]() { credence::ir::emit(out_to, symbols, ast["root"]); },
+            m::pattern | "ast" = [&]() { out_to << ast["root"] << std::endl; },
+            m::pattern |
+                "syntax" = [&]() { out_to << syntax_tree << std::endl; },
             m::pattern | m::_ =
                 [&]() {
                     std::cerr << "Credence :: Invalid target option"
                               << std::endl;
-                    std::exit(1);
                 });
         // clang-format on
-        // emit to file or stdout
-        credence::util::write_file_to_path_from_stringstream(
-            output, out_to, target == "ast" ? "json" : "bo");
+        credence::util::write_to_from_string_stream(output, out_to, extension);
 
-    } catch (const cxxopts::exceptions::option_has_no_value&) {
+    } catch (cxxopts::exceptions::option_has_no_value const&) {
         std::cout << "Credence :: See \"--help\" for usage overview"
                   << std::endl;
-    } catch (const std::filesystem::filesystem_error& e) {
+    } catch (std::filesystem::filesystem_error const& e) {
         std::cerr << "Credence :: Invalid file path: " << e.path1()
-                  << std::endl;
-        return 1;
-    } catch (std::runtime_error const& e) {
-        auto what = credence::util::capitalize(e.what());
-        std::cerr << std::endl
-                  << "Credence Error :: " << "\033[31m" << what << "\033[0m"
                   << std::endl;
         return 1;
     } catch (credence::detail::Credence_Exception const& e) {

@@ -34,6 +34,8 @@ There are a few differences between the compiler and B specification, namely:
 * Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte
 
+---
+
 ## Usage
 
 ```
@@ -56,11 +58,13 @@ Usage:
 
 ## Targets
 
-The default compile target is currently the IR, ITA:
+### x86-64:
+  * Compliance with the Application Binary Interface (ABI)
+    * Including SIMD memory alignment requirements
 
-### Example:
+*Note*: The default compile target is currently the IR, [ITA](credence/ir/README.md):
 
-B Code:
+#### Example:
 
 ```C
 main() {

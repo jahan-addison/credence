@@ -44,8 +44,8 @@ class Stack
 {
   public:
     explicit Stack() = default;
-    Stack(Stack const&) = default;
-    Stack& operator=(Stack const&) = default;
+    Stack(Stack const&) = delete;
+    Stack& operator=(Stack const&) = delete;
 
   public:
     using LValue = type::semantic::LValue;

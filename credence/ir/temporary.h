@@ -21,7 +21,7 @@
 #include <credence/queue.h>     // for Queue
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/util.h>      // for AST_Node
-#include <credence/value.h>     // for Expression
+#include <credence/values.h>    // for Expression
 #include <cstddef>              // for size_t
 #include <functional>           // for identity
 #include <initializer_list>     // for initializer_list
@@ -115,15 +115,14 @@ class Temporary
     }
 
   public:
-    using Operand = internal::value::Expression::Type_Pointer;
+    using Operand = value::Expression::Type_Pointer;
     using Operands = std::vector<Operand>;
     using Operator = type::Operator;
     using Instructions = ir::Instructions;
     using Operand_Stack = std::stack<Operand>;
     using Temporary_Stack = std::stack<std::string>;
 
-    internal::value::Size insert_and_create_temporary_from_operand(
-        Operand& operand);
+    value::Size insert_and_create_temporary_from_operand(Operand& operand);
 
   public:
     void unary_operand_to_temporary_stack(type::Operator op);

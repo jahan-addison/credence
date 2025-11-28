@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <credence/value.h>
+#include <credence/values.h>
 
 #include <credence/operators.h> // for Operator
 #include <credence/util.h>      // for overload
@@ -28,12 +28,10 @@
 #include <variant>              // for get, monostate, variant, visit
 #include <vector>               // for vector
 
-namespace credence {
-
-namespace internal::value {
+namespace credence::value {
 
 /**
- * @brief internal::value::Expression tuple as a string
+ * @brief value::Expression tuple as a string
  */
 std::string literal_to_string(
     Literal const& literal,
@@ -141,6 +139,4 @@ std::string expression_type_to_string(
     return oss.str();
 }
 
-} // namespace value
-
-} // namespace credence
+} // namespace credence::value::

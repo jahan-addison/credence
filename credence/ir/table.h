@@ -49,7 +49,7 @@ util::AST_Node const& ast);
 namespace detail {
 
 /**
- * Symbolic ITA vector definition and allocation
+ * Symbolic vector definition and allocation
  */
 struct Vector
 {
@@ -100,16 +100,8 @@ struct Function
 
 /**
  * @brief
- * Provides instruction location maps, the stack frame and stack
- * allocation sizes as a pass for platform code generation:
- *
- *      * Instruction address table to functions in the ITA
- *         * Symbolic stack for Instruction::CALL
- *      * Function definition map of local labels,
- *         * stack allocation, and depth size
- *      * Vector definition map of vectors
- *         * (arrays) in the global scope
- *      * A set of labels for Instruction::GOTO jumps
+ * Provides instruction location maps, stack frame with all local
+ * definitions, type data, and value sizes as a pre-selection pass
  */
 class Table
 {
@@ -189,7 +181,8 @@ class Table
     inline void assert_integral_unary_expression(
         LValue const& lvalue,
         RValue const& rvalue,
-        Type const& type)
+        Type const& type,
+        std::source_location const& location = std::source_location::current())
     {
         if (std::ranges::find(type::integral_unary_types, type) ==
             type::integral_unary_types.end())
@@ -199,7 +192,7 @@ class Table
                     "type "
                     "\"{}\" is not a numeric type",
                     lvalue),
-                rvalue);
+                rvalue, location);
     }
 
     /**

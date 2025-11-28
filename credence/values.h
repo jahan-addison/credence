@@ -30,10 +30,10 @@
 namespace credence {
 
 /**
- * @brief Internal data structures for value and type data
+ * @brief Internal data structures for value and type representation
  */
 
-namespace internal::value {
+namespace value {
 
 struct Expression;
 
@@ -213,6 +213,6 @@ constexpr bool is_value_type(
     return get_expression_type(expression.value) == type;
 }
 
-} // namespace internal::value
+} // namespace value
 
 } // namespace credence

@@ -17,7 +17,7 @@
 
 #include <algorithm>            // for copy, max
 #include <credence/operators.h> // for Operator
-#include <credence/value.h>     // for Expression, ...
+#include <credence/values.h>    // for Expression, ...
 #include <deque>                // for deque
 #include <memory>               // for make_unique, unique_ptr
 #include <stack>                // for stack
@@ -36,11 +36,11 @@ namespace queue {
  *  Shunting-yard queue and operator stack of expressions
  */
 
-using Expression = internal::value::Expression::Type_Pointer;
+using Expression = value::Expression::Type_Pointer;
 using Expressions = std::vector<Expression>;
 using Operator_Stack = std::stack<type::Operator>;
 
-using Type = internal::value::Expression::Type;
+using Type = value::Expression::Type;
 using Item = std::variant<type::Operator, Expression>;
 
 using Queue = std::deque<Item>;

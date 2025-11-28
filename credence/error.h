@@ -90,27 +90,48 @@ inline void compile_error_impl(
 {
     auto symbol = symbol_name.data();
 #ifndef DEBUG
-    throw Credence_Exception(
-        "\n  Credence could not compile source:\n    on symbol '{}'\n    with: "
-        "\"{}\"\n  > from line {} column {}:{}",
-        symbol,
-        message,
-        symbols[symbol]["line"].to_int(),
-        symbols[symbol]["column"].to_int(),
-        symbols[symbol]["end_column"].to_int());
+    if (symbols.has_key(symbol))
+        throw Credence_Exception(
+            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
+            "with: "
+            "\"{}\"\n  > from line {} column {}:{}",
+            symbol,
+            message,
+            symbols[symbol]["line"].to_int(),
+            symbols[symbol]["column"].to_int(),
+            symbols[symbol]["end_column"].to_int());
+    else
+        throw Credence_Exception(
+            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
+            "with: {}",
+            symbol,
+            message);
 #else
-    throw Credence_Exception(
-        "\n  Credence could not compile source:\n    on symbol '{}'\n    with: "
-        "\"{}\"\n  > from line {} column {}:{}\n\n\n >>> In file "
-        "'{}'\n line {}\n   ::: '{}'\n",
-        symbol,
-        message,
-        symbols[symbol]["line"].to_int(),
-        symbols[symbol]["column"].to_int(),
-        symbols[symbol]["end_column"].to_int(),
-        location.file_name(),
-        location.line(),
-        location.function_name());
+    if (symbols.has_key(symbol))
+        throw Credence_Exception(
+            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
+            "with: "
+            "\"{}\"\n  > from line {} column {}:{}\n\n\n >>> In file "
+            "'{}'\n line {}\n   ::: '{}'\n",
+            symbol,
+            message,
+            symbols[symbol]["line"].to_int(),
+            symbols[symbol]["column"].to_int(),
+            symbols[symbol]["end_column"].to_int(),
+            location.file_name(),
+            location.line(),
+            location.function_name());
+    else
+        throw Credence_Exception(
+            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
+            "with: \"{}\""
+            "\n\n\n >>> In file "
+            "'{}'\n line {}\n   ::: '{}'\n",
+            symbol,
+            message,
+            location.file_name(),
+            location.line(),
+            location.function_name());
 #endif
 }
 
@@ -128,7 +149,7 @@ inline void assert_fail(
     } else {
         throw Credence_Exception(
             "\n    Assertion failed in '{}'\n    at line {}\n  ::: "
-            "'{}':\n    "
+            "'{}'\n    "
             "with "
             "'{}'\n",
             location.file_name(),

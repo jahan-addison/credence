@@ -382,9 +382,9 @@ void Code_Generator::from_temporary_unary_operator_expression(
 Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
     type::semantic::RValue const& rvalue)
 {
-    if (type::is_rvalue_data_type(rvalue)) {
+    if (type::is_rvalue_data_type(rvalue))
         return type::get_rvalue_datatype_from_string(rvalue);
-    }
+
     if (stack.contains(rvalue))
         return stack.get(rvalue).first;
 
@@ -404,6 +404,7 @@ void Code_Generator::from_binary_operator_expression(
     type::semantic::LValue const& expr)
 {
     credence_assert(type::is_binary_expression(expr));
+
     auto expression = type::from_rvalue_binary_expression(expr);
     Storage lhs_s{ std::monostate{} };
     Storage rhs_s{ std::monostate{} };
@@ -562,10 +563,11 @@ void Code_Generator::insert_from_unary_to_unary_assignment(
     m::match(lhs_op, rhs_op)(
         // *t = *k deference to dereference assignment
         m::pattern | m::ds("*", "*") = [&] {
-            credence_assert(
-                stack.get(lhs_lvalue).second != Operand_Size::Empty);
-            credence_assert(
-                stack.get(rhs_lvalue).second != Operand_Size::Empty);
+            credence_assert_nequal(
+                stack.get(lhs_lvalue).second, Operand_Size::Empty);
+            credence_assert_nequal(
+                stack.get(rhs_lvalue).second, Operand_Size::Empty);
+
             auto acc = get_accumulator_register_from_size(Operand_Size::Qword);
             Storage lhs_storage = stack.get(lhs_lvalue).first;
             Storage rhs_storage = stack.get(rhs_lvalue).first;
@@ -573,6 +575,7 @@ void Code_Generator::insert_from_unary_to_unary_assignment(
                 type::get_type_from_rvalue_data_type(locals.get_symbol_by_name(
                     locals.get_pointer_by_name(lhs_lvalue))));
             auto temp = get_second_register_from_size(size);
+
             add_i_s(instructions_, mov, acc, rhs_storage);
             set_instruction_flag(
                 detail::flag::Indirect_Source | detail::flag::Address);
@@ -911,7 +914,7 @@ detail::Operand_Size Code_Generator::get_operand_size_from_storage(
 Code_Generator::Storage Code_Generator::get_lvalue_address(
     type::semantic::LValue const& lvalue)
 {
-    if (type::is_unary_expression(lvalue)) {
+    if (type::is_dereference_expression(lvalue)) {
         auto storage =
             stack.get(type::get_unary_rvalue_reference(lvalue)).first;
         add_i_s(instructions_, mov, Register::rax, storage);

@@ -1,8 +1,8 @@
 # Intermediate Representation
 
-The intermediate representation (IR) is formalized as a linear four-tuple, named the Instruction Tuple Abstraction (ITA). The ITA constitutes a collection of platform-independent, generic instructions that approximate the structure and semantics of a target machine language.
+The intermediate representation (IR) is formalized as a linear four-tuple, named the Instruction Tuple Abstraction (ITA). The ITA comprises a collection of platform-independent  instructions that approximate the structure and semantics of a target machine language.
 
-It's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from a [queue of expressions](https://github.com/jahan-addison/credence/blob/df30896c5e0750cb15ab278be46ddb585bc67111/credence/queue.h#L36) and rvalues in reverse polish form. The temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/df30896c5e0750cb15ab278be46ddb585bc67111/credence/ir/temporary.h#L66).
+It's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from a [queue of expressions](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/queue.h#L36) and rvalues in reverse polish form. The temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/temporary.h#L68).
 
 
 ## Instructions
@@ -70,7 +70,7 @@ __main():
 
 ## Branching
 
-See the branch state machine object for details [here](https://github.com/jahan-addison/credence/blob/99d882fb813fe6964092f7ed7ac2f07b30c86cf8/credence/ir/ita.h#L369).
+See the branch state machine object for details [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/ita.h#L216).
 
 
 ## Table

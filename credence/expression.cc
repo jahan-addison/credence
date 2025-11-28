@@ -21,7 +21,7 @@
 #include <credence/operators.h> // for Operator, BINARY_OPERATORS
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/util.h>      // for AST_Node, unescape_string
-#include <credence/value.h>     // for make_lvalue, Expression, TYPE_LITERAL
+#include <credence/values.h>    // for make_lvalue, Expression, TYPE_LITERAL
 #include <fmt/format.h>         // for format
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
@@ -127,7 +127,7 @@ Expression_Parser::Expression Expression_Parser::from_function_expression_node(
             parameters.emplace_back(make_expression_pointer_from_ast(param));
         }
     auto lhs = from_lvalue_expression_node(node["left"]);
-    expression.value = internal::value::Expression::Function{ lhs, parameters };
+    expression.value = value::Expression::Function{ lhs, parameters };
     return expression;
 }
 
@@ -326,7 +326,7 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
                 expression_parser_error("identifier does not exist", name);
             else
                 symbols_.set_symbol_by_name(
-                    name, internal::value::Expression::WORD_LITERAL);
+                    name, value::Expression::WORD_LITERAL);
         }
     }
     Expression::LValue lvalue{};
@@ -335,9 +335,9 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
             [&] {
                 auto name = node["root"].to_string();
                 if (symbols_.is_pointer(name))
-                    lvalue = internal::value::make_lvalue(name);
+                    lvalue = value::make_lvalue(name);
                 else
-                    lvalue = internal::value::make_lvalue(
+                    lvalue = value::make_lvalue(
                         name, symbols_.get_symbol_by_name(name));
             },
         m::pattern | "vector_lvalue" =
@@ -345,13 +345,13 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
                 auto offset_value = node["left"]["root"];
                 if (offset_value.JSON_type() ==
                     util::AST_Node::Class::Integral) {
-                    lvalue = internal::value::make_lvalue(
+                    lvalue = value::make_lvalue(
                         fmt::format(
                             "{}[{}]",
                             node["root"].to_string(),
                             offset_value.to_int()));
                 } else
-                    lvalue = internal::value::make_lvalue(
+                    lvalue = value::make_lvalue(
                         fmt::format(
                             "{}[{}]",
                             node["root"].to_string(),
@@ -360,11 +360,11 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
         m::pattern | "indirect_lvalue" =
             [&] {
                 if (node["left"].has_key("left")) {
-                    lvalue = internal::value::make_lvalue(
+                    lvalue = value::make_lvalue(
                         fmt::format(
                             "*{}", node["left"]["left"]["root"].to_string()));
                 } else
-                    lvalue = internal::value::make_lvalue(
+                    lvalue = value::make_lvalue(
                         fmt::format("*{}", node["left"]["root"].to_string()));
             });
     return lvalue;
@@ -427,7 +427,7 @@ Expression_Parser::Literal Expression_Parser::from_number_literal_node(
 {
     credence_assert_equal(node["node"].to_string(), "number_literal");
     return { static_cast<int>(node["root"].to_int()),
-             internal::value::TYPE_LITERAL.at("int") };
+             value::TYPE_LITERAL.at("int") };
 }
 
 /**
@@ -451,7 +451,7 @@ Expression_Parser::Literal Expression_Parser::from_constant_literal_node(
 {
     credence_assert_equal(node["node"].to_string(), "constant_literal");
     return { static_cast<char>(node["root"].to_string()[0]),
-             internal::value::TYPE_LITERAL.at("char") };
+             value::TYPE_LITERAL.at("char") };
 }
 
 /**

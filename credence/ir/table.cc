@@ -99,16 +99,13 @@ void Table::build_symbols_from_vector_lvalues()
 void Table::from_locl_ita_instruction(Quadruple const& instruction)
 {
     auto label = std::get<1>(instruction);
-    if (is_stack_frame()) {
-        auto frame = get_stack_frame();
-        if (std::get<1>(instruction).starts_with("*")) {
-            label = std::get<1>(instruction);
-            get_stack_frame()->locals.set_symbol_by_name(
-                label.substr(1), "NULL");
-        } else
-            get_stack_frame()->locals.set_symbol_by_name(
-                label, type::NULL_RVALUE_LITERAL);
-    }
+    auto frame = get_stack_frame();
+    if (std::get<1>(instruction).starts_with("*")) {
+        label = std::get<1>(instruction);
+        get_stack_frame()->locals.set_symbol_by_name(label.substr(1), "NULL");
+    } else
+        get_stack_frame()->locals.set_symbol_by_name(
+            label, type::NULL_RVALUE_LITERAL);
 }
 
 /**
@@ -117,12 +114,10 @@ void Table::from_locl_ita_instruction(Quadruple const& instruction)
 void Table::from_globl_ita_instruction(Label const& label)
 {
     if (!vectors.contains(label))
-        table_error("extrn statement failed, symbol does not exist", label);
-    if (is_stack_frame()) {
-        auto frame = get_stack_frame();
-        get_stack_frame()->locals.set_symbol_by_name(
-            label, type::NULL_RVALUE_LITERAL);
-    }
+        table_error("extrn statement failed, identifier does not exist", label);
+    auto frame = get_stack_frame();
+    get_stack_frame()->locals.set_symbol_by_name(
+        label, type::NULL_RVALUE_LITERAL);
 }
 
 /**
@@ -137,9 +132,9 @@ void Table::build_vector_definitions_from_globals(Symbol_Table<>& globals)
             detail::Vector{ symbol.second.size() });
         for (auto const& item : symbol.second) {
             auto key = std::to_string(index++);
-            vectors[symbol.first]->data[key] =
-                type::get_rvalue_datatype_from_string(
-                    internal::value::expression_type_to_string(item));
+            auto value = type::get_rvalue_datatype_from_string(
+                value::expression_type_to_string(item, false));
+            vectors[symbol.first]->data[key] = value;
         }
     }
 }
@@ -163,11 +158,7 @@ void Table::from_label_ita_instruction(Quadruple const& instruction)
     if (is_stack_frame()) {
         auto frame = get_stack_frame();
         if (frame->labels.contains(label))
-            table_error(
-                fmt::format(
-                    "symbol of symbolic label is already "
-                    "defined"),
-                label);
+            table_error("label is already defined", label);
         frame->labels.emplace(label);
         frame->label_address.set_symbol_by_name(label, instruction_index);
     }
@@ -289,8 +280,7 @@ void Table::from_pointer_or_vector_assignment(
              not vectors[safe_rvalue]->data.contains(offset)))
             table_error(
                 fmt::format(
-                    "invalid vector assignment, rvalue vector value at '{}' "
-                    "does not exist",
+                    "invalid vector assignment, element at '{}' does not exist",
                     offset),
                 rvalue);
         rvalue_symbol = vectors[safe_rvalue]->data[offset];
@@ -306,7 +296,7 @@ void Table::from_pointer_or_vector_assignment(
             if (!lhs_rhs_type_is_equal(lhs_lvalue, rvalue_symbol.value()))
                 table_error(
                     fmt::format(
-                        "invalid lvalue assignment, right-hand-side \"{}\" "
+                        "invalid identifier assignment, right-hand-side \"{}\" "
                         "with "
                         "type {} is not the same type ({})",
                         rvalue,
@@ -331,9 +321,8 @@ void Table::from_pointer_or_vector_assignment(
             if (!indirection and not locals.is_pointer(lvalue))
                 table_error(
                     fmt::format(
-                        "invalid pointer assignment, lvalue \"{}\" is not "
-                        "a "
-                        "pointer",
+                        "invalid pointer assignment, left-hand-side '{}' is "
+                        "not a pointer",
                         lvalue),
                     rvalue);
             locals.set_symbol_by_name(
@@ -392,11 +381,11 @@ void Table::reassign_valid_pointers_or_vectors(
                             !lhs_rhs_type_is_equal(value, vector_rvalue))
                             table_error(
                                 fmt::format(
-                                    "invalid lvalue assignment, "
+                                    "invalid identifier assignment, "
                                     "left-hand-side "
-                                    "\"{}\" "
+                                    "'{}' "
                                     "with "
-                                    "type \"{}\" is not the same type ({})",
+                                    "type '{}' is not the same type ({})",
                                     value,
                                     type::get_type_from_rvalue_data_type(
                                         vector_rvalue),
@@ -451,7 +440,7 @@ void Table::reassign_valid_pointers_or_vectors(
                     auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
                     if (!locals.is_pointer(lhs_lvalue))
                         table_error(
-                            "invalid lvalue pointer dereference, "
+                            "invalid pointer dereference, "
                             "left-hand-side is a non-pointer",
                             lhs_lvalue);
                     auto rhs_rvalue = type::get_unary_rvalue_reference(value);
@@ -460,13 +449,13 @@ void Table::reassign_valid_pointers_or_vectors(
                         if (rhs_rvalue == "NULL")
                             table_error(
                                 "invalid pointer dereference, "
-                                "right-hand-side is a null pointer!",
+                                "right-hand-side is a NULL pointer!",
                                 lvalue);
                         else if (!locals.is_pointer(rhs_rvalue))
                             table_error(
                                 fmt::format(
                                     "invalid pointer dereference on '{}', "
-                                    "right-hand-side is a null pointer!",
+                                    "right-hand-side is a NULL pointer!",
                                     lvalue),
                                 value);
                     }
@@ -477,7 +466,7 @@ void Table::reassign_valid_pointers_or_vectors(
             [&](type::Data_Type const& value) {
                 if (!indirection and locals.is_pointer(lvalue))
                     table_error(
-                        "invalid lvalue assignment, left-hand-side is a "
+                        "invalid identifier assignment, left-hand-side is a "
                         "pointer to non-pointer rvalue",
                         lvalue);
                 // the lvalue and rvalue vector data entry type must match
@@ -485,10 +474,10 @@ void Table::reassign_valid_pointers_or_vectors(
                     !lhs_rhs_type_is_equal(lvalue, value))
                     table_error(
                         fmt::format(
-                            "invalid lvalue assignment, left-hand-side "
-                            "\"{}\" "
+                            "invalid identifier assignment, left-hand-side "
+                            "'{}' "
                             "with "
-                            "type \"{}\" is not the same type ({})",
+                            "type '{}' is not the same type ({})",
                             lvalue,
                             get_type_from_rvalue_data_type(lvalue),
                             type::get_type_from_rvalue_data_type(value)),
@@ -546,7 +535,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
     if (!vectors.contains(lvalue))
         table_error(
             fmt::format(
-                "invalid vector assignment, vector lvalue \"{}\" does not "
+                "invalid vector assignment, vector identifier '{}' does not "
                 "exist",
                 lvalue),
             rvalue);
@@ -556,7 +545,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
         if (ul_offset > detail::Vector::max_size)
             table_error(
                 fmt::format(
-                    "invalid rvalue, integer offset \"{}\" is "
+                    "invalid rvalue, integer offset '{}' is a"
                     "buffer-overflow",
                     ul_offset),
                 rvalue);
@@ -564,15 +553,15 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
             table_error(
                 fmt::format(
                     "invalid vector assignment, right-hand-side does not "
-                    "exist \"{}\"",
+                    "exist '{}'",
                     lvalue),
                 rvalue);
         if (ul_offset > vectors[lvalue]->size - 1)
             table_error(
                 fmt::format(
-                    "invalid out-of-range vector assignment \"{}\" at "
+                    "invalid out-of-range vector assignment '{}' at "
                     "index "
-                    "\"{}\"",
+                    "'{}'",
                     lvalue,
                     ul_offset),
                 rvalue);
@@ -583,7 +572,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
         if (!locals.is_defined(offset) and
             not stack_frame->is_parameter(offset))
             table_error(
-                fmt::format("invalid vector offset \"{}\"", offset), rvalue);
+                fmt::format("invalid vector offset '{}'", offset), rvalue);
     }
 }
 
@@ -605,8 +594,7 @@ void Table::from_func_start_ita_instruction(Label const& label)
     Label human_label = type::get_label_as_human_readable(label);
     address_table.set_symbol_by_name(label, instruction_index - 1);
     if (labels.contains(human_label))
-        table_error(
-            fmt::format("function symbol is already defined"), human_label);
+        table_error("function name already exists", human_label);
 
     functions[human_label] =
         std::make_shared<detail::Function>(detail::Function{ human_label });
@@ -781,14 +769,14 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
     if (!locals.is_defined(lhs))
         table_error(
             fmt::format(
-                "invalid lvalue assignment \"{}\", left-hand-side is not "
+                "invalid lvalue assignment '{}', left-hand-side is not "
                 "initialized",
                 lhs),
             rhs);
     if (!locals.is_defined(rhs))
         table_error(
             fmt::format(
-                "invalid lvalue assignment \"{}\", right-hand-side is not "
+                "invalid lvalue assignment '{}', right-hand-side is not "
                 "initialized",
                 rhs),
             lhs);
@@ -811,7 +799,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
     if (!locals.is_defined(rvalue) and not frame->temporary.contains(rvalue))
         table_error(
             fmt::format(
-                "invalid numeric unary expression, lvalue symbol \"{}\" is "
+                "invalid numeric unary expression, lvalue symbol '{}' is "
                 "not "
                 "initialized",
                 rvalue),
@@ -830,10 +818,15 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
         auto type = std::get<1>(symbol);
         if (type == "word") {
             type::Data_Type local_rvalue{};
-            auto rhs = type::get_unary_rvalue_reference(std::get<0>(symbol));
-            local_rvalue = locals.is_defined(rhs)
-                               ? locals.get_symbol_by_name(rhs)
-                               : type::get_rvalue_datatype_from_string(rhs);
+            auto symbol_value = std::get<0>(symbol);
+            if (type::is_unary_expression(symbol_value)) {
+                auto rhs = type::get_unary_rvalue_reference(symbol_value);
+                local_rvalue = locals.is_defined(rhs)
+                                   ? locals.get_symbol_by_name(rhs)
+                                   : type::get_rvalue_datatype_from_string(rhs);
+            } else {
+                local_rvalue = symbol;
+            }
 
             auto local_rvalue_reference =
                 type::get_value_from_rvalue_data_type(local_rvalue);
@@ -848,10 +841,11 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                         std::get<1>(lvalue_symbol));
                 return local_rvalue;
             }
-            assert_integral_unary_expression(
-                lvalue,
-                std::get<0>(locals.get_symbol_by_name(rvalue)),
-                std::get<1>(local_rvalue));
+            if (type::get_type_from_rvalue_data_type(symbol) != "word")
+                assert_integral_unary_expression(
+                    lvalue,
+                    std::get<0>(locals.get_symbol_by_name(rvalue)),
+                    std::get<1>(local_rvalue));
             return local_rvalue;
         } else {
             assert_integral_unary_expression(lvalue, rvalue, type);
@@ -901,8 +895,8 @@ inline void Table::type_invalid_assignment_check(
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
         table_error(
             fmt::format(
-                "invalid lvalue assignment, right-hand-side \"{}\" "
-                "with type {} is not the same type ({})",
+                "invalid assignment, right-hand-side '{}' "
+                "with type '{}' is not the same type ({})",
                 rvalue,
                 get_type_from_rvalue_data_type(rvalue),
                 get_type_from_rvalue_data_type(lvalue)),
@@ -921,8 +915,8 @@ inline void Table::type_invalid_assignment_check(
     if (!lhs_rhs_type_is_equal(lvalue, rvalue))
         table_error(
             fmt::format(
-                "invalid lvalue assignment, right-hand-side \"{}\" "
-                "with type {} is not the same type ({})",
+                "invalid assignment, right-hand-side '{}' "
+                "with type '{}' is not the same type ({})",
                 std::get<0>(rvalue),
                 type::get_type_from_rvalue_data_type(rvalue),
                 get_type_from_rvalue_data_type(lvalue)),

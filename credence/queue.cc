@@ -18,7 +18,7 @@
 
 #include <credence/operators.h> // for Operator, get_precedence, is_le...
 #include <credence/util.h>      // for overload
-#include <credence/value.h>     // for make_value_type_pointer, Expres...
+#include <credence/values.h>    // for make_value_type_pointer, Expres...
 #include <fmt/format.h>         // for format
 #include <mapbox/eternal.hpp>   // for element, map
 #include <memory>               // for shared_ptr, allocator, make_unique
@@ -98,8 +98,6 @@ void expression_pointer_to_queue_in_place(
     Operator_Stack& operator_stack,
     int* parameter_size)
 {
-    namespace value = internal::value;
-
     std::visit(
         util::overload{
 
@@ -126,10 +124,10 @@ void expression_pointer_to_queue_in_place(
             [&](value::Expression::Relation const& s) {
                 auto op1 = s.first;
                 if (s.second.size() == 2) {
-                    auto lhs = internal::value::make_value_type_pointer(
-                        s.second.at(0)->value);
-                    auto rhs = internal::value::make_value_type_pointer(
-                        s.second.at(1)->value);
+                    auto lhs =
+                        value::make_value_type_pointer(s.second.at(0)->value);
+                    auto rhs =
+                        value::make_value_type_pointer(s.second.at(1)->value);
                     expression_pointer_to_queue_in_place(
                         lhs, queue, operator_stack, parameter_size);
                     operator_stack.emplace(op1);
@@ -139,21 +137,19 @@ void expression_pointer_to_queue_in_place(
                     // ternary
                     operator_stack.emplace(type::Operator::B_TERNARY);
                     operator_stack.emplace(type::Operator::U_PUSH);
-                    auto ternary_lhs = internal::value::make_value_type_pointer(
-                        s.second.at(2)->value);
-                    auto ternary_rhs = internal::value::make_value_type_pointer(
-                        s.second.at(3)->value);
+                    auto ternary_lhs =
+                        value::make_value_type_pointer(s.second.at(2)->value);
+                    auto ternary_rhs =
+                        value::make_value_type_pointer(s.second.at(3)->value);
                     expression_pointer_to_queue_in_place(
                         ternary_lhs, queue, operator_stack, parameter_size);
                     expression_pointer_to_queue_in_place(
                         ternary_rhs, queue, operator_stack, parameter_size);
                     auto ternary_truthy =
-                        internal::value::make_value_type_pointer(
-                            s.second.at(0)->value);
+                        value::make_value_type_pointer(s.second.at(0)->value);
                     operator_stack.emplace(op1);
                     auto ternary_falsey =
-                        internal::value::make_value_type_pointer(
-                            s.second.at(1)->value);
+                        value::make_value_type_pointer(s.second.at(1)->value);
                     expression_pointer_to_queue_in_place(
                         ternary_truthy, queue, operator_stack, parameter_size);
                     expression_pointer_to_queue_in_place(
@@ -175,8 +171,7 @@ void expression_pointer_to_queue_in_place(
                         value::make_value_type_pointer(parameter->value);
                     auto name = value::make_lvalue(
                         fmt::format("_p{}", ++(*parameter_size)));
-                    auto lvalue =
-                        internal::value::make_value_type_pointer(name);
+                    auto lvalue = value::make_value_type_pointer(name);
                     parameters.emplace_back(lvalue);
                     expression_pointer_to_queue_in_place(
                         lvalue, queue, operator_stack, parameter_size);
@@ -198,9 +193,8 @@ void expression_pointer_to_queue_in_place(
             },
             [&](value::Expression::Symbol const& s) {
                 auto op1 = type::Operator::B_ASSIGN;
-                auto lhs = internal::value::make_value_type_pointer(s.first);
-                auto rhs =
-                    internal::value::make_value_type_pointer(s.second->value);
+                auto lhs = value::make_value_type_pointer(s.first);
+                auto rhs = value::make_value_type_pointer(s.second->value);
                 expression_pointer_to_queue_in_place(
                     lhs, queue, operator_stack, parameter_size);
                 expression_pointer_to_queue_in_place(
@@ -260,7 +254,7 @@ std::string queue_of_expressions_to_string(
                     oss << type::operator_to_string(op) << " ";
                 },
                 [&](Expression const& s) {
-                    oss << internal::value::expression_type_to_string(
+                    oss << value::expression_type_to_string(
                         *s, true, separator);
                 }
             },

@@ -18,7 +18,7 @@
 #include <compare>           // for operator<, _CmpUnspecifiedParam
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLE...
-#include <credence/value.h>  // for Expression, Literal
+#include <credence/values.h> // for Expression, Literal
 #include <deque>             // for deque, operator<=>, operator==
 #include <matchit.h>         // for matchit
 #include <optional>          // for nullopt, nullopt_t, optional
@@ -70,6 +70,14 @@ constexpr Quadruple make_quadruple(
     std::string const& s3 = "")
 {
     return std::make_tuple(op, s1, s2, s3);
+}
+
+/**
+ * @brief Insert instructions from one std::deque into another
+ */
+inline void insert(Instructions& to, Instructions const& from)
+{
+    to.insert(to.end(), from.begin(), from.end());
 }
 
 /**
@@ -318,17 +326,6 @@ class ITA
   private:
     using Branch_Instructions = detail::Branch::Branch_Instructions;
     using Parameters = std::vector<std::string>;
-
-  public:
-    /**
-     * @brief Insert instructions from one std::deque into another
-     */
-    static inline void insert_instructions(
-        Instructions& to,
-        Instructions const& from)
-    {
-        to.insert(to.end(), from.begin(), from.end());
-    }
 
   public:
     static void emit_to(

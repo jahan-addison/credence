@@ -20,6 +20,7 @@
 #include <cctype>      // for isdigit, toupper
 #include <cstddef>     // for size_t
 #include <filesystem>  // for filesystem
+#include <fmt/base.h>  // for print
 #include <fstream>     // for ostream, ostringstream
 #include <map>         // for map
 #include <string>      // for allocator, string
@@ -38,6 +39,8 @@ class JSON;
 #define CREDENCE_PRIVATE_UNLESS_TESTED private
 #define CREDENCE_PROTECTED_UNLESS_TESTED protected
 #endif
+
+#define sv(m) std::string_view{m}
 
 namespace credence {
 
@@ -98,7 +101,7 @@ constexpr bool is_numeric(std::string_view s)
     });
 }
 
-constexpr inline bool contains(std::string_view lhs, std::string_view rhs)
+constexpr bool contains(std::string_view lhs, std::string_view rhs)
 {
     return lhs.find(rhs) != std::string_view::npos;
 }
@@ -201,7 +204,7 @@ constexpr std::string tuple_to_string(
 // File helpers
 ////////////////
 
-void write_file_to_path_from_stringstream(
+void write_to_from_string_stream(
     std::string_view file_name,
     std::ostringstream const& oss,
     std::string_view ext = "bo");

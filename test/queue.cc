@@ -3,7 +3,7 @@
 #include <credence/expression.h> // for Expression_Parser
 #include <credence/queue.h>  // for rvalues_to_queue, queue_of_rvalues_to_s...
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/value.h>  // for RValue, Type_
+#include <credence/values.h> // for RValue, Type_
 #include <map>               // for map
 #include <simplejson.h>      // for JSON
 #include <string>            // for operator==, basic_string, operator<<
@@ -214,7 +214,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : [\"=\", null]\n                }");
 
     Expression_Parser parser{ obj };
-    internal::value::Literal null = internal::value::Expression::NULL_LITERAL;
+    value::Literal null = value::Expression::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);
     parser.symbols_.table_.emplace("exp", null);
@@ -242,13 +242,13 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "= _p4 sub _p5 (1:int:4) = _p6 (2:int:4) = _p5 _p6 PUSH PUSH CALL = "
         "_p1 _p4 PUSH PUSH CALL = ";
 
-    std::vector<internal::value::Array> rvalues{};
+    std::vector<value::Array> rvalues{};
     auto expressions = queue::Expressions{};
     std::unique_ptr<queue::Queue> queue{};
     std::string test{};
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["complex"]).value));
     queue = queue::make_queue_from_expression_operands(expressions);
     test = queue::queue_of_expressions_to_string(*queue);
@@ -256,7 +256,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["unary"]).value));
     queue = queue::make_queue_from_expression_operands(expressions);
     test = queue::queue_of_expressions_to_string(*queue);
@@ -264,7 +264,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["equal"]).value));
     queue = queue::make_queue_from_expression_operands(expressions);
     test = queue::queue_of_expressions_to_string(*queue);
@@ -272,7 +272,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["unary_relation"]).value));
 
     queue = queue::make_queue_from_expression_operands(expressions);
@@ -281,7 +281,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["ternary"]).value));
 
     queue = queue::make_queue_from_expression_operands(expressions);
@@ -290,7 +290,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["function"]).value));
 
     queue = queue::make_queue_from_expression_operands(expressions);
@@ -299,7 +299,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["evaluated"]).value));
     queue = queue::make_queue_from_expression_operands(expressions);
     test = queue::queue_of_expressions_to_string(*queue);
@@ -307,7 +307,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["evaluated_2"]).value));
 
     queue = queue::make_queue_from_expression_operands(expressions);
@@ -316,7 +316,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.clear();
 
     expressions.emplace_back(
-        internal::value::make_value_type_pointer(
+        value::make_value_type_pointer(
             parser.parse_from_node(obj["functions"]).value));
 
     queue = queue::make_queue_from_expression_operands(expressions);

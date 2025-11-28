@@ -16,13 +16,13 @@
 
 #pragma once
 
-#include <credence/error.h> // for credence_assert_message
-#include <credence/util.h>  // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <credence/value.h> // for Literal, Array, ...
-#include <fmt/format.h>     // for format
-#include <map>              // for map
-#include <string>           // for basic_string, string
-#include <utility>          // for make_pair, move
+#include <credence/error.h>  // for credence_assert_message
+#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <credence/values.h> // for Literal, Array, ...
+#include <fmt/format.h>      // for format
+#include <map>               // for map
+#include <string>            // for basic_string, string
+#include <utility>           // for make_pair, move
 
 namespace credence {
 
@@ -49,9 +49,7 @@ namespace credence {
  *   | Value | Type | Size |
  *   ------------------------
  */
-template<
-    typename T = internal::value::Literal,
-    typename Pointer = internal::value::Array>
+template<typename T = value::Literal, typename Pointer = value::Array>
 class Symbol_Table
 {
   public:

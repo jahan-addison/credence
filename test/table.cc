@@ -800,7 +800,7 @@ TEST_CASE_FIXTURE(
 
 TEST_CASE_FIXTURE(
     Table_Fixture,
-    "ir/table.cc: Table::build_symbols_from_vector_definitions")
+    "ir/table.cc: Table::build_vector_definitions_from_globals")
 {
     auto ast = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "

@@ -96,3 +96,6 @@ jobs:
         make install
         cd ../../
         valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
+        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -t x86_64 $(pwd)/test/fixtures/x86_64/math_constant_4.b
+        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -t x86_64 $(pwd)/test/fixtures/x86_64/bitwise_4.b
+        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -t x86_64 $(pwd)/test/fixtures/x86_64/pointers_4.b

@@ -19,7 +19,7 @@
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <credence/value.h>  // for Expression, Literal
+#include <credence/values.h> // for Expression, Literal
 #include <memory>            // for make_shared
 #include <simplejson.h>      // for JSON
 #include <string>            // for basic_string, strin
@@ -42,11 +42,11 @@ class Expression_Parser
     Expression_Parser& operator=(Expression_Parser const&) = delete;
 
   private:
-    using Expression = internal::value::Expression;
-    using Literal = internal::value::Literal;
+    using Expression = value::Expression;
+    using Literal = value::Literal;
 
   public:
-    using Expression_PTR = internal::value::Expression::Pointer;
+    using Expression_PTR = value::Expression::Pointer;
     using Node = util::AST_Node;
     using Parameters = std::vector<Expression_PTR>;
 
@@ -87,8 +87,7 @@ class Expression_Parser
 
     inline Expression_PTR make_expression_pointer_from_ast(Node const& node)
     {
-        return std::make_shared<internal::value::Expression>(
-            parse_from_node(node));
+        return std::make_shared<value::Expression>(parse_from_node(node));
     }
 
     inline Expression from_expression_node(Node const& node)
@@ -163,7 +162,7 @@ inline Expression_Parser::Expression_PTR parse_node_as_expression(
     Symbol_Table<> const& symbols = {},
     Symbol_Table<> const& globals = {})
 {
-    return std::make_shared<internal::value::Expression>(
+    return std::make_shared<value::Expression>(
         Expression_Parser::parse(node, internals, symbols, globals));
 }
 

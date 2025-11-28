@@ -18,13 +18,14 @@
 
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <credence/value.h>  // for Expression
+#include <credence/values.h> // for Expression
 #include <deque>             // for deque
 #include <fmt/format.h>      // for format
 #include <initializer_list>  // for initializer_list
 #include <memory>            // for allocator, make_shared
 #include <set>               // for set
 #include <simplejson.h>      // for JSON
+#include <source_location>   // for source_location
 #include <string>            // for basic_string, string
 #include <string_view>       // for string_view
 #include <tuple>             // for tuple
@@ -38,7 +39,7 @@ namespace type {
 namespace semantic {
 
 /**
- * Semantic type definitions
+ * Semantic scaler type definitions
  */
 using Label = std::string;
 using Type = std::string;
@@ -56,7 +57,7 @@ using Data_Type = std::tuple<semantic::RValue, semantic::Type, semantic::Size>;
 using RValue_Reference = std::string_view;
 using Stack = std::deque<semantic::RValue>;
 using Labels = std::set<semantic::Label>;
-using Globals = internal::value::Array;
+using Globals = value::Array;
 using Binary_Expression = std::tuple<std::string, std::string, std::string>;
 using RValue_Reference_Type = std::variant<semantic::RValue, Data_Type>;
 using Locals = Symbol_Table<Data_Type, semantic::LValue>;
@@ -215,10 +216,11 @@ constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
 /**
  * @brief Data type tuple to string
  */
-inline std::string data_type_value_to_string(Data_Type const& value)
+constexpr std::string data_type_value_to_string(Data_Type const& value)
 {
+    using namespace fmt::literals;
     return fmt::format(
-        "({}:{}:{})",
+        "({}:{}:{})"_cf,
         std::get<0>(value),
         std::get<1>(value),
         std::get<2>(value));
@@ -335,12 +337,17 @@ constexpr bool is_temporary(RValue_Reference rvalue)
  * @brief Parse semantic::RValue::Value_Type string into a 3-tuple of value,
  * type, and size
  *
- * e.g. "(10:int:4)" -> 10, "int", 4UL
+ * e.g. "(10:int:4)" -> (10, "int", 4UL)
  */
-inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue)
+inline Data_Type get_rvalue_datatype_from_string(
+    semantic::RValue const& rvalue,
+    std::source_location const& location = std::source_location::current())
 {
-    credence_assert(util::substring_count_of(rvalue, ":") == 2);
-    size_t search = rvalue.find_last_of(":");
+    credence::detail::assert_impl(
+        location,
+        is_rvalue_data_type(rvalue) == true,
+        fmt::format("rvalue \"{}\" is not in data type form", rvalue));
+    auto search = rvalue.find_last_of(":");
     auto bytes = std::string{ rvalue.begin() + search + 1, rvalue.end() - 1 };
     auto type_search = rvalue.substr(0, search - 1).find_last_of(":") + 1;
     auto type =
@@ -354,8 +361,7 @@ inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue)
 }
 
 /**
- * @brief Parse ITA binary expression into its operator and operands in the
- * table
+ * @brief Parse ITA binary expression into its operator and operands
  */
 constexpr Binary_Expression from_rvalue_binary_expression(
     semantic::RValue const& rvalue)
@@ -399,20 +405,20 @@ constexpr semantic::RValue get_binary_operator(RValue_Reference rvalue)
 }
 
 /**
- * @brief Get the type from a local in the stack frame
- */
-constexpr semantic::Type get_type_from_rvalue_data_type(Data_Type const& rvalue)
-{
-    return std::get<1>(rvalue);
-}
-
-/**
  * @brief Get the value from an rvalue data type object
  */
 constexpr semantic::RValue get_value_from_rvalue_data_type(
     Data_Type const& rvalue)
 {
     return std::get<0>(rvalue);
+}
+
+/**
+ * @brief Get the type from a local in the stack frame
+ */
+constexpr semantic::Type get_type_from_rvalue_data_type(Data_Type const& rvalue)
+{
+    return std::get<1>(rvalue);
 }
 
 /**

@@ -24,7 +24,7 @@
 #include <credence/symbol.h>       // for Symbol_Table
 #include <credence/types.h>        // for get_unary_operator, ...
 #include <credence/util.h>         // for AST_Node, AST
-#include <credence/value.h>        // for Expression, get_expression_type
+#include <credence/values.h>       // for Expression, get_expression_type
 #include <fmt/compile.h>           // for format
 #include <initializer_list>        // for initializer_list
 #include <iomanip>                 // for operator<<, setw
@@ -41,7 +41,7 @@ namespace ir {
 namespace m = matchit;
 
 /**
- * @brief Get the rvalue and unary operator from a VARIABLE instruction
+ * @brief Get the rvalue and unary operator from an ita MOV instruction
  */
 std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
     Quadruple const& instruction)
@@ -89,10 +89,10 @@ Instructions ITA::build_from_definitions(Node const& node)
         if (definition["node"].to_string() == "function_definition") {
             auto function_instructions =
                 build_from_function_definition(definition);
-            insert_instructions(instructions, function_instructions);
+            ir::insert(instructions, function_instructions);
         }
     }
-    insert_instructions(instructions_, instructions);
+    ir::insert(instructions_, instructions);
     return instructions;
 }
 
@@ -108,8 +108,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
     Parameters parameter_lvalues{};
     auto block = node["right"];
 
-    symbols_.set_symbol_by_name(
-        name, internal::value::Expression::WORD_LITERAL);
+    symbols_.set_symbol_by_name(name, value::Expression::WORD_LITERAL);
 
     if (parameters.JSON_type() == util::AST_Node::Class::Array and
         !parameters.to_deque().front().is_null()) {
@@ -122,7 +121,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
                             ident["root"].to_string());
                         symbols_.set_symbol_by_name(
                             ident["root"].to_string(),
-                            internal::value::Expression::NULL_LITERAL);
+                            value::Expression::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
                     [&] {
@@ -140,7 +139,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
                             ident["left"]["root"].to_string());
                         symbols_.set_symbol_by_name(
                             ident["left"]["root"].to_string(),
-                            internal::value::Expression::WORD_LITERAL);
+                            value::Expression::WORD_LITERAL);
                     });
         }
     }
@@ -155,7 +154,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
 
     auto block_instructions = build_from_block_statement(block, true);
 
-    insert_instructions(instructions, block_instructions);
+    ir::insert(instructions, block_instructions);
 
     instructions.emplace_back(make_quadruple(Instruction::FUNC_END));
 
@@ -194,7 +193,7 @@ void ITA::build_from_vector_definition(Node const& node)
     auto name = node["root"].to_string();
     auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
     auto right_child_node = node["right"];
-    std::vector<internal::value::Literal> values_at{};
+    std::vector<value::Literal> values_at{};
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
         ita_error(
@@ -210,7 +209,7 @@ void ITA::build_from_vector_definition(Node const& node)
     for (auto& child_node : right_child_node.array_range()) {
         auto rvalue = Expression_Parser::parse(
             child_node, internal_symbols_, symbols_, globals_);
-        auto datatype = std::get<internal::value::Literal>(rvalue.value);
+        auto datatype = std::get<value::Literal>(rvalue.value);
         values_at.emplace_back(datatype);
     }
 
@@ -278,46 +277,46 @@ Instructions ITA::build_from_block_statement(
                 [&] {
                     auto [jump_instructions, if_instructions] =
                         build_from_if_statement(statement);
-                    insert_instructions(instructions, jump_instructions);
-                    insert_instructions(branches, if_instructions);
+                    ir::insert(instructions, jump_instructions);
+                    ir::insert(branches, if_instructions);
                 },
             m::pattern | "switch" =
                 [&] {
                     auto [jump_instructions, switch_statements] =
                         build_from_switch_statement(statement);
-                    insert_instructions(instructions, jump_instructions);
-                    insert_instructions(branches, switch_statements);
+                    ir::insert(instructions, jump_instructions);
+                    ir::insert(branches, switch_statements);
                 },
             m::pattern | "while" =
                 [&] {
                     auto [jump_instructions, while_instructions] =
                         build_from_while_statement(statement);
-                    insert_instructions(instructions, jump_instructions);
-                    insert_instructions(branches, while_instructions);
+                    ir::insert(instructions, jump_instructions);
+                    ir::insert(branches, while_instructions);
                 },
             m::pattern | "rvalue" =
                 [&] {
                     auto rvalue_instructions =
                         build_from_rvalue_statement(statement);
-                    insert_instructions(instructions, rvalue_instructions);
+                    ir::insert(instructions, rvalue_instructions);
                 },
             m::pattern | "label" =
                 [&] {
                     auto label_instructions =
                         build_from_label_statement(statement);
-                    insert_instructions(instructions, label_instructions);
+                    ir::insert(instructions, label_instructions);
                 },
             m::pattern | "goto" =
                 [&] {
                     auto goto_instructions =
                         build_from_goto_statement(statement);
-                    insert_instructions(instructions, goto_instructions);
+                    ir::insert(instructions, goto_instructions);
                 },
             m::pattern | "return" =
                 [&] {
                     auto return_instructions =
                         build_from_return_statement(statement);
-                    insert_instructions(instructions, return_instructions);
+                    ir::insert(instructions, return_instructions);
                 }
 
         );
@@ -331,7 +330,7 @@ Instructions ITA::build_from_block_statement(
         instructions.emplace_back(make_quadruple(Instruction::LEAVE));
     }
 
-    insert_instructions(instructions, branches);
+    ir::insert(instructions, branches);
     return instructions;
 }
 
@@ -371,7 +370,7 @@ void ITA::insert_branch_block_instructions(
 {
     if (block["root"].to_string() == "block") {
         auto block_instructions = build_from_block_statement(block, false);
-        insert_instructions(branch_instructions, block_instructions);
+        ir::insert(branch_instructions, block_instructions);
 
     } else {
         auto block_statement = detail::make_block_statement(block);
@@ -393,14 +392,14 @@ std::string ITA::build_from_branch_comparator_rvalue(
             symbols_, block, internal_symbols_, &temporary)
             .first;
 
-    m::match(internal::value::get_expression_type(rvalue.value))(
+    m::match(value::get_expression_type(rvalue.value))(
         m::pattern | m::or_(
                          std::string{ "relation" },
                          std::string{ "unary" },
                          std::string{ "symbol" },
                          std::string{ "array" }) =
             [&] {
-                insert_instructions(instructions, comparator_instructions);
+                ir::insert(instructions, comparator_instructions);
                 temp_lvalue =
                     std::get<1>(instructions[instructions.size() - 1]);
             },
@@ -409,15 +408,14 @@ std::string ITA::build_from_branch_comparator_rvalue(
                 auto rhs = fmt::format(
                     "{} {}",
                     detail::instruction_to_string(Instruction::CMP),
-                    internal::value::expression_type_to_string(
-                        rvalue.value, false));
+                    value::expression_type_to_string(rvalue.value, false));
                 auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
             },
         m::pattern | std::string{ "function" } =
             [&] {
-                insert_instructions(instructions, comparator_instructions);
+                ir::insert(instructions, comparator_instructions);
                 auto rhs = fmt::format(
                     "{} RET", detail::instruction_to_string(Instruction::CMP));
                 auto temp = ir::make_temporary(&temporary, rhs);
@@ -426,7 +424,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
             },
         m::pattern | m::_ =
             [&] {
-                insert_instructions(instructions, comparator_instructions);
+                ir::insert(instructions, comparator_instructions);
                 temp_lvalue =
                     std::get<1>(instructions[instructions.size() - 1]);
             });
@@ -458,7 +456,7 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     predicate_instructions.emplace_back(make_quadruple(
         Instruction::JMP_E,
         switch_label,
-        internal::value::expression_type_to_string(condition.value, false),
+        value::expression_type_to_string(condition.value, false),
         std::get<1>(jump)));
     if (branch.stack.size() > 2) {
         auto jump = tail.value_or(branch.get_parent_branch(true).value());
@@ -510,8 +508,8 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
         auto [jump_instructions, case_statements] =
             build_from_case_statement(statement, switch_label, tail);
         cases.emplace(branch.stack.top());
-        insert_instructions(predicate_instructions, jump_instructions);
-        insert_instructions(branch_instructions, case_statements);
+        ir::insert(predicate_instructions, jump_instructions);
+        ir::insert(branch_instructions, case_statements);
         branch.stack.pop();
     }
     while (!cases.empty()) {
@@ -611,7 +609,6 @@ Instructions ITA::build_from_label_statement(Node const& node)
     credence_assert(node.has_key("left"));
     Instructions instructions{};
     auto statement = node["left"];
-    Expression_Parser parser{ internal_symbols_, symbols_ };
     auto label = statement.to_deque().front().to_string();
     instructions.emplace_back(
         make_quadruple(Instruction::LABEL, fmt::format("__L{}", label), ""));
@@ -659,11 +656,11 @@ Instructions ITA::build_from_return_statement(Node const& node)
         return_instructions.first.end());
 
     if (!return_instructions.second.empty() and instructions.empty()) {
-        auto last_rvalue = std::get<internal::value::Expression::Type_Pointer>(
+        auto last_rvalue = std::get<value::Expression::Type_Pointer>(
             return_instructions.second.back());
         instructions.emplace_back(make_quadruple(
             Instruction::RETURN,
-            internal::value::expression_type_to_string(*last_rvalue),
+            value::expression_type_to_string(*last_rvalue),
             ""));
     } else {
         auto last = instructions[instructions.size() - 1];
@@ -724,7 +721,7 @@ void ITA::build_from_auto_statement(
                     instructions.emplace_back(
                         make_quadruple(Instruction::LOCL, name));
                     symbols_.set_symbol_by_name(
-                        name, internal::value::Expression::NULL_LITERAL);
+                        name, value::Expression::NULL_LITERAL);
                 },
             m::pattern | "vector_lvalue" =
                 [&] {
@@ -756,7 +753,7 @@ void ITA::build_from_auto_statement(
                     instructions.emplace_back(make_quadruple(
                         Instruction::LOCL, fmt::format("*{}", name)));
                     symbols_.set_symbol_by_name(
-                        name, internal::value::Expression::WORD_LITERAL);
+                        name, value::Expression::WORD_LITERAL);
                 });
     }
 }
@@ -901,7 +898,7 @@ detail::Branch::Last_Branch detail::Branch::get_parent_branch(bool last)
 }
 
 /**
- * @brief Raise error expressing parsing error
+ * @brief Raise ITA construction error
  */
 inline void ITA::ita_error(
     std::string_view message,
