@@ -18,7 +18,6 @@
 #include <credence/ir/table.h> // emit_complete_ita
 #include <credence/util.h>     // for AST_Node, capitalize,
 #include <cxxopts.hpp>         // for value, ParseResult, OptionAdder, Opti...
-#include <exception>           // for exception
 #include <filesystem>          // for filesystem_error, operator<<
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
 #include <matchit.h>           // for pattern, match, PatternHelper, Patter...
@@ -29,8 +28,6 @@
 #include <pybind11/pytypes.h>  // for object, object_api, error_already_set
 #include <simplejson.h>        // for JSON, operator<<
 #include <sstream>             // for basic_ostringstream
-#include <stdexcept>           // for runtime_error
-#include <stdlib.h>            // for exit
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
@@ -91,11 +88,11 @@ int main(int argc, const char* argv[])
                 symbols = credence::util::AST_Node::load(
                     syntax_symbols.cast<std::string>());
 
-                if (result["debug"].count())
-                    std::cout << "*** Symbol Table:" << std::endl
+                if (result["debug"].count() and target != "ast")
+                    std::cout << "> Symbol Table:" << std::endl
                               << syntax_symbols.cast<std::string>()
                               << std::endl;
-                if (result["target"].as<std::string>() == "syntax") {
+                if (target == "syntax") {
                     auto get_source_ast =
                         python_module.attr("parse_source_program_as_string");
                     syntax_tree =
@@ -136,16 +133,26 @@ int main(int argc, const char* argv[])
             m::pattern |
                 m::or_(sv("ast"), sv("syntax")) = [&] { return "bast"; },
             m::pattern | m::_ = [&] { return "bo"; });
-        // clang-format off
+
         m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "x86_64" =
                 [&]() {
-            credence::target::x86_64::emit(out_to, symbols, ast["root"]);
+                    // clang-format off
+                credence::target::x86_64::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "ir" =
                 [&]() { credence::ir::emit(out_to, symbols, ast["root"]); },
-            m::pattern | "ast" = [&]() { out_to << ast["root"] << std::endl; },
+            m::pattern | "ast" =
+                [&]() {
+                    if (result["debug"].count()) {
+                        auto group = credence::util::AST::array();
+                        group[0] = symbols;
+                        group[1] = ast["root"];
+                        out_to << group << std::endl;
+                    } else
+                        out_to << ast["root"] << std::endl;
+                },
             m::pattern |
                 "syntax" = [&]() { out_to << syntax_tree << std::endl; },
             m::pattern | m::_ =
@@ -154,6 +161,7 @@ int main(int argc, const char* argv[])
                               << std::endl;
                 });
         // clang-format on
+
         credence::util::write_to_from_string_stream(output, out_to, extension);
 
     } catch (cxxopts::exceptions::option_has_no_value const&) {

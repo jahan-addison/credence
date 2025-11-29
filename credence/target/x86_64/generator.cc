@@ -15,27 +15,28 @@
  */
 
 #include "generator.h"
-#include "instructions.h"   // for get_operand_size_from_rvalue_datatype, Imm...
-#include <credence/error.h> // for credence_assert
-#include <credence/ir/ita.h>        // for ITA
-#include <credence/ir/table.h>      // for Table
-#include <credence/target/target.h> // for align_up_to_16
-#include <credence/types.h>         // for LValue, RValue, Data_Type, ...
-#include <credence/util.h>          // for substring_count_of, contains
+#include "instructions.h"           // for Operand_Size, add_i_s, Register
+#include <algorithm>                // for find_if, __find_if
+#include <credence/error.h>         // for credence_assert, assert_nequal_impl
+#include <credence/ir/ita.h>        // for Instruction, ITA, get_rvalue_fro...
+#include <credence/ir/table.h>      // for Table, Function
+#include <credence/map.h>           // for Ordered_Map
+#include <credence/target/target.h> // for align_up_to_16, align_up_to_8
+#include <credence/types.h>         // for is_unary_expression, get_rvalue_...
+#include <credence/util.h>          // for overload, AST_Node, is_variant
 #include <cstddef>                  // for size_t
 #include <deque>                    // for deque
-#include <fmt/compile.h>            // for fmt::literals
+#include <fmt/compile.h>            // for format, operator""_cf
 #include <fmt/format.h>             // for format
-#include <functional>               // for std::function
-#include <matchit.h>                // for pattern, PatternHelper, Pattern...
-#include <memory>                   // for shared_ptr
-#include <ostream>                  // for basic_ostream, operator<<, endl
+#include <matchit.h>                // for pattern, Id, App, PatternHelper
+#include <memory>                   // for shared_ptr, make_unique, unique_ptr
+#include <numeric>                  // for accumulate
+#include <ostream>                  // for ostream, stringstream
 #include <sstream>                  // for basic_stringstream
 #include <string_view>              // for basic_string_view
 #include <tuple>                    // for get, tuple
-#include <type_traits>              // for underlying_type_t
-#include <utility>                  // for pair, make_pair
-#include <variant>                  // for get, holds_alternative, monostate
+#include <utility>                  // for pair, get, make_pair, move
+#include <variant>                  // for variant, visit, get, monostate
 
 #define ir_i(name) credence::ir::Instruction::name
 
@@ -45,73 +46,91 @@ namespace m = matchit;
 
 void Code_Generator::emit(std::ostream& os)
 {
-    build_data();
-    build_instructions();
-    os << std::endl;
-    os << ".intel_syntax noprefix" << std::endl;
-    os << std::endl;
+    emit_syntax_directive(os);
+    emit_data_section(os);
+    if (!data_.empty())
+        detail::newline(os);
+    emit_text_section(os);
+    detail::newline(os);
+}
 
+inline void Code_Generator::emit_syntax_directive(std::ostream& os)
+{
+    os << std::endl << ".intel_syntax noprefix" << std::endl << std::endl;
+}
+
+void Code_Generator::emit_data_section(std::ostream& os)
+{
+    build_data_instructions();
+    os << ".data";
+    detail::newline(os, 2);
+    if (!data_.empty())
+        for (std::size_t index = 0; index < data_.size(); index++) {
+            auto data_item = data_[index];
+            std::visit(
+                util::overload{
+                    [&](type::semantic::Label const& s) {
+                        os << s << ":" << std::endl;
+                    },
+                    [&](detail::Data_Pair const& s) {
+                        os << detail::tabwidth(4) << s.first;
+                        os << " " << "\"" << s.second << "\"";
+                        detail::newline(os);
+                        if (index < data_.size() - 1)
+                            detail::newline(os);
+                    },
+                },
+                data_item);
+        }
+}
+
+void Code_Generator::emit_text_section(std::ostream& os)
+{
+    build_text_instructions();
+    os << ".text" << std::endl << detail::tabwidth(4);
+    os << ".global main";
+    detail::newline(os, 2);
     for (std::size_t index = 0; index < instructions_.size(); index++) {
         auto inst = instructions_[index];
+        // clang-format off
         std::visit(
-            util::overload{
-                [&](detail::Instruction const& s) {
-                    auto [mnemonic, dest, src] = s;
+        util::overload{
+        [&](detail::Instruction const& s) {
+            auto [mnemonic, dest, src] = s;
 
-                    auto flags = instruction_flag.contains(index)
-                                     ? instruction_flag[index]
-                                     : 0UL;
+            auto flags = instruction_flag.contains(index)
+                                ? instruction_flag[index]
+                                : 0UL;
 
-                    os << detail::tabwidth(4) << mnemonic;
+            os << detail::tabwidth(4) << mnemonic;
 
-                    auto size = get_operand_size_from_storage(src);
-                    if (!is_empty_storage(dest)) {
-                        if (flags & detail::flag::Address)
-                            size = get_operand_size_from_storage(dest);
-                        os << " " << emit_storage_device(dest, size, flags);
-                        if (flags & detail::flag::Indirect and
-                            is_variant(Register, src))
-                            flags &= ~detail::flag::Indirect;
-                    }
+            auto size = get_operand_size_from_storage(src);
+            if (!is_empty_storage(dest)) {
+                if (flags & detail::flag::Address)
+                    size = get_operand_size_from_storage(dest);
+                os << " " << emit_storage_device(dest, size, flags);
+                if (flags & detail::flag::Indirect and
+                    is_variant(Register, src))
+                    flags &= ~detail::flag::Indirect;
+            }
 
-                    if (!is_empty_storage(src)) {
-                        if (flags & detail::flag::Indirect_Source)
-                            flags |= detail::flag::Indirect;
-                        os << ", " << emit_storage_device(src, size, flags);
-                        flags &=
-                            ~(detail::flag::Indirect |
-                              detail::flag::Indirect_Source);
-                    }
+            if (!is_empty_storage(src)) {
+                if (flags & detail::flag::Indirect_Source)
+                    flags |= detail::flag::Indirect;
+                os << ", " << emit_storage_device(src, size, flags);
+                flags &=
+                    ~(detail::flag::Indirect |
+                        detail::flag::Indirect_Source);
+            }
 
-                    os << std::endl;
-                },
-
-                [&](type::semantic::Label const& s) {
-                    os << s << ":" << std::endl;
-                } },
-            inst);
+            os << std::endl;
+        },
+        [&](type::semantic::Label const& s) {
+            os << s << ":" << std::endl;
+        } },
+        inst);
+        // clang-format on
     }
-    if (!data_.empty())
-        os << std::endl;
-    for (std::size_t index = 0; index < data_.size(); index++) {
-        auto data_item = data_[index];
-        std::visit(
-            util::overload{
-                [&](type::semantic::Label const& s) {
-                    os << s << ":" << std::endl;
-                },
-                [&](detail::Data_Pair const& s) {
-                    os << detail::tabwidth(4) << s.first;
-                    os << " " << "\"" << s.second << "\"";
-                    os << std::endl;
-                    if (index < data_.size() - 1)
-                        os << std::endl;
-                },
-            },
-            data_item);
-    }
-
-    os << std::endl;
 }
 
 // clang-format off
@@ -196,7 +215,7 @@ std::string Code_Generator::emit_storage_device(
             [&] { return detail::emit_immediate_storage(*i); });
 }
 
-void Code_Generator::build_instructions()
+void Code_Generator::build_text_instructions()
 {
     auto instructions = table_->instructions;
     ita_index = 0UL;
@@ -224,7 +243,7 @@ void Code_Generator::build_instructions()
     }
 }
 
-void Code_Generator::build_data()
+void Code_Generator::build_data_instructions()
 {
     auto table_strings = table_->strings;
     for (auto const& string : table_strings) {
@@ -751,7 +770,7 @@ Code_Generator::Immediate Code_Generator::get_from_immediate_rvalues(
             imm_l, op, imm_r);
 
     credence_error("unreachable");
-    return detail::make_int_immediate<int>(0);
+    return detail::make_numeric_immediate<int>(0);
 }
 
 void Code_Generator::from_ita_unary_expression(

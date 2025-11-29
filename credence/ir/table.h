@@ -15,26 +15,26 @@
  */
 #pragma once
 
-#include <algorithm>         // for remove_if, __any_of, __find_if, any_of
+#include <algorithm>         // for __find, find
 #include <array>             // for array
-#include <cctype>            // for isspace
 #include <credence/error.h>  // for credence_assert
-#include <credence/ir/ita.h> // for ITA
+#include <credence/ir/ita.h> // for ITA, Quadruple, Instructions
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for LValue, RValue, Data_Type, ...
-#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <cstddef>           // for size_t
-#include <deque>             // for deque
+#include <credence/types.h>  // for Data_Type, Label, Address, RValue, LValue
+#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_Node
+#include <fmt/format.h>      // for format
 #include <initializer_list>  // for initializer_list
+#include <iosfwd>            // for ostream
+#include <map>               // for map
 #include <memory>            // for shared_ptr, unique_ptr
-#include <optional>          // for nullopt, nullopt_t, optional
-#include <set>               // for set
-#include <string>            // for basic_string, string
+#include <optional>          // for optional
+#include <ranges>            // for __fn, end
+#include <simplejson.h>      // for JSON
+#include <source_location>   // for source_location
+#include <string>            // for basic_string, operator==, string, char_...
 #include <string_view>       // for basic_string_view, string_view
-#include <tuple>             // for tuple
-#include <utility>           // for pair
-#include <variant>           // for variant
+#include <tuple>             // for get
 
 namespace credence {
 

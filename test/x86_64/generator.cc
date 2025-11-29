@@ -39,6 +39,11 @@ TEST_CASE("target/x86_64: fixture: math_constant.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -63,6 +68,11 @@ TEST_CASE("target/x86_64: fixture: math_constant_2.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -85,6 +95,11 @@ TEST_CASE("target/x86_64: fixture: math_constant_4.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -126,6 +141,11 @@ TEST_CASE("target/x86_64: fixture: math_constant_5.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -149,6 +169,11 @@ TEST_CASE("target/x86_64: fixture: math_constant_6.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -175,6 +200,11 @@ TEST_CASE("target/x86_64: fixture: math_constant_7.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -207,6 +237,11 @@ TEST_CASE("target/x86_64: fixture: relation_constant.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -225,6 +260,11 @@ TEST_CASE("target/x86_64: fixture: bitwise_constant_1.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -255,6 +295,11 @@ TEST_CASE("target/x86_64: fixture: bitwise_2.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -289,6 +334,11 @@ TEST_CASE("target/x86_64: fixture: bitwise_3.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -322,6 +372,11 @@ TEST_CASE("target/x86_64: fixture: bitwise_4.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -352,6 +407,11 @@ TEST_CASE("target/x86_64: fixture: pointers_1.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -372,6 +432,11 @@ TEST_CASE("target/x86_64: fixture: pointers_2.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -399,6 +464,11 @@ TEST_CASE("target/x86_64: fixture: pointers_3.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -420,6 +490,11 @@ TEST_CASE("target/x86_64: fixture: pointers_3.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
+
+.data
+
+.text
+    .global main
 
 main:
     push rbp
@@ -453,6 +528,17 @@ TEST_CASE("target/x86_64: fixture: string_1.b")
     std::string expected = R"x86(
 .intel_syntax noprefix
 
+.data
+
+.L_str1_data:
+    .asciz "hello"
+
+.L_str2_data:
+    .asciz "world"
+
+.text
+    .global main
+
 main:
     push rbp
     mov rbp, rsp
@@ -467,12 +553,35 @@ _L1:
     pop rbp
     ret
 
-.L_str1_data:
-    .asciz "hello"
-
-.L_str2_data:
-    .asciz "world"
-
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_1", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: string_2.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+.L_str1_data:
+    .asciz "hello world"
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    lea rax, [rip + .L_str1_data]
+    mov qword ptr [rbp - 16], rax
+    lea rax, [rbp - 16]
+    mov qword ptr [rbp - 8], rax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_2", expected);
 }

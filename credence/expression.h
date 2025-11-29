@@ -22,7 +22,9 @@
 #include <credence/values.h> // for Expression, Literal
 #include <memory>            // for make_shared
 #include <simplejson.h>      // for JSON
-#include <string>            // for basic_string, strin
+#include <source_location>   // for source_location
+#include <string>            // for basic_string, string
+#include <string_view>       // for string_view
 #include <vector>            // for vector
 
 namespace credence {

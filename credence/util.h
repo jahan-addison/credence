@@ -19,13 +19,17 @@
 #include <algorithm>   // for all_of
 #include <cctype>      // for isdigit, toupper
 #include <cstddef>     // for size_t
+#include <cstdint>     // for uint_least32_t
 #include <filesystem>  // for filesystem
-#include <fmt/base.h>  // for print
-#include <fstream>     // for ostream, ostringstream
-#include <map>         // for map
-#include <string>      // for allocator, string
-#include <string_view> // for string_view, basic_string_view
+#include <fstream>     // for ostringstream
+#include <string>      // for basic_string, string, to_string
+#include <string_view> // for basic_string_view, string_view
 #include <tuple>       // for apply, tuple
+#include <type_traits> // for is_same_v, is_convertible_v
+
+namespace json {
+class JSON;
+} // lines 30-30
 namespace json {
 class JSON;
 } // lines 31-31

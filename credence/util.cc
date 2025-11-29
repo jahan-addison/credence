@@ -6,7 +6,6 @@
 #include <fmt/format.h>     // for format, format_string
 #include <fstream>          // for basic_ofstream, basic_ifstream, basic...
 #include <iostream>         // for cout
-#include <memory>           // for unique_ptr
 #include <sstream>          // for basic_ostringstream
 
 namespace credence {

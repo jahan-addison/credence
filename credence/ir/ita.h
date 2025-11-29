@@ -15,20 +15,19 @@
  */
 #pragma once
 
-#include <compare>           // for operator<, _CmpUnspecifiedParam
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLE...
-#include <credence/values.h> // for Expression, Literal
 #include <deque>             // for deque, operator<=>, operator==
-#include <matchit.h>         // for matchit
+#include <iomanip>           // for operator<<, setw
 #include <optional>          // for nullopt, nullopt_t, optional
-#include <ostream>           // for operator<<, basic_ostream, endl
-#include <simplejson.h>      // for JSON
-#include <sstream>           // for ostream
+#include <ostream>           // for basic_ostream, operator<<, endl
+#include <simplejson.h>      // for JSON, object
+#include <source_location>   // for source_location
+#include <sstream>           // for basic_ostringstream, ostream
 #include <stack>             // for stack
-#include <string>            // for basic_string, string, operator+
+#include <string>            // for basic_string, char_traits, allo...
 #include <string_view>       // for string_view
-#include <tuple>             // for tuple, make_tuple
+#include <tuple>             // for tuple, get, make_tuple
 #include <utility>           // for pair, make_pair
 #include <vector>            // for vector
 

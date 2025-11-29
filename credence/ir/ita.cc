@@ -17,20 +17,18 @@
 #include <credence/ir/ita.h>
 
 #include <algorithm>               // for __find, find
-#include <credence/error.h>        // for assert_equal_impl, CREDENCE_ASSER...
+#include <credence/error.h>        // for assert_equal_impl, credence_asser...
 #include <credence/expression.h>   // for Expression_Parser
 #include <credence/ir/temporary.h> // for expression_node_to_temporary_inst...
-#include <credence/queue.h>        // for value_type_pointer_to_string
 #include <credence/symbol.h>       // for Symbol_Table
-#include <credence/types.h>        // for get_unary_operator, ...
-#include <credence/util.h>         // for AST_Node, AST
-#include <credence/values.h>       // for Expression, get_expression_type
-#include <fmt/compile.h>           // for format
+#include <credence/types.h>        // for get_unary_operator, is_unary_expr...
+#include <credence/util.h>         // for AST_Node
+#include <credence/values.h>       // for Expression, expression_type_to_st...
+#include <fmt/format.h>            // for format
 #include <initializer_list>        // for initializer_list
-#include <iomanip>                 // for operator<<, setw
 #include <matchit.h>               // for pattern, PatternHelper, PatternPi...
 #include <memory>                  // for shared_ptr
-#include <simplejson.h>            // for JSON, object
+#include <simplejson.h>            // for JSON
 #include <utility>                 // for get, pair, cmp_not_equal
 #include <variant>                 // for get, monostate, variant
 

@@ -16,28 +16,26 @@
 
 #include <credence/ir/temporary.h>
 
-#include <algorithm>             // for copy
 #include <credence/expression.h> // for Expression_Parser
-#include <credence/ir/ita.h>     // for ITA
+#include <credence/ir/ita.h>     // for make_temporary, insert, make_quadruple
 #include <credence/operators.h>  // for Operator, operator_to_string
 #include <credence/queue.h>      // for make_queue_from_expression_operands
 #include <credence/symbol.h>     // for Symbol_Table
 #include <credence/types.h>      // for is_temporary
 #include <credence/util.h>       // for AST_Node, overload
-#include <credence/values.h>     // for Expression, make_value_type_pointer
-#include <deque>                 // for deque, operator==, _Deque_iterator
-#include <fmt/compile.h>         // for fmt::literals
-#include <fmt/format.h>          // for format, format_string
+#include <credence/values.h>     // for expression_type_to_string, make_val...
+#include <deque>                 // for deque
+#include <fmt/compile.h>         // for format, operator""_cf
 #include <mapbox/eternal.hpp>    // for element, map
-#include <matchit.h>             // for Ds, Meet, _, pattern, ds, match, Wil...
-#include <memory>                // for shared_ptr, __shared_ptr_access, uni...
+#include <matchit.h>             // for Ds, Meet, _, Wildcard, pattern, ds
+#include <memory>                // for shared_ptr, unique_ptr
 #include <simplejson.h>          // for JSON
-#include <string>                // for basic_string, allocator, string, to_...
-#include <string_view>           // for basic_string_view, operator<=>
-#include <tuple>                 // for tuple, get
-#include <utility>               // for pair, make_pair, cmp_equal
-#include <variant>               // for variant, visit, monostate
-#include <vector>                // for vector
+#include <stddef.h>              // for size_t
+#include <string>                // for basic_string, char_traits, string
+#include <string_view>           // for basic_string_view, string_view
+#include <tuple>                 // for get, tuple
+#include <utility>               // for make_pair, pair, cmp_equal
+#include <variant>               // for visit, monostate, variant
 
 /****************************************************************************
  *  A set of functions that construct temporary lvalues "_tX" that aid in

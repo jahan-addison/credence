@@ -17,24 +17,22 @@
 #pragma once
 
 #include "instructions.h"           // for Register, Operand_Size, Immediate
-#include <algorithm>                // for __find_if, find_if
-#include <credence/ir/ita.h>        // for ITA
+#include <credence/ir/ita.h>        // for Instruction
 #include <credence/ir/table.h>      // for Table
 #include <credence/map.h>           // for Ordered_Map
 #include <credence/target/target.h> // for Backend
-#include <credence/types.h>         // for LValue, RValue, Data_Type, ...
+#include <credence/types.h>         // for RValue, is_temporary, LValue
 #include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <cstddef>                  // for size_t
 #include <deque>                    // for deque
-#include <functional>               // for std::function
-#include <initializer_list>         // for initializer_list
+#include <functional>               // for function
 #include <map>                      // for map
-#include <numeric>                  // for accumulate
+#include <ostream>                  // for basic_ostream, endl
 #include <ostream>                  // for ostream
-#include <set>                      // for set
-#include <string>                   // for basic_string, string
-#include <string_view>              // for basic_string_view, string_view
+#include <string>                   // for basic_string, string, char_traits
+#include <tuple>                    // for get, tuple
 #include <utility>                  // for pair, move
-#include <variant>                  // for variant
+#include <variant>                  // for monostate
 
 namespace credence::target::x86_64 {
 
@@ -97,6 +95,12 @@ class Stack
     Local stack_address{};
 };
 
+inline void newline(std::ostream& os, int amount = 1)
+{
+    for (; amount > 0; amount--)
+        os << std::endl;
+}
+
 namespace flag {
 
 using flags = unsigned int;
@@ -151,13 +155,18 @@ class Code_Generator final : public target::Backend<detail::Storage>
   public:
     void emit(std::ostream& os) override;
 
+  private:
+    void emit_syntax_directive(std::ostream& os);
+    void emit_text_section(std::ostream& os);
+    void emit_data_section(std::ostream& os);
+
   public:
     const Storage EMPTY_STORAGE = std::monostate{};
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build_instructions();
-    void build_data();
+    void build_text_instructions();
+    void build_data_instructions();
     void from_func_start_ita(type::semantic::Label const& name) override;
     void from_func_end_ita() override;
     void from_locl_ita(IR_Instruction const& inst) override;

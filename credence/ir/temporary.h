@@ -16,20 +16,18 @@
 
 #pragma once
 
-#include <credence/ir/ita.h>    // for ITA
+#include <algorithm>            // for __find, find
+#include <credence/ir/ita.h>    // for Instructions
 #include <credence/operators.h> // for Operator
 #include <credence/queue.h>     // for Queue
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/util.h>      // for AST_Node
-#include <credence/values.h>    // for Expression
-#include <cstddef>              // for size_t
-#include <functional>           // for identity
+#include <credence/values.h>    // for Expression, Size
 #include <initializer_list>     // for initializer_list
-#include <ranges>               // for __find_fn, find
 #include <stack>                // for stack
-#include <string>               // for string
-#include <utility>              // for pair, move
-#include <variant>              // for variant
+#include <string>               // for basic_string, string
+#include <utility>              // for pair
+#include <vector>               // for vector
 
 /****************************************************************************
  *  A set of functions that construct temporary lvalues "_tX" that aid in
@@ -82,7 +80,8 @@ namespace detail {
  *
  * The binary operation temporary is "_t3", which we return.
  *
- * We must also keep note of evaluated expressions, i.e wrapped in parenthesis:
+ * We must also keep note of evaluated expressions, i.e wrapped in
+ * parenthesis:
  *
  * `(5 + 5) * (6 * 6)`
  *

@@ -2,12 +2,12 @@
 
 #include <algorithm>         // for __find_if, find_if
 #include <credence/error.h>  // for credence_assert, credence_compile_error
-#include <credence/ir/ita.h> // for ITA, make_ITA_instructions
+#include <credence/ir/ita.h> // for Instruction, ITA, Quadruple, get_rvalue...
 #include <credence/map.h>    // for Ordered_Map
-#include <credence/queue.h>  // for value_type_pointer_to_string
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for get_type_from_rvalue_data_type, get_u...
-#include <credence/util.h>   // for contains, AST_Node, is_numeric, subst...
+#include <credence/types.h>  // for get_unary_rvalue_reference, get_type_fr...
+#include <credence/util.h>   // for contains, AST_Node, is_numeric, substri...
+#include <credence/values.h> // for expression_type_to_string
 #include <cstddef>           // for size_t
 #include <deque>             // for __deque_iterator, operator==
 #include <fmt/format.h>      // for format
@@ -17,6 +17,7 @@
 #include <string>            // for basic_string, char_traits, operator==
 #include <string_view>       // for basic_string_view, string_view
 #include <tuple>             // for get, tuple, operator==
+#include <utility>           // for pair
 #include <variant>           // for visit
 #include <vector>            // for vector
 

@@ -16,15 +16,23 @@
 
 #pragma once
 
-#include <algorithm>           // for find
-#include <credence/ir/table.h> // for Table
-#include <credence/types.h>    // for LValue, RValue, Data_Type, ...
-#include <deque>               // for deque
-#include <ostream>             // for ostream
-#include <string>              // for basic_string, string
-#include <tuple>               // for tuple
-#include <utility>             // for pair
-#include <variant>             // for variant
+#include <algorithm>        // for __find, find
+#include <credence/types.h> // for integral_from_type, Type, Data_...
+#include <credence/util.h>  // for contains, is_variant
+#include <cstddef>          // for size_t
+#include <deque>            // for deque
+#include <fmt/format.h>     // for format
+#include <initializer_list> // for initializer_list
+#include <map>              // for map
+#include <matchit.h>        // for pattern, PatternHelper, Pattern...
+#include <ostream>          // for basic_ostream, operator<<
+#include <sstream>          // for basic_ostringstream, ostream
+#include <string>           // for basic_string, char_traits, string
+#include <string_view>      // for basic_string_view, string_view
+#include <tuple>            // for tuple
+#include <type_traits>      // for underlying_type_t
+#include <utility>          // for pair
+#include <variant>          // for variant, monostate
 
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
@@ -167,7 +175,7 @@ enum class Mnemonic
 
 enum class Directive
 {
-    asciz
+    asciz, data, text
 };
 
 // clang-format on
@@ -269,6 +277,8 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
     switch (d) {
         DIRECTIVE_OSTREAM(asciz);
+        DIRECTIVE_OSTREAM(data);
+        DIRECTIVE_OSTREAM(text);
     }
     return os;
 }
@@ -454,7 +464,7 @@ inline detail::Immediate make_asciz_immediate(std::string_view address)
 }
 
 template<typename T = int>
-inline Immediate make_int_immediate(T imm, std::string const& type = "int")
+inline Immediate make_numeric_immediate(T imm, std::string const& type = "int")
 {
     return Immediate{ std::to_string(imm), type, 4UL };
 }

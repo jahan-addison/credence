@@ -15,9 +15,9 @@
  */
 
 #include "instructions.h"
-#include <credence/ir/table.h> // for Table
-#include <credence/types.h>    // for RValue, LValue, ...
-#include <matchit.h>           // for Match, Pattern
+#include <credence/error.h> // for credence_error
+#include <credence/types.h> // for get_value_from_rvalue_data_type, get_typ...
+#include <matchit.h>        // for match, MatchHelper
 
 namespace credence::target::x86_64::detail {
 
@@ -48,7 +48,7 @@ Immediate get_result_from_trivial_relational_expression(
         make_trivial_immediate_binary_result(>=)
     );
     // clang-format on
-    return detail::make_int_immediate(result, "byte");
+    return detail::make_numeric_immediate(result, "byte");
 }
 
 std::string get_storage_as_string(Storage const& storage)
@@ -80,23 +80,23 @@ Immediate get_result_from_trivial_integral_expression(
     if (type == "int") {
         auto result = trivial_arithmetic_from_numeric_table_type<int>(
             lhs_imm, op, rhs_imm);
-        return detail::make_int_immediate<int>(result, "int");
+        return detail::make_numeric_immediate<int>(result, "int");
     } else if (type == "long") {
         auto result = trivial_arithmetic_from_numeric_table_type<long>(
             lhs_imm, op, rhs_imm);
-        return detail::make_int_immediate<long>(result, "long");
+        return detail::make_numeric_immediate<long>(result, "long");
     } else if (type == "float") {
         auto result = trivial_arithmetic_from_numeric_table_type<float>(
             lhs_imm, op, rhs_imm);
-        return detail::make_int_immediate<float>(result, "float");
+        return detail::make_numeric_immediate<float>(result, "float");
 
     } else if (type == "double") {
         auto result = trivial_arithmetic_from_numeric_table_type<double>(
             lhs_imm, op, rhs_imm);
-        return detail::make_int_immediate<double>(result, "double");
+        return detail::make_numeric_immediate<double>(result, "double");
     }
     credence_error("unreachable");
-    return detail::make_int_immediate(0, "int");
+    return detail::make_numeric_immediate(0, "int");
 }
 
 Immediate get_result_from_trivial_bitwise_expression(
@@ -110,14 +110,14 @@ Immediate get_result_from_trivial_bitwise_expression(
     if (type == "int") {
         auto result =
             trivial_bitwise_from_numeric_table_type<int>(lhs_imm, op, rhs_imm);
-        return detail::make_int_immediate<int>(result, "int");
+        return detail::make_numeric_immediate<int>(result, "int");
     } else if (type == "long") {
         auto result =
             trivial_bitwise_from_numeric_table_type<long>(lhs_imm, op, rhs_imm);
-        return detail::make_int_immediate<long>(result, "long");
+        return detail::make_numeric_immediate<long>(result, "long");
     }
     credence_error("unreachable");
-    return detail::make_int_immediate(0, "int");
+    return detail::make_numeric_immediate(0, "int");
 }
 
 Instruction_Pair add_2ary_inst(
@@ -201,7 +201,7 @@ Instruction_Pair r_eq(Storage const& dest, Storage const& src)
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, sete, al);
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
@@ -212,7 +212,7 @@ Instruction_Pair r_neq(Storage const& dest, Storage const& src)
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setne, al);
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
@@ -223,7 +223,7 @@ Instruction_Pair r_lt(Storage const& dest, Storage const& src)
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setl, al);
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
@@ -234,7 +234,7 @@ Instruction_Pair r_gt(Storage const& dest, Storage const& src)
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setg, al);
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
@@ -245,7 +245,7 @@ Instruction_Pair r_le(Storage const& dest, Storage const& src)
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setle, al);
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
@@ -256,7 +256,7 @@ Instruction_Pair r_ge(Storage const& dest, Storage const& src)
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setge, al);
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
@@ -295,10 +295,10 @@ Instruction_Pair u_not(Storage const& dest)
 {
     auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, make_int_immediate(0));
+    add_i_ll(inst, cmp, eax, make_numeric_immediate(0));
     add_i_ld(inst, setne, al);
-    add_i_s(inst, xor_, rr(al), make_int_immediate(-1));
-    add_i_s(inst, and_, rr(al), make_int_immediate(1));
+    add_i_s(inst, xor_, rr(al), make_numeric_immediate(-1));
+    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
     add_i_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }

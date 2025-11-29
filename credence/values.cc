@@ -18,12 +18,11 @@
 
 #include <credence/operators.h> // for Operator
 #include <credence/util.h>      // for overload
-#include <cstddef>              // for size_t
 #include <mapbox/eternal.hpp>   // for map
 #include <memory>               // for shared_ptr, make_shared
+#include <sstream>              // for basic_ostringstream, ostringstream
 #include <string>               // for basic_string, string, char_traits
 #include <string_view>          // for basic_string_view, string_view, oper...
-#include <type_traits>          // for is_constructible_v
 #include <utility>              // for pair, get, move, make_pair
 #include <variant>              // for get, monostate, variant, visit
 #include <vector>               // for vector

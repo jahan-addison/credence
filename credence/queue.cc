@@ -20,13 +20,10 @@
 #include <credence/util.h>      // for overload
 #include <credence/values.h>    // for make_value_type_pointer, Expres...
 #include <fmt/format.h>         // for format
-#include <mapbox/eternal.hpp>   // for element, map
-#include <memory>               // for shared_ptr, allocator, make_unique
+#include <memory>               // for shared_ptr, make_unique, allocator
 #include <ostream>              // for operator<<, basic_ostream
 #include <sstream>              // for basic_ostringstream, ostringstream
-#include <stack>                // for stack
-#include <utility>              // for pair
-#include <variant>              // for get, visit, monostate, variant
+#include <variant>              // for variant, visit, monostate
 
 /**
  * @brief
