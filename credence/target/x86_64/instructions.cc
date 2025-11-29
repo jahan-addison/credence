@@ -125,16 +125,26 @@ Instruction_Pair add_2ary_inst(
     Storage const& dest,
     Storage const& src)
 {
-    auto instructions = make();
+    auto instructions = make_instructions();
     add_i(instructions, mnemonic, dest, src);
     return { dest, instructions };
 }
 
 Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
 {
-    auto instructions = make();
+    auto instructions = make_instructions();
     add_i(instructions, mnemonic, src, O_NUL);
     return { src, instructions };
+}
+
+Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    auto label =
+        type::semantic::Label{ fmt::format(".L_str{}_data", ++(*index)) };
+    directives.emplace_back(label);
+    directives.emplace_back(Data_Pair{ Directive::asciz, rvalue });
+    return { label, directives };
 }
 
 Instruction_Pair mul(Storage const& dest, Storage const& src)
@@ -144,7 +154,7 @@ Instruction_Pair mul(Storage const& dest, Storage const& src)
 
 Instruction_Pair div(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_e(inst, cdq);
     add_i_s(inst, mov, dest, src);
     add_i_d(inst, idiv, dest);
@@ -153,7 +163,7 @@ Instruction_Pair div(Storage const& dest, Storage const& src)
 
 Instruction_Pair mod(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_e(inst, cdq);
     add_i_s(inst, mov, dest, src);
     add_i_d(inst, idiv, dest);
@@ -187,7 +197,7 @@ Instruction_Pair neg(Storage const& dest)
 
 Instruction_Pair r_eq(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, sete, al);
@@ -198,7 +208,7 @@ Instruction_Pair r_eq(Storage const& dest, Storage const& src)
 
 Instruction_Pair r_neq(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setne, al);
@@ -209,7 +219,7 @@ Instruction_Pair r_neq(Storage const& dest, Storage const& src)
 
 Instruction_Pair r_lt(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setl, al);
@@ -220,7 +230,7 @@ Instruction_Pair r_lt(Storage const& dest, Storage const& src)
 
 Instruction_Pair r_gt(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setg, al);
@@ -231,7 +241,7 @@ Instruction_Pair r_gt(Storage const& dest, Storage const& src)
 
 Instruction_Pair r_le(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setle, al);
@@ -242,7 +252,7 @@ Instruction_Pair r_le(Storage const& dest, Storage const& src)
 
 Instruction_Pair r_ge(Storage const& dest, Storage const& src)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, src);
     add_i_ld(inst, setge, al);
@@ -283,7 +293,7 @@ Instruction_Pair b_not(Storage const& dest)
 
 Instruction_Pair u_not(Storage const& dest)
 {
-    auto inst = make();
+    auto inst = make_instructions();
     add_i_ll(inst, mov, eax, dest);
     add_i_ll(inst, cmp, eax, make_int_immediate(0));
     add_i_ld(inst, setne, al);

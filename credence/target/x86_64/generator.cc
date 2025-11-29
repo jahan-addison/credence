@@ -45,6 +45,7 @@ namespace m = matchit;
 
 void Code_Generator::emit(std::ostream& os)
 {
+    build_data();
     build_instructions();
     os << std::endl;
     os << ".intel_syntax noprefix" << std::endl;
@@ -52,7 +53,6 @@ void Code_Generator::emit(std::ostream& os)
 
     for (std::size_t index = 0; index < instructions_.size(); index++) {
         auto inst = instructions_[index];
-        // clang-format off
         std::visit(
             util::overload{
                 [&](detail::Instruction const& s) {
@@ -90,8 +90,27 @@ void Code_Generator::emit(std::ostream& os)
                     os << s << ":" << std::endl;
                 } },
             inst);
-        // clang-format on
     }
+    if (!data_.empty())
+        os << std::endl;
+    for (std::size_t index = 0; index < data_.size(); index++) {
+        auto data_item = data_[index];
+        std::visit(
+            util::overload{
+                [&](type::semantic::Label const& s) {
+                    os << s << ":" << std::endl;
+                },
+                [&](detail::Data_Pair const& s) {
+                    os << detail::tabwidth(4) << s.first;
+                    os << " " << "\"" << s.second << "\"";
+                    os << std::endl;
+                    if (index < data_.size() - 1)
+                        os << std::endl;
+                },
+            },
+            data_item);
+    }
+
     os << std::endl;
 }
 
@@ -205,6 +224,16 @@ void Code_Generator::build_instructions()
     }
 }
 
+void Code_Generator::build_data()
+{
+    auto table_strings = table_->strings;
+    for (auto const& string : table_strings) {
+        auto data_instruction = detail::asciz(&constant_index, string);
+        string_storage.insert_or_assign(string, data_instruction.first);
+        detail::insert(data_, data_instruction.second);
+    }
+}
+
 void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
 {
     credence_assert(table_->functions.contains(name));
@@ -310,7 +339,11 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 Storage lhs_storage = get_lvalue_address(lhs);
-                add_i_s(instructions_, mov, lhs_storage, imm);
+                if (type::get_type_from_rvalue_data_type(imm) == "string") {
+                    from_ita_string(type::get_value_from_rvalue_data_type(imm));
+                    add_i_s(instructions_, mov, lhs_storage, Register::rax);
+                } else
+                    add_i_s(instructions_, mov, lhs_storage, imm);
             },
         m::pattern | m::app(is_temporary, true) =
             [&] {
@@ -398,6 +431,13 @@ inline auto get_rvalue_pair_as_immediate(
     return std::make_pair(
         type::get_rvalue_datatype_from_string(lhs),
         type::get_rvalue_datatype_from_string(rhs));
+}
+
+void Code_Generator::from_ita_string(type::semantic::RValue const& str)
+{
+    credence_assert(string_storage.contains(str));
+    auto location = detail::make_asciz_immediate(string_storage[str]);
+    add_i_ll(instructions_, lea, rax, location);
 }
 
 void Code_Generator::from_binary_operator_expression(

@@ -80,12 +80,12 @@ Instructions Table::build_from_ita_instructions()
  */
 void Table::build_symbols_from_vector_lvalues()
 {
-    auto keys = hoisted_symbols_.dump_keys();
+    auto keys = hoisted_symbols.dump_keys();
     for (LValue const& key : keys) {
-        auto symbol_type = hoisted_symbols_[key]["type"].to_string();
+        auto symbol_type = hoisted_symbols[key]["type"].to_string();
         if (symbol_type == "vector_lvalue") {
-            auto size = static_cast<std::size_t>(
-                hoisted_symbols_[key]["size"].to_int());
+            auto size =
+                static_cast<std::size_t>(hoisted_symbols[key]["size"].to_int());
             if (!vectors.contains(key))
                 vectors[key] =
                     std::make_shared<detail::Vector>(detail::Vector{ size });
@@ -144,7 +144,7 @@ void Table::build_vector_definitions_from_globals(Symbol_Table<>& globals)
  */
 void Table::from_call_ita_instruction(Label const& label)
 {
-    if (!labels.contains(label) and not hoisted_symbols_.has_key(label))
+    if (!labels.contains(label) and not hoisted_symbols.has_key(label))
         table_error(
             "function call failed, identifier is not a function", label);
 }
@@ -197,7 +197,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
         from_pointer_or_vector_assignment(lhs, rhs);
         return;
     }
-    if (hoisted_symbols_.has_key(rhs)) {
+    if (hoisted_symbols.has_key(rhs)) {
         from_scaler_symbol_assignment(lhs, rhs);
         return;
     }
@@ -213,27 +213,25 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and rvalue.second.empty())
         rvalue_symbol = type::get_rvalue_datatype_from_string(rhs);
-
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and
         type::is_unary_expression(rvalue.second))
         rvalue_symbol = from_rvalue_unary_expression(lhs, rhs, rvalue.second);
-
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL)
         table_error(fmt::format("invalid lvalue assignment on '{}'", lhs), rhs);
 
-    type::semantic::Size size = std::get<2>(rvalue_symbol);
+    Size size = std::get<2>(rvalue_symbol);
 
     if (size > std::numeric_limits<unsigned int>::max())
         table_error(
             fmt::format("right-hand-side exceeds maximum byte size '{}'", rhs),
             lhs);
-    if (!frame->locals.is_defined(lhs)) {
-        frame->allocation += size;
-        frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
-    } else {
-        frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
-        frame->allocation += size;
-    }
+
+    frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
+    frame->allocation += size;
+
+    Type type = type::get_type_from_rvalue_data_type(rvalue_symbol);
+    if (type == "string")
+        strings.insert(type::get_value_from_rvalue_data_type(rvalue_symbol));
 }
 
 /**
@@ -540,7 +538,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
                 lvalue),
             rvalue);
     if (util::is_numeric(offset)) {
-        auto global_symbol = hoisted_symbols_[lvalue];
+        auto global_symbol = hoisted_symbols[lvalue];
         auto ul_offset = std::stoul(offset);
         if (ul_offset > detail::Vector::max_size)
             table_error(
@@ -811,7 +809,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
         credence_assert(type::is_rvalue_data_type(temp_rvalue));
         auto rdt = type::get_rvalue_datatype_from_string(temp_rvalue);
         assert_integral_unary_expression(
-            lvalue, frame->temporary[lvalue], std::get<1>(rdt));
+            frame->temporary[lvalue], std::get<1>(rdt));
         return rdt;
     } else {
         auto symbol = locals.get_symbol_by_name(rvalue);
@@ -836,19 +834,16 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                     type::get_type_from_rvalue_data_type(lvalue_symbol);
                 if (lvalue_type != "word")
                     assert_integral_unary_expression(
-                        lvalue,
-                        local_rvalue_reference,
-                        std::get<1>(lvalue_symbol));
+                        local_rvalue_reference, std::get<1>(lvalue_symbol));
                 return local_rvalue;
             }
             if (type::get_type_from_rvalue_data_type(symbol) != "word")
                 assert_integral_unary_expression(
-                    lvalue,
                     std::get<0>(locals.get_symbol_by_name(rvalue)),
                     std::get<1>(local_rvalue));
             return local_rvalue;
         } else {
-            assert_integral_unary_expression(lvalue, rvalue, type);
+            assert_integral_unary_expression(rvalue, type);
         }
         return locals.get_symbol_by_name(rvalue);
     }
@@ -935,7 +930,7 @@ inline void Table::table_error(
         location,
         fmt::format("{} in function '{}'", message, get_stack_frame()->symbol),
         symbol,
-        hoisted_symbols_);
+        hoisted_symbols);
 }
 
 /**

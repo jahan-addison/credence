@@ -110,12 +110,12 @@ class Table
     Table() = delete;
     ~Table() = default;
     explicit Table(ITA::Node const& hoisted_symbols)
-        : hoisted_symbols_(hoisted_symbols)
+        : hoisted_symbols(hoisted_symbols)
     {
     }
     explicit Table(ITA::Node const& hoisted_symbols, Instructions& instructions)
         : instructions(instructions)
-        , hoisted_symbols_(hoisted_symbols)
+        , hoisted_symbols(hoisted_symbols)
     {
     }
 
@@ -179,7 +179,6 @@ class Table
      * @brief Check that the type of an lvalue is an integral type
      */
     inline void assert_integral_unary_expression(
-        LValue const& lvalue,
         RValue const& rvalue,
         Type const& type,
         std::source_location const& location = std::source_location::current())
@@ -191,7 +190,7 @@ class Table
                     "invalid numeric unary expression on lvalue, lvalue "
                     "type "
                     "\"{}\" is not a numeric type",
-                    lvalue),
+                    type),
                 rvalue, location);
     }
 
@@ -280,14 +279,14 @@ class Table
     Instructions instructions{};
 
   private:
-    type::Globals globals{};
-    ITA::Node hoisted_symbols_;
+    ITA::Node hoisted_symbols;
 
   public:
     detail::Function::Address_Table address_table{};
     type::Stack stack{};
     Functions functions{};
     Vectors vectors{};
+    type::Strings strings{};
     type::Labels labels{};
 };
 

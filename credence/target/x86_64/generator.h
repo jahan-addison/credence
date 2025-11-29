@@ -144,6 +144,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     using Instruction_Pair = detail::Instruction_Pair;
     using Storage = detail::Storage;
     using Immediate = detail::Immediate;
+    using Directives = detail::Directives;
     using Instructions = detail::Instructions;
     using Storage_Operands = std::pair<Storage, Storage>;
 
@@ -156,6 +157,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void build_instructions();
+    void build_data();
     void from_func_start_ita(type::semantic::Label const& name) override;
     void from_func_end_ita() override;
     void from_locl_ita(IR_Instruction const& inst) override;
@@ -200,6 +202,7 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Storage const& storage,
         Operand_Size size,
         detail::flag::flags flag);
+    void from_ita_string(type::semantic::RValue const& str);
     Instruction_Pair from_ita_expression(type::semantic::RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
@@ -316,8 +319,9 @@ class Code_Generator final : public target::Backend<detail::Storage>
     void set_instruction_flag(detail::flag::Instruction_Flag set_flag);
     void set_instruction_flag(detail::flag::flags flags);
     Ordered_Map<unsigned int, detail::flag::flags> instruction_flag{};
+    std::map<std::string, type::semantic::RValue> string_storage{};
     Instructions instructions_{};
-    Instructions data_{};
+    Directives data_{};
 };
 
 void emit(

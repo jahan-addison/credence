@@ -57,12 +57,14 @@ using Data_Type = std::tuple<semantic::RValue, semantic::Type, semantic::Size>;
 using RValue_Reference = std::string_view;
 using Stack = std::deque<semantic::RValue>;
 using Labels = std::set<semantic::Label>;
+using Strings = std::set<semantic::RValue>;
 using Globals = value::Array;
-using Binary_Expression = std::tuple<std::string, std::string, std::string>;
+using Binary_Expression =
+    std::tuple<semantic::RValue, std::string, semantic::RValue>;
 using RValue_Reference_Type = std::variant<semantic::RValue, Data_Type>;
 using Locals = Symbol_Table<Data_Type, semantic::LValue>;
 using Temporary = std::pair<semantic::LValue, semantic::RValue>;
-using Parameters = std::vector<std::string>;
+using Parameters = std::vector<semantic::RValue>;
 
 // clang-format off
 constexpr auto unary_operators =

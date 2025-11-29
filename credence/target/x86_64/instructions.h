@@ -28,6 +28,7 @@
 
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
+#define dd(n) Directive::n
 
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
@@ -45,6 +46,9 @@
 
 #define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
     detail::Instruction_Pair name(detail::Storage const& src)
+
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name) \
+    detail::Directive_Pair name(std::size_t* index, type::semantic::RValue const& rvalue)
 
 #define add_i_s(inst, op, lhs, rhs)      \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
@@ -111,6 +115,11 @@
         os << STRINGIFY(reg); \
     break
 
+#define DIRECTIVE_OSTREAM(d)       \
+    case dd(d):                    \
+        os << "." << STRINGIFY(d); \
+    break
+
 #define MNEMONIC_OSTREAM(mnem)                             \
     case mn(mnem): {                                       \
         auto mnem_str = std::string_view{STRINGIFY(mnem)}; \
@@ -156,8 +165,9 @@ enum class Mnemonic
     xor_, not_, shl, shr
 };
 
-constexpr const auto QWORD_STORAGE_MNEMONIC = {
-    mn(lea)
+enum class Directive
+{
+    asciz
 };
 
 // clang-format on
@@ -253,6 +263,14 @@ constexpr Operand_Size get_operand_size_from_register(Register acc)
 constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 {
     return static_cast<std::underlying_type_t<Operand_Size>>(size);
+}
+
+constexpr std::ostream& operator<<(std::ostream& os, Directive d)
+{
+    switch (d) {
+        DIRECTIVE_OSTREAM(asciz);
+    }
+    return os;
 }
 
 constexpr std::ostream& operator<<(std::ostream& os, Register reg)
@@ -352,12 +370,11 @@ constexpr Operand_Size get_operand_size_from_rvalue_datatype(
     using T = type::semantic::Type;
     T type = type::get_type_from_rvalue_data_type(rvalue);
     return m::match(type)(
-        m::pattern | m::or_(T{ "int" }, T{ "string" }) =
-            [&] { return Operand_Size::Dword; },
         m::pattern | m::or_(T{ "double" }, T{ "long" }) =
             [&] { return Operand_Size::Qword; },
         m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
         m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
+        m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
         m::pattern | m::_ = [&] { return Operand_Size::Dword; });
 }
 
@@ -366,12 +383,11 @@ constexpr Operand_Size get_operand_size_from_type(type::semantic::Type type)
     namespace m = matchit;
     using T = type::semantic::Type;
     return m::match(type)(
-        m::pattern | m::or_(T{ "int" }, T{ "string" }) =
-            [&] { return Operand_Size::Dword; },
         m::pattern | m::or_(T{ "double" }, T{ "long" }) =
             [&] { return Operand_Size::Qword; },
         m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
         m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
+        m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
         m::pattern | m::_ = [&] { return Operand_Size::Dword; });
 }
 
@@ -382,13 +398,21 @@ inline constexpr auto O_NUL = std::monostate{};
 using Immediate = type::Data_Type;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
+using Data_Pair = std::pair<Directive, type::semantic::RValue>;
+using Directives = std::deque<std::variant<type::semantic::Label, Data_Pair>>;
 using Instructions =
     std::deque<std::variant<type::semantic::Label, Instruction>>;
-using Instruction_Pair = std::pair<Storage, detail::Instructions>;
+using Instruction_Pair = std::pair<Storage, Instructions>;
+using Directive_Pair = std::pair<std::string, Directives>;
 
-inline Instructions make() noexcept
+inline Instructions make_instructions() noexcept
 {
     return Instructions{};
+}
+
+inline Directives make_directives() noexcept
+{
+    return Directives{};
 }
 
 constexpr std::string tabwidth(unsigned int t)
@@ -412,20 +436,23 @@ Immediate get_result_from_trivial_bitwise_expression(
     std::string const& op,
     Immediate const& rhs);
 
-constexpr bool is_qword_storage_mnemonic(Mnemonic inst)
-{
-    return std::ranges::find(
-               QWORD_STORAGE_MNEMONIC.begin(),
-               QWORD_STORAGE_MNEMONIC.end(),
-               inst) != QWORD_STORAGE_MNEMONIC.end();
-}
-
 std::string get_storage_as_string(Storage const& storage);
 
 inline void insert(Instructions& to, Instructions const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
 }
+
+inline void insert(Directives& to, Directives const& from)
+{
+    to.insert(to.end(), from.begin(), from.end());
+}
+
+inline detail::Immediate make_asciz_immediate(std::string_view address)
+{
+    return Immediate{ fmt::format("[rip + {}]", address), "string", 8UL };
+}
+
 template<typename T = int>
 inline Immediate make_int_immediate(T imm, std::string const& type = "int")
 {
@@ -436,6 +463,9 @@ inline Immediate make_u32_int_immediate(unsigned int imm)
 {
     return Immediate{ std::to_string(imm), "int", 4UL };
 }
+
+// directives
+DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(asciz);
 
 // arithmetic
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);
