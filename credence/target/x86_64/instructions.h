@@ -130,7 +130,7 @@
 /**
  * @brief
  *
- *  String and std::ostream macros
+ *  Register and directive string std::ostream macros
  *
  */
 
@@ -148,6 +148,17 @@
     case dd(d):                    \
         os << "." << STRINGIFY(d); \
     break
+
+#define DIRECTIVE_OSTREAM_2ARY(d, g)            \
+    case dd(d): {                               \
+        auto di = sv(STRINGIFY(d)) == "start" ? \
+            "global"                            \
+            : STRINGIFY(d);                     \
+        os << fmt::format(".{} {}",             \
+            di,                                 \
+            STRINGIFY(g));                      \
+        };                                      \
+        break
 
 #define MNEMONIC_OSTREAM(mnem)                             \
     case mn(mnem): {                                       \
@@ -205,7 +216,9 @@ enum class Directive
 {
     asciz,
     data,
-    text
+    text,
+    start,
+    global,
 };
 
 // clang-format on
@@ -354,7 +367,10 @@ constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
     switch (d) {
+        DIRECTIVE_OSTREAM_2ARY(start, main);
+
         DIRECTIVE_OSTREAM(asciz);
+        DIRECTIVE_OSTREAM(global);
         DIRECTIVE_OSTREAM(data);
         DIRECTIVE_OSTREAM(text);
     }
@@ -500,8 +516,6 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
  *
  */
 
-constexpr auto O_NUL = std::monostate{};
-
 using Immediate = type::Data_Type;
 using Stack_Offset = std::size_t;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
@@ -512,6 +526,9 @@ using Instructions =
     std::deque<std::variant<type::semantic::Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, Instructions>;
 using Directive_Pair = std::pair<std::string, Directives>;
+
+// Empty storage device
+constexpr auto O_NUL = std::monostate{};
 
 /**
  * @brief Instruction type constructor

@@ -21,7 +21,7 @@ The compiler works in 3 stages:
 There are a few differences between the compiler and B specification, namely:
 
 * **Strongly typed** with type inference
-  * Vectors (arrays) may be non-homogeneous, but are typed by their value at compile-time
+  * Vectors (arrays) may be non-homogeneous, but are typed by their initial values at compile-time
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
 * Boolean coercion for all data types in conditional structures
@@ -58,7 +58,7 @@ Usage:
 ## Targets
 
 ### x86-64:
-  * Compliance with the Application Binary Interface (ABI) for System V, Microsoft x64 Calling Convention, et cetera
+  * Compliance with the Application Binary Interface (ABI) for System V, and Microsoft x64 Calling Convention
   * SIMD memory alignment requirements
 
 

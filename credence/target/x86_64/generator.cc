@@ -98,10 +98,9 @@ void Code_Generator::emit_data_section(std::ostream& os)
  */
 void Code_Generator::emit_text_section(std::ostream& os)
 {
-    os << detail::Directive::text;
-    detail::newline(os, 1);
-    os << detail::tabwidth(4);
-    os << ".global main";
+    os << detail::Directive::text << std::endl;
+    // ".global main"
+    os << detail::tabwidth(4) << detail::Directive::start;
     detail::newline(os, 2);
 
     build_text_section_instructions();
@@ -460,8 +459,8 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
                 } else
                     add_inst_as(instructions_, mov, lhs_storage, imm);
             },
-        // The storage of the final rvalue from line 441 is in an accumulator
-        // register, use it to assign to a local variable
+        // The storage of the rvalue from line 441 is in an
+        // accumulator register, use it to assign to a local variable
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_ir_assignment) {
@@ -487,7 +486,7 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
                 add_inst_as(instructions_, mov, acc, rhs_storage);
                 add_inst_as(instructions_, mov, lhs_storage, acc);
             },
-        // Unary expression assignment, including to pointers to an address
+        // Unary expression assignment, including pointers to an address
         m::pattern | m::app(type::is_unary_expression, true) =
             [&] {
                 Storage lhs_storage = get_lvalue_address(lhs);
@@ -538,7 +537,7 @@ void Code_Generator::from_temporary_unary_operator_expression(
 }
 
 /**
- * @brief Get the storage device of a IR binary expression operand
+ * @brief Get the storage device of an IR binary expression operand
  */
 Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
     type::semantic::RValue const& rvalue)
@@ -553,7 +552,7 @@ Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
 }
 
 /**
- * @brief Construct a pair of Immediates from 2 type::RValue's
+ * @brief Construct a pair of Immediates from 2 type::semantic::RValue's
  */
 inline auto get_rvalue_pair_as_immediate(
     type::semantic::RValue const& lhs,
@@ -565,7 +564,9 @@ inline auto get_rvalue_pair_as_immediate(
 }
 
 /**
- * @brief Translate from a string in the table to a .asciz directive
+ * @brief Translate a string in the table to an .asciz directive
+ *
+ * 'string_storage' holds the %rip offset in the data section
  */
 void Code_Generator::from_ita_string(type::semantic::RValue const& str)
 {
@@ -575,9 +576,9 @@ void Code_Generator::from_ita_string(type::semantic::RValue const& str)
 }
 
 /**
- * @brief Translate from binary operator expression rvalue types
+ * @brief Translate from binary operator expression operand types
  *
- * Note that we pattern match on operand pair cases
+ *   Note that we pattern match on special pair cases
  */
 void Code_Generator::from_binary_operator_expression(
     type::semantic::RValue const& expr)
@@ -700,7 +701,7 @@ void Code_Generator::from_binary_operator_expression(
 }
 
 /**
- * @brief Translate from storage device operands, and the operator type
+ * @brief Translate from storage device operands and the operator type
  *
  * Note that the source storage device may be empty
  */
@@ -727,7 +728,7 @@ void Code_Generator::insert_from_op_operands(
 }
 
 /**
- * @brief Translate from the rvalue at a temporary lvalue
+ * @brief Translate from the rvalue at a temporary lvalue location
  */
 void Code_Generator::insert_from_temporary_lvalue(
     type::semantic::LValue const& lvalue)
@@ -737,7 +738,7 @@ void Code_Generator::insert_from_temporary_lvalue(
 }
 
 /**
- * @brief Translate from the rvalue at a temporary lvalue
+ * @brief Translate from an rvalue expression
  *
  * Note that the storage is usually an accumulator register
  * to be assigned an address on the stack
@@ -840,7 +841,7 @@ Code_Generator::get_second_register_from_size(Operand_Size size)
 }
 
 /**
- * @brief Get a accumulator register that will fit a storage device
+ * @brief Get an accumulator register that will fit a storage device
  *
  * See instructions.h for storage details
  */
@@ -911,7 +912,7 @@ void Code_Generator::insert_from_immediate_rvalues(
 }
 
 /**
- * @brief Translate from the ir unary expressions
+ * @brief Translate from the ir unary expression types
  */
 void Code_Generator::from_ita_unary_expression(
     std::string const& op,
@@ -976,9 +977,9 @@ void Code_Generator::from_label_ita(ir::Quadruple const& inst)
 
 /**
  * @brief Translate arithmetic binary expressions
- *
  * Instruction_Pair includes the destination storage device
- * see instructions.h for details
+ *
+ * See instructions.h for details
  */
 Code_Generator::Instruction_Pair
 Code_Generator::from_arithmetic_expression_operands(
@@ -1018,9 +1019,9 @@ Code_Generator::from_arithmetic_expression_operands(
 
 /**
  * @brief Translate bitwise binary expressions
- *
  * Instruction_Pair includes the destination storage device
- * see instructions.h for details
+ *
+ * See instructions.h for details
  */
 Code_Generator::Instruction_Pair
 Code_Generator::from_bitwise_expression_operands(
@@ -1057,9 +1058,9 @@ Code_Generator::from_bitwise_expression_operands(
 
 /**
  * @brief Translate relational binary expressions
- *
  * Instruction_Pair includes the destination storage device
- * see instructions.h for details
+ *
+ * See instructions.h for details
  */
 Code_Generator::Instruction_Pair
 Code_Generator::from_relational_expression_operands(
@@ -1150,7 +1151,7 @@ detail::Operand_Size Code_Generator::get_operand_size_from_storage(
 /**
  * @brief Get the storage address of an lvalue
  *
- * Including vectors (arrays)
+ *  Note: including vectors (array) indices
  */
 Code_Generator::Storage Code_Generator::get_lvalue_address(
     type::semantic::LValue const& lvalue)
@@ -1237,8 +1238,7 @@ constexpr void detail::Stack::set_address_from_immediate(
         return;
     auto operand_size = get_operand_size_from_rvalue_datatype(rvalue);
     auto value_size = get_size_from_operand_size(operand_size);
-    size += value_size;
-    stack_address.insert(lvalue, { size, operand_size });
+    allocate_aligned_lvalue(lvalue, value_size, operand_size);
 }
 
 /**
@@ -1251,8 +1251,8 @@ constexpr void detail::Stack::set_address_from_accumulator(
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
     auto register_size = get_operand_size_from_register(acc);
-    size += detail::get_size_from_operand_size(register_size);
-    stack_address.insert(lvalue, { size, register_size });
+    auto allocation = detail::get_size_from_operand_size(register_size);
+    allocate_aligned_lvalue(lvalue, allocation, register_size);
 }
 
 /**
@@ -1268,6 +1268,20 @@ constexpr void detail::Stack::set_address_from_type(
     auto operand_size = get_operand_size_from_type(type);
     auto value_size = get_size_from_operand_size(operand_size);
 
+    allocate_aligned_lvalue(lvalue, value_size, operand_size);
+}
+
+/**
+ * @brief
+ * In some cases address space was loaded in chunks for memory alignment
+ *
+ * So skip any previously allocated offsets as we push downwards
+ */
+constexpr void detail::Stack::allocate_aligned_lvalue(
+    LValue const& lvalue,
+    Size value_size,
+    Operand_Size operand_size)
+{
     if (get_lvalue_from_offset(size + value_size).empty()) {
         size += value_size;
         stack_address.insert(lvalue, { size, operand_size });
@@ -1291,6 +1305,8 @@ constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
 
 /**
  * @brief Get the stack address of an index in a vector (array)
+ *
+ * The vector was allocated in a chunk and we allocate each index downward
  */
 constexpr detail::Stack::Size
 detail::Stack::get_stack_offset_from_table_vector_index(
@@ -1299,11 +1315,11 @@ detail::Stack::get_stack_offset_from_table_vector_index(
     ir::detail::Vector const& vector)
 {
     bool search{ false };
-    auto lvalue_offset = get(lvalue).first;
+    auto vector_offset = get(lvalue).first;
     return std::accumulate(
         vector.data.begin(),
         vector.data.end(),
-        lvalue_offset,
+        vector_offset,
         [&](type::semantic::Size offset,
             ir::detail::Vector::Entry const& entry) {
             if (entry.first == key)
@@ -1336,13 +1352,14 @@ constexpr detail::Stack::Size detail::Stack::get_stack_size_from_table_vector(
                 detail::get_operand_size_from_rvalue_datatype(
                 entry.second));
     });
+
     return vector_size < 16UL ? vector_size :
         util::align_up_to_16(vector_size);
     // clang-format on
 }
 
 /**
- * @brief Set and allocate an address from an arbitrary size
+ * @brief Set and allocate an address from an arbitrary offset
  */
 constexpr void detail::Stack::set_address_from_size(
     LValue const& lvalue,

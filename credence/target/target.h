@@ -18,7 +18,6 @@
 
 #include <credence/ir/table.h> // for Table
 #include <credence/types.h>    // for LValue, RValue, Data_Type, ...
-#include <credence/util.h>     // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <ostream>             // for ostream
 #include <utility>             // for move
 
@@ -28,14 +27,14 @@ namespace credence::target {
  * @brief
  *  Abstract pure virtual target architecture class
  *
- *  * Storage_Container should encapsulate all devices that may fit in a
+ *  * Storage_Type_Variant should encapsulate all devices that may fit in a
  * mnemonic operand
  *  * IR is the type of the data structure of IR instructions, most likely
  * ir::Quadruple
  *
  * The pure virtual methods construct a visitor of ir::ITA instructions
  */
-template<typename Storage_Container, typename IR>
+template<typename Storage_Type_Variant, typename IR>
 class Backend
 {
   public:
@@ -53,7 +52,7 @@ class Backend
     virtual void emit(std::ostream& os) = 0;
 
   protected:
-    using Storage = Storage_Container;
+    using Storage = Storage_Type_Variant;
 
   private:
     virtual void from_func_start_ita(type::semantic::Label const& name) = 0;

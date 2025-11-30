@@ -96,6 +96,10 @@ class Stack
         Offset offset) const;
 
     constexpr Offset allocate(Operand_Size operand);
+    constexpr void allocate_aligned_lvalue(
+        LValue const& lvalue,
+        Size value_size,
+        Operand_Size operand_size);
     constexpr void set_address_from_accumulator(
         LValue const& lvalue,
         Register acc);
@@ -346,6 +350,9 @@ class Code_Generator final
     }
     /**
      * @brief Check if last ir instruction was Instruction::MOV
+     *
+     * Primarily used to determine if we need a second register for an
+     * expression
      */
     inline bool last_ir_instruction_is_assignment()
     {
@@ -357,6 +364,9 @@ class Code_Generator final
     }
     /**
      * @brief Check if next ir instruction is a temporary assignment
+     *
+     * Primarily used to determine if we need a second register for an
+     * expression
      */
     inline bool next_ir_instruction_is_temporary()
     {
