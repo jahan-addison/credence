@@ -585,3 +585,93 @@ _L1:
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_2", expected);
 }
+
+TEST_CASE("target/x86_64: fixture: vector_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov dword ptr [rbp - 12], 0
+    mov dword ptr [rbp - 8], 1
+    mov dword ptr [rbp - 4], 2
+    mov dword ptr [rbp - 16], 10
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_1", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: vector_2.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov dword ptr [rbp - 32], 0
+    mov dword ptr [rbp - 28], 1
+    mov dword ptr [rbp - 24], 2
+    mov dword ptr [rbp - 20], 3
+    mov dword ptr [rbp - 16], 4
+    mov dword ptr [rbp - 36], 10
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_2", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: vector_3.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+.L_str1_data:
+    .asciz "good afternoon"
+
+.L_str2_data:
+    .asciz "good morning"
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov dword ptr [rbp - 32], 0
+    mov dword ptr [rbp - 28], 1
+    mov dword ptr [rbp - 24], 2
+    lea rax, [rip + .L_str1_data]
+    mov dword ptr [rbp - 20], rax
+    lea rax, [rip + .L_str2_data]
+    mov dword ptr [rbp - 12], rax
+    mov dword ptr [rbp - 36], 10
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_3", expected);
+}

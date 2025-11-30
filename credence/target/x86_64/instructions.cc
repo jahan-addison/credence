@@ -23,6 +23,9 @@ namespace credence::target::x86_64::detail {
 
 namespace m = matchit;
 
+/**
+ * @brief Compute the result from trivial relational expression
+ */
 Immediate get_result_from_trivial_relational_expression(
     Immediate const& lhs,
     std::string const& op,
@@ -51,6 +54,9 @@ Immediate get_result_from_trivial_relational_expression(
     return detail::make_numeric_immediate(result, "byte");
 }
 
+/**
+ * @brief Get a storage device as string for emission
+ */
 std::string get_storage_as_string(Storage const& storage)
 {
     std::ostringstream result{};
@@ -69,6 +75,9 @@ std::string get_storage_as_string(Storage const& storage)
     return result.str();
 }
 
+/**
+ * @brief Compute the result from trivial integral expression
+ */
 Immediate get_result_from_trivial_integral_expression(
     Immediate const& lhs,
     std::string const& op,
@@ -99,6 +108,9 @@ Immediate get_result_from_trivial_integral_expression(
     return detail::make_numeric_immediate(0, "int");
 }
 
+/**
+ * @brief Compute the result from trivial bitwise expression
+ */
 Immediate get_result_from_trivial_bitwise_expression(
     Immediate const& lhs,
     std::string const& op,
@@ -120,23 +132,42 @@ Immediate get_result_from_trivial_bitwise_expression(
     return detail::make_numeric_immediate(0, "int");
 }
 
+/**
+ * @brief Helper function for trivial 2-ary mnemonic instructions
+ *
+ *   Example:
+ *
+ *    add rax, rdi
+ *    imul rax, [rbp - 4]
+ */
 Instruction_Pair add_2ary_inst(
     Mnemonic mnemonic,
     Storage const& dest,
     Storage const& src)
 {
     auto instructions = make_instructions();
-    add_i(instructions, mnemonic, dest, src);
+    add_inst(instructions, mnemonic, dest, src);
     return { dest, instructions };
 }
 
+/**
+ * @brief Helper function for trivial 1-ary mnemonic instructions
+ *
+ *   Example:
+ *
+ *    idiv edi
+ */
 Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
 {
     auto instructions = make_instructions();
-    add_i(instructions, mnemonic, src, O_NUL);
+    add_inst(instructions, mnemonic, src, O_NUL);
     return { src, instructions };
 }
 
+/**
+ * @brief Construct a .asciz directive as a Directive_Pair
+ *
+ */
 Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
 {
     auto directives = make_directives();
@@ -147,6 +178,16 @@ Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
     return { label, directives };
 }
 
+// ---
+
+/***********************************/
+/* x86-64 instruction constructors */
+/***********************************/
+
+// Instruction_Pair is the destination storage device, and std::deque of
+// instructions
+// ---
+
 Instruction_Pair mul(Storage const& dest, Storage const& src)
 {
     return add_2ary_inst(mn(imul), dest, src);
@@ -155,18 +196,18 @@ Instruction_Pair mul(Storage const& dest, Storage const& src)
 Instruction_Pair div(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_e(inst, cdq);
-    add_i_s(inst, mov, dest, src);
-    add_i_d(inst, idiv, dest);
+    add_inst_e(inst, cdq);
+    add_inst_as(inst, mov, dest, src);
+    add_inst_d(inst, idiv, dest);
     return { src, inst };
 }
 
 Instruction_Pair mod(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_e(inst, cdq);
-    add_i_s(inst, mov, dest, src);
-    add_i_d(inst, idiv, dest);
+    add_inst_e(inst, cdq);
+    add_inst_as(inst, mov, dest, src);
+    add_inst_d(inst, idiv, dest);
     return { rr(edx), inst };
 }
 
@@ -198,66 +239,66 @@ Instruction_Pair neg(Storage const& dest)
 Instruction_Pair r_eq(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, src);
-    add_i_ld(inst, sete, al);
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, src);
+    add_inst_ld(inst, sete, al);
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_neq(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, src);
-    add_i_ld(inst, setne, al);
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, src);
+    add_inst_ld(inst, setne, al);
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_lt(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, src);
-    add_i_ld(inst, setl, al);
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, src);
+    add_inst_ld(inst, setl, al);
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_gt(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, src);
-    add_i_ld(inst, setg, al);
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, src);
+    add_inst_ld(inst, setg, al);
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_le(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, src);
-    add_i_ld(inst, setle, al);
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, src);
+    add_inst_ld(inst, setle, al);
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
 Instruction_Pair r_ge(Storage const& dest, Storage const& src)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, src);
-    add_i_ld(inst, setge, al);
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, src);
+    add_inst_ld(inst, setge, al);
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 
@@ -294,12 +335,12 @@ Instruction_Pair b_not(Storage const& dest)
 Instruction_Pair u_not(Storage const& dest)
 {
     auto inst = make_instructions();
-    add_i_ll(inst, mov, eax, dest);
-    add_i_ll(inst, cmp, eax, make_numeric_immediate(0));
-    add_i_ld(inst, setne, al);
-    add_i_s(inst, xor_, rr(al), make_numeric_immediate(-1));
-    add_i_s(inst, and_, rr(al), make_numeric_immediate(1));
-    add_i_llrs(inst, mov, eax, al);
+    add_inst_ll(inst, mov, eax, dest);
+    add_inst_ll(inst, cmp, eax, make_numeric_immediate(0));
+    add_inst_ld(inst, setne, al);
+    add_inst_as(inst, xor_, rr(al), make_numeric_immediate(-1));
+    add_inst_as(inst, and_, rr(al), make_numeric_immediate(1));
+    add_inst_llrs(inst, mov, eax, al);
     return { rr(eax), inst };
 }
 

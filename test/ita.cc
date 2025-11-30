@@ -15,7 +15,7 @@
 #include <utility>            // for pair, make_pair
 #include <variant>            // for monostate
 
-#define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
+#define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
 struct ITA_Fixture

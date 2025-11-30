@@ -20,16 +20,15 @@ The compiler works in 3 stages:
 
 There are a few differences between the compiler and B specification, namely:
 
-* Roughly strict typing with type inference
-  * Vectors (arrays) may be non-homogeneous
-  * The trivial vector is strongly typed
+* **Strongly typed** with type inference
+  * Vectors (arrays) may be non-homogeneous, but are typed by their value at compile-time
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
-* Boolean "truthy" coercion for all data types in conditionals
+* Boolean coercion for all data types in conditional structures
 * `GOTO` and labels are not supported, use control structures
 * Support for C++ style comments
 * Logical and bitwise operators behave more like C
-* Uses C operator precedence
+* Operator precedence resembles C
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte
@@ -59,8 +58,11 @@ Usage:
 ## Targets
 
 ### x86-64:
-  * Compliance with the Application Binary Interface (ABI)
-    * Including SIMD memory alignment requirements
+  * Compliance with the Application Binary Interface (ABI) for System V, Microsoft x64 Calling Convention, et cetera
+  * SIMD memory alignment requirements
+
+
+---
 
 *Note*: The default compile target is currently the IR, [ITA](credence/ir/README.md):
 

@@ -91,6 +91,11 @@ inline int integral_from_type_int(std::string const& t)
     return std::stoi(t);
 }
 
+inline int integral_from_type_ulint(std::string const& t)
+{
+    return std::stoul(t);
+}
+
 inline long integral_from_type_long(std::string const& t)
 {
     return std::stol(t);

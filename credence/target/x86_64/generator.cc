@@ -15,7 +15,7 @@
  */
 
 #include "generator.h"
-#include "instructions.h"           // for Operand_Size, add_i_s, Register
+#include "instructions.h"           // for Operand_Size, add_inst_as, Register
 #include <algorithm>                // for find_if, __find_if
 #include <credence/error.h>         // for credence_assert, assert_nequal_impl
 #include <credence/ir/ita.h>        // for Instruction, ITA, get_rvalue_fro...
@@ -44,6 +44,9 @@ namespace credence::target::x86_64 {
 
 namespace m = matchit;
 
+/**
+ * @brief Emit a complete set of x86-64 instructions
+ */
 void Code_Generator::emit(std::ostream& os)
 {
     emit_syntax_directive(os);
@@ -54,15 +57,21 @@ void Code_Generator::emit(std::ostream& os)
     detail::newline(os);
 }
 
+/**
+ * @brief Emit the intel syntax directive
+ */
 inline void Code_Generator::emit_syntax_directive(std::ostream& os)
 {
     os << std::endl << ".intel_syntax noprefix" << std::endl << std::endl;
 }
 
+/**
+ * @brief Construct and emit the data section of a program
+ */
 void Code_Generator::emit_data_section(std::ostream& os)
 {
-    build_data_instructions();
-    os << ".data";
+    build_data_section_instructions();
+    os << detail::Directive::data;
     detail::newline(os, 2);
     if (!data_.empty())
         for (std::size_t index = 0; index < data_.size(); index++) {
@@ -84,12 +93,19 @@ void Code_Generator::emit_data_section(std::ostream& os)
         }
 }
 
+/**
+ * @brief Construct and emit the text section of a program
+ */
 void Code_Generator::emit_text_section(std::ostream& os)
 {
-    build_text_instructions();
-    os << ".text" << std::endl << detail::tabwidth(4);
+    os << detail::Directive::text;
+    detail::newline(os, 1);
+    os << detail::tabwidth(4);
     os << ".global main";
     detail::newline(os, 2);
+
+    build_text_section_instructions();
+
     for (std::size_t index = 0; index < instructions_.size(); index++) {
         auto inst = instructions_[index];
         // clang-format off
@@ -105,6 +121,7 @@ void Code_Generator::emit_text_section(std::ostream& os)
             os << detail::tabwidth(4) << mnemonic;
 
             auto size = get_operand_size_from_storage(src);
+            // check and apply any flags to the destination storage device
             if (!is_empty_storage(dest)) {
                 if (flags & detail::flag::Address)
                     size = get_operand_size_from_storage(dest);
@@ -113,7 +130,7 @@ void Code_Generator::emit_text_section(std::ostream& os)
                     is_variant(Register, src))
                     flags &= ~detail::flag::Indirect;
             }
-
+            // check and apply any flags to the source storage device
             if (!is_empty_storage(src)) {
                 if (flags & detail::flag::Indirect_Source)
                     flags |= detail::flag::Indirect;
@@ -134,6 +151,12 @@ void Code_Generator::emit_text_section(std::ostream& os)
 }
 
 // clang-format off
+
+/**
+ * @brief Code generation factory
+ *
+ * Construct and emit a complete x86-64 source program from an AST and symbols
+ */
 void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast)
@@ -149,6 +172,9 @@ void emit(std::ostream& os,
     generator.emit(os);
 }
 
+/**
+ * @brief Get the intel-format prefix for storage device sizes
+ */
 constexpr std::string storage_prefix_from_operand_size(
     detail::Operand_Size size)
 {
@@ -160,11 +186,17 @@ constexpr std::string storage_prefix_from_operand_size(
         m::pattern | m::_ = [&] { return "dword ptr"; });
 }
 
+/**
+ * @brief Emit from a type::Data_Type as an immediate value
+ */
 constexpr std::string detail::emit_immediate_storage(Immediate const& immediate)
 {
     return type::get_value_from_rvalue_data_type(immediate);
 }
 
+/**
+ * @brief Emit an offset on the Stack as a storage device as a string
+ */
 constexpr std::string detail::emit_stack_storage(
     Stack const& stack,
     Stack::Offset offset,
@@ -181,24 +213,30 @@ constexpr std::string detail::emit_stack_storage(
     return as_str;
 }
 
-inline std::string detail::emit_register_storage(
+/**
+ * @brief Emit a register as a storage device as a string
+ */
+constexpr std::string detail::emit_register_storage(
     Register device,
     Operand_Size size,
     flag::flags flags)
 {
-    std::stringstream as_str{};
+    std::string as_str{};
     using namespace fmt::literals;
     auto prefix = storage_prefix_from_operand_size(size);
     if (flags & flag::Indirect)
-        as_str << fmt::format(
-            "{} [{}]"_cf, prefix, get_storage_as_string(device));
+        as_str =
+            fmt::format("{} [{}]"_cf, prefix, get_storage_as_string(device));
     else
-        as_str << device;
+        as_str = detail::register_as_string(device);
 
-    return as_str.str();
+    return as_str;
 }
 
-std::string Code_Generator::emit_storage_device(
+/**
+ * @brief Emit a storage device as a string
+ */
+constexpr std::string Code_Generator::emit_storage_device(
     Storage const& storage,
     Operand_Size size,
     detail::flag::flags flags)
@@ -215,9 +253,12 @@ std::string Code_Generator::emit_storage_device(
             [&] { return detail::emit_immediate_storage(*i); });
 }
 
-void Code_Generator::build_text_instructions()
+/**
+ * @brief Construct the text section of a program
+ */
+void Code_Generator::build_text_section_instructions()
 {
-    auto instructions = table_->instructions;
+    auto instructions = table->instructions;
     ita_index = 0UL;
     for (; ita_index < instructions.size(); ita_index++) {
         auto inst = instructions[ita_index];
@@ -228,7 +269,7 @@ void Code_Generator::build_text_instructions()
                     auto symbol = std::get<1>(instructions.at(ita_index - 1));
                     auto name = type::get_label_as_human_readable(symbol);
                     current_frame = name;
-                    set_table_stack_frame(name);
+                    set_stack_frame_from_table(name);
                     from_func_start_ita(name);
                 },
             m::pattern | ir_i(FUNC_END) = [&] { from_func_end_ita(); },
@@ -242,34 +283,41 @@ void Code_Generator::build_text_instructions()
         );
     }
 }
-
-void Code_Generator::build_data_instructions()
+/**
+ * @brief Construct the data section of a program
+ */
+void Code_Generator::build_data_section_instructions()
 {
-    auto table_strings = table_->strings;
-    for (auto const& string : table_strings) {
+    for (auto const& string : table->strings) {
         auto data_instruction = detail::asciz(&constant_index, string);
         string_storage.insert_or_assign(string, data_instruction.first);
         detail::insert(data_, data_instruction.second);
     }
 }
 
+/**
+ * @brief Translate from the IR Instruction::FUNC_START
+ */
 void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
 {
-    credence_assert(table_->functions.contains(name));
+    credence_assert(table->functions.contains(name));
     stack.clear();
     current_frame = name;
-    set_table_stack_frame(name);
-    auto frame = table_->functions[current_frame];
-    auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
-    add_i_ld(instructions_, push, rbp);
-    add_i_llrs(instructions_, mov_, rbp, rsp);
-    if (table_->stack_frame_contains_ita_instruction(
+    set_stack_frame_from_table(name);
+    auto frame = table->functions[current_frame];
+    auto stack_alloc = util::align_up_to_16(frame->allocation);
+    add_inst_ld(instructions_, push, rbp);
+    add_inst_llrs(instructions_, mov_, rbp, rsp);
+    if (table->stack_frame_contains_ita_instruction(
             current_frame, ir::Instruction::CALL)) {
         auto imm = detail::make_u32_int_immediate(stack_alloc);
-        add_i_ll(instructions_, sub, rsp, imm);
+        add_inst_ll(instructions_, sub, rsp, imm);
     }
 }
 
+/**
+ * @brief Get an available storage device, reset for each stack frame
+ */
 Code_Generator::Storage Code_Generator::get_storage_device(Operand_Size size)
 {
     auto& registers = size == Operand_Size::Qword ? available_qword_register
@@ -283,101 +331,152 @@ Code_Generator::Storage Code_Generator::get_storage_device(Operand_Size size)
     }
 }
 
-void Code_Generator::set_table_stack_frame(type::semantic::Label const& name)
+/**
+ * @brief Set the current stack frame from the address in the Table
+ */
+void Code_Generator::set_stack_frame_from_table(
+    type::semantic::Label const& name)
 {
-    table_->set_stack_frame(name);
+    table->set_stack_frame(name);
 }
 
+/**
+ * @brief Translate from the IR Instruction::FUNC_END
+ */
 void Code_Generator::from_func_end_ita()
 {
-    auto frame = table_->functions[current_frame];
-    auto stack_alloc = credence::target::align_up_to_16(frame->allocation);
-    if (table_->stack_frame_contains_ita_instruction(
+    auto frame = table->functions[current_frame];
+    auto stack_alloc = util::align_up_to_16(frame->allocation);
+    if (table->stack_frame_contains_ita_instruction(
             current_frame, ir::Instruction::CALL)) {
         auto a_imm = detail::make_u32_int_immediate(stack_alloc);
-        add_i_ll(instructions_, add, rsp, a_imm);
+        add_inst_ll(instructions_, add, rsp, a_imm);
     }
     reset_avail_registers();
 }
 
-void Code_Generator::from_push_ita(IR_Instruction const& inst)
+/**
+ * @brief Translate from the IR Instruction::PUSH
+ */
+void Code_Generator::from_push_ita(ir::Quadruple const& inst)
 {
     auto lvalue = std::get<1>(inst);
-    auto frame = table_->functions[current_frame];
-    auto& locals = table_->get_stack_frame_symbols();
+    auto frame = table->functions[current_frame];
+    auto& locals = table->get_stack_frame_symbols();
     auto symbol = locals.get_symbol_by_name(lvalue);
     auto storage = get_storage_device();
 
-    add_i_s(instructions_, mov, storage, symbol);
+    add_inst_as(instructions_, mov, storage, symbol);
 }
 
-void Code_Generator::from_locl_ita(IR_Instruction const& inst)
+/**
+ * @brief Translate from the IR Instruction::LOCL
+ *
+ * Note that at this point in code translation, we allocate local variables on
+ * the stack
+ */
+void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
 {
     auto locl_lvalue = std::get<1>(inst);
-    if (type::is_dereference_expression(locl_lvalue)) {
-        auto lvalue = type::get_unary_rvalue_reference(std::get<1>(inst));
-        stack.set_address_from_address(lvalue);
-        return;
-    }
-    auto frame = table_->functions[current_frame];
-    auto& locals = table_->get_stack_frame_symbols();
-    // immediate relational rvalue, the storage will be the al register
-    if (type::is_relation_binary_expression(
-            type::get_value_from_rvalue_data_type(
-                locals.get_symbol_by_name(locl_lvalue)))) {
-        stack.set_address_from_accumulator(locl_lvalue, Register::al);
-    } else {
-        // get storage size from type table
-        auto type = table_->get_type_from_rvalue_data_type(locl_lvalue);
-        stack.set_address_from_type(locl_lvalue, type);
-    }
+
+    auto frame = table->functions[current_frame];
+    auto& locals = table->get_stack_frame_symbols();
+
+    // The storage of an immediate (and, really, all) relational
+    // expression will be the `al` register, 1 for true, 0 for false
+    Operand_Lambda is_immediate_relational_expression =
+        [&](type::semantic::RValue const& rvalue) {
+            return type::is_relation_binary_expression(
+                type::get_value_from_rvalue_data_type(
+                    locals.get_symbol_by_name(rvalue)));
+        };
+
+    m::match(locl_lvalue)(
+        // Allocate a pointer
+        m::pattern | m::app(type::is_dereference_expression, true) =
+            [&] {
+                auto lvalue =
+                    type::get_unary_rvalue_reference(std::get<1>(inst));
+                stack.set_address_from_address(lvalue);
+            },
+        // Allocate a vector (array), including all of its elements
+        m::pattern | m::app(is_vector, true) =
+            [&] {
+                auto vector = table->vectors.at(locl_lvalue);
+                auto size = stack.get_stack_size_from_table_vector(*vector);
+                stack.set_address_from_size(locl_lvalue, size);
+            },
+        // Allocate 1 byte for the al register
+        m::pattern | m::app(is_immediate_relational_expression, true) =
+            [&] {
+                stack.set_address_from_accumulator(locl_lvalue, Register::al);
+            },
+        // Allocate on the stack
+        m::pattern | m::_ =
+            [&] {
+                auto type = table->get_type_from_rvalue_data_type(locl_lvalue);
+                stack.set_address_from_type(locl_lvalue, type);
+            }
+
+    );
 }
 
-void Code_Generator::from_cmp_ita([[maybe_unused]] IR_Instruction const& inst)
-{
-}
+void Code_Generator::from_cmp_ita([[maybe_unused]] ir::Quadruple const& inst) {}
 
-void Code_Generator::from_mov_ita(IR_Instruction const& inst)
+/**
+ * @brief Translate from the IR Instruction::MOV
+ *
+ * The Instruction::MOV assigns an lvalue to an rvalue expression
+ */
+void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
 {
     auto lhs = std::get<1>(inst);
     auto rhs = get_rvalue_from_mov_qaudruple(inst).first;
-    auto symbols = table_->get_stack_frame_symbols();
+    auto symbols = table->get_stack_frame_symbols();
 
+    // Translate an rvalue from a mutual-recursive temporary
+    // see ir/temporary.h for details
     if (type::is_temporary(lhs)) {
         insert_from_temporary_lvalue(lhs);
         return;
     }
 
+    // Translate a unary-to-unary rvalue reference
+    // I.e. A pointer dereference assignment
     if (type::is_unary_expression(lhs) and type::is_unary_expression(rhs)) {
         insert_from_unary_to_unary_assignment(lhs, rhs);
         return;
     }
 
     m::match(rhs)(
+        // Translate from an immediate value assignment
         m::pattern | m::app(is_immediate, true) =
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 Storage lhs_storage = get_lvalue_address(lhs);
                 if (type::get_type_from_rvalue_data_type(imm) == "string") {
                     from_ita_string(type::get_value_from_rvalue_data_type(imm));
-                    add_i_s(instructions_, mov, lhs_storage, Register::rax);
+                    add_inst_as(instructions_, mov, lhs_storage, Register::rax);
                 } else
-                    add_i_s(instructions_, mov, lhs_storage, imm);
+                    add_inst_as(instructions_, mov, lhs_storage, imm);
             },
+        // The storage of the final rvalue from line 441 is in an accumulator
+        // register, use it to assign to a local variable
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_ir_assignment) {
                     address_ir_assignment = false;
                     Storage lhs_storage = stack.get(lhs).first;
-                    add_i_s(instructions_, mov, lhs_storage, Register::rax);
+                    add_inst_as(instructions_, mov, lhs_storage, Register::rax);
                 } else {
                     auto acc = get_accumulator_register_from_size();
                     if (!type::is_unary_expression(lhs))
                         stack.set_address_from_accumulator(lhs, acc);
                     Storage lhs_storage = get_lvalue_address(lhs);
-                    add_i_s(instructions_, mov, lhs_storage, acc);
+                    add_inst_as(instructions_, mov, lhs_storage, acc);
                 }
             },
+        // Local-to-local variable assignment
         m::pattern | m::app(is_address, true) =
             [&] {
                 credence_assert(stack.get(rhs).second != Operand_Size::Empty);
@@ -385,20 +484,26 @@ void Code_Generator::from_mov_ita(IR_Instruction const& inst)
                 Storage rhs_storage = stack.get(rhs).first;
                 auto acc =
                     get_accumulator_register_from_size(stack.get(rhs).second);
-                add_i_s(instructions_, mov, acc, rhs_storage);
-                add_i_s(instructions_, mov, lhs_storage, acc);
+                add_inst_as(instructions_, mov, acc, rhs_storage);
+                add_inst_as(instructions_, mov, lhs_storage, acc);
             },
+        // Unary expression assignment, including to pointers to an address
         m::pattern | m::app(type::is_unary_expression, true) =
             [&] {
                 Storage lhs_storage = get_lvalue_address(lhs);
                 auto unary_op = type::get_unary_operator(rhs);
                 from_ita_unary_expression(unary_op, lhs_storage);
             },
+        // Translate from binary expressions in the IR
         m::pattern | m::app(type::is_binary_expression, true) =
             [&] { from_binary_operator_expression(rhs); },
         m::pattern | m::_ = [&] { credence_error("unreachable"); });
 }
 
+/**
+ * @brief Translate from unary temporary expressions
+ * See ir/temporary.h for details
+ */
 void Code_Generator::from_temporary_unary_operator_expression(
     type::semantic::RValue const& expr)
 {
@@ -406,6 +511,7 @@ void Code_Generator::from_temporary_unary_operator_expression(
     auto op = type::get_unary_operator(expr);
     type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
     if (stack.contains(rvalue)) {
+        // This is the address-of operator, use a qword size register
         if (op == "&") {
             address_ir_assignment = true;
             from_ita_unary_expression(op, stack.get(rvalue).first);
@@ -417,7 +523,7 @@ void Code_Generator::from_temporary_unary_operator_expression(
                            not last_ir_instruction_is_assignment()
                        ? get_second_register_from_size(size)
                        : get_accumulator_register_from_size(size);
-        add_i_s(instructions_, mov, acc, stack.get(rvalue).first);
+        add_inst_as(instructions_, mov, acc, stack.get(rvalue).first);
         from_ita_unary_expression(op, acc);
     } else {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
@@ -426,11 +532,14 @@ void Code_Generator::from_temporary_unary_operator_expression(
                            not last_ir_instruction_is_assignment()
                        ? get_second_register_from_size(size)
                        : get_accumulator_register_from_size(size);
-        add_i_s(instructions_, mov, acc, immediate);
+        add_inst_as(instructions_, mov, acc, immediate);
         from_ita_unary_expression(op, acc);
     }
 }
 
+/**
+ * @brief Get the storage device of a IR binary expression operand
+ */
 Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
     type::semantic::RValue const& rvalue)
 {
@@ -443,6 +552,9 @@ Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
     return get_accumulator_register_from_size();
 }
 
+/**
+ * @brief Construct a pair of Immediates from 2 type::RValue's
+ */
 inline auto get_rvalue_pair_as_immediate(
     type::semantic::RValue const& lhs,
     type::semantic::RValue const& rhs)
@@ -452,15 +564,23 @@ inline auto get_rvalue_pair_as_immediate(
         type::get_rvalue_datatype_from_string(rhs));
 }
 
+/**
+ * @brief Translate from a string in the table to a .asciz directive
+ */
 void Code_Generator::from_ita_string(type::semantic::RValue const& str)
 {
     credence_assert(string_storage.contains(str));
     auto location = detail::make_asciz_immediate(string_storage[str]);
-    add_i_ll(instructions_, lea, rax, location);
+    add_inst_ll(instructions_, lea, rax, location);
 }
 
+/**
+ * @brief Translate from binary operator expression rvalue types
+ *
+ * Note that we pattern match on operand pair cases
+ */
 void Code_Generator::from_binary_operator_expression(
-    type::semantic::LValue const& expr)
+    type::semantic::RValue const& expr)
 {
     credence_assert(type::is_binary_expression(expr));
 
@@ -483,12 +603,14 @@ void Code_Generator::from_binary_operator_expression(
             [&] {
                 if (!last_ir_instruction_is_assignment()) {
                     lhs_s = get_storage_device(stack.get(lhs).second);
-                    add_i_s(instructions_, mov, lhs_s, stack.get(lhs).first);
+                    add_inst_as(
+                        instructions_, mov, lhs_s, stack.get(lhs).first);
                     rhs_s = stack.get(rhs).first;
                 } else {
                     lhs_s = get_accumulator_register_from_size(
                         stack.get(lhs).second);
-                    add_i_s(instructions_, mov, lhs_s, stack.get(lhs).first);
+                    add_inst_as(
+                        instructions_, mov, lhs_s, stack.get(lhs).first);
                     rhs_s = stack.get(rhs).first;
                 }
             },
@@ -503,7 +625,7 @@ void Code_Generator::from_binary_operator_expression(
                     rhs_s = immediate_stack.back();
                     immediate_stack.pop_back();
                     if (!immediate_stack.empty()) {
-                        add_i_s(
+                        add_inst_as(
                             instructions_, mov, acc, immediate_stack.back());
                         immediate_stack.pop_back();
                     }
@@ -520,7 +642,7 @@ void Code_Generator::from_binary_operator_expression(
                 if (last_ir_instruction_is_assignment()) {
                     auto acc = get_accumulator_register_from_size(
                         stack.get(lhs).second);
-                    add_i_s(instructions_, mov, acc, stack.get(lhs).first);
+                    add_inst_as(instructions_, mov, acc, stack.get(lhs).first);
                 }
                 if (is_temporary(rhs)) {
                     lhs_s = get_accumulator_register_from_size(
@@ -532,7 +654,7 @@ void Code_Generator::from_binary_operator_expression(
                     if (type::is_bitwise_binary_operator(op)) {
                         auto storage =
                             get_storage_device(stack.get(lhs).second);
-                        add_i_s(
+                        add_inst_as(
                             instructions_, mov, storage, stack.get(lhs).first);
                         lhs_s = storage;
                     } else {
@@ -548,7 +670,7 @@ void Code_Generator::from_binary_operator_expression(
                 if (last_ir_instruction_is_assignment()) {
                     auto acc = get_accumulator_register_from_size(
                         stack.get(rhs).second);
-                    add_i_s(instructions_, mov, acc, stack.get(rhs).first);
+                    add_inst_as(instructions_, mov, acc, stack.get(rhs).first);
                 }
                 if (is_temporary(lhs) or is_ir_instruction_temporary())
                     rhs_s = get_accumulator_register_from_size(
@@ -577,6 +699,11 @@ void Code_Generator::from_binary_operator_expression(
     }
 }
 
+/**
+ * @brief Translate from storage device operands, and the operator type
+ *
+ * Note that the source storage device may be empty
+ */
 void Code_Generator::insert_from_op_operands(
     Storage_Operands& operands,
     std::string const& op)
@@ -599,13 +726,43 @@ void Code_Generator::insert_from_op_operands(
     }
 }
 
+/**
+ * @brief Translate from the rvalue at a temporary lvalue
+ */
 void Code_Generator::insert_from_temporary_lvalue(
     type::semantic::LValue const& lvalue)
 {
-    auto temporary = table_->from_temporary_lvalue(lvalue);
+    auto temporary = table->from_temporary_lvalue(lvalue);
     insert_from_rvalue(temporary);
 }
 
+/**
+ * @brief Translate from the rvalue at a temporary lvalue
+ *
+ * Note that the storage is usually an accumulator register
+ * to be assigned an address on the stack
+ */
+void Code_Generator::insert_from_rvalue(type::semantic::RValue const& rvalue)
+{
+    if (type::is_binary_expression(rvalue)) {
+        from_binary_operator_expression(rvalue);
+    } else if (type::is_unary_expression(rvalue)) {
+        from_temporary_unary_operator_expression(rvalue);
+    } else if (type::is_rvalue_data_type(rvalue)) {
+        auto imm = type::get_rvalue_datatype_from_string(rvalue);
+        add_inst_ll(instructions_, mov, eax, imm);
+    } else {
+        auto symbols = table->get_stack_frame_symbols();
+        auto imm = symbols.get_symbol_by_name(rvalue);
+        add_inst_ll(instructions_, mov, eax, imm);
+    }
+}
+
+/**
+ * @brief Translate from unary-to-unary rvalue expressions
+ *
+ * The only supported type is dereferenced pointers
+ */
 void Code_Generator::insert_from_unary_to_unary_assignment(
     type::semantic::LValue const& lhs,
     type::semantic::LValue const& rhs)
@@ -616,8 +773,8 @@ void Code_Generator::insert_from_unary_to_unary_assignment(
     auto lhs_op = type::get_unary_operator(lhs);
     auto rhs_op = type::get_unary_operator(rhs);
 
-    auto frame = table_->functions[current_frame];
-    auto& locals = table_->get_stack_frame_symbols();
+    auto frame = table->functions[current_frame];
+    auto& locals = table->get_stack_frame_symbols();
 
     m::match(lhs_op, rhs_op)(
         // *t = *k deference to dereference assignment
@@ -635,32 +792,21 @@ void Code_Generator::insert_from_unary_to_unary_assignment(
                     locals.get_pointer_by_name(lhs_lvalue))));
             auto temp = get_second_register_from_size(size);
 
-            add_i_s(instructions_, mov, acc, rhs_storage);
+            add_inst_as(instructions_, mov, acc, rhs_storage);
             set_instruction_flag(
                 detail::flag::Indirect_Source | detail::flag::Address);
-            add_i_s(instructions_, mov, temp, acc);
-            add_i_s(instructions_, mov, acc, lhs_storage);
+            add_inst_as(instructions_, mov, temp, acc);
+            add_inst_as(instructions_, mov, acc, lhs_storage);
             set_instruction_flag(detail::flag::Indirect);
-            add_i_s(instructions_, mov, acc, temp);
+            add_inst_as(instructions_, mov, acc, temp);
         });
 }
 
-void Code_Generator::insert_from_rvalue(type::semantic::RValue const& rvalue)
-{
-    if (type::is_binary_expression(rvalue)) {
-        from_binary_operator_expression(rvalue);
-    } else if (type::is_unary_expression(rvalue)) {
-        from_temporary_unary_operator_expression(rvalue);
-    } else if (type::is_rvalue_data_type(rvalue)) {
-        auto imm = type::get_rvalue_datatype_from_string(rvalue);
-        add_i_ll(instructions_, mov, eax, imm);
-    } else {
-        auto symbols = table_->get_stack_frame_symbols();
-        auto imm = symbols.get_symbol_by_name(rvalue);
-        add_i_ll(instructions_, mov, eax, imm);
-    }
-}
-
+/**
+ * @brief Get a accumulator register from an Operand Size
+ *
+ * See instructions.h for size details
+ */
 constexpr Code_Generator::Register
 Code_Generator::get_accumulator_register_from_size(Operand_Size size)
 {
@@ -677,6 +823,11 @@ Code_Generator::get_accumulator_register_from_size(Operand_Size size)
         m::pattern | m::_ = [&] { return Register::eax; });
 }
 
+/**
+ * @brief Get a second accumulator register from an Operand Size
+ *
+ * See instructions.h for size details
+ */
 constexpr Code_Generator::Register
 Code_Generator::get_second_register_from_size(Operand_Size size)
 {
@@ -688,6 +839,11 @@ Code_Generator::get_second_register_from_size(Operand_Size size)
         m::pattern | m::_ = [&] { return Register::edi; });
 }
 
+/**
+ * @brief Get a accumulator register that will fit a storage device
+ *
+ * See instructions.h for storage details
+ */
 constexpr Code_Generator::Register
 Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
 {
@@ -713,6 +869,9 @@ Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
     return accumulator;
 }
 
+/**
+ * @brief Translate and compute trivial immediate binary expressions
+ */
 void Code_Generator::insert_from_immediate_rvalues(
     Immediate const& lhs,
     std::string const& op,
@@ -723,7 +882,7 @@ void Code_Generator::insert_from_immediate_rvalues(
             detail::get_result_from_trivial_integral_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(
             detail::get_operand_size_from_rvalue_datatype(lhs));
-        add_i_s(instructions_, mov, acc, imm);
+        add_inst_as(instructions_, mov, acc, imm);
         return;
     }
 
@@ -732,7 +891,7 @@ void Code_Generator::insert_from_immediate_rvalues(
             detail::get_result_from_trivial_relational_expression(lhs, op, rhs);
         auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
         special_register = acc;
-        add_i_s(instructions_, mov, acc, imm);
+        add_inst_as(instructions_, mov, acc, imm);
         return;
     }
 
@@ -742,7 +901,7 @@ void Code_Generator::insert_from_immediate_rvalues(
         auto acc = get_accumulator_register_from_size(
             detail::get_operand_size_from_rvalue_datatype(lhs));
         if (!is_ir_instruction_temporary())
-            add_i_s(instructions_, mov, acc, imm);
+            add_inst_as(instructions_, mov, acc, imm);
         else
             immediate_stack.emplace_back(imm);
         return;
@@ -751,28 +910,9 @@ void Code_Generator::insert_from_immediate_rvalues(
     credence_error("unreachable");
 }
 
-Code_Generator::Immediate Code_Generator::get_from_immediate_rvalues(
-    Storage& lhs,
-    std::string const& op,
-    Storage& rhs)
-{
-    auto imm_l = std::get<Immediate>(lhs);
-    auto imm_r = std::get<Immediate>(rhs);
-
-    if (type::is_binary_arithmetic_operator(op))
-        return detail::get_result_from_trivial_integral_expression(
-            imm_l, op, imm_r);
-    if (type::is_relation_binary_operator(op))
-        return detail::get_result_from_trivial_relational_expression(
-            imm_l, op, imm_r);
-    if (type::is_bitwise_binary_operator(op))
-        return detail::get_result_from_trivial_bitwise_expression(
-            imm_l, op, imm_r);
-
-    credence_error("unreachable");
-    return detail::make_numeric_immediate<int>(0);
-}
-
+/**
+ * @brief Translate from the ir unary expressions
+ */
 void Code_Generator::from_ita_unary_expression(
     std::string const& op,
     Storage const& dest,
@@ -796,9 +936,9 @@ void Code_Generator::from_ita_unary_expression(
         m::pattern | std::string{ "*" } =
             [&] {
                 auto acc = get_accumulator_register_from_storage(dest);
-                add_i_s(instructions.second, mov, acc, dest);
+                add_inst_as(instructions.second, mov, acc, dest);
                 set_instruction_flag(detail::flag::Indirect);
-                add_i_s(instructions.second, mov, acc, src);
+                add_inst_as(instructions.second, mov, acc, src);
             },
         m::pattern |
             std::string{ "-" } = [&] { instructions = detail::neg(dest); },
@@ -806,25 +946,40 @@ void Code_Generator::from_ita_unary_expression(
     detail::insert(instructions_, instructions.second);
 }
 
+/**
+ * @brief Translate from the IR Instruction::RET
+ */
 void Code_Generator::from_return_ita(Storage const& dest)
 {
-    add_i_llr(instructions_, mov, dest, eax);
+    add_inst_llr(instructions_, mov, dest, eax);
 }
 
+/**
+ * @brief Translate from the IR Instruction::LEAVE
+ */
 void Code_Generator::from_leave_ita()
 {
     if (current_frame == "main")
-        add_i_llrs(instructions_, xor_, eax, eax);
-    add_i_ld(instructions_, pop, rbp);
-    add_i_e(instructions_, ret);
+        add_inst_llrs(instructions_, xor_, eax, eax);
+    add_inst_ld(instructions_, pop, rbp);
+    add_inst_e(instructions_, ret);
 }
 
-void Code_Generator::from_label_ita(IR_Instruction const& inst)
+/**
+ * @brief Translate from the IR Instruction::LABEL
+ */
+void Code_Generator::from_label_ita(ir::Quadruple const& inst)
 {
     instructions_.emplace_back(
         type::get_label_as_human_readable(std::get<1>(inst)));
 }
 
+/**
+ * @brief Translate arithmetic binary expressions
+ *
+ * Instruction_Pair includes the destination storage device
+ * see instructions.h for details
+ */
 Code_Generator::Instruction_Pair
 Code_Generator::from_arithmetic_expression_operands(
     Storage_Operands const& operands,
@@ -840,7 +995,7 @@ Code_Generator::from_arithmetic_expression_operands(
         m::pattern | std::string{ "/" } =
             [&] {
                 auto storage = get_storage_device(Operand_Size::Dword);
-                add_i_s(instructions.second, mov, storage, operands.first);
+                add_inst_as(instructions.second, mov, storage, operands.first);
                 instructions = detail::div(storage, operands.second);
             },
         m::pattern | std::string{ "-" } =
@@ -855,12 +1010,18 @@ Code_Generator::from_arithmetic_expression_operands(
             [&] {
                 auto storage = get_storage_device(Operand_Size::Dword);
                 special_register = Register::edx;
-                add_i_s(instructions.second, mov, storage, operands.first);
+                add_inst_as(instructions.second, mov, storage, operands.first);
                 instructions = detail::mod(storage, operands.second);
             });
     return instructions;
 }
 
+/**
+ * @brief Translate bitwise binary expressions
+ *
+ * Instruction_Pair includes the destination storage device
+ * see instructions.h for details
+ */
 Code_Generator::Instruction_Pair
 Code_Generator::from_bitwise_expression_operands(
     Storage_Operands const& operands,
@@ -894,6 +1055,12 @@ Code_Generator::from_bitwise_expression_operands(
     return instructions;
 }
 
+/**
+ * @brief Translate relational binary expressions
+ *
+ * Instruction_Pair includes the destination storage device
+ * see instructions.h for details
+ */
 Code_Generator::Instruction_Pair
 Code_Generator::from_relational_expression_operands(
     Storage_Operands const& operands,
@@ -930,6 +1097,9 @@ Code_Generator::from_relational_expression_operands(
     return instructions;
 }
 
+/**
+ * @brief Set a flag on the current instruction to be used during emission
+ */
 void Code_Generator::set_instruction_flag(
     detail::flag::Instruction_Flag set_flag)
 {
@@ -942,6 +1112,9 @@ void Code_Generator::set_instruction_flag(
     }
 }
 
+/**
+ * @brief Set flags on the current instruction to be used during emission
+ */
 void Code_Generator::set_instruction_flag(detail::flag::flags flags)
 {
     if (!instructions_.empty()) {
@@ -953,10 +1126,14 @@ void Code_Generator::set_instruction_flag(detail::flag::flags flags)
     }
 }
 
+/**
+ * @brief Get the operand size (word size) of a storage device
+ *
+ * See instructions.h for storage details
+ */
 detail::Operand_Size Code_Generator::get_operand_size_from_storage(
     Storage const& storage)
 {
-    namespace m = matchit;
     m::Id<detail::Stack::Offset> s;
     m::Id<Immediate> i;
     m::Id<Register> r;
@@ -970,25 +1147,42 @@ detail::Operand_Size Code_Generator::get_operand_size_from_storage(
         m::pattern | m::_ = [&] { return Operand_Size::Empty; });
 }
 
+/**
+ * @brief Get the storage address of an lvalue
+ *
+ * Including vectors (arrays)
+ */
 Code_Generator::Storage Code_Generator::get_lvalue_address(
     type::semantic::LValue const& lvalue)
 {
     if (type::is_dereference_expression(lvalue)) {
         auto storage =
             stack.get(type::get_unary_rvalue_reference(lvalue)).first;
-        add_i_s(instructions_, mov, Register::rax, storage);
+        add_inst_as(instructions_, mov, Register::rax, storage);
         set_instruction_flag(detail::flag::Indirect);
         return Register::rax;
+    } else if (is_vector_offset(lvalue)) {
+        auto lhs = type::from_lvalue_offset(lvalue);
+        auto offset = type::from_pointer_offset(lvalue);
+        auto vector = table->vectors.at(lhs);
+        return stack.get_stack_offset_from_table_vector_index(
+            lhs, offset, *vector);
     } else {
         return stack.get(lvalue).first;
     }
 }
 
+/**
+ * @brief Get the stack location offset and size from an lvalue
+ */
 constexpr detail::Stack::Entry detail::Stack::get(LValue const& lvalue)
 {
     return stack_address[lvalue];
 }
 
+/**
+ * @brief Get the stack location lvalue and size from an offset
+ */
 constexpr detail::Stack::Entry detail::Stack::get(Offset offset)
 {
     auto find = std::find_if(
@@ -1001,11 +1195,11 @@ constexpr detail::Stack::Entry detail::Stack::get(Offset offset)
         return find->second;
 }
 
-constexpr void detail::Stack::make(LValue const& lvalue)
-{
-    stack_address[lvalue] = { 0, Operand_Size::Empty };
-}
-
+/**
+ * @brief Allocate space on the stack from a word size
+ *
+ * See instructions.h for details
+ */
 constexpr detail::Stack::Offset detail::Stack::allocate(Operand_Size operand)
 {
     auto alloc = get_size_from_operand_size(operand);
@@ -1013,6 +1207,11 @@ constexpr detail::Stack::Offset detail::Stack::allocate(Operand_Size operand)
     return size;
 }
 
+/**
+ * @brief Get the word size of an offset address
+ *
+ * See instructions.h for details
+ */
 constexpr detail::Operand_Size detail::Stack::get_operand_size_from_offset(
     Offset offset) const
 {
@@ -1027,6 +1226,9 @@ constexpr detail::Operand_Size detail::Stack::get_operand_size_from_offset(
         });
 }
 
+/**
+ * @brief Set and allocate an address from an immediate
+ */
 constexpr void detail::Stack::set_address_from_immediate(
     LValue const& lvalue,
     Immediate const& rvalue)
@@ -1039,6 +1241,9 @@ constexpr void detail::Stack::set_address_from_immediate(
     stack_address.insert(lvalue, { size, operand_size });
 }
 
+/**
+ * @brief Set and allocate an address from an accumulator register size
+ */
 constexpr void detail::Stack::set_address_from_accumulator(
     LValue const& lvalue,
     Register acc)
@@ -1050,6 +1255,9 @@ constexpr void detail::Stack::set_address_from_accumulator(
     stack_address.insert(lvalue, { size, register_size });
 }
 
+/**
+ * @brief Set and allocate an address from a type in the Table
+ */
 constexpr void detail::Stack::set_address_from_type(
     LValue const& lvalue,
     Type type)
@@ -1068,24 +1276,88 @@ constexpr void detail::Stack::set_address_from_type(
     }
 }
 
+/**
+ * @brief Set and allocate an address from another addres (pointer)
+ *
+ * Memory align to multiples of 8 bytes per the ABI
+ */
 constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
 {
     auto qword_size = Operand_Size::Qword;
-    size = align_up_to_8(size + detail::get_size_from_operand_size(qword_size));
+    size = util::align_up_to_8(
+        size + detail::get_size_from_operand_size(qword_size));
     stack_address.insert(lvalue, { size, qword_size });
 }
 
-constexpr void detail::Stack::set_address_from_stack(
-    LValue const& lhs,
-    LValue const& rhs)
+/**
+ * @brief Get the stack address of an index in a vector (array)
+ */
+constexpr detail::Stack::Size
+detail::Stack::get_stack_offset_from_table_vector_index(
+    LValue const& lvalue,
+    std::string const& key,
+    ir::detail::Vector const& vector)
 {
-    if (stack_address[lhs].second != Operand_Size::Empty)
-        return;
-    auto operand_size = get(rhs).second;
-    size += detail::get_size_from_operand_size(operand_size);
-    stack_address.insert(lhs, { size, operand_size });
+    bool search{ false };
+    auto lvalue_offset = get(lvalue).first;
+    return std::accumulate(
+        vector.data.begin(),
+        vector.data.end(),
+        lvalue_offset,
+        [&](type::semantic::Size offset,
+            ir::detail::Vector::Entry const& entry) {
+            if (entry.first == key)
+                search = true;
+            if (!search)
+                offset -= detail::get_size_from_operand_size(
+                    detail::get_operand_size_from_rvalue_datatype(
+                        entry.second));
+            return offset;
+        });
 }
 
+/**
+ * @brief Get the size of a vector (array)
+ *
+ * Memory align to multiples of 16 bytes per the ABI
+ */
+constexpr detail::Stack::Size detail::Stack::get_stack_size_from_table_vector(
+    ir::detail::Vector const& vector)
+{
+    // clang-format off
+    auto vector_size = size + std::accumulate(
+            vector.data.begin(),
+            vector.data.end(),
+            0UL,
+    [&](type::semantic::Size offset,
+        ir::detail::Vector::Entry const& entry) {
+        return offset +
+            detail::get_size_from_operand_size(
+                detail::get_operand_size_from_rvalue_datatype(
+                entry.second));
+    });
+    return vector_size < 16UL ? vector_size :
+        util::align_up_to_16(vector_size);
+    // clang-format on
+}
+
+/**
+ * @brief Set and allocate an address from an arbitrary size
+ */
+constexpr void detail::Stack::set_address_from_size(
+    LValue const& lvalue,
+    Offset allocate,
+    Operand_Size operand)
+{
+    if (stack_address[lvalue].second != Operand_Size::Empty)
+        return;
+    size += allocate;
+    stack_address.insert(lvalue, { size, operand });
+}
+
+/**
+ * @brief Get the lvalue of a local variable allocated at an offset
+ */
 constexpr inline std::string detail::Stack::get_lvalue_from_offset(
     Offset offset) const
 {

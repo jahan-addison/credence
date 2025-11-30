@@ -23,7 +23,7 @@ namespace fs = std::filesystem;
 
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
-#define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
+#define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
 struct Table_Fixture
@@ -744,7 +744,7 @@ _L1:
     auto table = make_table_with_global_symbols(switch_main_function, symbols);
     auto& locals = table.functions["main"]->locals;
     auto instructions = table.instructions;
-    credence::ir::ITA::emit(out_to, instructions);
+    credence::ir::detail::emit(out_to, instructions);
     REQUIRE(out_to.str() == expected_switch_main_function);
     REQUIRE(table.functions.at("main")->address_location[0] == 2);
     REQUIRE(table.functions.at("main")->address_location[1] == 76);
@@ -754,11 +754,11 @@ _L1:
     REQUIRE(table.functions.at("main")->locals.size() == 8);
     REQUIRE(locals.size() == 8);
     out_to.str("");
-    credence::ir::ITA::emit_to(
+    credence::ir::detail::emit_to(
         out_to, instructions[table.functions.at("main")->address_location[0]]);
     REQUIRE(out_to.str() == "LOCL m;\n");
     out_to.str("");
-    credence::ir::ITA::emit_to(
+    credence::ir::detail::emit_to(
         out_to, instructions[table.functions.at("main")->address_location[1]]);
     REQUIRE(out_to.str() == "GOTO _L25;\n");
     out_to.str("");

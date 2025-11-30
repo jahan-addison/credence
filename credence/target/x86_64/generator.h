@@ -38,6 +38,16 @@ namespace credence::target::x86_64 {
 
 namespace detail {
 
+/**
+ * @brief
+ * Encapsulation of a push-down stack for the x86-64 architecture
+ *
+ * Provides a means to allocate, traverse, and verify offsets
+ * on the stack by lvalues and vice-versa.
+ *
+ * Each instance should encompass a single stack frame in a function
+ *
+ */
 class Stack
 {
   public:
@@ -49,13 +59,13 @@ class Stack
     using LValue = type::semantic::LValue;
     using RValue = type::semantic::RValue;
     using Type = type::semantic::Type;
+    using Size = type::semantic::Size;
     using Offset = detail::Stack_Offset;
     using Entry = std::pair<Offset, detail::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
     using Local = Ordered_Map<LValue, Entry>;
 
   public:
-    constexpr void make(LValue const& lvalue);
     constexpr Entry get(LValue const& lvalue);
     constexpr Entry get(Offset offset);
     constexpr inline void clear() { stack_address.clear(); }
@@ -75,7 +85,13 @@ class Stack
     }
 
   public:
-    constexpr inline std::string get_lvalue_from_offset(Offset offset) const;
+    constexpr std::string get_lvalue_from_offset(Offset offset) const;
+    constexpr Size get_stack_size_from_table_vector(
+        ir::detail::Vector const& vector);
+    constexpr Size get_stack_offset_from_table_vector_index(
+        LValue const& lvalue,
+        std::string const& key,
+        ir::detail::Vector const& vector);
     constexpr detail::Operand_Size get_operand_size_from_offset(
         Offset offset) const;
 
@@ -85,7 +101,10 @@ class Stack
         Register acc);
     constexpr void set_address_from_address(LValue const& lvalue);
     constexpr void set_address_from_type(LValue const& lvalue, Type type);
-    constexpr void set_address_from_stack(LValue const& lhs, LValue const& rhs);
+    constexpr void set_address_from_size(
+        LValue const& lvalue,
+        Offset allocate,
+        Operand_Size operand = Operand_Size::Dword);
     constexpr void set_address_from_immediate(
         LValue const& lvalue,
         Immediate const& rvalue);
@@ -95,6 +114,9 @@ class Stack
     Local stack_address{};
 };
 
+/**
+ * @brief Push a platform-dependent newline character to an ostream
+ */
 inline void newline(std::ostream& os, int amount = 1)
 {
     for (; amount > 0; amount--)
@@ -122,14 +144,27 @@ constexpr std::string emit_stack_storage(
     Stack::Offset offset,
     flag::flags flags);
 
-std::string emit_register_storage(
+constexpr std::string emit_register_storage(
     Register device,
     Operand_Size size,
     flag::flags flags);
 
 } // namespace detail
 
-class Code_Generator final : public target::Backend<detail::Storage>
+/**
+ * @brief Code generator for the x86-64 architecture and ISA
+ *
+ * The Storage_Container is defined in instructions.h, and
+ * each intermediate instruction is a quadruple defined in ita.h.
+ *
+ * Macros and helpers to compose mnemonics, registers, and immediate
+ * values instructions are defined in instructions.h.
+ *
+ * Emits to an std::ostream.
+ *
+ */
+class Code_Generator final
+    : public target::Backend<detail::Storage, ir::Quadruple>
 {
   public:
     Code_Generator() = delete;
@@ -143,14 +178,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
     using Mnemonic = detail::Mnemonic;
 
   private:
+    using Storage_Operands = std::pair<Storage, Storage>;
     using Operand_Size = detail::Operand_Size;
     using Operator_Symbol = std::string;
     using Instruction_Pair = detail::Instruction_Pair;
-    using Storage = detail::Storage;
     using Immediate = detail::Immediate;
     using Directives = detail::Directives;
     using Instructions = detail::Instructions;
-    using Storage_Operands = std::pair<Storage, Storage>;
 
   public:
     void emit(std::ostream& os) override;
@@ -160,22 +194,23 @@ class Code_Generator final : public target::Backend<detail::Storage>
     void emit_text_section(std::ostream& os);
     void emit_data_section(std::ostream& os);
 
+  private:
+    void build_text_section_instructions();
+    void build_data_section_instructions();
+
   public:
     const Storage EMPTY_STORAGE = std::monostate{};
 
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build_text_instructions();
-    void build_data_instructions();
+  private:
     void from_func_start_ita(type::semantic::Label const& name) override;
     void from_func_end_ita() override;
-    void from_locl_ita(IR_Instruction const& inst) override;
-    void from_cmp_ita(IR_Instruction const& inst) override;
-    void from_mov_ita(IR_Instruction const& inst) override;
+    void from_locl_ita(ir::Quadruple const& inst) override;
+    void from_cmp_ita(ir::Quadruple const& inst) override;
+    void from_mov_ita(ir::Quadruple const& inst) override;
     void from_return_ita(Storage const& dest) override;
     void from_leave_ita() override;
-    void from_label_ita(IR_Instruction const& inst) override;
-    void from_push_ita(IR_Instruction const& inst) override;
+    void from_label_ita(ir::Quadruple const& inst) override;
+    void from_push_ita(ir::Quadruple const& inst) override;
     // void from_goto_ita() override;
     // void from_globl_ita() override;
     // void from_if_ita() override;
@@ -200,14 +235,13 @@ class Code_Generator final : public target::Backend<detail::Storage>
     constexpr Register get_second_register_from_size(
         Operand_Size size = Operand_Size::Dword);
     constexpr Register get_accumulator_register_from_storage(
-       Storage const& storage);
+        Storage const& storage);
     Storage get_storage_for_binary_operator(
         type::semantic::RValue const& rvalue);
 
-
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    std::string emit_storage_device(
+    constexpr std::string emit_storage_device(
         Storage const& storage,
         Operand_Size size,
         detail::flag::flags flag);
@@ -246,20 +280,16 @@ class Code_Generator final : public target::Backend<detail::Storage>
         Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs);
-    Immediate get_from_immediate_rvalues(
-        Storage& lhs,
-        std::string const& op,
-        Storage& rhs);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void set_table_stack_frame(type::semantic::Label const& name);
+    void set_stack_frame_from_table(type::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Storage get_storage_device(
         detail::Operand_Size size = detail::Operand_Size::Qword);
+
     inline void reset_avail_registers()
     {
-        // clang-format off
         available_qword_register = {
             Register::rdi, Register::r8,  Register::r9,
             Register::rsi, Register::rdx, Register::rcx
@@ -268,11 +298,15 @@ class Code_Generator final : public target::Backend<detail::Storage>
             Register::edi, Register::esi, Register::r8d,
             Register::r9d, Register::edx, Register::ecx
         };
-        // clang-format on
     }
-
+    // clang-format on
   private:
     Storage get_lvalue_address(type::semantic::LValue const& lvalue);
+
+  private:
+    /**
+     * Short-form Lambda helpers for fast pattern matching
+     */
     using Operand_Lambda = std::function<bool(type::semantic::RValue)>;
     Operand_Lambda is_immediate = [&](type::semantic::RValue const& rvalue) {
         return type::is_rvalue_data_type(rvalue);
@@ -283,32 +317,52 @@ class Code_Generator final : public target::Backend<detail::Storage>
     Operand_Lambda is_temporary = [&](type::semantic::RValue const& rvalue) {
         return type::is_temporary(rvalue);
     };
+    Operand_Lambda is_vector = [&](type::semantic::RValue const& rvalue) {
+        return table->vectors.contains(rvalue);
+    };
+    Operand_Lambda is_vector_offset =
+        [&](type::semantic::RValue const& rvalue) {
+            return util::contains(rvalue, "[") and util::contains(rvalue, "]");
+        };
 
   private:
     Operand_Size get_operand_size_from_storage(Storage const& storage);
 
   private:
+    /**
+     * @brief Check if the current ir instruction
+     * is a temporary lvalue assignment
+     */
     inline bool is_ir_instruction_temporary()
     {
-        return type::is_temporary(std::get<1>(table_->instructions[ita_index]));
+        return type::is_temporary(std::get<1>(table->instructions[ita_index]));
     }
-    std::string get_ir_instruction_lvalue()
+    /**
+     * @brief Get the lvalue of the current ir instruction
+     */
+    inline std::string get_ir_instruction_lvalue()
     {
-        return std::get<1>(table_->instructions[ita_index]);
+        return std::get<1>(table->instructions[ita_index]);
     }
+    /**
+     * @brief Check if last ir instruction was Instruction::MOV
+     */
     inline bool last_ir_instruction_is_assignment()
     {
         if (ita_index < 1)
             return false;
-        auto last = table_->instructions[ita_index - 1];
+        auto last = table->instructions[ita_index - 1];
         return std::get<0>(last) == ir::Instruction::MOV and
                not type::is_temporary(std::get<1>(last));
     }
+    /**
+     * @brief Check if next ir instruction is a temporary assignment
+     */
     inline bool next_ir_instruction_is_temporary()
     {
-        if (table_->instructions.size() < ita_index + 1)
+        if (table->instructions.size() < ita_index + 1)
             return false;
-        auto next = table_->instructions[ita_index + 1];
+        auto next = table->instructions[ita_index + 1];
         return std::get<0>(next) == ir::Instruction::MOV and
                type::is_temporary(std::get<1>(next));
     }

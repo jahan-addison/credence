@@ -75,7 +75,6 @@ class Ordered_Map
     {
         return data.size() > 1 ? data.at(data.size() - 2) : data.back();
     }
-
     constexpr inline Value at(Key const& key)
     {
         return data[key_to_index[key]].second;
@@ -96,14 +95,30 @@ class Ordered_Map
     {
         return data.begin();
     }
+    constexpr typename std::vector<Entry>::reverse_iterator rbegin()
+    {
+        return data.rbegin();
+    }
     constexpr typename std::vector<Entry>::iterator end() { return data.end(); }
+    constexpr typename std::vector<Entry>::reverse_iterator rend()
+    {
+        return data.rend();
+    }
     constexpr typename std::vector<Entry>::const_iterator begin() const
     {
         return data.begin();
     }
+    constexpr typename std::vector<Entry>::const_reverse_iterator rbegin() const
+    {
+        return data.rbegin();
+    }
     constexpr typename std::vector<Entry>::const_iterator end() const
     {
         return data.end();
+    }
+    constexpr typename std::vector<Entry>::const_reverse_iterator rend() const
+    {
+        return data.rend();
     }
 
   private:

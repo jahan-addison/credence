@@ -87,6 +87,8 @@ void Table::build_symbols_from_vector_lvalues()
         if (symbol_type == "vector_lvalue") {
             auto size =
                 static_cast<std::size_t>(hoisted_symbols[key]["size"].to_int());
+            if (size > detail::Vector::max_size)
+                table_error("stack overflow", key);
             if (!vectors.contains(key))
                 vectors[key] =
                     std::make_shared<detail::Vector>(detail::Vector{ size });
@@ -306,8 +308,12 @@ void Table::from_pointer_or_vector_assignment(
             vectors[lhs_lvalue]->data[offset] = rvalue_symbol.value();
         } else {
             // is the rhs a scaler rvalue? e.g. (10:"int":4UL)
-            if (util::substring_count_of(rvalue, ":") > 1) {
+            if (type::is_rvalue_data_type(rvalue)) {
                 // update the lhs vector, if applicable
+                auto value = type::get_rvalue_datatype_from_string(rvalue);
+                if (type::get_type_from_rvalue_data_type(value) == "string")
+                    strings.insert(
+                        type::get_value_from_rvalue_data_type(value));
                 if (vectors.contains(lhs_lvalue))
                     vectors[lhs_lvalue]->data[offset] =
                         type::get_rvalue_datatype_from_string(rvalue);
@@ -943,13 +949,12 @@ void emit(
     util::AST_Node const& symbols,
     util::AST_Node const& ast)
 {
-    using namespace credence::ir;
-    auto ita = ITA{ symbols };
+    auto ita = ir::ITA{ symbols };
     auto instructions = ita.build_from_definitions(ast);
-    auto table = Table{ symbols, instructions };
+    auto table = ir::Table{ symbols, instructions };
     table.build_vector_definitions_from_globals(ita.globals_);
     table.build_from_ita_instructions();
-    ITA::emit(os, table.instructions);
+    detail::emit(os, table.instructions);
 }
 
 } // namespace ir

@@ -177,10 +177,6 @@ int main(int argc, const char* argv[])
                   << "Credence Error :: " << "\033[31m" << what << "\033[0m"
                   << std::endl;
         return 1;
-    } catch (...) {
-        std::cerr << "Exception occurred: " << std::endl;
-        return 1;
     }
-
     return 0;
 }

@@ -775,9 +775,8 @@ Instructions ITA::build_from_rvalue_statement(Node const& node)
  * @brief Emit a single qaudrupl-tuple to a std::ostream
  *   If indent is true indent with a tab for formatting
  */
-void ITA::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
+void detail::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
 { // not constexpr until C++23
-    using namespace detail;
     Instruction op = std::get<Instruction>(ita);
     // clang-format off
     const std::initializer_list<Instruction> lhs_instruction = {

@@ -22,26 +22,20 @@
 #include <ostream>             // for ostream
 #include <utility>             // for move
 
-namespace credence {
+namespace credence::target {
 
-namespace target {
-
-constexpr unsigned int align_up_to_16(unsigned int n)
-{
-    const unsigned int ALIGNMENT = 16;
-    const unsigned int MASK = ALIGNMENT - 1; // MASK = 15 (0xF)
-    // The logic is: (n + 15) & ~15
-    return (n + MASK) & (~MASK);
-}
-
-constexpr unsigned int align_up_to_8(unsigned int n)
-{
-    const unsigned int ALIGNMENT = 8;
-    const unsigned int MASK = ALIGNMENT - 1;
-    return (n + MASK) & (~MASK);
-}
-
-template<typename S>
+/**
+ * @brief
+ *  Abstract pure virtual target architecture class
+ *
+ *  * Storage_Container should encapsulate all devices that may fit in a
+ * mnemonic operand
+ *  * IR is the type of the data structure of IR instructions, most likely
+ * ir::Quadruple
+ *
+ * The pure virtual methods construct a visitor of ir::ITA instructions
+ */
+template<typename Storage_Container, typename IR>
 class Backend
 {
   public:
@@ -49,38 +43,36 @@ class Backend
     Backend& operator=(Backend const&) = delete;
 
   protected:
+    virtual ~Backend() = default;
     Backend(ir::Table::Table_PTR table)
-        : table_(std::move(table))
+        : table(std::move(table))
     {
     }
 
-    virtual ~Backend() = default;
-
   public:
-    using IR_Instruction = ir::Quadruple;
     virtual void emit(std::ostream& os) = 0;
 
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
+  protected:
+    using Storage = Storage_Container;
+
+  private:
     virtual void from_func_start_ita(type::semantic::Label const& name) = 0;
     virtual void from_func_end_ita() = 0;
-    virtual void from_cmp_ita(IR_Instruction const& inst) = 0;
-    virtual void from_mov_ita(IR_Instruction const& inst) = 0;
-    virtual void from_return_ita(S const& storage) = 0;
+    virtual void from_cmp_ita(IR const& inst) = 0;
+    virtual void from_mov_ita(IR const& inst) = 0;
+    virtual void from_return_ita(Storage const& storage) = 0;
     virtual void from_leave_ita() = 0;
-    virtual void from_locl_ita(IR_Instruction const& inst) = 0;
-    virtual void from_label_ita(IR_Instruction const& inst) = 0;
-    virtual void from_push_ita(IR_Instruction const& inst) = 0;
+    virtual void from_locl_ita(IR const& inst) = 0;
+    virtual void from_label_ita(IR const& inst) = 0;
+    virtual void from_push_ita(IR const& inst) = 0;
     // virtual void from_goto_ita() = 0;
     // virtual void from_globl_ita() = 0;
     // virtual void from_if_ita() = 0;
     // virtual void from_jmp_e_ita() = 0;
     // virtual void from_pop_ita() = 0;
     // virtual void from_call_ita() = 0;
-  CREDENCE_PROTECTED_UNLESS_TESTED:
-    ir::Table::Table_PTR table_;
+  protected:
+    ir::Table::Table_PTR table;
 };
 
-} // namespace target
-
-} // namespace credence
+} // namespace credence::target

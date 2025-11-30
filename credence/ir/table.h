@@ -53,6 +53,7 @@ namespace detail {
  */
 struct Vector
 {
+    using Entry = std::pair<std::string, type::Data_Type>;
     using Storage = Ordered_Map<std::string, type::Data_Type>;
     Vector() = delete;
     explicit Vector(type::semantic::Address size_of)
@@ -61,8 +62,8 @@ struct Vector
     }
     Storage data{};
     int decay_index{ 0 };
-    unsigned long size{ 0 };
-    static constexpr int max_size{ 1000 };
+    std::size_t size{ 0 };
+    static constexpr std::size_t max_size{ 1000 };
 };
 
 /**
@@ -128,10 +129,12 @@ class Table
     using RValue = type::semantic::RValue;
     using Label = type::semantic::Label;
 
-  private:
+  public:
     using Function_PTR = std::shared_ptr<detail::Function>;
-    using Stack_Frame = std::optional<Function_PTR>;
     using Vector_PTR = std::shared_ptr<detail::Vector>;
+
+  private:
+    using Stack_Frame = std::optional<Function_PTR>;
     using Functions = std::map<std::string, Function_PTR>;
     using Vectors = std::map<std::string, Vector_PTR>;
 

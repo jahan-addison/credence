@@ -34,6 +34,13 @@
 #include <utility>          // for pair
 #include <variant>          // for variant, monostate
 
+/**
+ * @brief
+ *
+ *  Macros and helpers to construct x86-64 instructions
+ *
+ */
+
 #define mn(n) Mnemonic::n
 #define rr(n) Register::n
 #define dd(n) Directive::n
@@ -46,47 +53,49 @@
 #define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)    \
     detail::Instruction_Pair name(detail::Storage const& dest, \
         detail::Storage const& src)
-
 #define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)    \
     detail::Instruction_Pair name(detail::Storage const& dest, \
         detail::Storage const& s1,                             \
         detail::Storage const& s2)
-
 #define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
     detail::Instruction_Pair name(detail::Storage const& src)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name) \
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name)    \
     detail::Directive_Pair name(std::size_t* index, type::semantic::RValue const& rvalue)
 
-#define add_i_s(inst, op, lhs, rhs)      \
+#define add_inst_as(inst, op, lhs, rhs)      \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
 
-#define add_i_ll(inst, op, lhs, rhs)     \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, rhs})
-
-#define add_i_llr(inst, op, lhs, rhs)     \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, Register::rhs})
-
-#define add_i_llrs(inst, op, lhs, rhs)    \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
-
-#define add_i_e(inst, op)                \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
-
-#define add_i_d(inst, op, dest)          \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
-
-#define add_i_ld(inst, op, dest)          \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::dest, detail::O_NUL})
-
-#define add_i_ls(inst, op, dest)         \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
-
-#define add_i(inst, op, lhs, rhs)       \
+#define add_inst(inst, op, lhs, rhs)         \
     inst.emplace_back(detail::Instruction{op, lhs, rhs})
 
-#define STRINGIFY2(X) #X
-#define STRINGIFY(X) STRINGIFY2(X)
+#define add_inst_ll(inst, op, lhs, rhs)      \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, rhs})
+
+#define add_inst_llr(inst, op, lhs, rhs)     \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, Register::rhs})
+
+#define add_inst_llrs(inst, op, lhs, rhs)    \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
+
+#define add_inst_e(inst, op)                 \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
+
+#define add_inst_d(inst, op, dest)           \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
+
+#define add_inst_ld(inst, op, dest)          \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::dest, detail::O_NUL})
+
+#define add_inst_ls(inst, op, dest)          \
+    inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
+
+/**
+ * @brief
+ *
+ *  Macros and helpers to compute trivial immediate rvalues
+ *
+ */
 
 #define make_integral_relational_entry(T, op)               \
     m::pattern | std::string{STRINGIFY(T)} = [&] {          \
@@ -118,9 +127,21 @@
         );                                               \
     }
 
+/**
+ * @brief
+ *
+ *  String and std::ostream macros
+ *
+ */
+
 #define REGISTER_OSTREAM(reg) \
     case rr(reg):             \
         os << STRINGIFY(reg); \
+    break
+
+#define REGISTER_STRING(reg)   \
+    case rr(reg):              \
+        return STRINGIFY(reg); \
     break
 
 #define DIRECTIVE_OSTREAM(d)       \
@@ -138,6 +159,13 @@
     break
 
 namespace credence::target::x86_64::detail {
+
+/**
+ * @brief
+ *
+ * x86-64 architecture implementation details.
+ *
+ */
 
 // clang-format off
 enum class Register
@@ -175,10 +203,17 @@ enum class Mnemonic
 
 enum class Directive
 {
-    asciz, data, text
+    asciz,
+    data,
+    text
 };
 
 // clang-format on
+
+/**
+ * @brief
+ *  Template function to compute type-safe trivial arithmetic binary expression
+ */
 
 template<typename T>
 T trivial_arithmetic_from_numeric_table_type(
@@ -201,6 +236,11 @@ T trivial_arithmetic_from_numeric_table_type(
     }
     return result;
 }
+
+/**
+ * @brief
+ *  Template function to compute type-safe trivial bitwise binary expression
+ */
 
 template<typename T>
 T trivial_bitwise_from_numeric_table_type(
@@ -225,6 +265,13 @@ T trivial_bitwise_from_numeric_table_type(
         }
     return 0;
 }
+
+/**
+ * @brief
+ *
+ * Word and operand size implementation helpers
+ *
+ */
 
 enum class Operand_Size : std::size_t
 {
@@ -268,11 +315,42 @@ constexpr Operand_Size get_operand_size_from_register(Register acc)
     }
 }
 
+constexpr Operand_Size get_operand_size_from_rvalue_datatype(
+    type::Data_Type const& rvalue)
+{
+    namespace m = matchit;
+    using T = type::semantic::Type;
+    T type = type::get_type_from_rvalue_data_type(rvalue);
+    return m::match(type)(
+        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
+            [&] { return Operand_Size::Qword; },
+        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
+        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
+        m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
+        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
+}
+
+constexpr Operand_Size get_operand_size_from_type(type::semantic::Type type)
+{
+    namespace m = matchit;
+    using T = type::semantic::Type;
+    return m::match(type)(
+        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
+            [&] { return Operand_Size::Qword; },
+        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
+        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
+        m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
+        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
+}
+
 constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 {
     return static_cast<std::underlying_type_t<Operand_Size>>(size);
 }
 
+/**
+ * @brief operator<< function for emission of directives
+ */
 constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
     switch (d) {
@@ -283,6 +361,9 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
     return os;
 }
 
+/**
+ * @brief operator<< function for emission of registers
+ */
 constexpr std::ostream& operator<<(std::ostream& os, Register reg)
 {
     switch (reg) {
@@ -325,13 +406,54 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
     return os;
 }
 
-inline std::string register_as_string(Register device)
+/**
+ * @brief Get register as an std::string
+ */
+constexpr std::string register_as_string(Register reg)
 {
-    std::ostringstream buf{};
-    buf << device;
-    return buf.str();
+    switch (reg) {
+        REGISTER_STRING(rbp);
+        REGISTER_STRING(rsp);
+        REGISTER_STRING(rax);
+        REGISTER_STRING(rbx);
+        REGISTER_STRING(rcx);
+        REGISTER_STRING(rdx);
+        REGISTER_STRING(rsi);
+        REGISTER_STRING(rdi);
+        REGISTER_STRING(r8);
+        REGISTER_STRING(r9);
+        REGISTER_STRING(r10);
+        REGISTER_STRING(r11);
+        REGISTER_STRING(r12);
+        REGISTER_STRING(r13);
+        REGISTER_STRING(r14);
+        REGISTER_STRING(ebp);
+        REGISTER_STRING(esp);
+        REGISTER_STRING(eax);
+        REGISTER_STRING(ebx);
+        REGISTER_STRING(edx);
+        REGISTER_STRING(ecx);
+        REGISTER_STRING(esi);
+        REGISTER_STRING(edi);
+        REGISTER_STRING(r8d);
+        REGISTER_STRING(r9d);
+        REGISTER_STRING(r10d);
+        REGISTER_STRING(r11d);
+        REGISTER_STRING(r12d);
+        REGISTER_STRING(r13d);
+        REGISTER_STRING(r14d);
+        REGISTER_STRING(r15d);
+        REGISTER_STRING(di);
+        REGISTER_STRING(dil);
+        REGISTER_STRING(al);
+        REGISTER_STRING(ax);
+    }
+    return "rax";
 }
 
+/**
+ * @brief operator<< function for emission of mnemonics
+ */
 constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 {
     switch (mnemonic) {
@@ -373,39 +495,15 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
     return os;
 }
 
-constexpr Operand_Size get_operand_size_from_rvalue_datatype(
-    type::Data_Type const& rvalue)
-{
-    namespace m = matchit;
-    using T = type::semantic::Type;
-    T type = type::get_type_from_rvalue_data_type(rvalue);
-    return m::match(type)(
-        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
-            [&] { return Operand_Size::Qword; },
-        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
-        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
-        m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
-        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
-}
+/**
+ * @brief Internal implementation type details
+ *
+ */
 
-constexpr Operand_Size get_operand_size_from_type(type::semantic::Type type)
-{
-    namespace m = matchit;
-    using T = type::semantic::Type;
-    return m::match(type)(
-        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
-            [&] { return Operand_Size::Qword; },
-        m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
-        m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
-        m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
-        m::pattern | m::_ = [&] { return Operand_Size::Dword; });
-}
-
-using Stack_Offset = std::size_t;
-
-inline constexpr auto O_NUL = std::monostate{};
+constexpr auto O_NUL = std::monostate{};
 
 using Immediate = type::Data_Type;
+using Stack_Offset = std::size_t;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
 using Data_Pair = std::pair<Directive, type::semantic::RValue>;
@@ -415,11 +513,18 @@ using Instructions =
 using Instruction_Pair = std::pair<Storage, Instructions>;
 using Directive_Pair = std::pair<std::string, Directives>;
 
+/**
+ * @brief Instruction type constructor
+ */
+
 inline Instructions make_instructions() noexcept
 {
     return Instructions{};
 }
 
+/**
+ * @brief Directive type constructor
+ */
 inline Directives make_directives() noexcept
 {
     return Directives{};
@@ -448,31 +553,52 @@ Immediate get_result_from_trivial_bitwise_expression(
 
 std::string get_storage_as_string(Storage const& storage);
 
+/**
+ * @brief Instruction insertion helper
+ */
 inline void insert(Instructions& to, Instructions const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
 }
-
+/**
+ * @brief Directive insertion helper
+ */
 inline void insert(Directives& to, Directives const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
 }
 
+/**
+ * @brief asciz directive insertion helper
+ */
 inline detail::Immediate make_asciz_immediate(std::string_view address)
 {
     return Immediate{ fmt::format("[rip + {}]", address), "string", 8UL };
 }
 
+/**
+ * @brief Type-safe numeric type::Data_Type immediate constructor
+ */
 template<typename T = int>
 inline Immediate make_numeric_immediate(T imm, std::string const& type = "int")
 {
     return Immediate{ std::to_string(imm), type, 4UL };
 }
 
+/**
+ * @brief Type-safe numeric u32 type::Data_Type immediate constructor
+ */
 inline Immediate make_u32_int_immediate(unsigned int imm)
 {
     return Immediate{ std::to_string(imm), "int", 4UL };
 }
+
+/**
+ * @brief
+ *
+ * Easy macro expansion of instruction and directive definitions from templates
+ *
+ */
 
 // directives
 DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(asciz);

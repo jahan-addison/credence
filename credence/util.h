@@ -19,7 +19,7 @@
 #include <algorithm>   // for all_of
 #include <cctype>      // for isdigit, toupper
 #include <cstddef>     // for size_t
-#include <cstdint>     // for uint_least32_t
+#include <cstdint>     // for uint_least32_t, uint32_t
 #include <filesystem>  // for filesystem
 #include <fstream>     // for ostringstream
 #include <string>      // for basic_string, string, to_string
@@ -75,6 +75,24 @@ overload(Ts...) -> overload<Ts...>;
 //////////////////
 // String Helpers
 //////////////////
+
+namespace detail {
+// FNV-1a constants for 32-bit hash
+const uint32_t FNV_PRIME_32 = 16777619;
+const uint32_t FNV_OFFSET_BASIS_32 = 2166136261U;
+} // namepace detail
+
+using fnv1a_hash = uint32_t;
+
+constexpr fnv1a_hash fnv1a_32_hash(std::string const& data)
+{
+    uint32_t hash = detail::FNV_OFFSET_BASIS_32;
+    for (char byte : data) {
+        hash ^= static_cast<uint32_t>(byte);
+        hash *= detail::FNV_PRIME_32;
+    }
+    return hash;
+}
 
 inline std::string capitalize(const char* str)
 {
@@ -202,6 +220,25 @@ constexpr std::string tuple_to_string(
         t);
     result += ")";
     return result;
+}
+
+///////////////////
+// Numeric helpers
+///////////////////
+
+constexpr unsigned int align_up_to_16(unsigned int n)
+{
+    const unsigned int ALIGNMENT = 16;
+    const unsigned int MASK = ALIGNMENT - 1; // MASK = 15 (0xF)
+    // The logic is: (n + 15) & ~15
+    return (n + MASK) & (~MASK);
+}
+
+constexpr unsigned int align_up_to_8(unsigned int n)
+{
+    const unsigned int ALIGNMENT = 8;
+    const unsigned int MASK = ALIGNMENT - 1;
+    return (n + MASK) & (~MASK);
 }
 
 ////////////////

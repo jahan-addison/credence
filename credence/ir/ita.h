@@ -278,6 +278,26 @@ class Branch
     int* temporary;
 };
 
+void emit_to(std::ostream& os, Quadruple const& ita, bool indent = false);
+
+/**
+ * @brief Emit a std::deque of instructions to a std::ostream
+ *   If indent is true indent with a tab for formatting
+ */
+inline void emit(
+    std::ostream& os,
+    Instructions const& instructions,
+    bool indent = true) // not constexpr until C++23
+{
+    for (auto i = instructions.begin(); i < instructions.end(); i++) {
+        if (i == instructions.end() - 1 and indent) {
+            emit_to(os, *i, false);
+            os << std::endl;
+        } else
+            emit_to(os, *i, indent);
+    }
+}
+
 } // namespace detail
 
 /**
@@ -307,7 +327,7 @@ class ITA
   public:
     friend constexpr std::ostream& detail::operator<<(
         std::ostream& os,
-        Instruction const& instruction);
+        Instruction const& op);
 
   public:
     /**
@@ -327,34 +347,13 @@ class ITA
     using Parameters = std::vector<std::string>;
 
   public:
-    static void emit_to(
-        std::ostream& os,
-        Quadruple const& ita,
-        bool indent = false);
-    /**
-     * @brief Emit a std::deque of instructions to a std::ostream
-     *   If indent is true indent with a tab for formatting
-     */
-    static inline void emit(
-        std::ostream& os,
-        Instructions const& instructions,
-        bool indent = true) // not constexpr until C++23
-    {
-        for (auto i = instructions.begin(); i < instructions.end(); i++) {
-            if (i == instructions.end() - 1 and indent) {
-                emit_to(os, *i, false);
-                os << std::endl;
-            } else
-                emit_to(os, *i, indent);
-        }
-    }
     /**
      * @brief Emit Instructions_ field to an std::ostream
      */
     inline void emit(std::ostream& os)
     { // not constexpr until C++23
         for (auto const& i : instructions_)
-            emit_to(os, i);
+            detail::emit_to(os, i);
     }
     /**
      * @brief Emit Instructions_ field to an std::ostream
@@ -363,7 +362,7 @@ class ITA
     inline void emit(std::ostream& os, bool indent)
     { // not constexpr until C++23
         for (auto const& i : instructions_)
-            ITA::emit_to(os, i, indent);
+            detail::emit_to(os, i, indent);
     }
 
   public:
