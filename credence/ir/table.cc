@@ -90,8 +90,8 @@ void Table::build_symbols_from_vector_lvalues()
             if (size > detail::Vector::max_size)
                 table_error("stack overflow", key);
             if (!vectors.contains(key))
-                vectors[key] =
-                    std::make_shared<detail::Vector>(detail::Vector{ size });
+                vectors[key] = std::make_shared<detail::Vector>(
+                    detail::Vector{ key, size });
         }
     }
 }
@@ -126,13 +126,14 @@ void Table::from_globl_ita_instruction(Label const& label)
 /**
  * @brief Set vector globals from an ITA constructor
  */
-void Table::build_vector_definitions_from_globals(Symbol_Table<>& globals)
+void Table::build_vector_definitions_from_globals(Symbol_Table<> symbols)
 {
+    globals = std::move(symbols);
     for (auto i = globals.begin_t(); i != globals.end_t(); i++) {
         std::size_t index = 0;
         auto symbol = *i;
         vectors[symbol.first] = std::make_shared<detail::Vector>(
-            detail::Vector{ symbol.second.size() });
+            detail::Vector{ symbol.first, symbol.second.size() });
         for (auto const& item : symbol.second) {
             auto key = std::to_string(index++);
             auto value = type::get_rvalue_datatype_from_string(
@@ -259,24 +260,27 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
  */
 void Table::from_pointer_or_vector_assignment(
     LValue const& lvalue,
-    RValue& rvalue,
+    RValue const& rvalue,
     bool indirection)
 {
     auto& locals = get_stack_frame_symbols();
     auto frame = get_stack_frame();
     std::string rhs_lvalue{};
     std::optional<type::Data_Type> rvalue_symbol;
+
     // This is an lvalue indirection assignment, `m = *k;` or `*k = m`;
-    if (indirection) {
-        rvalue = type::get_unary_rvalue_reference(rvalue, "&");
-    }
+    // if (indirection) {
+    //     rvalue = type::get_unary_rvalue_reference(rvalue, "&");
+    // }
+
     // if the right-hand-side is a vector, save the lvalue and the data type
     if (util::contains(rvalue, "[")) {
         rhs_lvalue = type::from_lvalue_offset(rvalue);
         auto safe_rvalue = type::get_unary_rvalue_reference(rhs_lvalue);
-        auto offset = type::from_pointer_offset(rvalue);
+        auto offset = type::from_decay_offset(rvalue);
         is_boundary_out_of_range(type::get_unary_rvalue_reference(rvalue));
-        if (!frame->is_parameter(offset) and
+
+        if (!frame->is_parameter(offset) and not locals.is_defined(offset) and
             (!vectors.contains(safe_rvalue) or
              not vectors[safe_rvalue]->data.contains(offset)))
             table_error(
@@ -284,20 +288,21 @@ void Table::from_pointer_or_vector_assignment(
                     "invalid vector assignment, element at '{}' does not exist",
                     offset),
                 rvalue);
-        rvalue_symbol = vectors[safe_rvalue]->data[offset];
+        type_safe_assign_pointer_or_vector_lvalue(lvalue, rvalue, indirection);
+        return;
     }
 
     // if the left-hand-side is a normal vector:
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_pointer_offset(lvalue);
+        auto offset = type::from_decay_offset(lvalue);
         // the rhs is a vector too, check accessed types
         if (rvalue_symbol.has_value()) {
             if (!lhs_rhs_type_is_equal(lhs_lvalue, rvalue_symbol.value()))
                 table_error(
                     fmt::format(
-                        "invalid identifier assignment, right-hand-side \"{}\" "
+                        "invalid lvalue assignment, right-hand-side \"{}\" "
                         "with "
                         "type {} is not the same type ({})",
                         rvalue,
@@ -319,27 +324,28 @@ void Table::from_pointer_or_vector_assignment(
                         type::get_rvalue_datatype_from_string(rvalue);
             }
         }
-    } else {
-        // is the rhs an address-of rvalue?
-        if (rvalue.starts_with("&")) {
-            // the left-hand-side must be a pointer
-            if (!indirection and not locals.is_pointer(lvalue))
-                table_error(
-                    fmt::format(
-                        "invalid pointer assignment, left-hand-side '{}' is "
-                        "not a pointer",
-                        lvalue),
-                    rvalue);
-            locals.set_symbol_by_name(
-                lvalue, type::get_unary_rvalue_reference(rvalue));
-        } else {
-            if (!rvalue_symbol.has_value()) {
-                reassign_valid_pointers_or_vectors(lvalue, rvalue, indirection);
-            } else {
-                reassign_valid_pointers_or_vectors(
-                    lvalue, rvalue_symbol.value(), indirection);
-            }
-        }
+        return;
+    }
+    // is the rhs an address-of rvalue?
+    if (rvalue.starts_with("&")) {
+        // the left-hand-side must be a pointer
+        if (!indirection and not locals.is_pointer(lvalue))
+            table_error(
+                fmt::format(
+                    "invalid pointer assignment, left-hand-side '{}' is "
+                    "not a pointer",
+                    lvalue),
+                rvalue);
+        locals.set_symbol_by_name(
+            lvalue, type::get_unary_rvalue_reference(rvalue));
+        return;
+    }
+
+    if (!rvalue_symbol.has_value())
+        type_safe_assign_pointer_or_vector_lvalue(lvalue, rvalue, indirection);
+    else {
+        type_safe_assign_pointer_or_vector_lvalue(
+            lvalue, rvalue_symbol.value(), indirection);
     }
 }
 
@@ -360,110 +366,259 @@ void Table::from_trivial_vector_assignment(
 }
 
 /**
- * @brief Reassigns pointers and vectors, or scalers and dereferenced
- * pointers
+ * @brief Type-safe pointer and address-of assignment with type validation
+ */
+void Table::type_safe_assign_pointer(
+    LValue const& lvalue,
+    RValue const& rvalue,
+    bool indirection)
+{
+    auto& locals = get_stack_frame_symbols();
+    if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue)) {
+        locals.set_symbol_by_name(lvalue, rvalue);
+        return; // Ok
+    }
+    if (locals.is_pointer(lvalue) and type::get_unary_operator(rvalue) == "&") {
+        locals.set_symbol_by_name(lvalue, rvalue);
+        return; // Ok
+    }
+    auto human_symbol = type::is_rvalue_data_type(rvalue)
+                            ? type::get_value_from_rvalue_data_type(
+                                  type::get_rvalue_datatype_from_string(rvalue))
+                            : rvalue;
+    if (indirection)
+        table_error(
+            fmt::format(
+                "invalid pointer assignment, "
+                "left-hand-side '{}' and "
+                "right-hand-side must "
+                "both be pointers",
+                lvalue),
+            human_symbol);
+    else
+        table_error(
+            fmt::format(
+                "invalid pointer assignment, "
+                "right-hand-side "
+                "'{}' is not a pointer",
+                human_symbol),
+            lvalue);
+}
 
+/**
+ * @brief Type check the left-hand-side lvalue type and right-hand-side
+ *
+ * If both are the same type, then assign
+ *    * Variant method for the trivial vector with one element
+ */
+void Table::type_safe_assign_trivial_vector(
+    LValue const& lvalue,
+    RValue const& rvalue)
+{
+    Type_Check_Lambda vector_contains =
+        std::bind(&Table::vector_contains_, this, std::placeholders::_1);
+    Type_Check_Lambda local_contains =
+        std::bind(&Table::local_contains_, this, std::placeholders::_1);
+    auto& locals = get_stack_frame_symbols();
+    m::match(lvalue, rvalue)(
+        m::pattern |
+            m::ds(
+                m::app(vector_contains, true), m::app(vector_contains, true)) =
+            [&] {
+                type_invalid_assignment_check(
+                    vectors[lvalue], vectors[rvalue], "0");
+                vectors[lvalue]->data["0"] = vectors[rvalue]->data["0"];
+            },
+        m::pattern |
+            m::ds(m::app(vector_contains, true), m::app(local_contains, true)) =
+            [&] {
+                type_invalid_assignment_check(rvalue, vectors[lvalue], "0");
+                vectors[lvalue]->data["0"] = locals.get_symbol_by_name(rvalue);
+            },
+        m::pattern |
+            m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
+            [&] {
+                auto vector_rvalue = vectors[rvalue]->data.at("0");
+                type_invalid_assignment_check(lvalue, vectors[rvalue], "0");
+                locals.set_symbol_by_name(lvalue, vectors[rvalue]->data["0"]);
+            });
+}
+
+/**
+ * @brief Type check the left-hand-side lvalue type and right-hand-side
+ *
+ * If both are the same type, then assign from vector
+ * to lvalue or vice-versa
+ */
+void Table::type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue)
+{
+    auto& locals = get_stack_frame_symbols();
+    RValue lvalue_offset{ "0" };
+    RValue rvalue_offset{ "0" };
+    Type_Check_Lambda vector_contains =
+        std::bind(&Table::vector_contains_, this, std::placeholders::_1);
+    Type_Check_Lambda local_contains =
+        std::bind(&Table::local_contains_, this, std::placeholders::_1);
+    auto lvalue_direct = m::match(lvalue)(
+        m::pattern | m::app(is_vector_lvalue, true) =
+            [&] {
+                lvalue_offset = type::from_decay_offset(lvalue);
+                return type::from_lvalue_offset(lvalue);
+            },
+        m::pattern | m::_ = [&] { return lvalue; });
+
+    auto rvalue_direct = m::match(rvalue)(
+        m::pattern | m::app(is_vector_lvalue, true) =
+            [&] {
+                rvalue_offset = type::from_decay_offset(rvalue);
+                return type::from_lvalue_offset(rvalue);
+            },
+        m::pattern | m::_ = [&] { return rvalue; });
+
+    m::match(lvalue_direct, rvalue_direct)(
+        m::pattern |
+            m::ds(
+                m::app(vector_contains, true), m::app(vector_contains, true)) =
+            [&] {
+                type_invalid_assignment_check(
+                    vectors[lvalue_direct],
+                    vectors[rvalue_direct],
+                    lvalue_offset,
+                    rvalue_offset);
+                vectors[lvalue_direct]->data[lvalue_offset] =
+                    vectors[rvalue_direct]->data[rvalue_offset];
+            },
+        m::pattern |
+            m::ds(m::app(vector_contains, true), m::app(local_contains, true)) =
+            [&] {
+                type_invalid_assignment_check(
+                    rvalue_direct, vectors[lvalue_direct], lvalue_offset);
+                vectors[lvalue_direct]->data[lvalue_offset] =
+                    locals.get_symbol_by_name(rvalue_direct);
+            },
+        m::pattern |
+            m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
+            [&] {
+                type_invalid_assignment_check(
+                    lvalue_direct, vectors[rvalue_direct], rvalue_offset);
+                locals.set_symbol_by_name(
+                    lvalue_direct,
+                    vectors[rvalue_direct]->data.at(rvalue_offset));
+            },
+        m::pattern | m::_ = [&] { credence_error("unreachable"); });
+}
+
+/**
+ * @brief Recursively resolve the rvalue of a pointer in the symbol table
+ *
+ * Including vector (array) decay and pointers to vectors
+ */
+type::Data_Type Table::get_rvalue_data_type_at_pointer(LValue const& lvalue)
+{
+    auto& locals = get_stack_frame_symbols();
+    auto lvalue_reference = type::get_unary_rvalue_reference(lvalue);
+    if (locals.is_pointer(lvalue_reference))
+        return get_rvalue_data_type_at_pointer(
+            locals.get_pointer_by_name(lvalue));
+    // array decay
+    else if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
+        auto address = type::from_lvalue_offset(lvalue_reference);
+        auto offset = type::from_decay_offset(lvalue_reference);
+        credence_assert(vectors.at(address)->data.contains(offset));
+        return vectors.at(address)->data[offset];
+
+    } else
+        return locals.get_symbol_by_name(lvalue_reference);
+}
+
+/**
+ * @brief Type check the assignment of 2 dereferenced lvalue pointers
+ */
+void Table::type_safe_assign_dereference(
+    LValue const& lvalue,
+    RValue const& rvalue)
+{
+    auto& locals = get_stack_frame_symbols();
+    auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
+    auto rhs_lvalue = type::get_unary_rvalue_reference(rvalue);
+
+    if (locals.is_pointer(lvalue) and type::is_dereference_expression(rvalue))
+        table_error(
+            "invalid pointer dereference, "
+            "right-hand-side is not a pointer",
+            lvalue);
+    if (locals.is_pointer(rvalue) and type::is_dereference_expression(lvalue))
+        table_error(
+            "invalid pointer dereference, "
+            "right-hand-side is not a pointer",
+            lvalue);
+    if (!locals.is_pointer(lhs_lvalue) and
+        not type::is_dereference_expression(rvalue))
+        table_error(
+            "invalid pointer dereference, "
+            "left-hand-side is not a pointer",
+            lhs_lvalue);
+    if (!locals.is_pointer(rhs_lvalue) and
+        not type::is_dereference_expression(lvalue))
+        table_error(
+            "invalid pointer dereference, "
+            "right-hand-side is not a pointer",
+            lhs_lvalue);
+
+    auto lhs_address = get_rvalue_data_type_at_pointer(lhs_lvalue);
+    auto rhs_address = get_rvalue_data_type_at_pointer(rhs_lvalue);
+
+    if (type::get_type_from_rvalue_data_type(lhs_address) != "null" and
+        !lhs_rhs_type_is_equal(lhs_address, rhs_address))
+        table_error(
+            fmt::format(
+                "invalid dereference assignment, dereference rvalue of "
+                "left-hand-side with type '{}' is not the same type ({})",
+                type::get_type_from_rvalue_data_type(lhs_address),
+                type::get_type_from_rvalue_data_type(rhs_address)),
+            lvalue);
+}
+
+/**
+ * @brief Type-safe assignment of pointers and vectors, or scalers and
+ * dereferenced pointers
+ *
  * Note: To get a better idea of how this function works,
  * check the test cases in test/fixtures/types
  */
-void Table::reassign_valid_pointers_or_vectors(
+void Table::type_safe_assign_pointer_or_vector_lvalue(
     LValue const& lvalue,
     type::RValue_Reference_Type const& rvalue,
     bool indirection)
 {
     auto& locals = get_stack_frame_symbols();
+
     std::visit(
         util::overload{
             [&](RValue const& value) {
-                // the right-hand-side must be a pointer, vector, or
-                // lvalue dereference
+                if (value == "NULL")
+                    table_error(
+                        "invalid pointer dereference assignment, "
+                        "right-hand-side is a NULL pointer!",
+                        lvalue);
                 if (is_trivial_vector_assignment(lvalue, value)) {
-                    // special case for trivial global vectors
-                    if (vectors.contains(lvalue) and
-                        not vectors.contains(value)) {
-                        auto vector_rvalue = vectors[lvalue]->data.at("0");
-                        if (get_type_from_rvalue_data_type(lvalue) != "null" and
-                            !lhs_rhs_type_is_equal(value, vector_rvalue))
-                            table_error(
-                                fmt::format(
-                                    "invalid identifier assignment, "
-                                    "left-hand-side "
-                                    "'{}' "
-                                    "with "
-                                    "type '{}' is not the same type ({})",
-                                    value,
-                                    type::get_type_from_rvalue_data_type(
-                                        vector_rvalue),
-                                    get_type_from_rvalue_data_type(value)),
-                                lvalue);
-                        from_trivial_vector_assignment(lvalue, vector_rvalue);
-                    } else if (
-                        vectors.contains(lvalue) and vectors.contains(value)) {
-                        vectors[lvalue]->data["0"] = vectors[value]->data["0"];
-                    }
-                    return;
+                    type_safe_assign_trivial_vector(lvalue, value);
+                    return; // Done
                 }
-                // Check that the left-hand-side is a pointer to a valid address
-                // and right-hand-side is a valid assignment
-                if (!type::is_dereference_expression(lvalue)) {
-                    if (locals.is_pointer(lvalue) and
-                        locals.is_pointer(value)) {
-                        locals.set_symbol_by_name(lvalue, value);
-                        return; // Ok
+                if (is_pointer(lvalue) or is_pointer(value)) {
+                    if (!type::is_dereference_expression(value)) {
+                        type_safe_assign_pointer(lvalue, value);
+                        return; // Done
                     }
-                    if (locals.is_pointer(lvalue) and
-                        type::get_unary_operator(value) == "&") {
-                        locals.set_symbol_by_name(lvalue, value);
-                        return; // Ok
-                    }
-                    auto human_symbol =
-                        type::is_rvalue_data_type(value)
-                            ? type::get_value_from_rvalue_data_type(
-                                  type::get_rvalue_datatype_from_string(value))
-                            : value;
-                    if (indirection)
-                        table_error(
-                            fmt::format(
-                                "invalid pointer assignment, "
-                                "left-hand-side '{}' and "
-                                "right-hand-side must "
-                                "both be pointers",
-                                lvalue),
-                            human_symbol);
-                    else
-                        table_error(
-                            fmt::format(
-                                "invalid pointer assignment, "
-                                "right-hand-side "
-                                "'{}' is not a pointer",
-                                human_symbol),
-                            lvalue);
                 }
-                // dereference assignment, check for invalid or null pointers
+                if (is_vector(lvalue) or is_vector(value)) {
+                    type_safe_assign_vector(lvalue, value);
+                    return; // Done
+                }
+                // A dereference assignment, check for invalid or null pointers
                 if (type::is_dereference_expression(lvalue) or
                     type::is_dereference_expression(value)) {
-                    auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
-                    if (!locals.is_pointer(lhs_lvalue))
-                        table_error(
-                            "invalid pointer dereference, "
-                            "left-hand-side is a non-pointer",
-                            lhs_lvalue);
-                    auto rhs_rvalue = type::get_unary_rvalue_reference(value);
-                    if (!type::is_rvalue_data_type(rhs_rvalue) or
-                        !locals.is_pointer(rhs_rvalue)) {
-                        if (rhs_rvalue == "NULL")
-                            table_error(
-                                "invalid pointer dereference, "
-                                "right-hand-side is a NULL pointer!",
-                                lvalue);
-                        else if (!locals.is_pointer(rhs_rvalue))
-                            table_error(
-                                fmt::format(
-                                    "invalid pointer dereference on '{}', "
-                                    "right-hand-side is a NULL pointer!",
-                                    lvalue),
-                                value);
-                    }
+                    type_safe_assign_dereference(lvalue, value);
                     return;
                 }
                 locals.set_symbol_by_name(lvalue, value);
@@ -471,7 +626,7 @@ void Table::reassign_valid_pointers_or_vectors(
             [&](type::Data_Type const& value) {
                 if (!indirection and locals.is_pointer(lvalue))
                     table_error(
-                        "invalid identifier assignment, left-hand-side is a "
+                        "invalid lvalue assignment, left-hand-side is a "
                         "pointer to non-pointer rvalue",
                         lvalue);
                 // the lvalue and rvalue vector data entry type must match
@@ -479,7 +634,7 @@ void Table::reassign_valid_pointers_or_vectors(
                     !lhs_rhs_type_is_equal(lvalue, value))
                     table_error(
                         fmt::format(
-                            "invalid identifier assignment, left-hand-side "
+                            "invalid lvalue assignment, left-hand-side "
                             "'{}' "
                             "with "
                             "type '{}' is not the same type ({})",
@@ -501,7 +656,7 @@ Table::Type Table::get_type_from_rvalue_data_type(LValue const& lvalue)
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_pointer_offset(lvalue);
+        auto offset = type::from_decay_offset(lvalue);
         return std::get<1>(vectors[lhs_lvalue]->data[offset]);
     }
     return std::get<1>(locals.get_symbol_by_name(lvalue));
@@ -516,7 +671,7 @@ Table::Size Table::get_size_from_local_lvalue(LValue const& lvalue)
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_pointer_offset(lvalue);
+        auto offset = type::from_decay_offset(lvalue);
         return std::get<2>(vectors[lhs_lvalue]->data[offset]);
     }
     if (get_type_from_rvalue_data_type(lvalue) == "word" and
@@ -536,7 +691,7 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
     credence_assert(util::contains(rvalue, "["));
     credence_assert(util::contains(rvalue, "]"));
     auto lvalue = type::from_lvalue_offset(rvalue);
-    auto offset = type::from_pointer_offset(rvalue);
+    auto offset = type::from_decay_offset(rvalue);
     if (!vectors.contains(lvalue))
         table_error(
             fmt::format(
@@ -683,16 +838,14 @@ type::Data_Type Table::from_rvalue_unary_expression(
         // cppcheck-suppress syntaxError
         m::pattern | "*" =
             [&] {
-                auto rhs_lvalue = rvalue.substr(1);
                 if (locals.is_pointer(lvalue))
                     table_error(
                         fmt::format(
-                            "indirection on invalid lvalue, "
+                            "dereference on invalid lvalue, "
                             "left-hand-side is a pointer",
                             lvalue),
                         rvalue);
-                LValue indirection = locals.get_pointer_by_name(rhs_lvalue);
-                from_pointer_or_vector_assignment(lvalue, indirection, true);
+                from_pointer_or_vector_assignment(lvalue, rvalue, true);
                 return type::Data_Type{ rvalue, "word", sizeof(void*) };
             },
         m::pattern | "&" =
@@ -903,6 +1056,77 @@ inline void Table::type_invalid_assignment_check(
                 get_type_from_rvalue_data_type(rvalue),
                 get_type_from_rvalue_data_type(lvalue)),
             lvalue);
+}
+
+/**
+ * @brief Type checking on vector-to-vector same index assignment
+ */
+inline void Table::type_invalid_assignment_check(
+    Vector_PTR const& vector_lhs,
+    Vector_PTR const& vector_rhs,
+    RValue const& index)
+{
+    auto vector_lvalue = vector_lhs->data.at(index);
+    auto vector_rvalue = vector_rhs->data.at(index);
+    if (!lhs_rhs_type_is_equal(vector_lvalue, vector_rvalue))
+        table_error(
+            fmt::format(
+                "invalid vector assignment, left-hand-side '{}' with type '{}' "
+                "is not the same type ({})",
+                vector_lhs->symbol,
+                type::get_type_from_rvalue_data_type(vector_lvalue),
+                type::get_type_from_rvalue_data_type(vector_rvalue)),
+            vector_rhs->symbol);
+}
+
+/**
+ * @brief Type checking on vector-to-vector index assignment
+ */
+inline void Table::type_invalid_assignment_check(
+    Vector_PTR const& vector_lhs,
+    Vector_PTR const& vector_rhs,
+    RValue const& index_lhs,
+    RValue const& index_rhs)
+{
+    auto vector_lvalue = vector_lhs->data.at(index_lhs);
+    auto vector_rvalue = vector_rhs->data.at(index_rhs);
+
+    if (!lhs_rhs_type_is_equal(vector_lvalue, vector_rvalue))
+        table_error(
+            fmt::format(
+                "invalid vector assignment, left-hand-side '{}' at index '{}' "
+                "with type '{}' is not the same type as right-hand-side vector "
+                "'{}' at index '{}' ({})",
+                vector_lhs->symbol,
+                index_lhs,
+                type::get_type_from_rvalue_data_type(vector_lvalue),
+                vector_rhs->symbol,
+                index_rhs,
+                type::get_type_from_rvalue_data_type(vector_rvalue)),
+            vector_lhs->symbol);
+}
+
+/**
+ * @brief Type checking on lvalue-to-vector assignment
+ */
+inline void Table::type_invalid_assignment_check(
+    LValue const& lvalue,
+    Vector_PTR const& vector_rhs,
+    RValue const& index)
+{
+    auto vector_rvalue = vector_rhs->data.at(index);
+    if (get_type_from_rvalue_data_type(lvalue) != "null" and
+        not lhs_rhs_type_is_equal(lvalue, vector_rvalue))
+        table_error(
+            fmt::format(
+                "invalid lvalue assignment to a "
+                "vector, left-hand-side '{}' with "
+                "type '{}' is not the same type "
+                "({})",
+                lvalue,
+                get_type_from_rvalue_data_type(lvalue),
+                type::get_type_from_rvalue_data_type(vector_rvalue)),
+            vector_rhs->symbol);
 }
 
 /**

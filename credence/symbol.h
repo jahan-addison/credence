@@ -21,6 +21,7 @@
 #include <credence/values.h> // for Literal, Array, ...
 #include <fmt/format.h>      // for format
 #include <map>               // for map
+#include <source_location>   // for source_location
 #include <string>            // for basic_string, string
 #include <utility>           // for make_pair, move
 
@@ -32,14 +33,6 @@ namespace credence {
  *
  * Constructs a symbol table from a template data structure
  * An example table may be a map to `std::array<std::string, 5>':
- *
- *  Example:
- *
- *    Name
- *     |
- *   ------------------------------------------------------
- *   | Type | Size | Line Declare | Line Usage |  Address |
- *   ------------------------------------------------------
  *
  *  Default:
  *
@@ -53,8 +46,6 @@ template<typename T = value::Literal, typename Pointer = value::Array>
 class Symbol_Table
 {
   public:
-    Symbol_Table& operator=(Symbol_Table const&) = delete;
-
     Symbol_Table() = default;
     ~Symbol_Table() = default;
 
@@ -88,19 +79,27 @@ class Symbol_Table
 
     inline constexpr std::size_t size() { return table_.size(); }
 
-    inline T get_symbol_by_name(std::string const& name) const
+    inline T get_symbol_by_name(
+        std::string const& name,
+        std::source_location const& trace =
+            std::source_location::current()) const
     {
-        credence_assert_message(
+        credence_assert_message_trace(
             table_.find(name) != table_.end(),
-            fmt::format("symbol not found `{}`", name));
+            fmt::format("symbol not found `{}`", name),
+            trace);
         return table_.at(name);
     }
 
-    inline Pointer get_pointer_by_name(std::string const& name) const
+    inline Pointer get_pointer_by_name(
+        std::string const& name,
+        std::source_location const& trace =
+            std::source_location::current()) const
     {
-        credence_assert_message(
+        credence_assert_message_trace(
             addr_.find(name) != addr_.end(),
-            fmt::format("address symbol not found `{}`", name));
+            fmt::format("address symbol not found `{}`", name),
+            trace);
         return addr_.at(name);
     }
 

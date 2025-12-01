@@ -292,6 +292,7 @@ void Code_Generator::build_data_section_instructions()
         string_storage.insert_or_assign(string, data_instruction.first);
         detail::insert(data_, data_instruction.second);
     }
+    // @TODO: construct the data section for global arrays
 }
 
 /**
@@ -384,7 +385,7 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
     // The storage of an immediate (and, really, all) relational
     // expression will be the `al` register, 1 for true, 0 for false
     Operand_Lambda is_immediate_relational_expression =
-        [&](type::semantic::RValue const& rvalue) {
+        [&](RValue const& rvalue) {
             return type::is_relation_binary_expression(
                 type::get_value_from_rvalue_data_type(
                     locals.get_symbol_by_name(rvalue)));
@@ -429,24 +430,34 @@ void Code_Generator::from_cmp_ita([[maybe_unused]] ir::Quadruple const& inst) {}
  */
 void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
 {
-    auto lhs = std::get<1>(inst);
-    auto rhs = get_rvalue_from_mov_qaudruple(inst).first;
-    auto symbols = table->get_stack_frame_symbols();
+    auto lhs = ir::get_lvalue_from_mov_qaudruple(inst);
+    auto rhs = ir::get_rvalue_from_mov_qaudruple(inst).first;
 
-    // Translate an rvalue from a mutual-recursive temporary
-    // see ir/temporary.h for details
-    if (type::is_temporary(lhs)) {
-        insert_from_temporary_lvalue(lhs);
-        return;
-    }
+    m::match(lhs, rhs)(
+        // Translate an rvalue from a mutual-recursive temporary lvalue
+        m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
+            [&] { insert_from_temporary_lvalue(lhs); },
+        // Translate a unary-to-unary rvalue reference
+        m::pattern | m::ds(
+                         m::app(type::is_unary_expression, true),
+                         m::app(type::is_unary_expression, true)) =
+            [&] { insert_from_unary_to_unary_assignment(lhs, rhs); },
+        // Translate from a vector in global scope
+        m::pattern | m::ds(m::app(is_global_vector, true), m::_) =
+            [&] { insert_from_global_vector_assignment(lhs, rhs); },
+        m::pattern | m::ds(m::_, m::app(is_global_vector, true)) =
+            [&] { insert_from_global_vector_assignment(lhs, rhs); },
+        // Direct operand to mnemonic translation
+        m::pattern | m::_ = [&] { insert_from_mnemonic_operand(lhs, rhs); });
+}
 
-    // Translate a unary-to-unary rvalue reference
-    // I.e. A pointer dereference assignment
-    if (type::is_unary_expression(lhs) and type::is_unary_expression(rhs)) {
-        insert_from_unary_to_unary_assignment(lhs, rhs);
-        return;
-    }
-
+/**
+ * @brief Mnemonic operand pattern matching to code generation
+ */
+void Code_Generator::insert_from_mnemonic_operand(
+    LValue const& lhs,
+    RValue const& rhs)
+{
     m::match(rhs)(
         // Translate from an immediate value assignment
         m::pattern | m::app(is_immediate, true) =
@@ -459,8 +470,9 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
                 } else
                     add_inst_as(instructions_, mov, lhs_storage, imm);
             },
-        // The storage of the rvalue from line 441 is in an
-        // accumulator register, use it to assign to a local variable
+        // The storage of the rvalue from `insert_from_temporary_lvalue` in the
+        // function above is in the accumulator register, use it to assign
+        // to a local address
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_ir_assignment) {
@@ -504,11 +516,11 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
  * See ir/temporary.h for details
  */
 void Code_Generator::from_temporary_unary_operator_expression(
-    type::semantic::RValue const& expr)
+    RValue const& expr)
 {
     credence_assert(type::is_unary_expression(expr));
     auto op = type::get_unary_operator(expr);
-    type::semantic::RValue rvalue = type::get_unary_rvalue_reference(expr);
+    RValue rvalue = type::get_unary_rvalue_reference(expr);
     if (stack.contains(rvalue)) {
         // This is the address-of operator, use a qword size register
         if (op == "&") {
@@ -540,7 +552,7 @@ void Code_Generator::from_temporary_unary_operator_expression(
  * @brief Get the storage device of an IR binary expression operand
  */
 Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
-    type::semantic::RValue const& rvalue)
+    RValue const& rvalue)
 {
     if (type::is_rvalue_data_type(rvalue))
         return type::get_rvalue_datatype_from_string(rvalue);
@@ -552,11 +564,11 @@ Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
 }
 
 /**
- * @brief Construct a pair of Immediates from 2 type::semantic::RValue's
+ * @brief Construct a pair of Immediates from 2 RValue's
  */
 inline auto get_rvalue_pair_as_immediate(
-    type::semantic::RValue const& lhs,
-    type::semantic::RValue const& rhs)
+    detail::Stack::RValue const& lhs,
+    detail::Stack::RValue const& rhs)
 {
     return std::make_pair(
         type::get_rvalue_datatype_from_string(lhs),
@@ -568,7 +580,7 @@ inline auto get_rvalue_pair_as_immediate(
  *
  * 'string_storage' holds the %rip offset in the data section
  */
-void Code_Generator::from_ita_string(type::semantic::RValue const& str)
+void Code_Generator::from_ita_string(RValue const& str)
 {
     credence_assert(string_storage.contains(str));
     auto location = detail::make_asciz_immediate(string_storage[str]);
@@ -580,8 +592,7 @@ void Code_Generator::from_ita_string(type::semantic::RValue const& str)
  *
  *   Note that we pattern match on special pair cases
  */
-void Code_Generator::from_binary_operator_expression(
-    type::semantic::RValue const& expr)
+void Code_Generator::from_binary_operator_expression(RValue const& expr)
 {
     credence_assert(type::is_binary_expression(expr));
 
@@ -730,8 +741,7 @@ void Code_Generator::insert_from_op_operands(
 /**
  * @brief Translate from the rvalue at a temporary lvalue location
  */
-void Code_Generator::insert_from_temporary_lvalue(
-    type::semantic::LValue const& lvalue)
+void Code_Generator::insert_from_temporary_lvalue(LValue const& lvalue)
 {
     auto temporary = table->from_temporary_lvalue(lvalue);
     insert_from_rvalue(temporary);
@@ -743,7 +753,7 @@ void Code_Generator::insert_from_temporary_lvalue(
  * Note that the storage is usually an accumulator register
  * to be assigned an address on the stack
  */
-void Code_Generator::insert_from_rvalue(type::semantic::RValue const& rvalue)
+void Code_Generator::insert_from_rvalue(RValue const& rvalue)
 {
     if (type::is_binary_expression(rvalue)) {
         from_binary_operator_expression(rvalue);
@@ -760,13 +770,42 @@ void Code_Generator::insert_from_rvalue(type::semantic::RValue const& rvalue)
 }
 
 /**
+ * @brief Translate vector assignment between global vectors
+ */
+void Code_Generator::insert_from_global_vector_assignment(
+    LValue const& lhs,
+    LValue const& rhs)
+{
+
+    auto lhs_lvalue = type::from_lvalue_offset(lhs);
+    auto rhs_lvalue = type::from_lvalue_offset(rhs);
+    Storage lhs_storage = m::match(lhs_lvalue)(
+        m::pattern | m::app(is_vector_offset, true) =
+            [&] {
+                auto offset = type::from_decay_offset(lhs);
+                return table->vectors.at(lhs_lvalue)->data.at(offset);
+            },
+        m::pattern | m::_ = [&] { return get_lvalue_address(lhs_lvalue); });
+    Storage rhs_storage = m::match(rhs_lvalue)(
+        m::pattern | m::app(is_vector_offset, true) =
+            [&] {
+                auto offset = type::from_decay_offset(rhs);
+                return table->vectors.at(lhs_lvalue)->data.at(offset);
+            },
+        m::pattern | m::_ = [&] { return get_lvalue_address(rhs_lvalue); });
+    auto acc = get_accumulator_register_from_storage(lhs_storage);
+    add_inst_as(instructions_, mov, acc, rhs_storage);
+    add_inst_as(instructions_, mov, lhs_storage, acc);
+}
+
+/**
  * @brief Translate from unary-to-unary rvalue expressions
  *
  * The only supported type is dereferenced pointers
  */
 void Code_Generator::insert_from_unary_to_unary_assignment(
-    type::semantic::LValue const& lhs,
-    type::semantic::LValue const& rhs)
+    LValue const& lhs,
+    LValue const& rhs)
 {
     auto lhs_lvalue = type::get_unary_rvalue_reference(lhs);
     auto rhs_lvalue = type::get_unary_rvalue_reference(rhs);
@@ -1153,8 +1192,7 @@ detail::Operand_Size Code_Generator::get_operand_size_from_storage(
  *
  *  Note: including vectors (array) indices
  */
-Code_Generator::Storage Code_Generator::get_lvalue_address(
-    type::semantic::LValue const& lvalue)
+Code_Generator::Storage Code_Generator::get_lvalue_address(LValue const& lvalue)
 {
     if (type::is_dereference_expression(lvalue)) {
         auto storage =
@@ -1164,7 +1202,7 @@ Code_Generator::Storage Code_Generator::get_lvalue_address(
         return Register::rax;
     } else if (is_vector_offset(lvalue)) {
         auto lhs = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_pointer_offset(lvalue);
+        auto offset = type::from_decay_offset(lvalue);
         auto vector = table->vectors.at(lhs);
         return stack.get_stack_offset_from_table_vector_index(
             lhs, offset, *vector);

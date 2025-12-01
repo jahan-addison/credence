@@ -445,6 +445,8 @@ constexpr semantic::Size get_size_from_rvalue_data_type(Data_Type const& rvalue)
  */
 constexpr semantic::RValue from_lvalue_offset(RValue_Reference rvalue)
 {
+    if (!util::contains(rvalue, "]"))
+        return rvalue.data();
     return std::string{ rvalue.begin(),
                         rvalue.begin() + rvalue.find_first_of("[") };
 }
@@ -454,8 +456,10 @@ constexpr semantic::RValue from_lvalue_offset(RValue_Reference rvalue)
  *   * v[20]        = 20
  *   * sidno[errno] = errno
  */
-constexpr semantic::RValue from_pointer_offset(RValue_Reference rvalue)
+constexpr semantic::RValue from_decay_offset(RValue_Reference rvalue)
 {
+    if (!util::contains(rvalue, "]"))
+        return rvalue.data();
     return std::string{ rvalue.begin() + rvalue.find_first_of("[") + 1,
                         rvalue.begin() + rvalue.find_first_of("]") };
 }

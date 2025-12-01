@@ -47,6 +47,13 @@
         message)                                        \
 )
 
+#define credence_assert_message_trace(condition, message, location) (   \
+    credence::detail::assert_impl(                                      \
+        location,                                                       \
+        condition,                                                      \
+        message)                                                        \
+)
+
 #define credence_assert_equal(actual, expected) (       \
     credence::detail::assert_equal_impl(                \
         std::source_location::current(),                \

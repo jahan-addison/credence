@@ -56,10 +56,10 @@ class Stack
     Stack& operator=(Stack const&) = delete;
 
   public:
-    using LValue = type::semantic::LValue;
-    using RValue = type::semantic::RValue;
     using Type = type::semantic::Type;
     using Size = type::semantic::Size;
+    using LValue = type::semantic::LValue;
+    using RValue = type::semantic::RValue;
     using Offset = detail::Stack_Offset;
     using Entry = std::pair<Offset, detail::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
@@ -182,6 +182,10 @@ class Code_Generator final
     using Mnemonic = detail::Mnemonic;
 
   private:
+    using LValue = detail::Stack::LValue;
+    using RValue = detail::Stack::RValue;
+
+  private:
     using Storage_Operands = std::pair<Storage, Storage>;
     using Operand_Size = detail::Operand_Size;
     using Operator_Symbol = std::string;
@@ -240,8 +244,7 @@ class Code_Generator final
         Operand_Size size = Operand_Size::Dword);
     constexpr Register get_accumulator_register_from_storage(
         Storage const& storage);
-    Storage get_storage_for_binary_operator(
-        type::semantic::RValue const& rvalue);
+    Storage get_storage_for_binary_operator(RValue const& rvalue);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -249,8 +252,8 @@ class Code_Generator final
         Storage const& storage,
         Operand_Size size,
         detail::flag::flags flag);
-    void from_ita_string(type::semantic::RValue const& str);
-    Instruction_Pair from_ita_expression(type::semantic::RValue const& expr);
+    void from_ita_string(RValue const& str);
+    Instruction_Pair from_ita_expression(RValue const& expr);
     void from_ita_unary_expression(
         std::string const& op,
         Storage const& dest,
@@ -267,19 +270,25 @@ class Code_Generator final
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void insert_from_unary_to_unary_assignment(
-        type::semantic::LValue const& lhs,
-        type::semantic::LValue const& rhs);
-    void insert_from_temporary_lvalue(type::semantic::LValue const& lvalue);
-    void insert_from_rvalue(type::semantic::RValue const& rvalue);
+        LValue const& lhs,
+        LValue const& rhs);
+    void insert_from_global_vector_assignment(
+        LValue const& lhs,
+        LValue const& rhs);
+    void insert_from_mnemonic_operand(
+        LValue const& lhs,
+        RValue const& rhs);
+    void insert_from_temporary_lvalue(LValue const& lvalue);
+    void insert_from_rvalue(RValue const& rvalue);
     void insert_from_op_operands(
         Storage_Operands& operands,
         std::string const& op);
     void from_binary_operator_expression(
-        type::semantic::RValue const& expr);
+        RValue const& expr);
     void from_bitwise_operator_expression(
-        type::semantic::RValue const& expr);
+        RValue const& expr);
     void from_temporary_unary_operator_expression(
-        type::semantic::RValue const& expr);
+        RValue const& expr);
     void insert_from_immediate_rvalues(
         Immediate const& lhs,
         std::string const& op,
@@ -305,29 +314,32 @@ class Code_Generator final
     }
     // clang-format on
   private:
-    Storage get_lvalue_address(type::semantic::LValue const& lvalue);
+    Storage get_lvalue_address(LValue const& lvalue);
 
   private:
     /**
      * Short-form Lambda helpers for fast pattern matching
      */
-    using Operand_Lambda = std::function<bool(type::semantic::RValue)>;
-    Operand_Lambda is_immediate = [&](type::semantic::RValue const& rvalue) {
+    using Operand_Lambda = std::function<bool(RValue)>;
+    Operand_Lambda is_immediate = [&](RValue const& rvalue) {
         return type::is_rvalue_data_type(rvalue);
     };
-    Operand_Lambda is_address = [&](type::semantic::RValue const& rvalue) {
+    Operand_Lambda is_address = [&](RValue const& rvalue) {
         return stack.is_allocated(rvalue);
     };
-    Operand_Lambda is_temporary = [&](type::semantic::RValue const& rvalue) {
+    Operand_Lambda is_temporary = [&](RValue const& rvalue) {
         return type::is_temporary(rvalue);
     };
-    Operand_Lambda is_vector = [&](type::semantic::RValue const& rvalue) {
-        return table->vectors.contains(rvalue);
+    Operand_Lambda is_vector = [&](RValue const& rvalue) {
+        return table->vectors.contains(type::from_lvalue_offset(rvalue));
     };
-    Operand_Lambda is_vector_offset =
-        [&](type::semantic::RValue const& rvalue) {
-            return util::contains(rvalue, "[") and util::contains(rvalue, "]");
-        };
+    Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
+        return table->vectors.contains(type::from_lvalue_offset(rvalue)) and
+               table->globals.is_defined(rvalue);
+    };
+    Operand_Lambda is_vector_offset = [&](RValue const& rvalue) {
+        return util::contains(rvalue, "[") and util::contains(rvalue, "]");
+    };
 
   private:
     Operand_Size get_operand_size_from_storage(Storage const& storage);
@@ -392,7 +404,7 @@ class Code_Generator final
     void set_instruction_flag(detail::flag::Instruction_Flag set_flag);
     void set_instruction_flag(detail::flag::flags flags);
     Ordered_Map<unsigned int, detail::flag::flags> instruction_flag{};
-    std::map<std::string, type::semantic::RValue> string_storage{};
+    std::map<std::string, RValue> string_storage{};
     Instructions instructions_{};
     Directives data_{};
 };

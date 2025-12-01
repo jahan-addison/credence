@@ -367,6 +367,7 @@ constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
     switch (d) {
+        // the special ".global main" directive
         DIRECTIVE_OSTREAM_2ARY(start, main);
 
         DIRECTIVE_OSTREAM(asciz);

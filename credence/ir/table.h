@@ -24,6 +24,7 @@
 #include <credence/types.h>  // for Data_Type, Label, Address, RValue, LValue
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_Node
 #include <fmt/format.h>      // for format
+#include <functional>        // for bind, placeholders
 #include <initializer_list>  // for initializer_list
 #include <iosfwd>            // for ostream
 #include <map>               // for map
@@ -56,13 +57,17 @@ struct Vector
     using Entry = std::pair<std::string, type::Data_Type>;
     using Storage = Ordered_Map<std::string, type::Data_Type>;
     Vector() = delete;
-    explicit Vector(type::semantic::Address size_of)
+    explicit Vector(
+        type::semantic::Label label,
+        type::semantic::Address size_of)
         : size(size_of)
+        , symbol(std::move(label))
     {
     }
     Storage data{};
     int decay_index{ 0 };
     std::size_t size{ 0 };
+    type::semantic::Label symbol{};
     static constexpr std::size_t max_size{ 1000 };
 };
 
@@ -143,7 +148,7 @@ class Table
     Instructions build_from_ita_instructions();
     bool stack_frame_contains_ita_instruction(Label name, Instruction inst);
     void build_symbols_from_vector_lvalues();
-    void build_vector_definitions_from_globals(Symbol_Table<>& globals);
+    void build_vector_definitions_from_globals(Symbol_Table<> symbols);
     RValue from_temporary_lvalue(LValue const& lvalue);
     static Table_PTR build_from_ast(
         ITA::Node const& symbols,
@@ -156,15 +161,24 @@ class Table
     Size get_size_from_local_lvalue(LValue const& lvalue);
 
   public:
-    inline bool is_vector_or_pointer(RValue const& rvalue)
+    inline bool is_vector(RValue const& rvalue)
+    {
+        auto label = util::contains(rvalue, "[")
+                         ? type::from_lvalue_offset(rvalue)
+                         : rvalue;
+        return vectors.contains(label);
+    }
+    inline bool is_pointer(RValue const& rvalue)
     {
         auto locals = get_stack_frame_symbols();
-        return vectors.contains(rvalue) or util::contains(rvalue, "[") or
-               locals.is_pointer(rvalue) or rvalue.starts_with("&");
+        return locals.is_pointer(rvalue) or rvalue.starts_with("&");
+    }
+    inline bool is_vector_or_pointer(RValue const& rvalue)
+    {
+        return is_vector(rvalue) or is_pointer(rvalue);
     }
 
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
+  private:
     /** Left-hand-side and right-hand-side type equality check */
     inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
     {
@@ -176,6 +190,14 @@ class Table
         type::Data_Type const& rvalue)
     {
         return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
+    }
+
+    inline bool lhs_rhs_type_is_equal(
+        type::Data_Type const& lhs,
+        type::Data_Type const& rhs)
+    {
+        return type::get_type_from_rvalue_data_type(lhs) ==
+               type::get_type_from_rvalue_data_type(rhs);
     }
 
     /**
@@ -194,7 +216,8 @@ class Table
                     "type "
                     "\"{}\" is not a numeric type",
                     type),
-                rvalue, location);
+                rvalue,
+                location);
     }
 
     /**
@@ -240,38 +263,84 @@ class Table
     void from_mov_ita_instruction(Quadruple const& instruction);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    type::semantic::Address instruction_index{ 0 };
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
     type::Data_Type from_rvalue_unary_expression(
         LValue const& lvalue,
         RValue const& rvalue,
         type::RValue_Reference unary_operator);
-    void from_scaler_symbol_assignment(
-        LValue const& lhs,
-        LValue const& rhs);
+    void from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs);
     void from_pointer_or_vector_assignment(
         LValue const& lhs,
-        LValue& rhs,
+        LValue const& rhs,
         bool indirection = false);
     void is_boundary_out_of_range(RValue const& rvalue);
+
+    // clang-format on
+
+  private:
     void type_invalid_assignment_check(
         LValue const& lvalue,
         RValue const& rvalue);
     void type_invalid_assignment_check(
         LValue const& lvalue,
         type::Data_Type const& rvalue);
-    void from_trivial_vector_assignment(
-        LValue const& lhs,
-        type::Data_Type const& rvalue);
-    void reassign_valid_pointers_or_vectors(
+    void type_invalid_assignment_check(
+        LValue const& lvalue,
+        Vector_PTR const& vector,
+        RValue const& index);
+    void type_invalid_assignment_check(
+        Vector_PTR const& vector_lhs,
+        Vector_PTR const& vector_rhs,
+        RValue const& index);
+    void type_invalid_assignment_check(
+        Vector_PTR const& vector_lhs,
+        Vector_PTR const& vector_rhs,
+        RValue const& index_lhs,
+        RValue const& index_rhs);
+
+  private:
+    void type_safe_assign_pointer(
+        LValue const& lvalue,
+        RValue const& rvalue,
+        bool indirection = false);
+    void type_safe_assign_trivial_vector(
+        LValue const& lvalue,
+        RValue const& rvalue);
+    void type_safe_assign_dereference(
+        LValue const& lvalue,
+        RValue const& rvalue);
+    void type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue);
+    void type_safe_assign_pointer_or_vector_lvalue(
         LValue const& lvalue,
         type::RValue_Reference_Type const& rvalue,
         bool indirection = false);
-    void from_temporary_reassignment(
-        LValue const& lhs,
-        LValue const& rhs);
 
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::semantic::Address instruction_index{ 0 };
-    // clang-format on
+  private:
+    void from_trivial_vector_assignment(
+        LValue const& lhs,
+        type::Data_Type const& rvalue);
+
+  public:
+    type::Data_Type get_rvalue_data_type_at_pointer(LValue const& lvalue);
+
+  private:
+    using Type_Check_Lambda = std::function<bool(type::semantic::LValue)>;
+    bool vector_contains_(type::semantic::LValue const& lvalue)
+    {
+        return vectors.contains(lvalue);
+    }
+    bool local_contains_(type::semantic::LValue const& lvalue)
+    {
+        const auto& locals = get_stack_frame_symbols();
+        return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
+    }
+    Type_Check_Lambda is_vector_lvalue = [&](LValue const& lvalue) {
+        return util::contains(lvalue, "[") and util::contains(lvalue, "]");
+    };
+
   private:
     void table_error(
         std::string_view message,
@@ -285,6 +354,7 @@ class Table
     ITA::Node hoisted_symbols;
 
   public:
+    Symbol_Table<> globals{};
     detail::Function::Address_Table address_table{};
     type::Stack stack{};
     Functions functions{};

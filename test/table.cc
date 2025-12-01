@@ -775,7 +775,7 @@ TEST_CASE_FIXTURE(
 {
     auto table = make_table_with_frame(VECTOR_SYMBOLS);
     table.vectors["mess"] = std::make_shared<credence::ir::detail::Vector>(
-        credence::ir::detail::Vector{ 10 });
+        credence::ir::detail::Vector{ "mess", 10 });
     REQUIRE_THROWS(table.from_globl_ita_instruction("snide"));
     REQUIRE_NOTHROW(table.from_globl_ita_instruction("mess"));
 }
@@ -914,7 +914,7 @@ TEST_CASE_FIXTURE(
     locals.set_symbol_by_name("putchar", credence::type::NULL_RVALUE_LITERAL);
     locals.set_symbol_by_name("unit", credence::type::NULL_RVALUE_LITERAL);
     REQUIRE(table.vectors.size() == 4);
-    REQUIRE(table.vectors["mess"]->data.size() == 7);
+    REQUIRE(table.vectors["mess"]->data.size() == 6);
     REQUIRE(table.vectors["putchar"]->data.size() == 1);
     REQUIRE(std::get<0>(table.vectors["putchar"]->data["0"]) == "puts");
     REQUIRE(std::get<0>(table.vectors["unit"]->data["0"]) == "10");
@@ -1001,7 +1001,7 @@ TEST_CASE_FIXTURE(
     REQUIRE_THROWS(table.is_boundary_out_of_range(test3));
     auto size = static_cast<std::size_t>(3);
     table.vectors["mess"] = std::make_shared<credence::ir::detail::Vector>(
-        credence::ir::detail::Vector{ size });
+        credence::ir::detail::Vector{ "mess", size });
     table.functions["main"]->locals.table_["mess"] =
         credence::type::NULL_RVALUE_LITERAL;
     table.vectors["mess"]->data["0"] = credence::type::NULL_RVALUE_LITERAL;
@@ -1020,11 +1020,11 @@ TEST_CASE_FIXTURE(
     REQUIRE_THROWS(table.from_pointer_or_vector_assignment(test2, test7));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_pointer_offset")
+TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_decay_offset")
 {
     auto table = make_table(make_node());
-    REQUIRE(credence::type::from_pointer_offset("sidno[errno]") == "errno");
-    REQUIRE(credence::type::from_pointer_offset("y[39]") == "39");
+    REQUIRE(credence::type::from_decay_offset("sidno[errno]") == "errno");
+    REQUIRE(credence::type::from_decay_offset("y[39]") == "39");
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_lvalue_offset")

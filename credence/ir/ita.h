@@ -488,6 +488,15 @@ inline Instructions make_ITA_instructions(
 std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
     Quadruple const& instruction);
 
+/**
+ * @brief Get the lvalue from an ita MOV instruction
+ */
+constexpr std::string get_lvalue_from_mov_qaudruple(
+    Quadruple const& instruction)
+{
+    return std::get<1>(instruction);
+}
+
 } // namespace ir
 
 } // namespace credence
