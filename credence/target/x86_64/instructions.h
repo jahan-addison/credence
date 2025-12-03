@@ -60,8 +60,11 @@
 #define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
     detail::Instruction_Pair name(detail::Storage const& src)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name)    \
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name)    \
     detail::Directive_Pair name(std::size_t* index, type::semantic::RValue const& rvalue)
+
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name)    \
+    detail::Directives name(type::semantic::RValue const& rvalue)
 
 #define add_inst_as(inst, op, lhs, rhs)      \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
@@ -144,20 +147,26 @@
         return STRINGIFY(reg); \
     break
 
-#define DIRECTIVE_OSTREAM(d)       \
-    case dd(d):                    \
-        os << "." << STRINGIFY(d); \
+#define DIRECTIVE_OSTREAM(d)          \
+    case dd(d): {                     \
+        auto di = sv(STRINGIFY(d));   \
+        if (util::contains(di, "_"))  \
+            di.remove_suffix(1);      \
+        os << "." << di;              \
+    };                                \
     break
 
-#define DIRECTIVE_OSTREAM_2ARY(d, g)            \
-    case dd(d): {                               \
-        auto di = sv(STRINGIFY(d)) == "start" ? \
-            "global"                            \
-            : STRINGIFY(d);                     \
-        os << fmt::format(".{} {}",             \
-            di,                                 \
-            STRINGIFY(g));                      \
-        };                                      \
+#define DIRECTIVE_OSTREAM_2ARY(d, g)                 \
+    case dd(d): {                                    \
+        auto di = sv(STRINGIFY(d)) == sv("start") ?  \
+            "global"                                 \
+            : sv(STRINGIFY(d));                      \
+        if (util::contains(di, "_"))                 \
+            di.remove_suffix(1);                     \
+        os << fmt::format(".{} {}",                  \
+            di,                                      \
+            STRINGIFY(g));                           \
+        };                                           \
         break
 
 #define MNEMONIC_OSTREAM(mnem)                             \
@@ -214,11 +223,8 @@ enum class Mnemonic
 
 enum class Directive
 {
-    asciz,
-    data,
-    text,
-    start,
-    global,
+    asciz, data, text, start, global,
+    long_, quad, float_, double_, byte_
 };
 
 // clang-format on
@@ -374,6 +380,11 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
         DIRECTIVE_OSTREAM(global);
         DIRECTIVE_OSTREAM(data);
         DIRECTIVE_OSTREAM(text);
+        DIRECTIVE_OSTREAM(quad);
+        DIRECTIVE_OSTREAM(long_);
+        DIRECTIVE_OSTREAM(float_);
+        DIRECTIVE_OSTREAM(double_);
+        DIRECTIVE_OSTREAM(byte_);
     }
     return os;
 }
@@ -569,6 +580,25 @@ Immediate get_result_from_trivial_bitwise_expression(
     std::string const& op,
     Immediate const& rhs);
 
+/**
+ * @brief Get the data directive from rvalue data type
+ */
+constexpr Directive get_data_directive_from_rvalue_type(
+    Immediate const& immediate)
+{
+    namespace m = matchit;
+    using T = type::semantic::Type;
+    T type = type::get_type_from_rvalue_data_type(immediate);
+    return m::match(type)(
+        m::pattern | T{ "double" } = [&] { return Directive::double_; },
+        m::pattern |
+            m::or_(T{ "int" }, T{ "long" }) = [&] { return Directive::long_; },
+        m::pattern | T{ "float" } = [&] { return Directive::float_; },
+        m::pattern | T{ "char" } = [&] { return Directive::byte_; },
+        m::pattern | T{ "string" } = [&] { return Directive::quad; },
+        m::pattern | m::_ = [&] { return Directive::quad; });
+}
+
 std::string get_storage_as_string(Storage const& storage);
 
 /**
@@ -584,6 +614,14 @@ inline void insert(Instructions& to, Instructions const& from)
 inline void insert(Directives& to, Directives const& from)
 {
     to.insert(to.end(), from.begin(), from.end());
+}
+
+/**
+ * @brief directive insertion helper for arrays
+ */
+inline detail::Immediate make_array_immediate(std::string_view address)
+{
+    return Immediate{ address, "string", 8UL };
 }
 
 /**
@@ -619,7 +657,12 @@ inline Immediate make_u32_int_immediate(unsigned int imm)
  */
 
 // directives
-DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(asciz);
+DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(asciz);
+DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(quad);
+DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(long_);
+DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(float_);
+DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(double_);
+DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(byte_);
 
 // arithmetic
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);

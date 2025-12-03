@@ -67,10 +67,10 @@ struct Table_Fixture
         Node const& symbols)
     {
         using namespace credence::ir;
-        auto ita = ITA{ symbols };
-        auto instructions = ita.build_from_definitions(node);
-        auto table = Table{ symbols, instructions };
-        table.build_vector_definitions_from_globals(ita.globals_);
+
+        auto [globals, instructions] = make_ITA_instructions(symbols, node);
+        auto table = Table{ symbols, instructions, globals };
+        table.build_vector_definitions_from_globals();
         table.build_from_ita_instructions();
         return table;
     }

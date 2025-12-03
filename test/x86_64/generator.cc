@@ -34,6 +34,19 @@ namespace fs = std::filesystem;
     REQUIRE(test.str() == expected);                                                \
  } while(0)
 
+#define SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST(ast_path)                       \
+ do {                                                                               \
+    using namespace credence::target::x86_64;                                       \
+    auto test = std::ostringstream{};                                               \
+    auto fixture_path = fs::path(ROOT_PATH);                                        \
+    fixture_path.append("test/fixtures/x86_64/ast");                                \
+    auto file_path = fs::path(fixture_path)                                         \
+        .append(fmt::format("{}.json", ast_path));                                  \
+    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();    \
+    REQUIRE_THROWS(credence::target::x86_64::emit(                                  \
+        test, fixture_content[0], fixture_content[1]));                             \
+ } while(0)
+
 TEST_CASE("target/x86_64: fixture: math_constant.b")
 {
     std::string expected = R"x86(
@@ -530,10 +543,10 @@ TEST_CASE("target/x86_64: fixture: string_1.b")
 
 .data
 
-.L_str1_data:
+._L_str1__:
     .asciz "hello"
 
-.L_str2_data:
+._L_str2__:
     .asciz "world"
 
 .text
@@ -542,11 +555,11 @@ TEST_CASE("target/x86_64: fixture: string_1.b")
 main:
     push rbp
     mov rbp, rsp
-    lea rax, [rip + .L_str1_data]
+    lea rax, [rip + ._L_str1__]
     mov qword ptr [rbp - 8], rax
-    lea rax, [rip + .L_str2_data]
+    lea rax, [rip + ._L_str2__]
     mov qword ptr [rbp - 16], rax
-    lea rax, [rip + .L_str1_data]
+    lea rax, [rip + ._L_str1__]
     mov qword ptr [rbp - 24], rax
 _L1:
     xor eax, eax
@@ -564,7 +577,7 @@ TEST_CASE("target/x86_64: fixture: string_2.b")
 
 .data
 
-.L_str1_data:
+._L_str1__:
     .asciz "hello world"
 
 .text
@@ -573,7 +586,7 @@ TEST_CASE("target/x86_64: fixture: string_2.b")
 main:
     push rbp
     mov rbp, rsp
-    lea rax, [rip + .L_str1_data]
+    lea rax, [rip + ._L_str1__]
     mov qword ptr [rbp - 16], rax
     lea rax, [rbp - 16]
     mov qword ptr [rbp - 8], rax
@@ -647,10 +660,10 @@ TEST_CASE("target/x86_64: fixture: vector_3.b")
 
 .data
 
-.L_str1_data:
+._L_str1__:
     .asciz "good afternoon"
 
-.L_str2_data:
+._L_str2__:
     .asciz "good morning"
 
 .text
@@ -662,9 +675,9 @@ main:
     mov dword ptr [rbp - 32], 0
     mov dword ptr [rbp - 28], 1
     mov dword ptr [rbp - 24], 2
-    lea rax, [rip + .L_str1_data]
+    lea rax, [rip + ._L_str1__]
     mov dword ptr [rbp - 20], rax
-    lea rax, [rip + .L_str2_data]
+    lea rax, [rip + ._L_str2__]
     mov dword ptr [rbp - 12], rax
     mov dword ptr [rbp - 36], 10
 _L1:
@@ -674,4 +687,87 @@ _L1:
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_3", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: vector_3.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good morning"
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov dword ptr [rbp - 32], 0
+    mov dword ptr [rbp - 28], 1
+    mov dword ptr [rbp - 24], 2
+    lea rax, [rip + ._L_str1__]
+    mov dword ptr [rbp - 20], rax
+    lea rax, [rip + ._L_str2__]
+    mov dword ptr [rbp - 12], rax
+    mov dword ptr [rbp - 36], 10
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_3", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: globals")
+{
+    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("globals_2");
+
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+mess:
+    .quad ._L_str2__
+
+    .quad ._L_str3__
+
+    .quad ._L_str1__
+
+unit:
+    .long 1
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, dword ptr [rip + unit]
+    mov dword ptr [rbp - 4], eax
+    mov rax, qword ptr [rip + mess+8]
+    mov qword ptr [rbp - 12], rax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("globals_1", expected);
 }

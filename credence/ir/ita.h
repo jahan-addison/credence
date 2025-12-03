@@ -342,6 +342,9 @@ class ITA
             "");
     }
 
+  public:
+    using Instruction_Pair = std::pair<Symbol_Table<>, Instructions>;
+
   private:
     using Branch_Instructions = detail::Branch::Branch_Instructions;
     using Parameters = std::vector<std::string>;
@@ -367,7 +370,7 @@ class ITA
 
   public:
     /**
-     * @brief Instructions factory method
+     * @brief Instructions factory methods
      */
     static inline Instructions make_ITA_instructions(
         ITA::Node const& internal_symbols,
@@ -375,6 +378,14 @@ class ITA
     {
         auto ita = ITA{ internal_symbols };
         return ita.build_from_definitions(node);
+    }
+    static inline Instruction_Pair make_ITA_instructions_with_globals(
+        ITA::Node const& internal_symbols,
+        ITA::Node const& node)
+    {
+        auto ita = ITA{ internal_symbols };
+        return std::pair<Symbol_Table<>&, Instructions>(
+            ita.globals_, ita.build_from_definitions(node));
     }
 
   public:
@@ -472,17 +483,17 @@ class ITA
     }
     util::AST_Node internal_symbols_;
     Symbol_Table<> symbols_{};
-  public:
     Symbol_Table<> globals_{};
 };
 
 // clang-format on
 
-inline Instructions make_ITA_instructions(
+inline ITA::Instruction_Pair make_ITA_instructions(
     util::AST_Node const& internals_symbols,
     util::AST_Node const& definitions)
 {
-    return ITA::make_ITA_instructions(internals_symbols, definitions);
+    return ITA::make_ITA_instructions_with_globals(
+        internals_symbols, definitions);
 }
 
 std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(

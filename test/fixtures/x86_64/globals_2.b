@@ -6,6 +6,6 @@ main() {
   y = mess[x];
 }
 
-unit 1;
+unit 5;
 
 mess [3] "too bad", "tough luck", "that sucks";

@@ -323,7 +323,10 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
-                expression_parser_error("identifier does not exist", name);
+                expression_parser_error(
+                    "identifier does not exist in current scope, did you mean "
+                    "to use extrn?",
+                    name);
             else
                 symbols_.set_symbol_by_name(
                     name, value::Expression::WORD_LITERAL);

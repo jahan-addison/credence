@@ -152,6 +152,13 @@ constexpr std::string get_expression_type(Expression::Type const& value)
     return type;
 }
 
+constexpr bool is_integer_string(std::string_view const& str)
+{
+    return std::ranges::all_of(str, [](char c) {
+        return std::isdigit(static_cast<unsigned char>(c));
+    });
+}
+
 std::string literal_to_string(
     Literal const& literal,
     std::string_view separator = ":");

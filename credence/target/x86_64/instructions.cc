@@ -164,18 +164,53 @@ Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
     return { src, instructions };
 }
 
-/**
- * @brief Construct a .asciz directive as a Directive_Pair
- *
- */
+/*********************************/
+/* x86-64 directive constructors */
+/*********************************/
+
 Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
 {
     auto directives = make_directives();
     auto label =
-        type::semantic::Label{ fmt::format(".L_str{}_data", ++(*index)) };
+        type::semantic::Label{ fmt::format("._L_str{}__", ++(*index)) };
     directives.emplace_back(label);
     directives.emplace_back(Data_Pair{ Directive::asciz, rvalue });
     return { label, directives };
+}
+
+Directives quad(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::quad, rvalue });
+    return directives;
+}
+
+Directives long_(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::long_, rvalue });
+    return directives;
+}
+
+Directives float_(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::float_, rvalue });
+    return directives;
+}
+
+Directives double_(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::double_, rvalue });
+    return directives;
+}
+
+Directives byte_(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::byte_, rvalue });
+    return directives;
 }
 
 // ---

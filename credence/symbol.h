@@ -21,6 +21,7 @@
 #include <credence/values.h> // for Literal, Array, ...
 #include <fmt/format.h>      // for format
 #include <map>               // for map
+#include <set>               // for set
 #include <source_location>   // for source_location
 #include <string>            // for basic_string, string
 #include <utility>           // for make_pair, move
@@ -34,28 +35,26 @@ namespace credence {
  * Constructs a symbol table from a template data structure
  * An example table may be a map to `std::array<std::string, 5>':
  *
- *  Default:
- *
- *    Name
- *     |
- *   ------------------------
- *   | Value | Type | Size |
- *   ------------------------
  */
-template<typename T = value::Literal, typename Pointer = value::Array>
+template<typename Symbol = value::Literal, typename Pointer = value::Array>
 class Symbol_Table
 {
   public:
+    Symbol_Table& operator=(Symbol_Table const&) = delete;
     Symbol_Table() = default;
     ~Symbol_Table() = default;
 
-    auto begin() const { return table_.begin(); }
-    auto end() const { return table_.end(); }
-    auto end_t() { return addr_.end(); }
-    auto begin_t() { return addr_.begin(); }
+  private:
+    using Keys = std::set<std::string>;
 
   public:
-    inline void set_symbol_by_name(std::string const& name, T const& entry)
+    constexpr auto begin() const { return table_.begin(); }
+    constexpr auto end() const { return table_.end(); }
+    constexpr auto end_t() { return addr_.end(); }
+    constexpr auto begin_t() { return addr_.begin(); }
+
+  public:
+    inline void set_symbol_by_name(std::string const& name, Symbol const& entry)
     {
         table_.insert_or_assign(name, entry);
     }
@@ -71,15 +70,39 @@ class Symbol_Table
         table_.erase(name);
     }
 
-    inline void clear()
+    inline void clear() noexcept
     {
         addr_.clear();
         table_.clear();
     }
 
-    inline constexpr std::size_t size() { return table_.size(); }
+    inline bool empty() const noexcept
+    {
+        return table_.empty() and addr_.empty();
+    }
 
-    inline T get_symbol_by_name(
+    inline constexpr std::size_t size() const noexcept
+    {
+        return table_.size() + addr_.size();
+    }
+
+    inline Keys get_symbols()
+    {
+        Keys keys{};
+        for (auto const& key : table_)
+            keys.insert(key.first);
+        return keys;
+    }
+
+    inline Keys get_pointers()
+    {
+        Keys keys{};
+        for (auto const& key : addr_)
+            keys.insert(key.first);
+        return keys;
+    }
+
+    inline Symbol get_symbol_by_name(
         std::string const& name,
         std::source_location const& trace =
             std::source_location::current()) const
@@ -103,19 +126,19 @@ class Symbol_Table
         return addr_.at(name);
     }
 
-    constexpr bool is_defined(std::string const& name) const
+    constexpr bool is_defined(std::string const& name) const noexcept
     {
         return table_.contains(name) or addr_.contains(name);
     }
 
-    constexpr bool is_pointer(std::string const& name) const
+    constexpr bool is_pointer(std::string const& name) const noexcept
     {
         return addr_.contains(name);
     }
 
     /* clang-format off */
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    std::map<std::string, T> table_{};
+    std::map<std::string, Symbol> table_{};
     std::map<std::string, Pointer> addr_{};
     /* clang-format on*/
 };

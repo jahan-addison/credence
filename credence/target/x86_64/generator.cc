@@ -83,7 +83,10 @@ void Code_Generator::emit_data_section(std::ostream& os)
                     },
                     [&](detail::Data_Pair const& s) {
                         os << detail::tabwidth(4) << s.first;
-                        os << " " << "\"" << s.second << "\"";
+                        if (s.first == Directive::asciz)
+                            os << " " << "\"" << s.second << "\"";
+                        else
+                            os << " " << s.second;
                         detail::newline(os);
                         if (index < data_.size() - 1)
                             detail::newline(os);
@@ -161,11 +164,9 @@ void emit(std::ostream& os,
     util::AST_Node const& ast)
 {
     // clang-format on
-    auto ita = ir::ITA{ symbols };
-    auto instructions = ita.build_from_definitions(ast);
-    auto table =
-        std::make_unique<ir::Table>(ir::Table{ symbols, instructions });
-    table->build_vector_definitions_from_globals(ita.globals_);
+    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
+    auto table = std::make_unique<ir::Table>(
+        ir::Table{ symbols, instructions, globals });
     table->build_from_ita_instructions();
     auto generator = Code_Generator{ std::move(table) };
     generator.emit(os);
@@ -292,7 +293,41 @@ void Code_Generator::build_data_section_instructions()
         string_storage.insert_or_assign(string, data_instruction.first);
         detail::insert(data_, data_instruction.second);
     }
-    // @TODO: construct the data section for global arrays
+    build_data_section_from_globals();
+}
+
+void Code_Generator::build_data_section_from_globals()
+{
+    for (auto const& global : table->globals.get_pointers()) {
+        credence_assert(table->vectors.contains(global));
+        auto& vector = table->vectors.at(global);
+        data_.emplace_back(global);
+        auto address = type::semantic::Address{ 0 };
+        for (auto const& item : vector->data) {
+            auto directive =
+                detail::get_data_directive_from_rvalue_type(item.second);
+            auto data = type::get_value_from_rvalue_data_type(item.second);
+            vector->set_address_offset(item.first, address);
+            address += detail::get_size_from_operand_size(
+                detail::get_operand_size_from_rvalue_datatype(item.second));
+            Directives instructions{};
+            m::match(directive)(
+                m::pattern | Directive::quad =
+                    [&] {
+                        credence_assert(string_storage.contains(data));
+                        instructions = detail::quad(string_storage.at(data));
+                    },
+                m::pattern | Directive::long_ =
+                    [&] { instructions = detail::long_(data); },
+                m::pattern | Directive::float_ =
+                    [&] { instructions = detail::float_(data); },
+                m::pattern | Directive::double_ =
+                    [&] { instructions = detail::double_(data); },
+                m::pattern | Directive::byte_ =
+                    [&] { instructions = detail::byte_(data); });
+            detail::insert(data_, instructions);
+        }
+    }
 }
 
 /**
@@ -392,26 +427,26 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
         };
 
     m::match(locl_lvalue)(
-        // Allocate a pointer
+        // Allocate a pointer on the stack
         m::pattern | m::app(type::is_dereference_expression, true) =
             [&] {
                 auto lvalue =
                     type::get_unary_rvalue_reference(std::get<1>(inst));
                 stack.set_address_from_address(lvalue);
             },
-        // Allocate a vector (array), including all of its elements
+        // Allocate a vector (array), including all of its elements on the stack
         m::pattern | m::app(is_vector, true) =
             [&] {
                 auto vector = table->vectors.at(locl_lvalue);
                 auto size = stack.get_stack_size_from_table_vector(*vector);
                 stack.set_address_from_size(locl_lvalue, size);
             },
-        // Allocate 1 byte for the al register
+        // Allocate 1 byte on the stack for the al register
         m::pattern | m::app(is_immediate_relational_expression, true) =
             [&] {
                 stack.set_address_from_accumulator(locl_lvalue, Register::al);
             },
-        // Allocate on the stack
+        // Allocate on the stack from the type size of the lvalue
         m::pattern | m::_ =
             [&] {
                 auto type = table->get_type_from_rvalue_data_type(locl_lvalue);
@@ -777,22 +812,9 @@ void Code_Generator::insert_from_global_vector_assignment(
     LValue const& rhs)
 {
 
-    auto lhs_lvalue = type::from_lvalue_offset(lhs);
-    auto rhs_lvalue = type::from_lvalue_offset(rhs);
-    Storage lhs_storage = m::match(lhs_lvalue)(
-        m::pattern | m::app(is_vector_offset, true) =
-            [&] {
-                auto offset = type::from_decay_offset(lhs);
-                return table->vectors.at(lhs_lvalue)->data.at(offset);
-            },
-        m::pattern | m::_ = [&] { return get_lvalue_address(lhs_lvalue); });
-    Storage rhs_storage = m::match(rhs_lvalue)(
-        m::pattern | m::app(is_vector_offset, true) =
-            [&] {
-                auto offset = type::from_decay_offset(rhs);
-                return table->vectors.at(lhs_lvalue)->data.at(offset);
-            },
-        m::pattern | m::_ = [&] { return get_lvalue_address(rhs_lvalue); });
+    auto lhs_storage = get_lvalue_address(lhs);
+    auto rhs_storage = get_lvalue_address(rhs);
+
     auto acc = get_accumulator_register_from_storage(lhs_storage);
     add_inst_as(instructions_, mov, acc, rhs_storage);
     add_inst_as(instructions_, mov, lhs_storage, acc);
@@ -1188,27 +1210,80 @@ detail::Operand_Size Code_Generator::get_operand_size_from_storage(
 }
 
 /**
+ * @brief Get the %rip offset of a vector index and operand size
+ *
+ *   Note: Out-of-range is a compiletime error
+ */
+Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
+    LValue const& lvalue,
+    RValue const& offset)
+{
+    auto vector = type::from_lvalue_offset(lvalue);
+    if (!is_vector_offset(lvalue))
+        return std::make_pair(
+            0UL,
+            detail::get_operand_size_from_rvalue_datatype(
+                table->vectors.at(vector)->data.at("0")));
+    if (!table->hoisted_symbols.has_key(offset) and
+        not value::is_integer_string(offset))
+        table->table_compiletime_error(
+            fmt::format("Invalid index '{} on vector lvalue", offset), vector);
+    if (table->hoisted_symbols.has_key(offset)) {
+        auto index = table->get_rvalue_data_type_at_pointer(offset);
+        auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
+        if (!table->vectors.at(vector)->data.contains(key))
+            table->table_compiletime_error(
+                fmt::format(
+                    "Invalid out-of-range index '{}' on vector lvalue", key),
+                vector);
+        return std::make_pair(
+            table->vectors.at(vector)->offset.at(key),
+            detail::get_operand_size_from_rvalue_datatype(
+                table->vectors.at(vector)->data.at(key)));
+    } else
+        return std::make_pair(
+            0UL,
+            detail::get_operand_size_from_rvalue_datatype(
+                table->vectors.at(vector)->data.at("0")));
+}
+
+/**
  * @brief Get the storage address of an lvalue
  *
- *  Note: including vectors (array) indices
+ *  Note: including vector (array) and/or global vector indices
  */
 Code_Generator::Storage Code_Generator::get_lvalue_address(LValue const& lvalue)
 {
+    auto lhs = type::from_lvalue_offset(lvalue);
+    auto offset = type::from_decay_offset(lvalue);
+
     if (type::is_dereference_expression(lvalue)) {
         auto storage =
             stack.get(type::get_unary_rvalue_reference(lvalue)).first;
         add_inst_as(instructions_, mov, Register::rax, storage);
         set_instruction_flag(detail::flag::Indirect);
         return Register::rax;
+    } else if (is_global_vector(lhs)) {
+        auto vector = table->vectors.at(lhs);
+        if (table->globals.is_pointer(lhs)) {
+            auto rip_storage = get_rip_offset_address(lvalue, offset);
+            auto prefix = storage_prefix_from_operand_size(rip_storage.second);
+            auto rip_arithmetic =
+                rip_storage.first == 0UL
+                    ? lhs
+                    : fmt::format("{}+{}", lhs, rip_storage.first);
+            rip_arithmetic =
+                fmt::format("{} [rip + {}]", prefix, rip_arithmetic);
+
+            return detail::make_array_immediate(rip_arithmetic);
+        }
     } else if (is_vector_offset(lvalue)) {
-        auto lhs = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_decay_offset(lvalue);
+        credence_assert(table->vectors.contains(lhs));
         auto vector = table->vectors.at(lhs);
         return stack.get_stack_offset_from_table_vector_index(
             lhs, offset, *vector);
-    } else {
-        return stack.get(lvalue).first;
     }
+    return stack.get(lvalue).first;
 }
 
 /**

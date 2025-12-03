@@ -54,20 +54,27 @@ namespace detail {
  */
 struct Vector
 {
-    using Entry = std::pair<std::string, type::Data_Type>;
-    using Storage = Ordered_Map<std::string, type::Data_Type>;
+    using Label = type::semantic::Label;
+    using Address = type::semantic::Address;
+    using Size = type::semantic::Size;
+    using Entry = std::pair<Label, type::Data_Type>;
+    using Storage = Ordered_Map<Label, type::Data_Type>;
+    using Offset = Ordered_Map<Label, Address>;
     Vector() = delete;
-    explicit Vector(
-        type::semantic::Label label,
-        type::semantic::Address size_of)
+    explicit Vector(Label label, Address size_of)
         : size(size_of)
         , symbol(std::move(label))
     {
     }
     Storage data{};
+    Offset offset{};
+    constexpr void set_address_offset(Label const& index, Address address)
+    {
+        offset.insert(index, address);
+    }
     int decay_index{ 0 };
     std::size_t size{ 0 };
-    type::semantic::Label symbol{};
+    Label symbol{};
     static constexpr std::size_t max_size{ 1000 };
 };
 
@@ -124,6 +131,15 @@ class Table
         , hoisted_symbols(hoisted_symbols)
     {
     }
+    explicit Table(
+        ITA::Node const& hoisted_symbols,
+        Instructions& instructions,
+        Symbol_Table<> globals)
+        : instructions(instructions)
+        , hoisted_symbols(hoisted_symbols)
+        , globals(std::move(globals))
+    {
+    }
 
     using Table_PTR = std::unique_ptr<Table>;
 
@@ -148,7 +164,7 @@ class Table
     Instructions build_from_ita_instructions();
     bool stack_frame_contains_ita_instruction(Label name, Instruction inst);
     void build_symbols_from_vector_lvalues();
-    void build_vector_definitions_from_globals(Symbol_Table<> symbols);
+    void build_vector_definitions_from_globals();
     RValue from_temporary_lvalue(LValue const& lvalue);
     static Table_PTR build_from_ast(
         ITA::Node const& symbols,
@@ -210,7 +226,7 @@ class Table
     {
         if (std::ranges::find(type::integral_unary_types, type) ==
             type::integral_unary_types.end())
-            table_error(
+            table_compiletime_error(
                 fmt::format(
                     "invalid numeric unary expression on lvalue, lvalue "
                     "type "
@@ -341,8 +357,8 @@ class Table
         return util::contains(lvalue, "[") and util::contains(lvalue, "]");
     };
 
-  private:
-    void table_error(
+  public:
+    void table_compiletime_error(
         std::string_view message,
         type::RValue_Reference symbol,
         std::source_location const& location = std::source_location::current());
@@ -350,10 +366,8 @@ class Table
   public:
     Instructions instructions{};
 
-  private:
-    ITA::Node hoisted_symbols;
-
   public:
+    ITA::Node hoisted_symbols;
     Symbol_Table<> globals{};
     detail::Function::Address_Table address_table{};
     type::Stack stack{};

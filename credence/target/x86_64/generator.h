@@ -179,6 +179,7 @@ class Code_Generator final
 
   private:
     using Register = detail::Register;
+    using Directive = detail::Directive;
     using Mnemonic = detail::Mnemonic;
 
   private:
@@ -205,6 +206,7 @@ class Code_Generator final
   private:
     void build_text_section_instructions();
     void build_data_section_instructions();
+    void build_data_section_from_globals();
 
   public:
     const Storage EMPTY_STORAGE = std::monostate{};
@@ -314,11 +316,16 @@ class Code_Generator final
     }
     // clang-format on
   private:
+    using Vector_Entry_Pair =
+        std::pair<ir::detail::Vector::Address, detail::Operand_Size>;
+    Vector_Entry_Pair get_rip_offset_address(
+        LValue const& lvalue,
+        RValue const& offset);
     Storage get_lvalue_address(LValue const& lvalue);
 
   private:
     /**
-     * Short-form Lambda helpers for fast pattern matching
+     * Short-form Lambda helpers for matchit predicate pattern matching
      */
     using Operand_Lambda = std::function<bool(RValue)>;
     Operand_Lambda is_immediate = [&](RValue const& rvalue) {
@@ -334,8 +341,9 @@ class Code_Generator final
         return table->vectors.contains(type::from_lvalue_offset(rvalue));
     };
     Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
-        return table->vectors.contains(type::from_lvalue_offset(rvalue)) and
-               table->globals.is_defined(rvalue);
+        auto rvalue_reference = type::from_lvalue_offset(rvalue);
+        return table->vectors.contains(rvalue_reference) and
+               table->globals.is_pointer(rvalue_reference);
     };
     Operand_Lambda is_vector_offset = [&](RValue const& rvalue) {
         return util::contains(rvalue, "[") and util::contains(rvalue, "]");

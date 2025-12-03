@@ -1,0 +1,166 @@
+[
+  {
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "mess": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 110,
+      "line": 11,
+      "size": 3,
+      "start_pos": 106,
+      "type": "vector_definition"
+    },
+    "unit": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 101,
+      "line": 9,
+      "start_pos": 97,
+      "type": "vector_definition"
+    },
+    "x": {
+      "column": 8,
+      "end_column": 9,
+      "end_pos": 17,
+      "line": 2,
+      "start_pos": 16,
+      "type": "lvalue"
+    },
+    "y": {
+      "column": 11,
+      "end_column": 12,
+      "end_pos": 20,
+      "line": 2,
+      "start_pos": 19,
+      "type": "lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "y"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "unit"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "mess"
+                }
+              ],
+              "node": "statement",
+              "root": "extrn"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "lvalue",
+                      "root": "unit"
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "y"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "x"
+                      },
+                      "node": "vector_lvalue",
+                      "root": "mess"
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      },
+      {
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "number_literal",
+            "root": 1
+          }
+        ],
+        "root": "unit"
+      },
+      {
+        "left": {
+          "node": "number_literal",
+          "root": 3
+        },
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "string_literal",
+            "root": "\"too bad\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"tough luck\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"that sucks\""
+          }
+        ],
+        "root": "mess"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

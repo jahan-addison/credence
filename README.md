@@ -61,8 +61,74 @@ Usage:
   * Compliance with the Application Binary Interface (ABI) for System V, and Microsoft x64 Calling Convention
   * SIMD memory alignment requirements
 
+#### Example
+
+**Note**: access of vector (array) objects is type-safe at compiletime
+
+```C
+main() {
+  auto x, y;
+  extrn unit, mess;
+  x = unit;
+  y = mess[x];
+}
+
+unit 1;
+
+mess [3] "too bad", "tough luck", "that sucks";
+```
+
+#### Produces:
+
+```asm
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+mess:
+    .quad ._L_str2__
+
+    .quad ._L_str3__
+
+    .quad ._L_str1__
+
+unit:
+    .long 1
+
+.text
+    .global main
+
+main:
+    push rbp
+    mov rbp, rsp
+    mov eax, dword ptr [rip + unit]
+    mov dword ptr [rbp - 4], eax
+    mov rax, qword ptr [rip + mess+8]
+    mov qword ptr [rbp - 12], rax
+_L1:
+    xor eax, eax
+    pop rbp
+    ret
+```
 
 ---
+
+If `unit` is set to `5`, you get the following error:
+
+<img src="docs/images/credence-out-of-range.png" width="600px" alt="error"> </img>
+
+
+
+## Intermediate Representation
 
 *Note*: The default compile target is currently the IR, [ITA](credence/ir/README.md):
 
@@ -104,7 +170,7 @@ mess [3] "too bad", "tough luck", "that's the breaks";
 
 ```
 
-ITA:
+#### Produces:
 
 
 ```asm
