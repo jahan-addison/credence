@@ -41,9 +41,9 @@
  *
  */
 
-#define mn(n) Mnemonic::n
-#define rr(n) Register::n
-#define dd(n) Directive::n
+#define mn(n) detail::Mnemonic::n
+#define rr(n) detail::Register::n
+#define dd(n) detail::Directive::n
 
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
@@ -86,11 +86,15 @@
 #define add_inst_llrs(inst, op, lhs, rhs)    \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
 
-// Add an instruction with with no operands (.e.g 'ret')
+// Add an instruction with a mnemonic shorthand, no operands (.e.g 'ret')
 #define add_inst_e(inst, op)                 \
     inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
 
-// Add an instruction with a mnemonic with 1 operand (e.g. idiv)
+// Add an instruction with a mnemonic, no operands (.e.g 'ret')
+#define add_inst_ee(inst, op)                 \
+    inst.emplace_back(detail::Instruction{op,detail::O_NUL, detail::O_NUL})
+
+// Add an instruction with a mnemonic with no operand (e.g. idiv)
 #define add_inst_d(inst, op, dest)           \
     inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
 

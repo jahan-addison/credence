@@ -16,6 +16,7 @@
 
 #include "generator.h"
 #include "instructions.h"           // for Operand_Size, add_inst_as, Register
+#include "syscall.h"                // for syscall
 #include <algorithm>                // for find_if, __find_if
 #include <credence/error.h>         // for credence_assert, assert_nequal_impl
 #include <credence/ir/ita.h>        // for Instruction, ITA, get_rvalue_fro...
@@ -332,6 +333,8 @@ void Code_Generator::build_data_section_from_globals()
 
 /**
  * @brief Translate from the IR Instruction::FUNC_START
+ *
+ *    Generates code for the Function Prologue
  */
 void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
 {
@@ -341,6 +344,7 @@ void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
     set_stack_frame_from_table(name);
     auto frame = table->functions[current_frame];
     auto stack_alloc = util::align_up_to_16(frame->allocation);
+    // function prologue
     add_inst_ld(instructions_, push, rbp);
     add_inst_llrs(instructions_, mov_, rbp, rsp);
     if (table->stack_frame_contains_ita_instruction(
@@ -1018,42 +1022,18 @@ void Code_Generator::from_return_ita(Storage const& dest)
 
 /**
  * @brief Translate from the IR Instruction::LEAVE
+ *
+ *  Generates code for the Function Epilogue
  */
 void Code_Generator::from_leave_ita()
 {
-    if (current_frame != "main") {
+    if (current_frame == "main") {
+        syscall::common::exit_syscall(instructions_, 0);
+    } else {
+        // function epilogue
         add_inst_llrs(instructions_, xor_, eax, eax);
         add_inst_ld(instructions_, pop, rbp);
         add_inst_e(instructions_, ret);
-    } else {
-#if defined(CREDENCE_TEST) || defined(__linux__)
-        /**
-         * mov     rax, 60  ; Syscall: 'exit'
-         * mov     rdi, 0   ; Arg 1: Exit status 0 (success)
-         * syscall          ; ENDS THE PROGRAM
-         */
-        auto exit_address = detail::make_numeric_immediate(60);
-        auto status_code = detail::make_numeric_immediate(0);
-        add_inst_ll(instructions_, mov, rax, exit_address);
-        add_inst_ll(instructions_, mov, rdi, status_code);
-        add_inst_e(instructions_, syscall);
-#elif defined(__APPLE__)
-        /**
-         * @brief
-         *  ; System Call Number for Exit: 0x2000001
-         *   mov     rax, 0x2000001
-         *
-          *  ; Exit Status Code (0 for success)
-          8 mov     rdi, 0
-         */
-        auto exit_address = detail::make_numeric_immediate(0x2000001);
-        auto status_code = detail::make_numeric_immediate(0);
-        add_inst_ll(instructions_, mov, rax, exit_address);
-        add_inst_ll(instructions_, mov, rdi, status_code);
-        add_inst_e(instructions_, syscall);
-#else
-        credence_error("Operating system not supported");
-#endif
     }
 }
 
