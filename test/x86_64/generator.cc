@@ -55,9 +55,9 @@ TEST_CASE("target/x86_64: fixture: math_constant.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 4], 1
@@ -68,9 +68,9 @@ main:
     imul eax, 10
     mov dword ptr [rbp - 4], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant", expected);
@@ -84,9 +84,9 @@ TEST_CASE("target/x86_64: fixture: math_constant_2.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 4
@@ -96,9 +96,9 @@ main:
     sub eax, dword ptr [rbp - 4]
     mov dword ptr [rbp - 8], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_2", expected);
@@ -112,9 +112,9 @@ TEST_CASE("target/x86_64: fixture: math_constant_4.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 4], 20
@@ -141,9 +141,9 @@ main:
     mov eax, 10
     mov dword ptr [rbp - 12], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_4", expected);
@@ -157,9 +157,9 @@ TEST_CASE("target/x86_64: fixture: math_constant_5.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -170,9 +170,9 @@ main:
     dec dword ptr [rbp - 8]
     inc dword ptr [rbp - 8]
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_5", expected);
@@ -186,9 +186,9 @@ TEST_CASE("target/x86_64: fixture: math_constant_6.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -201,9 +201,9 @@ main:
     dec dword ptr [rbp - 8]
     inc dword ptr [rbp - 8]
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_6", expected);
@@ -217,9 +217,9 @@ TEST_CASE("target/x86_64: fixture: math_constant_7.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -237,9 +237,9 @@ main:
     mov eax, dword ptr [rbp - 4]
     mov dword ptr [rbp - 8], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("math_constant_7", expected);
@@ -253,17 +253,17 @@ TEST_CASE("target/x86_64: fixture: relation_constant.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov al, 1
     mov byte ptr [rbp - 1], al
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("relation_constant", expected);
@@ -277,9 +277,9 @@ TEST_CASE("target/x86_64: fixture: bitwise_constant_1.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -296,9 +296,9 @@ main:
     and eax, edi
     mov dword ptr [rbp - 12], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_constant_1", expected);
@@ -312,9 +312,9 @@ TEST_CASE("target/x86_64: fixture: bitwise_2.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -334,9 +334,9 @@ main:
     and eax, edi
     mov dword ptr [rbp - 12], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_2", expected);
@@ -350,9 +350,9 @@ TEST_CASE("target/x86_64: fixture: bitwise_3.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -372,9 +372,9 @@ main:
     and eax, edi
     mov dword ptr [rbp - 12], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_3", expected);
@@ -388,9 +388,9 @@ TEST_CASE("target/x86_64: fixture: bitwise_4.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, 10
@@ -407,9 +407,9 @@ main:
     and eax, edi
     mov dword ptr [rbp - 12], eax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("bitwise_4", expected);
@@ -423,9 +423,9 @@ TEST_CASE("target/x86_64: fixture: pointers_1.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 5
@@ -433,9 +433,9 @@ main:
     mov qword ptr [rbp - 8], rax
     mov dword ptr [rbp - 16], 10
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_1", expected);
@@ -449,9 +449,9 @@ TEST_CASE("target/x86_64: fixture: pointers_2.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 4], 10
@@ -464,9 +464,9 @@ main:
     lea rax, [rbp - 16]
     mov qword ptr [rbp - 32], rax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_2", expected);
@@ -480,9 +480,9 @@ TEST_CASE("target/x86_64: fixture: pointers_3.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 100
@@ -491,9 +491,9 @@ main:
     mov rax, qword ptr [rbp - 8]
     mov dword ptr [rax], 10
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_3", expected);
@@ -507,9 +507,9 @@ TEST_CASE("target/x86_64: fixture: pointers_3.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 100
@@ -528,9 +528,9 @@ main:
     mov dword ptr [rax], edi
     mov dword ptr [rbp - 12], 5
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_4", expected);
@@ -550,9 +550,9 @@ TEST_CASE("target/x86_64: fixture: string_1.b")
     .asciz "world"
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     lea rax, [rip + ._L_str1__]
@@ -562,9 +562,9 @@ main:
     lea rax, [rip + ._L_str1__]
     mov qword ptr [rbp - 24], rax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_1", expected);
@@ -581,9 +581,9 @@ TEST_CASE("target/x86_64: fixture: string_2.b")
     .asciz "hello world"
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     lea rax, [rip + ._L_str1__]
@@ -591,9 +591,9 @@ main:
     lea rax, [rbp - 16]
     mov qword ptr [rbp - 8], rax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_2", expected);
@@ -607,9 +607,9 @@ TEST_CASE("target/x86_64: fixture: vector_1.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 0
@@ -617,9 +617,9 @@ main:
     mov dword ptr [rbp - 4], 2
     mov dword ptr [rbp - 16], 10
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_1", expected);
@@ -633,9 +633,9 @@ TEST_CASE("target/x86_64: fixture: vector_2.b")
 .data
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 32], 0
@@ -645,9 +645,9 @@ main:
     mov dword ptr [rbp - 16], 4
     mov dword ptr [rbp - 36], 10
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_2", expected);
@@ -667,9 +667,9 @@ TEST_CASE("target/x86_64: fixture: vector_3.b")
     .asciz "good morning"
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 32], 0
@@ -681,9 +681,9 @@ main:
     mov dword ptr [rbp - 12], rax
     mov dword ptr [rbp - 36], 10
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_3", expected);
@@ -703,9 +703,9 @@ TEST_CASE("target/x86_64: fixture: vector_3.b")
     .asciz "good morning"
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 32], 0
@@ -717,9 +717,9 @@ main:
     mov dword ptr [rbp - 12], rax
     mov dword ptr [rbp - 36], 10
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_3", expected);
@@ -754,9 +754,9 @@ unit:
     .long 1
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, dword ptr [rip + unit]
@@ -764,9 +764,9 @@ main:
     mov rax, qword ptr [rip + mess+8]
     mov qword ptr [rbp - 12], rax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("globals_1", expected);

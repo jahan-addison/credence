@@ -145,7 +145,7 @@ void Code_Generator::emit_text_section(std::ostream& os)
             os << std::endl;
         },
         [&](type::semantic::Label const& s) {
-            os << s << ":" << std::endl;
+            os << detail::make_label(s) << ":" << std::endl;
         } },
         inst);
         // clang-format on
@@ -1021,10 +1021,40 @@ void Code_Generator::from_return_ita(Storage const& dest)
  */
 void Code_Generator::from_leave_ita()
 {
-    if (current_frame == "main")
+    if (current_frame != "main") {
         add_inst_llrs(instructions_, xor_, eax, eax);
-    add_inst_ld(instructions_, pop, rbp);
-    add_inst_e(instructions_, ret);
+        add_inst_ld(instructions_, pop, rbp);
+        add_inst_e(instructions_, ret);
+    } else {
+#if defined(CREDENCE_TEST) || defined(__linux__)
+        /**
+         * mov     rax, 60  ; Syscall: 'exit'
+         * mov     rdi, 0   ; Arg 1: Exit status 0 (success)
+         * syscall          ; ENDS THE PROGRAM
+         */
+        auto exit_address = detail::make_numeric_immediate(60);
+        auto status_code = detail::make_numeric_immediate(0);
+        add_inst_ll(instructions_, mov, rax, exit_address);
+        add_inst_ll(instructions_, mov, rdi, status_code);
+        add_inst_e(instructions_, syscall);
+#elif defined(__APPLE__)
+        /**
+         * @brief
+         *  ; System Call Number for Exit: 0x2000001
+         *   mov     rax, 0x2000001
+         *
+          *  ; Exit Status Code (0 for success)
+          8 mov     rdi, 0
+         */
+        auto exit_address = detail::make_numeric_immediate(0x2000001);
+        auto status_code = detail::make_numeric_immediate(0);
+        add_inst_ll(instructions_, mov, rax, exit_address);
+        add_inst_ll(instructions_, mov, rdi, status_code);
+        add_inst_e(instructions_, syscall);
+#else
+        credence_error("Operating system not supported");
+#endif
+    }
 }
 
 /**

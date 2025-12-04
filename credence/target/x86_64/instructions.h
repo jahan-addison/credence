@@ -66,30 +66,39 @@
 #define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name)    \
     detail::Directives name(type::semantic::RValue const& rvalue)
 
-#define add_inst_as(inst, op, lhs, rhs)      \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
-
+// Add an instruction
 #define add_inst(inst, op, lhs, rhs)         \
     inst.emplace_back(detail::Instruction{op, lhs, rhs})
 
+// Add an instruction with a mnemonic shorthand
+#define add_inst_as(inst, op, lhs, rhs)      \
+    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
+
+// Add an instruction with a mnemonic and destination shorthand
 #define add_inst_ll(inst, op, lhs, rhs)      \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, rhs})
 
+// Add an instruction with a mnemonic and source operand shorthand
 #define add_inst_llr(inst, op, lhs, rhs)     \
     inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, Register::rhs})
 
+// Add an instruction with a mnemonic, destination, and source operand shorthand
 #define add_inst_llrs(inst, op, lhs, rhs)    \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
 
+// Add an instruction with with no operands (.e.g 'ret')
 #define add_inst_e(inst, op)                 \
     inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
 
+// Add an instruction with a mnemonic with 1 operand (e.g. idiv)
 #define add_inst_d(inst, op, dest)           \
     inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
 
+// Add an instruction with a mnemonic with 1 operand and shorthand
 #define add_inst_ld(inst, op, dest)          \
     inst.emplace_back(detail::Instruction{Mnemonic::op,Register::dest, detail::O_NUL})
 
+// Add an instruction with a mnemonic with 1 operand (e.g. idiv)
 #define add_inst_ls(inst, op, dest)          \
     inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
 
@@ -218,7 +227,7 @@ enum class Mnemonic
     leave, mov, push, pop, call,
     cmp, sete, setne, setl, setg,
     setle, setge, mov_, and_, or_,
-    xor_, not_, shl, shr
+    xor_, not_, shl, shr, syscall
 };
 
 enum class Directive
@@ -373,8 +382,8 @@ constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
     switch (d) {
-        // the special ".global main" directive
-        DIRECTIVE_OSTREAM_2ARY(start, main);
+        // the special ".global _start" directive
+        DIRECTIVE_OSTREAM_2ARY(start, _start);
 
         DIRECTIVE_OSTREAM(asciz);
         DIRECTIVE_OSTREAM(global);
@@ -519,6 +528,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         MNEMONIC_OSTREAM(or_);
         MNEMONIC_OSTREAM(shl);
         MNEMONIC_OSTREAM(shr);
+        MNEMONIC_OSTREAM(syscall);
     }
     return os;
 }
@@ -565,6 +575,14 @@ constexpr std::string tabwidth(unsigned int t)
     for (; t > 0; t--)
         tab += " ";
     return tab;
+}
+
+constexpr std::string make_label(type::semantic::Label const& label)
+{
+    if (label == "main")
+        return "_start";
+    else
+        return label;
 }
 
 Immediate get_result_from_trivial_integral_expression(

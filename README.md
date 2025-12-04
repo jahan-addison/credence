@@ -58,7 +58,7 @@ Usage:
 ## Targets
 
 ### x86-64:
-  * Compliance with the Application Binary Interface (ABI) for System V, and Microsoft x64 Calling Convention
+  * Compliance with the Application Binary Interface (ABI) for System V
   * SIMD memory alignment requirements
 
 #### Example
@@ -78,7 +78,7 @@ unit 1;
 mess [3] "too bad", "tough luck", "that sucks";
 ```
 
-#### Produces:
+#### Linux x64:
 
 ```asm
 .intel_syntax noprefix
@@ -105,9 +105,9 @@ unit:
     .long 1
 
 .text
-    .global main
+    .global _start
 
-main:
+_start:
     push rbp
     mov rbp, rsp
     mov eax, dword ptr [rip + unit]
@@ -115,9 +115,9 @@ main:
     mov rax, qword ptr [rip + mess+8]
     mov qword ptr [rbp - 12], rax
 _L1:
-    xor eax, eax
-    pop rbp
-    ret
+    mov rax, 60
+    mov rdi, 0
+    syscall
 ```
 
 ---
@@ -264,7 +264,7 @@ make test
 Note: `$PYTHONHOME` must be set to an installation that has [chakram](https://github.com/jahan-addison/chakram) installed.
 
 
-### Ubuntu
+### Linux
 
 ```bash
 sudo apt-get update
@@ -284,16 +284,6 @@ brew install coreutils include-what-you-use llvm@20 cmake python3 pyenv
 # Inside the repository:
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake --build build
-```
-
-### Windows (mingw/msys)
-
-```bash
-pacman -S git wget mingw-w64-x86_64-clang mingw-w64-x86_64-gcc mingw-w64-x86_64-ninja mingw-w64-x86_64-cmake make mingw-w64-x86_64-python3 autoconf libtool
-# Inside the repository:
-# Note: iwyu and the -fsanitizers do not work in mingw
-cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-ninja
 ```
 
 #### Installing chakram
