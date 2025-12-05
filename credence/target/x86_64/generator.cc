@@ -15,29 +15,28 @@
  */
 
 #include "generator.h"
-#include "instructions.h"           // for Operand_Size, add_inst_as, Register
-#include "syscall.h"                // for syscall
-#include <algorithm>                // for find_if, __find_if
-#include <credence/error.h>         // for credence_assert, assert_nequal_impl
-#include <credence/ir/ita.h>        // for Instruction, ITA, get_rvalue_fro...
-#include <credence/ir/table.h>      // for Table, Function
-#include <credence/map.h>           // for Ordered_Map
-#include <credence/target/target.h> // for align_up_to_16, align_up_to_8
-#include <credence/types.h>         // for is_unary_expression, get_rvalue_...
-#include <credence/util.h>          // for overload, AST_Node, is_variant
-#include <cstddef>                  // for size_t
-#include <deque>                    // for deque
-#include <fmt/compile.h>            // for format, operator""_cf
-#include <fmt/format.h>             // for format
-#include <matchit.h>                // for pattern, Id, App, PatternHelper
-#include <memory>                   // for shared_ptr, make_unique, unique_ptr
-#include <numeric>                  // for accumulate
-#include <ostream>                  // for ostream, stringstream
-#include <sstream>                  // for basic_stringstream
-#include <string_view>              // for basic_string_view
-#include <tuple>                    // for get, tuple
-#include <utility>                  // for pair, get, make_pair, move
-#include <variant>                  // for variant, visit, get, monostate
+#include "instructions.h"      // for Operand_Size, add_inst_as, Register
+#include "lib.h"               // for STDLIB_FUNCTIONS
+#include "syscall.h"           // for syscall
+#include <algorithm>           // for find_if, __find_if
+#include <credence/error.h>    // for credence_assert, assert_nequal_impl
+#include <credence/ir/ita.h>   // for Instruction, ITA, get_rvalue_fro...
+#include <credence/ir/table.h> // for Table, Function
+#include <credence/map.h>      // for Ordered_Map
+#include <credence/types.h>    // for is_unary_expression, get_rvalue_...
+#include <credence/util.h>     // for overload, AST_Node, is_variant
+#include <cstddef>             // for size_t
+#include <deque>               // for deque
+#include <fmt/compile.h>       // for format, operator""_cf
+#include <fmt/format.h>        // for format
+#include <matchit.h>           // for pattern, Id, App, PatternHelper
+#include <memory>              // for shared_ptr, make_unique, unique_ptr
+#include <numeric>             // for accumulate
+#include <ostream>             // for ostream, stringstream
+#include <string_view>         // for basic_string_view
+#include <tuple>               // for get, tuple
+#include <utility>             // for pair, get, make_pair, move
+#include <variant>             // for variant, visit, get, monostate
 
 #define ir_i(name) credence::ir::Instruction::name
 
@@ -153,18 +152,13 @@ void Code_Generator::emit_text_section(std::ostream& os)
     }
 }
 
-// clang-format off
-
 /**
- * @brief Code generation factory
+ * @brief Code Generator factory
  *
  * Construct and emit a complete x86-64 source program from an AST and symbols
  */
-void emit(std::ostream& os,
-    util::AST_Node const& symbols,
-    util::AST_Node const& ast)
+void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
 {
-    // clang-format on
     auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
     auto table = std::make_unique<ir::Table>(
         ir::Table{ symbols, instructions, globals });

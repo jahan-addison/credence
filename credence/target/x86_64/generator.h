@@ -239,7 +239,6 @@ class Code_Generator final
     };
 
   private:
-    detail::Stack stack{};
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
     constexpr Register get_second_register_from_size(
@@ -398,6 +397,7 @@ class Code_Generator final
     }
 
   private:
+    detail::Stack stack{};
     std::string current_frame{};
     std::size_t ita_index{ 0 };
     std::size_t constant_index{ 0 };
@@ -417,9 +417,6 @@ class Code_Generator final
     Directives data_{};
 };
 
-void emit(
-    std::ostream& os,
-    util::AST_Node const& symbols,
-    util::AST_Node const& ast);
+void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
 
 } // namespace x86_64

@@ -1170,15 +1170,14 @@ inline void Table::table_compiletime_error(
         hoisted_symbols);
 }
 
+// clang-format off
 /**
  * @brief Emit ita instructions type and vector boundary checking an
  * and to an std::ostream Passes the global symbols from the ITA object
  */
-void emit(
-    std::ostream& os,
-    util::AST_Node const& symbols,
-    util::AST_Node const& ast)
+void emit(std::ostream& os, util::AST_Node const& symbols, util::AST_Node const& ast)
 {
+    // clang-format on
     auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
     auto table = ir::Table{ symbols, instructions, globals };
     table.build_from_ita_instructions();

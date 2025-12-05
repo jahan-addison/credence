@@ -1,8 +1,8 @@
 main() {
   auto x;
-  putchar(x);
+  print(x);
 }
 
-putchar(a) {
+print(a) {
 
 }

@@ -24,6 +24,7 @@
 #include <stdint.h>         // for uint32_t
 #include <string_view>      // for basic_string_view, string_view
 #include <utility>          // for pair
+#include <vector>           // for vector
 
 namespace credence::target::x86_64::syscall {
 
@@ -34,12 +35,13 @@ using syscall_list_t = std::map<std::string_view, syscall_t>;
 using syscall_arguments_t = std::initializer_list<detail::Storage>;
 
 namespace common {
+
 // cppcheck-suppress constParameterReference
 void exit_syscall(Instructions& instructions, int exit_status = 0);
 
 } // namespace common
 
-namespace linux {
+namespace linux_ns {
 
 /**
  * @brief
@@ -440,7 +442,7 @@ void make_syscall(
 
 } // namespace linux
 
-namespace bsd {
+namespace bsd_ns {
 
 constexpr uint32_t SYSCALL_CLASS_UNIX = 0x2000000;
 
@@ -505,5 +507,22 @@ void make_syscall(
     syscall_arguments_t const& arguments);
 
 } // namespace bsd
+
+namespace common {
+
+std::vector<std::string> get_platform_syscall_symbols();
+
+inline syscall::syscall_list_t get_syscall_list()
+{
+#if defined(CREDENCE_TEST) || defined(__linux__)
+    return syscall::linux_ns::syscall_list;
+#elif defined(__APPLE__) || defined(__bsdi__)
+    return syscall::bsd_ns::syscall_list;
+#else
+    credence_error("Operating system not supported");
+    return {};
+#endif
+}
+} // namespace common
 
 }

@@ -67,7 +67,7 @@ jobs:
     - name: build
       run: |
         # Make with -fsanitize
-        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DIWYU=ON -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
     - name: test
       run: |

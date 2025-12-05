@@ -134,15 +134,19 @@ int main(int argc, const char* argv[])
                 m::or_(sv("ast"), sv("syntax")) = [&] { return "bast"; },
             m::pattern | m::_ = [&] { return "bo"; });
 
+        // clang-format off
         m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "x86_64" =
                 [&]() {
-                    // clang-format off
+                credence::target::add_stdlib_functions_to_symbols(symbols);
                 credence::target::x86_64::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "ir" =
-                [&]() { credence::ir::emit(out_to, symbols, ast["root"]); },
+                [&]() {
+                    credence::target::add_stdlib_functions_to_symbols(symbols);
+                    credence::ir::emit(out_to, symbols, ast["root"]);
+                },
             m::pattern | "ast" =
                 [&]() {
                     if (result["debug"].count()) {

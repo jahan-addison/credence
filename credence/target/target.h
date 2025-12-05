@@ -18,10 +18,13 @@
 
 #include <credence/ir/table.h> // for Table
 #include <credence/types.h>    // for LValue, RValue, Data_Type, ...
+#include <credence/util.h>     // for AST_Node
 #include <ostream>             // for ostream
 #include <utility>             // for move
 
 namespace credence::target {
+
+void add_stdlib_functions_to_symbols(util::AST_Node& symbols);
 
 /**
  * @brief

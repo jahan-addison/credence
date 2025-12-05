@@ -1,9 +1,26 @@
+/*
+ * Copyright (c) Jahan Addison
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "syscall.h"
 #include "instructions.h"   // for Register, make_numeric_immediate, Mnemonic
 #include <credence/error.h> // for assert_equal_impl, credence_assert, cred...
 #include <deque>            // for deque
 #include <string>           // for basic_string
 #include <variant>          // for variant
+#include <vector>           // for vector
 
 namespace credence::target::x86_64::syscall {
 
@@ -13,17 +30,29 @@ void exit_syscall(Instructions& instructions, int exit_status)
 {
     auto immediate = detail::make_numeric_immediate(exit_status);
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall::linux::make_syscall(instructions, "exit", { immediate });
+    syscall::linux_ns::make_syscall(instructions, "exit", { immediate });
 #elif defined(__APPLE__) || defined(__bsdi__)
-    syscall::bsd::make_syscall(instructions, "exit", { immediate });
+    syscall::bsd_ns::make_syscall(instructions, "exit", { immediate });
 #else
     credence_error("Operating system not supported");
 #endif
 }
 
+std::vector<std::string> get_platform_syscall_symbols()
+{
+    std::vector<std::string> symbols{};
+    auto syscall_list = common::get_syscall_list();
+    // cppcheck-suppress[useStlAlgorithm,knownEmptyContainer]
+    for (auto const& syscall : syscall_list) {
+        // cppcheck-suppress[useStlAlgorithm,knownEmptyContainer]
+        symbols.emplace_back(syscall.first.data());
+    }
+    return symbols;
+}
+
 } // namespace common
 
-namespace linux {
+namespace linux_ns {
 
 void make_syscall(
     Instructions& instructions,
@@ -52,7 +81,7 @@ void make_syscall(
 }
 } // namespace linux
 
-namespace bsd {
+namespace bsd_ns {
 
 void make_syscall(
     Instructions& instructions,
@@ -80,6 +109,7 @@ void make_syscall(
     }
     add_inst_ee(instructions, detail::Mnemonic::syscall);
 }
+
 } // namespace bsd
 
 }

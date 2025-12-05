@@ -16,16 +16,17 @@
 
 #pragma once
 
-#include <algorithm>   // for all_of
-#include <cctype>      // for isdigit, toupper
-#include <cstddef>     // for size_t
-#include <cstdint>     // for uint_least32_t, uint32_t
-#include <filesystem>  // for filesystem
-#include <fstream>     // for ostringstream
-#include <string>      // for basic_string, string, to_string
-#include <string_view> // for basic_string_view, string_view
-#include <tuple>       // for apply, tuple
-#include <type_traits> // for is_same_v, is_convertible_v
+#include <algorithm>        // for all_of
+#include <cctype>           // for isdigit, toupper
+#include <cstddef>          // for size_t
+#include <cstdint>          // for uint_least32_t, uint32_t
+#include <filesystem>       // for filesystem
+#include <fstream>          // for ostringstream
+#include <initializer_list> // for initializer_list
+#include <string>           // for basic_string, string, to_string
+#include <string_view>      // for basic_string_view, string_view
+#include <tuple>            // for apply, tuple
+#include <type_traits>      // for is_same_v, is_convertible_v
 
 namespace json {
 class JSON;
@@ -251,6 +252,18 @@ void write_to_from_string_stream(
     std::string_view ext = "bo");
 
 std::string read_file_from_path(std::string_view path);
+
+//////////
+// Other
+//////////
+
+template<typename T>
+constexpr bool initializer_list_contains(
+    T const& needle,
+    std::initializer_list<T> const& haystack)
+{
+    return std::ranges::find(haystack, needle);
+}
 
 } // namespace util
 
