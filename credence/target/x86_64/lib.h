@@ -20,14 +20,22 @@
 #include <initializer_list> // for initializer_list
 #include <string>           // for string
 #include <string_view>      // for basic_string_view, string_view
+#include <vector>           // for vector
 
 namespace credence::target::x86_64::library {
 
+using library_t = std::array<std::size_t, 1>;
 using Address = x86_64::detail::Storage;
+using library_list_t = std::map<std::string_view, library_t>;
+using library_arguments_t = std::deque<Address>;
 
-constexpr std::initializer_list<std::string_view> STDLIB_FUNCTIONS = {
-    "print"
-};
+std::vector<std::string> get_library_symbols();
+
+const library_list_t library_list = { { "print", { 1 } } };
+
+bool is_syscall_function(type::semantic::Label const& label);
+bool is_library_function(type::semantic::Label const& label);
+bool is_stdlib_function(type::semantic::Label const& label);
 
 namespace detail {
 
@@ -41,6 +49,6 @@ void add_syscall_functions_to_symbols(util::AST_Node& symbols);
 
 void add_stdlib_functions_to_symbols(util::AST_Node& symbols);
 
-void print(Address const& buffer);
+x86_64::detail::Instructions make_print_lib_function(Address const& buffer);
 
 } // namespace library

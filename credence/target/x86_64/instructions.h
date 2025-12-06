@@ -209,7 +209,7 @@ enum class Register
     ebp, di, esp, eax, ebx,
     edx, ecx, esi, edi, r8d,
     ax, r9d, r10d, r11d, r12d,
-    r13d, r14d, r15d, al, dil
+    r13d, r14d, r15d, al, dil,
 };
 
 constexpr const auto QWORD_REGISTER = {
@@ -652,6 +652,18 @@ inline detail::Immediate make_array_immediate(std::string_view address)
 inline detail::Immediate make_asciz_immediate(std::string_view address)
 {
     return Immediate{ fmt::format("[rip + {}]", address), "string", 8UL };
+}
+
+/**
+ * @brief Check if rip address offset
+ */
+constexpr bool is_immediate_rip_address_offset(Storage const& immediate)
+{
+    if (is_variant(Immediate, immediate))
+        return util::contains(
+            std::get<0>(std::get<Immediate>(immediate)), "rip + ._L");
+    else
+        return false;
 }
 
 /**

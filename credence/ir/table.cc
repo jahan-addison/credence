@@ -53,6 +53,8 @@ Instructions Table::build_from_ita_instructions()
                 [&] { from_globl_ita_instruction(std::get<1>(instruction)); },
             m::pattern | Instruction::LOCL =
                 [&] { from_locl_ita_instruction(instruction); },
+            m::pattern | Instruction::RETURN =
+                [&] { from_return_instruction(instruction); },
             m::pattern |
                 Instruction::PUSH = [&] { from_push_instruction(instruction); },
             m::pattern | Instruction::CALL =
@@ -110,6 +112,16 @@ void Table::from_locl_ita_instruction(Quadruple const& instruction)
     } else
         get_stack_frame()->locals.set_symbol_by_name(
             label, type::NULL_RVALUE_LITERAL);
+}
+
+void Table::from_return_instruction(Quadruple const& instruction)
+{
+    auto return_rvalue = std::get<1>(instruction);
+    auto frame = get_stack_frame();
+    if (!frame->ret.empty())
+        table_compiletime_error("invalid return statement", return_rvalue);
+
+    frame->ret = return_rvalue;
 }
 
 /**
@@ -195,6 +207,12 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
 
     if (lhs.starts_with("_t") or lhs.starts_with("_p")) {
         frame->temporary[lhs] = std::get<2>(instruction);
+        if (type::is_rvalue_data_type(rhs)) {
+            auto data_type = type::get_rvalue_datatype_from_string(rhs);
+            if (type::get_type_from_rvalue_data_type(data_type) == "string")
+                strings.emplace(
+                    type::get_value_from_rvalue_data_type(data_type));
+        }
         return;
     }
     if (rhs.starts_with("_t") and is_stack_frame()) {
@@ -824,10 +842,6 @@ void Table::from_pop_instruction(Quadruple const& instruction)
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
     credence_assert(pop_size <= stack.size());
-    for (std::size_t i = pop_size; i > 0; i--) {
-        if (is_stack_frame())
-            stack.pop_back();
-    }
 }
 
 /**
@@ -892,13 +906,13 @@ type::Data_Type Table::from_rvalue_unary_expression(
  */
 Table::RValue Table::from_temporary_lvalue(LValue const& lvalue)
 {
-    auto rvalue = util::contains(lvalue, "_t")
+    auto rvalue = util::contains(lvalue, "_t") or util::contains(lvalue, "_p")
                       ? get_stack_frame()->temporary[lvalue]
                       : lvalue;
     if (util::contains(rvalue, "_t") and util::contains(rvalue, " ")) {
         return rvalue;
     } else {
-        if (util::contains(rvalue, "_t"))
+        if (util::contains(rvalue, "_t") or util::contains(lvalue, "_p"))
             return from_temporary_lvalue(rvalue);
         else
             return rvalue;

@@ -19,6 +19,7 @@
 #include "instructions.h"   // for Instructions, Storage
 #include <array>            // for array
 #include <cstddef>          // for size_t
+#include <deque>            // for deque
 #include <initializer_list> // for initializer_list
 #include <map>              // for map
 #include <stdint.h>         // for uint32_t
@@ -32,12 +33,16 @@ using Instructions = detail::Instructions;
 
 using syscall_t = std::array<std::size_t, 2>;
 using syscall_list_t = std::map<std::string_view, syscall_t>;
-using syscall_arguments_t = std::initializer_list<detail::Storage>;
+using syscall_arguments_t = std::deque<detail::Storage>;
 
 namespace common {
 
 // cppcheck-suppress constParameterReference
 void exit_syscall(Instructions& instructions, int exit_status = 0);
+void make_syscall(
+    Instructions& instructions,
+    std::string_view syscall,
+    syscall_arguments_t const& arguments);
 
 } // namespace common
 

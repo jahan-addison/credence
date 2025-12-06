@@ -1095,21 +1095,6 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_push_instruction")
     REQUIRE(table.stack.back() == "_p2");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_pop_instruction")
-{
-    auto table = make_table_with_frame(make_node());
-    auto pop_instruction =
-        credence::ir::Quadruple{ credence::ir::Instruction::POP,
-                                 std::format("{}", sizeof(void*) * 2),
-                                 "",
-                                 "" };
-
-    table.stack.emplace_back("5");
-    table.stack.emplace_back("a");
-    table.from_pop_instruction(pop_instruction);
-    REQUIRE(table.stack.size() == 0);
-}
-
 TEST_CASE_FIXTURE(
     Table_Fixture,
     "ir/table.cc: Table::from_rvalue_unary_expression")

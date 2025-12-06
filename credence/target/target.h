@@ -62,17 +62,19 @@ class Backend
     virtual void from_func_end_ita() = 0;
     virtual void from_cmp_ita(IR const& inst) = 0;
     virtual void from_mov_ita(IR const& inst) = 0;
-    virtual void from_return_ita(Storage const& storage) = 0;
+    virtual void from_return_ita() = 0;
     virtual void from_leave_ita() = 0;
     virtual void from_locl_ita(IR const& inst) = 0;
     virtual void from_label_ita(IR const& inst) = 0;
-    virtual void from_push_ita(IR const& inst) = 0;
-    // virtual void from_goto_ita() = 0;
-    // virtual void from_globl_ita() = 0;
-    // virtual void from_if_ita() = 0;
-    // virtual void from_jmp_e_ita() = 0;
-    // virtual void from_pop_ita() = 0;
-    // virtual void from_call_ita() = 0;
+    virtual void from_push_ita() = 0;
+    virtual void from_call_ita(IR const& inst) = 0;
+    virtual void from_if_ita(IR const& inst) = 0;
+    virtual void from_jmp_e_ita(IR const& inst) = 0;
+
+    // default: do nothing, as ir::table has this data available
+    virtual void from_pop_ita([[maybe_unused]] IR const& inst) {}
+    virtual void from_globl_ita([[maybe_unused]] IR const& inst) {}
+
   protected:
     ir::Table::Table_PTR table;
 };

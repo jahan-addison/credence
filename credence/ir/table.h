@@ -100,6 +100,7 @@ struct Function
                std::ranges::end(parameters);
     }
 
+    type::semantic::RValue ret{};
     type::Parameters parameters{};
     Ordered_Map<type::semantic::LValue, type::semantic::RValue> temporary{};
     Address_Table label_address{};
@@ -275,6 +276,7 @@ class Table
     void from_locl_ita_instruction(Quadruple const& instruction);
     void from_push_instruction(Quadruple const& instruction);
     void from_pop_instruction(Quadruple const& instruction);
+    void from_return_instruction(Quadruple const& instruction);
     void from_label_ita_instruction(Quadruple const& instruction);
     void from_mov_ita_instruction(Quadruple const& instruction);
 

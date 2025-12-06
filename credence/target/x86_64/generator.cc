@@ -102,7 +102,6 @@ void Code_Generator::emit_data_section(std::ostream& os)
 void Code_Generator::emit_text_section(std::ostream& os)
 {
     os << detail::Directive::text << std::endl;
-    // ".global main"
     os << detail::tabwidth(4) << detail::Directive::start;
     detail::newline(os, 2);
 
@@ -110,45 +109,45 @@ void Code_Generator::emit_text_section(std::ostream& os)
 
     for (std::size_t index = 0; index < instructions_.size(); index++) {
         auto inst = instructions_[index];
-        // clang-format off
         std::visit(
-        util::overload{
-        [&](detail::Instruction const& s) {
-            auto [mnemonic, dest, src] = s;
+            util::overload{
+                [&](detail::Instruction const& s) {
+                    auto [mnemonic, dest, src] = s;
+                    auto flags = instruction_flag.contains(index)
+                                     ? instruction_flag[index]
+                                     : 0UL;
 
-            auto flags = instruction_flag.contains(index)
-                                ? instruction_flag[index]
-                                : 0UL;
+                    os << detail::tabwidth(4) << mnemonic;
 
-            os << detail::tabwidth(4) << mnemonic;
+                    auto size = get_operand_size_from_storage(src);
+                    // apply any flags to the dest storage device
+                    if (!is_empty_storage(dest)) {
+                        if (flags & detail::flag::Address)
+                            size = get_operand_size_from_storage(dest);
+                        os << " " << emit_storage_device(dest, size, flags);
+                        if (flags & detail::flag::Indirect and
+                            is_variant(Register, src))
+                            flags &= ~detail::flag::Indirect;
+                    }
+                    // apply any flags to the source storage device
+                    if (!is_empty_storage(src)) {
+                        if (flags & detail::flag::Alloc)
+                            src = detail::make_u32_int_immediate(
+                                stack.get_stack_frame_allocation_size());
+                        if (flags & detail::flag::Indirect_Source)
+                            flags |= detail::flag::Indirect;
+                        os << ", " << emit_storage_device(src, size, flags);
+                        flags &=
+                            ~(detail::flag::Indirect |
+                              detail::flag::Indirect_Source);
+                    }
 
-            auto size = get_operand_size_from_storage(src);
-            // check and apply any flags to the destination storage device
-            if (!is_empty_storage(dest)) {
-                if (flags & detail::flag::Address)
-                    size = get_operand_size_from_storage(dest);
-                os << " " << emit_storage_device(dest, size, flags);
-                if (flags & detail::flag::Indirect and
-                    is_variant(Register, src))
-                    flags &= ~detail::flag::Indirect;
-            }
-            // check and apply any flags to the source storage device
-            if (!is_empty_storage(src)) {
-                if (flags & detail::flag::Indirect_Source)
-                    flags |= detail::flag::Indirect;
-                os << ", " << emit_storage_device(src, size, flags);
-                flags &=
-                    ~(detail::flag::Indirect |
-                        detail::flag::Indirect_Source);
-            }
-
-            os << std::endl;
-        },
-        [&](type::semantic::Label const& s) {
-            os << detail::make_label(s) << ":" << std::endl;
-        } },
-        inst);
-        // clang-format on
+                    os << std::endl;
+                },
+                [&](type::semantic::Label const& s) {
+                    os << detail::make_label(s) << ":" << std::endl;
+                } },
+            inst);
     }
 }
 
@@ -269,13 +268,12 @@ void Code_Generator::build_text_section_instructions()
                 },
             m::pattern | ir_i(FUNC_END) = [&] { from_func_end_ita(); },
             m::pattern | ir_i(MOV) = [&] { from_mov_ita(inst); },
+            m::pattern | ir_i(PUSH) = [&] { from_push_ita(); },
+            m::pattern | ir_i(CALL) = [&] { from_call_ita(inst); },
             m::pattern | ir_i(LOCL) = [&] { from_locl_ita(inst); },
-            m::pattern | ir_i(RETURN) = [&] { from_return_ita(Register::rax); },
+            m::pattern | ir_i(RETURN) = [&] { from_return_ita(); },
             m::pattern | ir_i(LEAVE) = [&] { from_leave_ita(); },
-            m::pattern | ir_i(LABEL) = [&] { from_label_ita(inst); },
-            m::pattern | ir_i(PUSH) = [&] { from_push_ita(inst); }
-
-        );
+            m::pattern | ir_i(LABEL) = [&] { from_label_ita(inst); });
     }
 }
 /**
@@ -337,13 +335,13 @@ void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
     current_frame = name;
     set_stack_frame_from_table(name);
     auto frame = table->functions[current_frame];
-    auto stack_alloc = util::align_up_to_16(frame->allocation);
     // function prologue
     add_inst_ld(instructions_, push, rbp);
     add_inst_llrs(instructions_, mov_, rbp, rsp);
     if (table->stack_frame_contains_ita_instruction(
             current_frame, ir::Instruction::CALL)) {
-        auto imm = detail::make_u32_int_immediate(stack_alloc);
+        auto imm = detail::make_u32_int_immediate(0);
+        set_instruction_flag(detail::flag::Alloc);
         add_inst_ll(instructions_, sub, rsp, imm);
     }
 }
@@ -379,27 +377,15 @@ void Code_Generator::set_stack_frame_from_table(
 void Code_Generator::from_func_end_ita()
 {
     auto frame = table->functions[current_frame];
-    auto stack_alloc = util::align_up_to_16(frame->allocation);
     if (table->stack_frame_contains_ita_instruction(
             current_frame, ir::Instruction::CALL)) {
-        auto a_imm = detail::make_u32_int_immediate(stack_alloc);
-        add_inst_ll(instructions_, add, rsp, a_imm);
+        auto imm = detail::make_u32_int_immediate(0);
+        if (current_frame != "main") {
+            set_instruction_flag(detail::flag::Alloc);
+            add_inst_ll(instructions_, add, rsp, imm);
+        }
     }
     reset_avail_registers();
-}
-
-/**
- * @brief Translate from the IR Instruction::PUSH
- */
-void Code_Generator::from_push_ita(ir::Quadruple const& inst)
-{
-    auto lvalue = std::get<1>(inst);
-    auto frame = table->functions[current_frame];
-    auto& locals = table->get_stack_frame_symbols();
-    auto symbol = locals.get_symbol_by_name(lvalue);
-    auto storage = get_storage_device();
-
-    add_inst_as(instructions_, mov, storage, symbol);
 }
 
 /**
@@ -454,7 +440,53 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
     );
 }
 
+void Code_Generator::from_push_ita()
+{
+    call_size++;
+}
+
+type::Stack Code_Generator::get_arguments_from_call_stack()
+{
+    type::Stack reorder{};
+    for (; call_size != 0UL;) {
+        auto rvalue = table->from_temporary_lvalue(table->stack.front());
+        reorder.emplace_front(rvalue);
+        table->stack.pop_front();
+        call_size--;
+    }
+    return reorder;
+}
+
+void Code_Generator::from_call_ita(ir::Quadruple const& inst)
+{
+    auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
+    if (library::is_syscall_function(function_name)) {
+        syscall::syscall_arguments_t arguments{};
+        auto parameters = get_arguments_from_call_stack();
+        for (auto const& rvalue : parameters) {
+            if (type::is_rvalue_data_type(rvalue)) {
+                auto immediate = type::get_rvalue_datatype_from_string(rvalue);
+                if (type::is_rvalue_data_type_string(immediate)) {
+                    auto str_address = detail::make_asciz_immediate(
+                        string_storage[type::get_value_from_rvalue_data_type(
+                            immediate)]);
+                    arguments.emplace_back(str_address);
+                } else
+                    arguments.emplace_back(
+                        type::get_rvalue_datatype_from_string(rvalue));
+            } else {
+                arguments.emplace_back(get_lvalue_address(rvalue));
+            }
+        }
+        syscall::common::make_syscall(instructions_, function_name, arguments);
+    }
+}
+
 void Code_Generator::from_cmp_ita([[maybe_unused]] ir::Quadruple const& inst) {}
+void Code_Generator::from_if_ita([[maybe_unused]] ir::Quadruple const& inst) {}
+void Code_Generator::from_jmp_e_ita([[maybe_unused]] ir::Quadruple const& inst)
+{
+}
 
 /**
  * @brief Translate from the IR Instruction::MOV
@@ -467,6 +499,8 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
     auto rhs = ir::get_rvalue_from_mov_qaudruple(inst).first;
 
     m::match(lhs, rhs)(
+        // The stack frame is prepared in ir::Table, so skip ita parameters
+        m::pattern | m::ds(m::app(is_parameter, true), m::_) = [] {},
         // Translate an rvalue from a mutual-recursive temporary lvalue
         m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
             [&] { insert_from_temporary_lvalue(lhs); },
@@ -796,9 +830,15 @@ void Code_Generator::insert_from_rvalue(RValue const& rvalue)
         auto imm = type::get_rvalue_datatype_from_string(rvalue);
         add_inst_ll(instructions_, mov, eax, imm);
     } else {
-        auto symbols = table->get_stack_frame_symbols();
-        auto imm = symbols.get_symbol_by_name(rvalue);
-        add_inst_ll(instructions_, mov, eax, imm);
+        if (rvalue == "RET") {
+            call_size = 0;
+            if (table->functions[current_frame]->ret.empty())
+                return;
+        } else {
+            auto symbols = table->get_stack_frame_symbols();
+            auto imm = symbols.get_symbol_by_name(rvalue);
+            add_inst_ll(instructions_, mov, eax, imm);
+        }
     }
 }
 
@@ -1009,9 +1049,11 @@ void Code_Generator::from_ita_unary_expression(
 /**
  * @brief Translate from the IR Instruction::RET
  */
-void Code_Generator::from_return_ita(Storage const& dest)
+void Code_Generator::from_return_ita()
 {
-    add_inst_llr(instructions_, mov, dest, eax);
+    auto frame = table->functions[current_frame];
+    if (!frame->ret.empty())
+        insert_from_rvalue(frame->ret);
 }
 
 /**
@@ -1244,6 +1286,16 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
             table->vectors.at(vector)->offset.at(key),
             detail::get_operand_size_from_rvalue_datatype(
                 table->vectors.at(vector)->data.at(key)));
+    } else if (value::is_integer_string(offset)) {
+        if (!table->vectors.at(vector)->data.contains(offset))
+            table->table_compiletime_error(
+                fmt::format(
+                    "Invalid out-of-range index '{}' on vector lvalue", offset),
+                vector);
+        return std::make_pair(
+            table->vectors.at(vector)->offset.at(offset),
+            detail::get_operand_size_from_rvalue_datatype(
+                table->vectors.at(vector)->data.at(offset)));
     } else
         return std::make_pair(
             0UL,
@@ -1256,7 +1308,9 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
  *
  *  Note: including vector (array) and/or global vector indices
  */
-Code_Generator::Storage Code_Generator::get_lvalue_address(LValue const& lvalue)
+Code_Generator::Storage Code_Generator::get_lvalue_address(
+    LValue const& lvalue,
+    bool use_prefix)
 {
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
@@ -1277,8 +1331,9 @@ Code_Generator::Storage Code_Generator::get_lvalue_address(LValue const& lvalue)
                     ? lhs
                     : fmt::format("{}+{}", lhs, rip_storage.first);
             rip_arithmetic =
-                fmt::format("{} [rip + {}]", prefix, rip_arithmetic);
-
+                use_prefix
+                    ? fmt::format("{} [rip + {}]", prefix, rip_arithmetic)
+                    : fmt::format("[rip + {}]", rip_arithmetic);
             return detail::make_array_immediate(rip_arithmetic);
         }
     } else if (is_vector_offset(lvalue)) {
@@ -1418,6 +1473,11 @@ constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
     size = util::align_up_to_8(
         size + detail::get_size_from_operand_size(qword_size));
     stack_address.insert(lvalue, { size, qword_size });
+}
+
+constexpr detail::Stack::Size detail::Stack::get_stack_frame_allocation_size()
+{
+    return util::align_up_to_16(size);
 }
 
 /**

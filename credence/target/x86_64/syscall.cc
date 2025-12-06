@@ -75,7 +75,10 @@ void make_syscall(
     for (auto const& arg : arguments) {
         auto storage = argument_storage.back();
         argument_storage.pop_back();
-        add_inst_as(instructions, mov, storage, arg);
+        if (is_immediate_rip_address_offset(arg))
+            add_inst_as(instructions, lea, storage, arg);
+        else
+            add_inst_as(instructions, mov, storage, arg);
     }
     add_inst_ee(instructions, detail::Mnemonic::syscall);
 }
@@ -105,11 +108,31 @@ void make_syscall(
     for (auto const& arg : arguments) {
         auto storage = argument_storage.back();
         argument_storage.pop_back();
-        add_inst_as(instructions, mov, storage, arg);
+        if (is_immediate_rip_address_offset(arg))
+            add_inst_as(instructions, lea, storage, arg);
+        else
+            add_inst_as(instructions, mov, storage, arg);
     }
     add_inst_ee(instructions, detail::Mnemonic::syscall);
 }
 
 } // namespace bsd
+
+namespace common {
+void make_syscall(
+    // cppcheck-suppress constParameterReference
+    Instructions& instructions,
+    std::string_view syscall,
+    syscall_arguments_t const& arguments)
+{
+#if defined(CREDENCE_TEST) || defined(__linux__)
+    syscall::linux_ns::make_syscall(instructions, syscall, arguments);
+#elif defined(__APPLE__) || defined(__bsdi__)
+    syscall::bsd_ns::make_syscall(instructions, syscall, arguments);
+#else
+    credence_error("Operating system not supported");
+#endif
+}
+} // namespace common
 
 }

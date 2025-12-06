@@ -4,5 +4,5 @@ main() {
 }
 
 print(a) {
-
+  return(a);
 }

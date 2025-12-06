@@ -429,6 +429,14 @@ constexpr semantic::Type get_type_from_rvalue_data_type(Data_Type const& rvalue)
 }
 
 /**
+ * @brief Check if an rvalue data type is a string
+ */
+constexpr bool is_rvalue_data_type_string(Data_Type const& rvalue)
+{
+    return std::get<1>(rvalue) == "string";
+}
+
+/**
  * @brief Get the type from a local in the stack frame
  */
 constexpr semantic::Size get_size_from_rvalue_data_type(Data_Type const& rvalue)

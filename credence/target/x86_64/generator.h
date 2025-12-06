@@ -83,6 +83,7 @@ class Stack
     {
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
+    constexpr Size get_stack_frame_allocation_size();
 
   public:
     constexpr std::string get_lvalue_from_offset(Offset offset) const;
@@ -136,7 +137,9 @@ enum Instruction_Flag : flags
     None = 0,
     Address = 1 << 0,
     Indirect = 1 << 1,
-    Indirect_Source = 1 << 2
+    Indirect_Source = 1 << 2,
+    Alloc = 1 << 3
+
 };
 
 } // namespace flag
@@ -217,16 +220,13 @@ class Code_Generator final
     void from_locl_ita(ir::Quadruple const& inst) override;
     void from_cmp_ita(ir::Quadruple const& inst) override;
     void from_mov_ita(ir::Quadruple const& inst) override;
-    void from_return_ita(Storage const& dest) override;
+    void from_return_ita() override;
+    void from_push_ita() override;
     void from_leave_ita() override;
     void from_label_ita(ir::Quadruple const& inst) override;
-    void from_push_ita(ir::Quadruple const& inst) override;
-    // void from_goto_ita() override;
-    // void from_globl_ita() override;
-    // void from_if_ita() override;
-    // void from_jmp_e_ita() override;
-    // void from_pop_ita() override;
-    // void from_call_ita() override;
+    void from_call_ita(ir::Quadruple const& inst) override;
+    void from_if_ita(ir::Quadruple const& inst) override;
+    void from_jmp_e_ita(ir::Quadruple const& inst) override;
 
   private:
     std::deque<Register> available_qword_register = {
@@ -237,6 +237,10 @@ class Code_Generator final
         Register::edi, Register::r8d, Register::r9d,
         Register::esi, Register::edx, Register::ecx
     };
+    std::deque<Register> available_argument_register = {
+        Register::r9,  Register::r8,  Register::r10,
+        Register::rdx, Register::rsi, Register::rdi
+    };
 
   private:
     constexpr Register get_accumulator_register_from_size(
@@ -246,6 +250,7 @@ class Code_Generator final
     constexpr Register get_accumulator_register_from_storage(
         Storage const& storage);
     Storage get_storage_for_binary_operator(RValue const& rvalue);
+    type::Stack get_arguments_from_call_stack();
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -299,6 +304,7 @@ class Code_Generator final
     void set_stack_frame_from_table(type::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    Storage get_argument_storage();
     Storage get_storage_device(
         detail::Operand_Size size = detail::Operand_Size::Qword);
 
@@ -312,6 +318,16 @@ class Code_Generator final
             Register::edi, Register::esi, Register::r8d,
             Register::r9d, Register::edx, Register::ecx
         };
+        available_argument_register = {
+            Register::r9,  Register::r8,  Register::r10,
+            Register::rdx, Register::rsi, Register::rdi
+        };
+    }
+    inline void reset_argument_registers() {
+        available_argument_register = {
+            Register::r9,  Register::r8,  Register::r10,
+            Register::rdx, Register::rsi, Register::rdi
+        };
     }
     // clang-format on
   private:
@@ -320,7 +336,7 @@ class Code_Generator final
     Vector_Entry_Pair get_rip_offset_address(
         LValue const& lvalue,
         RValue const& offset);
-    Storage get_lvalue_address(LValue const& lvalue);
+    Storage get_lvalue_address(LValue const& lvalue, bool use_prefix = true);
 
   private:
     /**
@@ -335,6 +351,9 @@ class Code_Generator final
     };
     Operand_Lambda is_temporary = [&](RValue const& rvalue) {
         return type::is_temporary(rvalue);
+    };
+    Operand_Lambda is_parameter = [&](RValue const& rvalue) {
+        return rvalue.starts_with("_p");
     };
     Operand_Lambda is_vector = [&](RValue const& rvalue) {
         return table->vectors.contains(type::from_lvalue_offset(rvalue));
@@ -399,6 +418,7 @@ class Code_Generator final
   private:
     detail::Stack stack{};
     std::string current_frame{};
+    std::size_t call_size{ 0 };
     std::size_t ita_index{ 0 };
     std::size_t constant_index{ 0 };
 
