@@ -9,9 +9,9 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
  */
 
 #include "generator.h"
@@ -45,6 +45,21 @@ namespace credence::target::x86_64 {
 namespace m = matchit;
 
 /**
+ * @brief Code Generator
+ *
+ * Emit a complete x86-64 program from an AST and symbols
+ */
+void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
+{
+    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
+    auto table = std::make_unique<ir::Table>(
+        ir::Table{ symbols, instructions, globals });
+    table->build_from_ita_instructions();
+    auto generator = Code_Generator{ std::move(table) };
+    generator.emit(os);
+}
+
+/**
  * @brief Emit a complete set of x86-64 instructions
  */
 void Code_Generator::emit(std::ostream& os)
@@ -66,6 +81,20 @@ inline void Code_Generator::emit_syntax_directive(std::ostream& os)
 }
 
 /**
+ * @brief Emit the stdlib extern directives
+ */
+inline void Code_Generator::emit_stdlib_externs(std::ostream& os)
+{
+    if (!no_stdlib)
+        for (auto const& stdlib_f : library::get_library_symbols()) {
+            os << detail::tabwidth(4) << detail::Directive::extern_ << " ";
+            os << stdlib_f;
+            detail::newline(os);
+        }
+    detail::newline(os);
+}
+
+/**
  * @brief Construct and emit the data section of a program
  */
 void Code_Generator::emit_data_section(std::ostream& os)
@@ -76,34 +105,34 @@ void Code_Generator::emit_data_section(std::ostream& os)
     if (!data_.empty())
         for (std::size_t index = 0; index < data_.size(); index++) {
             auto data_item = data_[index];
-            std::visit(
-                util::overload{
-                    [&](type::semantic::Label const& s) {
-                        os << s << ":" << std::endl;
-                    },
-                    [&](detail::Data_Pair const& s) {
-                        os << detail::tabwidth(4) << s.first;
-                        if (s.first == Directive::asciz)
-                            os << " " << "\"" << s.second << "\"";
-                        else
-                            os << " " << s.second;
-                        detail::newline(os);
-                        if (index < data_.size() - 1)
-                            detail::newline(os);
-                    },
-                },
+            std::visit(util::overload{
+                           [&](type::semantic::Label const& s) {
+                               os << s << ":" << std::endl;
+                           },
+                           [&](detail::Data_Pair const& s) {
+                               os << detail::tabwidth(4) << s.first;
+                               if (s.first == Directive::asciz)
+                                   os << " " << "\"" << s.second << "\"";
+                               else
+                                   os << " " << s.second;
+                               detail::newline(os);
+                               if (index < data_.size() - 1)
+                                   detail::newline(os);
+                           },
+                       },
                 data_item);
         }
 }
 
 /**
- * @brief Construct and emit the text section of a program
+ * @brief Construct and emit the text section of a source program
  */
 void Code_Generator::emit_text_section(std::ostream& os)
 {
     os << detail::Directive::text << std::endl;
     os << detail::tabwidth(4) << detail::Directive::start;
-    detail::newline(os, 2);
+    detail::newline(os, 1);
+    emit_stdlib_externs(os);
 
     build_text_section_instructions();
 
@@ -137,9 +166,8 @@ void Code_Generator::emit_text_section(std::ostream& os)
                         if (flags & detail::flag::Indirect_Source)
                             flags |= detail::flag::Indirect;
                         os << ", " << emit_storage_device(src, size, flags);
-                        flags &=
-                            ~(detail::flag::Indirect |
-                              detail::flag::Indirect_Source);
+                        flags &= ~(detail::flag::Indirect |
+                                   detail::flag::Indirect_Source);
                     }
 
                     os << std::endl;
@@ -149,21 +177,6 @@ void Code_Generator::emit_text_section(std::ostream& os)
                 } },
             inst);
     }
-}
-
-/**
- * @brief Code Generator factory
- *
- * Construct and emit a complete x86-64 source program from an AST and symbols
- */
-void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
-{
-    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
-    auto table = std::make_unique<ir::Table>(
-        ir::Table{ symbols, instructions, globals });
-    table->build_from_ita_instructions();
-    auto generator = Code_Generator{ std::move(table) };
-    generator.emit(os);
 }
 
 /**
@@ -191,8 +204,7 @@ constexpr std::string detail::emit_immediate_storage(Immediate const& immediate)
 /**
  * @brief Emit an offset on the Stack as a storage device as a string
  */
-constexpr std::string detail::emit_stack_storage(
-    Stack const& stack,
+constexpr std::string detail::emit_stack_storage(Stack const& stack,
     Stack::Offset offset,
     flag::flags flags)
 {
@@ -210,8 +222,7 @@ constexpr std::string detail::emit_stack_storage(
 /**
  * @brief Emit a register as a storage device as a string
  */
-constexpr std::string detail::emit_register_storage(
-    Register device,
+constexpr std::string detail::emit_register_storage(Register device,
     Operand_Size size,
     flag::flags flags)
 {
@@ -269,6 +280,7 @@ void Code_Generator::build_text_section_instructions()
             m::pattern | ir_i(FUNC_END) = [&] { from_func_end_ita(); },
             m::pattern | ir_i(MOV) = [&] { from_mov_ita(inst); },
             m::pattern | ir_i(PUSH) = [&] { from_push_ita(); },
+            m::pattern | ir_i(POP) = [&] { from_pop_ita(); },
             m::pattern | ir_i(CALL) = [&] { from_call_ita(inst); },
             m::pattern | ir_i(LOCL) = [&] { from_locl_ita(inst); },
             m::pattern | ir_i(RETURN) = [&] { from_return_ita(); },
@@ -289,6 +301,20 @@ void Code_Generator::build_data_section_instructions()
     build_data_section_from_globals();
 }
 
+/**
+ * @brief Build the .data section from global symbols
+ *
+ * In the B language, only vectors (and the trivial vector) may be
+ * global
+ *
+ * So this prepares the data section with arrays
+ *
+ * Examples:
+ *
+ *  simple_vector 0;
+ *  vector [2] "hello", "world"
+ *
+ */
 void Code_Generator::build_data_section_from_globals()
 {
     for (auto const& global : table->globals.get_pointers()) {
@@ -325,8 +351,6 @@ void Code_Generator::build_data_section_from_globals()
 
 /**
  * @brief Translate from the IR Instruction::FUNC_START
- *
- *    Generates code for the Function Prologue
  */
 void Code_Generator::from_func_start_ita(type::semantic::Label const& name)
 {
@@ -391,8 +415,8 @@ void Code_Generator::from_func_end_ita()
 /**
  * @brief Translate from the IR Instruction::LOCL
  *
- * Note that at this point in code translation, we allocate local variables on
- * the stack
+ * Note that at this point in code translation, we allocate local
+ * variables on the stack
  */
 void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
 {
@@ -402,7 +426,7 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
     auto& locals = table->get_stack_frame_symbols();
 
     // The storage of an immediate (and, really, all) relational
-    // expression will be the `al` register, 1 for true, 0 for false
+    // expressions will be the `al` register, 1 for true, 0 for false
     Operand_Lambda is_immediate_relational_expression =
         [&](RValue const& rvalue) {
             return type::is_relation_binary_expression(
@@ -418,7 +442,8 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
                     type::get_unary_rvalue_reference(std::get<1>(inst));
                 stack.set_address_from_address(lvalue);
             },
-        // Allocate a vector (array), including all of its elements on the stack
+        // Allocate a vector (array), including all of its elements on
+        // the stack
         m::pattern | m::app(is_vector, true) =
             [&] {
                 auto vector = table->vectors.at(locl_lvalue);
@@ -430,7 +455,7 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
             [&] {
                 stack.set_address_from_accumulator(locl_lvalue, Register::al);
             },
-        // Allocate on the stack from the type size of the lvalue
+        // Allocate on the stack from the size of the lvalue type
         m::pattern | m::_ =
             [&] {
                 auto type = table->get_type_from_rvalue_data_type(locl_lvalue);
@@ -440,11 +465,33 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
     );
 }
 
+/**
+ * @brief Translate from the IR Instruction::PUSH
+ */
 void Code_Generator::from_push_ita()
 {
     call_size++;
 }
 
+/**
+ * @brief Translate from the IR Instruction::POP
+ */
+void Code_Generator::from_pop_ita()
+{
+    call_size = 0;
+}
+
+/**
+ * @brief The ir::Table stack has arguments ready from
+ * ITA::Instruction::PUSH
+ *
+ * However, we have to flip the order of the stack, then flip the
+ * individual function operands as we prepare for the call instruction
+ *
+ * Note that this stack is ir::Table::stack and not
+ * x86_64::detail::Stack
+ *
+ */
 type::Stack Code_Generator::get_arguments_from_call_stack()
 {
     type::Stack reorder{};
@@ -457,29 +504,68 @@ type::Stack Code_Generator::get_arguments_from_call_stack()
     return reorder;
 }
 
+/**
+ * @brief Get the storage devices of arguments on the stack from
+ * ir::Table
+ *
+ * Note that this stack is ir::Table::stack and not
+ * x86_64::detail::Stack
+ */
+syscall_ns::syscall_arguments_t
+Code_Generator::get_operand_storage_from_call_stack(type::Stack const& stack)
+{
+    syscall_ns::syscall_arguments_t arguments{};
+    for (auto const& rvalue : stack) {
+        if (type::is_rvalue_data_type(rvalue)) {
+            auto immediate = type::get_rvalue_datatype_from_string(rvalue);
+            if (type::is_rvalue_data_type_string(immediate)) {
+                auto str_address = detail::make_asciz_immediate(
+                    string_storage[type::get_value_from_rvalue_data_type(
+                        immediate)]);
+                arguments.emplace_back(str_address);
+            } else
+                arguments.emplace_back(
+                    type::get_rvalue_datatype_from_string(rvalue));
+        } else {
+            arguments.emplace_back(get_lvalue_address(rvalue));
+        }
+    }
+    return arguments;
+}
+
+/**
+ * @brief Translate from the IR Instruction::CALL
+ *
+ * The stack frame, parameters, and allocation size are already available
+ * in ir::Table
+ *
+ * Note that we intercept syscall and standard lib functions
+ *   More information in syscall.h and lib.h
+ */
 void Code_Generator::from_call_ita(ir::Quadruple const& inst)
 {
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
-    if (library::is_syscall_function(function_name)) {
-        syscall::syscall_arguments_t arguments{};
-        auto parameters = get_arguments_from_call_stack();
-        for (auto const& rvalue : parameters) {
-            if (type::is_rvalue_data_type(rvalue)) {
-                auto immediate = type::get_rvalue_datatype_from_string(rvalue);
-                if (type::is_rvalue_data_type_string(immediate)) {
-                    auto str_address = detail::make_asciz_immediate(
-                        string_storage[type::get_value_from_rvalue_data_type(
-                            immediate)]);
-                    arguments.emplace_back(str_address);
-                } else
-                    arguments.emplace_back(
-                        type::get_rvalue_datatype_from_string(rvalue));
-            } else {
-                arguments.emplace_back(get_lvalue_address(rvalue));
-            }
-        }
-        syscall::common::make_syscall(instructions_, function_name, arguments);
-    }
+    m::match(function_name)(
+        m::pattern | m::app(library::is_syscall_function, true) =
+            [&] {
+                auto arguments = get_arguments_from_call_stack();
+                auto operands = get_operand_storage_from_call_stack(arguments);
+                syscall_ns::common::make_syscall(
+                    instructions_, function_name, operands);
+            },
+        m::pattern | m::app(library::is_stdlib_function, true) =
+            [&] {
+                auto arguments = get_arguments_from_call_stack();
+                auto operands = get_operand_storage_from_call_stack(arguments);
+                m::match(sv(function_name))(m::pattern | sv("print") = [&] {
+                    auto buffer = operands.back();
+                    auto buffer_size = get_lvalue_string_size(arguments.back());
+                    operands.emplace_back(
+                        detail::make_u32_int_immediate(buffer_size));
+                });
+                library::make_library_call(
+                    instructions_, function_name, operands);
+            });
 }
 
 void Code_Generator::from_cmp_ita([[maybe_unused]] ir::Quadruple const& inst) {}
@@ -499,14 +585,14 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
     auto rhs = ir::get_rvalue_from_mov_qaudruple(inst).first;
 
     m::match(lhs, rhs)(
-        // The stack frame is prepared in ir::Table, so skip ita parameters
+        // The stack frame is prepared in ir::Table, so skip ita
+        // parameters
         m::pattern | m::ds(m::app(is_parameter, true), m::_) = [] {},
         // Translate an rvalue from a mutual-recursive temporary lvalue
-        m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
-            [&] { insert_from_temporary_lvalue(lhs); },
+        m::pattern | m::ds(m::app(type::is_temporary, true),
+                         m::_) = [&] { insert_from_temporary_lvalue(lhs); },
         // Translate a unary-to-unary rvalue reference
-        m::pattern | m::ds(
-                         m::app(type::is_unary_expression, true),
+        m::pattern | m::ds(m::app(type::is_unary_expression, true),
                          m::app(type::is_unary_expression, true)) =
             [&] { insert_from_unary_to_unary_assignment(lhs, rhs); },
         // Translate from a vector in global scope
@@ -521,8 +607,7 @@ void Code_Generator::from_mov_ita(ir::Quadruple const& inst)
 /**
  * @brief Mnemonic operand pattern matching to code generation
  */
-void Code_Generator::insert_from_mnemonic_operand(
-    LValue const& lhs,
+void Code_Generator::insert_from_mnemonic_operand(LValue const& lhs,
     RValue const& rhs)
 {
     m::match(rhs)(
@@ -537,9 +622,9 @@ void Code_Generator::insert_from_mnemonic_operand(
                 } else
                     add_inst_as(instructions_, mov, lhs_storage, imm);
             },
-        // The storage of the rvalue from `insert_from_temporary_lvalue` in the
-        // function above is in the accumulator register, use it to assign
-        // to a local address
+        // The storage of the rvalue from `insert_from_temporary_lvalue`
+        // in the function above is in the accumulator register, use it
+        // to assign to a local address
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_ir_assignment) {
@@ -573,13 +658,14 @@ void Code_Generator::insert_from_mnemonic_operand(
                 from_ita_unary_expression(unary_op, lhs_storage);
             },
         // Translate from binary expressions in the IR
-        m::pattern | m::app(type::is_binary_expression, true) =
-            [&] { from_binary_operator_expression(rhs); },
+        m::pattern | m::app(type::is_binary_expression,
+                         true) = [&] { from_binary_operator_expression(rhs); },
         m::pattern | m::_ = [&] { credence_error("unreachable"); });
 }
 
 /**
  * @brief Translate from unary temporary expressions
+ *
  * See ir/temporary.h for details
  */
 void Code_Generator::from_temporary_unary_operator_expression(
@@ -633,19 +719,17 @@ Code_Generator::Storage Code_Generator::get_storage_for_binary_operator(
 /**
  * @brief Construct a pair of Immediates from 2 RValue's
  */
-inline auto get_rvalue_pair_as_immediate(
-    detail::Stack::RValue const& lhs,
+inline auto get_rvalue_pair_as_immediate(detail::Stack::RValue const& lhs,
     detail::Stack::RValue const& rhs)
 {
-    return std::make_pair(
-        type::get_rvalue_datatype_from_string(lhs),
+    return std::make_pair(type::get_rvalue_datatype_from_string(lhs),
         type::get_rvalue_datatype_from_string(rhs));
 }
 
 /**
  * @brief Translate a string in the table to an .asciz directive
  *
- * 'string_storage' holds the %rip offset in the data section
+ * The 'string_storage' holds the %rip offset in the data section
  */
 void Code_Generator::from_ita_string(RValue const& str)
 {
@@ -657,7 +741,7 @@ void Code_Generator::from_ita_string(RValue const& str)
 /**
  * @brief Translate from binary operator expression operand types
  *
- *   Note that we pattern match on special pair cases
+ *   Note that we pattern match on type cases
  */
 void Code_Generator::from_binary_operator_expression(RValue const& expr)
 {
@@ -783,8 +867,7 @@ void Code_Generator::from_binary_operator_expression(RValue const& expr)
  *
  * Note that the source storage device may be empty
  */
-void Code_Generator::insert_from_op_operands(
-    Storage_Operands& operands,
+void Code_Generator::insert_from_op_operands(Storage_Operands& operands,
     std::string const& op)
 {
     if (is_variant(Immediate, operands.first))
@@ -845,8 +928,7 @@ void Code_Generator::insert_from_rvalue(RValue const& rvalue)
 /**
  * @brief Translate vector assignment between global vectors
  */
-void Code_Generator::insert_from_global_vector_assignment(
-    LValue const& lhs,
+void Code_Generator::insert_from_global_vector_assignment(LValue const& lhs,
     LValue const& rhs)
 {
 
@@ -863,8 +945,7 @@ void Code_Generator::insert_from_global_vector_assignment(
  *
  * The only supported type is dereferenced pointers
  */
-void Code_Generator::insert_from_unary_to_unary_assignment(
-    LValue const& lhs,
+void Code_Generator::insert_from_unary_to_unary_assignment(LValue const& lhs,
     LValue const& rhs)
 {
     auto lhs_lvalue = type::get_unary_rvalue_reference(lhs);
@@ -904,8 +985,7 @@ void Code_Generator::insert_from_unary_to_unary_assignment(
 
 /**
  * @brief Get a accumulator register from an Operand Size
- *
- * See instructions.h for size details
+ *   See instructions.h for size details
  */
 constexpr Code_Generator::Register
 Code_Generator::get_accumulator_register_from_size(Operand_Size size)
@@ -925,8 +1005,7 @@ Code_Generator::get_accumulator_register_from_size(Operand_Size size)
 
 /**
  * @brief Get a second accumulator register from an Operand Size
- *
- * See instructions.h for size details
+ *   See instructions.h for size details
  */
 constexpr Code_Generator::Register
 Code_Generator::get_second_register_from_size(Operand_Size size)
@@ -941,8 +1020,7 @@ Code_Generator::get_second_register_from_size(Operand_Size size)
 
 /**
  * @brief Get an accumulator register that will fit a storage device
- *
- * See instructions.h for storage details
+ *   See instructions.h for storage details
  */
 constexpr Code_Generator::Register
 Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
@@ -950,8 +1028,7 @@ Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
     namespace m = matchit;
     Register accumulator{};
     std::visit(
-        util::overload{
-            [&](std::monostate) { accumulator = Register::eax; },
+        util::overload{ [&](std::monostate) { accumulator = Register::eax; },
             [&](detail::Stack_Offset const& offset) {
                 auto size = stack.get_operand_size_from_offset(offset);
                 accumulator = get_accumulator_register_from_size(size);
@@ -972,8 +1049,7 @@ Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
 /**
  * @brief Translate and compute trivial immediate binary expressions
  */
-void Code_Generator::insert_from_immediate_rvalues(
-    Immediate const& lhs,
+void Code_Generator::insert_from_immediate_rvalues(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs)
 {
@@ -1013,8 +1089,7 @@ void Code_Generator::insert_from_immediate_rvalues(
 /**
  * @brief Translate from the ir unary expression types
  */
-void Code_Generator::from_ita_unary_expression(
-    std::string const& op,
+void Code_Generator::from_ita_unary_expression(std::string const& op,
     Storage const& dest,
     Storage const& src)
 {
@@ -1058,13 +1133,11 @@ void Code_Generator::from_return_ita()
 
 /**
  * @brief Translate from the IR Instruction::LEAVE
- *
- *  Generates code for the Function Epilogue
  */
 void Code_Generator::from_leave_ita()
 {
     if (current_frame == "main") {
-        syscall::common::exit_syscall(instructions_, 0);
+        syscall_ns::common::exit_syscall(instructions_, 0);
     } else {
         // function epilogue
         add_inst_llrs(instructions_, xor_, eax, eax);
@@ -1166,8 +1239,7 @@ Code_Generator::from_bitwise_expression_operands(
 /**
  * @brief Translate relational binary expressions
  * Instruction_Pair includes the destination storage device
- *
- * See instructions.h for details
+ *   See instructions.h for details
  */
 Code_Generator::Instruction_Pair
 Code_Generator::from_relational_expression_operands(
@@ -1206,7 +1278,8 @@ Code_Generator::from_relational_expression_operands(
 }
 
 /**
- * @brief Set a flag on the current instruction to be used during emission
+ * @brief Set a flag on the current instruction to be used during
+ * emission
  */
 void Code_Generator::set_instruction_flag(
     detail::flag::Instruction_Flag set_flag)
@@ -1221,7 +1294,8 @@ void Code_Generator::set_instruction_flag(
 }
 
 /**
- * @brief Set flags on the current instruction to be used during emission
+ * @brief Set flags on the current instruction to be used during
+ * emission
  */
 void Code_Generator::set_instruction_flag(detail::flag::flags flags)
 {
@@ -1236,8 +1310,7 @@ void Code_Generator::set_instruction_flag(detail::flag::flags flags)
 
 /**
  * @brief Get the operand size (word size) of a storage device
- *
- * See instructions.h for storage details
+ *  See instructions.h for storage details
  */
 detail::Operand_Size Code_Generator::get_operand_size_from_storage(
     Storage const& storage)
@@ -1257,7 +1330,6 @@ detail::Operand_Size Code_Generator::get_operand_size_from_storage(
 
 /**
  * @brief Get the %rip offset of a vector index and operand size
- *
  *   Note: Out-of-range is a compiletime error
  */
 Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
@@ -1266,8 +1338,7 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
 {
     auto vector = type::from_lvalue_offset(lvalue);
     if (!is_vector_offset(lvalue))
-        return std::make_pair(
-            0UL,
+        return std::make_pair(0UL,
             detail::get_operand_size_from_rvalue_datatype(
                 table->vectors.at(vector)->data.at("0")));
     if (!table->hoisted_symbols.has_key(offset) and
@@ -1282,8 +1353,7 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
                 fmt::format(
                     "Invalid out-of-range index '{}' on vector lvalue", key),
                 vector);
-        return std::make_pair(
-            table->vectors.at(vector)->offset.at(key),
+        return std::make_pair(table->vectors.at(vector)->offset.at(key),
             detail::get_operand_size_from_rvalue_datatype(
                 table->vectors.at(vector)->data.at(key)));
     } else if (value::is_integer_string(offset)) {
@@ -1292,15 +1362,55 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
                 fmt::format(
                     "Invalid out-of-range index '{}' on vector lvalue", offset),
                 vector);
-        return std::make_pair(
-            table->vectors.at(vector)->offset.at(offset),
+        return std::make_pair(table->vectors.at(vector)->offset.at(offset),
             detail::get_operand_size_from_rvalue_datatype(
                 table->vectors.at(vector)->data.at(offset)));
     } else
-        return std::make_pair(
-            0UL,
+        return std::make_pair(0UL,
             detail::get_operand_size_from_rvalue_datatype(
                 table->vectors.at(vector)->data.at("0")));
+}
+
+/**
+ * @brief Get the length of a string by its lvalue storage
+ */
+type::semantic::Size Code_Generator::get_lvalue_string_size(
+    LValue const& lvalue)
+{
+    type::semantic::Size len{ 0 };
+    std::string key{};
+    auto lhs = type::from_lvalue_offset(lvalue);
+    auto offset = type::from_decay_offset(lvalue);
+    if (type::is_dereference_expression(lvalue)) {
+        len = type::get_size_from_rvalue_data_type(
+            table->get_rvalue_data_type_at_pointer(
+                type::get_unary_rvalue_reference(lvalue)));
+    } else if (is_global_vector(lhs)) {
+        auto vector = table->vectors.at(lhs);
+        if (util::is_numeric(offset)) {
+            key = offset;
+        } else {
+            auto index = table->get_rvalue_data_type_at_pointer(offset);
+            key = std::string{ type::get_value_from_rvalue_data_type(index) };
+        }
+        len = type::get_size_from_rvalue_data_type(vector->data.at(key));
+    } else if (is_vector_offset(lvalue)) {
+        auto vector = table->vectors.at(lhs);
+        if (util::is_numeric(offset)) {
+            key = offset;
+        } else {
+            auto index = table->get_rvalue_data_type_at_pointer(offset);
+            key = std::string{ type::get_value_from_rvalue_data_type(index) };
+        }
+        len = type::get_size_from_rvalue_data_type(vector->data.at(key));
+    } else if (is_immediate(lvalue)) {
+        len = type::get_size_from_rvalue_data_type(
+            type::get_rvalue_datatype_from_string(lvalue));
+    } else {
+        len = type::get_size_from_rvalue_data_type(
+            table->get_rvalue_data_type_at_pointer(lvalue));
+    }
+    return len;
 }
 
 /**
@@ -1308,8 +1418,7 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
  *
  *  Note: including vector (array) and/or global vector indices
  */
-Code_Generator::Storage Code_Generator::get_lvalue_address(
-    LValue const& lvalue,
+Code_Generator::Storage Code_Generator::get_lvalue_address(LValue const& lvalue,
     bool use_prefix)
 {
     auto lhs = type::from_lvalue_offset(lvalue);
@@ -1358,10 +1467,9 @@ constexpr detail::Stack::Entry detail::Stack::get(LValue const& lvalue)
  */
 constexpr detail::Stack::Entry detail::Stack::get(Offset offset)
 {
-    auto find = std::find_if(
-        stack_address.begin(), stack_address.end(), [&](Pair const& entry) {
-            return entry.second.first == offset;
-        });
+    auto find = std::find_if(stack_address.begin(),
+        stack_address.end(),
+        [&](Pair const& entry) { return entry.second.first == offset; });
     if (find == stack_address.end())
         return { 0, Operand_Size::Empty };
     else
@@ -1388,8 +1496,7 @@ constexpr detail::Stack::Offset detail::Stack::allocate(Operand_Size operand)
 constexpr detail::Operand_Size detail::Stack::get_operand_size_from_offset(
     Offset offset) const
 {
-    return std::accumulate(
-        stack_address.begin(),
+    return std::accumulate(stack_address.begin(),
         stack_address.end(),
         Operand_Size::Empty,
         [&](Operand_Size size, Pair const& entry) {
@@ -1402,8 +1509,7 @@ constexpr detail::Operand_Size detail::Stack::get_operand_size_from_offset(
 /**
  * @brief Set and allocate an address from an immediate
  */
-constexpr void detail::Stack::set_address_from_immediate(
-    LValue const& lvalue,
+constexpr void detail::Stack::set_address_from_immediate(LValue const& lvalue,
     Immediate const& rvalue)
 {
     if (stack_address[lvalue].second != Operand_Size::Empty)
@@ -1416,8 +1522,7 @@ constexpr void detail::Stack::set_address_from_immediate(
 /**
  * @brief Set and allocate an address from an accumulator register size
  */
-constexpr void detail::Stack::set_address_from_accumulator(
-    LValue const& lvalue,
+constexpr void detail::Stack::set_address_from_accumulator(LValue const& lvalue,
     Register acc)
 {
     if (stack_address[lvalue].second != Operand_Size::Empty)
@@ -1430,8 +1535,7 @@ constexpr void detail::Stack::set_address_from_accumulator(
 /**
  * @brief Set and allocate an address from a type in the Table
  */
-constexpr void detail::Stack::set_address_from_type(
-    LValue const& lvalue,
+constexpr void detail::Stack::set_address_from_type(LValue const& lvalue,
     Type type)
 {
     if (stack_address[lvalue].second != Operand_Size::Empty)
@@ -1449,8 +1553,7 @@ constexpr void detail::Stack::set_address_from_type(
  *
  * So skip any previously allocated offsets as we push downwards
  */
-constexpr void detail::Stack::allocate_aligned_lvalue(
-    LValue const& lvalue,
+constexpr void detail::Stack::allocate_aligned_lvalue(LValue const& lvalue,
     Size value_size,
     Operand_Size operand_size)
 {
@@ -1475,6 +1578,10 @@ constexpr void detail::Stack::set_address_from_address(LValue const& lvalue)
     stack_address.insert(lvalue, { size, qword_size });
 }
 
+/**
+ * @brief Get the allocation size of the current frame, aligned up to 16
+ * bytes
+ */
 constexpr detail::Stack::Size detail::Stack::get_stack_frame_allocation_size()
 {
     return util::align_up_to_16(size);
@@ -1483,18 +1590,17 @@ constexpr detail::Stack::Size detail::Stack::get_stack_frame_allocation_size()
 /**
  * @brief Get the stack address of an index in a vector (array)
  *
- * The vector was allocated in a chunk and we allocate each index downward
+ * The vector was allocated in a chunk and we allocate each index
+ * downward
  */
 constexpr detail::Stack::Size
-detail::Stack::get_stack_offset_from_table_vector_index(
-    LValue const& lvalue,
+detail::Stack::get_stack_offset_from_table_vector_index(LValue const& lvalue,
     std::string const& key,
     ir::detail::Vector const& vector)
 {
     bool search{ false };
     auto vector_offset = get(lvalue).first;
-    return std::accumulate(
-        vector.data.begin(),
+    return std::accumulate(vector.data.begin(),
         vector.data.end(),
         vector_offset,
         [&](type::semantic::Size offset,
@@ -1538,8 +1644,7 @@ constexpr detail::Stack::Size detail::Stack::get_stack_size_from_table_vector(
 /**
  * @brief Set and allocate an address from an arbitrary offset
  */
-constexpr void detail::Stack::set_address_from_size(
-    LValue const& lvalue,
+constexpr void detail::Stack::set_address_from_size(LValue const& lvalue,
     Offset allocate,
     Operand_Size operand)
 {
@@ -1555,14 +1660,33 @@ constexpr void detail::Stack::set_address_from_size(
 constexpr inline std::string detail::Stack::get_lvalue_from_offset(
     Offset offset) const
 {
-    auto search = std::ranges::find_if(
-        stack_address.begin(), stack_address.end(), [&](Pair const& pair) {
-            return pair.second.first == offset;
-        });
+    auto search = std::ranges::find_if(stack_address.begin(),
+        stack_address.end(),
+        [&](Pair const& pair) { return pair.second.first == offset; });
     if (search != stack_address.end())
         return search->first;
     else
         return "";
 }
 
+/**
+ * @brief Code Generator
+ *
+ * Test emit factory
+ */
+#ifdef CREDENCE_TEST
+void emit(std::ostream& os,
+    util::AST_Node& symbols,
+    util::AST_Node const& ast,
+    bool no_stdlib)
+{
+    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
+    auto table = std::make_unique<ir::Table>(
+        ir::Table{ symbols, instructions, globals });
+    table->build_from_ita_instructions();
+    auto generator = Code_Generator{ std::move(table) };
+    generator.no_stdlib = no_stdlib;
+    generator.emit(os);
+}
+#endif
 } // namespace x86_64

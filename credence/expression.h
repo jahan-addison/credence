@@ -53,16 +53,14 @@ class Expression_Parser
     using Parameters = std::vector<Expression_PTR>;
 
   public:
-    explicit Expression_Parser(
-        util::AST_Node const& internal_symbols,
+    explicit Expression_Parser(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
 
-    explicit Expression_Parser(
-        util::AST_Node const& internal_symbols,
+    explicit Expression_Parser(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols,
         Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
@@ -74,8 +72,7 @@ class Expression_Parser
     ~Expression_Parser() = default;
 
   public:
-    static inline Expression parse(
-        util::AST_Node const& node,
+    static inline Expression parse(util::AST_Node const& node,
         util::AST_Node const& internals,
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
@@ -145,10 +142,12 @@ class Expression_Parser
 
   private:
     // clang-format on
-    const std::array<std::string, 6> unary_types = {
-        "pre_inc_dec_expression", "post_inc_dec_expression", "indirect_lvalue",
-        "unary_indirection",      "address_of_expression",   "unary_expression"
-    };
+    const std::array<std::string, 6> unary_types = { "pre_inc_dec_expression",
+        "post_inc_dec_expression",
+        "indirect_lvalue",
+        "unary_indirection",
+        "address_of_expression",
+        "unary_expression" };
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node internal_symbols_;

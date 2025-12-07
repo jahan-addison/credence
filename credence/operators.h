@@ -88,77 +88,76 @@ enum class Associativity
 // B operator precedence is more or less the same as C. Where
 // there were differences I made small changes for consistency
 constexpr auto OPERATOR_PRECEDENCE =
-    mapbox::eternal::map<Operator, std::pair<Associativity, unsigned int>>(
-        { // Left-to-right
-          { Operator::POST_INC, { Associativity::LEFT_TO_RIGHT, 1 } },
-          { Operator::POST_DEC, { Associativity::LEFT_TO_RIGHT, 1 } },
-          { Operator::U_SUBSCRIPT, { Associativity::LEFT_TO_RIGHT, 1 } },
-          { Operator::U_CALL, { Associativity::LEFT_TO_RIGHT, 1 } },
+    mapbox::eternal::map<Operator, std::pair<Associativity, unsigned int>>({
+        // Left-to-right
+        { Operator::POST_INC,          { Associativity::LEFT_TO_RIGHT, 1 }  },
+        { Operator::POST_DEC,          { Associativity::LEFT_TO_RIGHT, 1 }  },
+        { Operator::U_SUBSCRIPT,       { Associativity::LEFT_TO_RIGHT, 1 }  },
+        { Operator::U_CALL,            { Associativity::LEFT_TO_RIGHT, 1 }  },
+        // Right-to-left
+        { Operator::PRE_INC,           { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::PRE_DEC,           { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_PUSH,            { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_MINUS,           { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_PLUS,            { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_NOT,             { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_ADDR_OF,         { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_INDIRECTION,     { Associativity::RIGHT_TO_LEFT, 2 }  },
+        { Operator::U_ONES_COMPLEMENT, { Associativity::RIGHT_TO_LEFT, 2 }  },
+        // Left-to-right
+        { Operator::B_MUL,             { Associativity::LEFT_TO_RIGHT, 3 }  },
+        { Operator::B_DIV,             { Associativity::LEFT_TO_RIGHT, 3 }  },
+        { Operator::B_MOD,             { Associativity::LEFT_TO_RIGHT, 3 }  },
+        // Left-to-right
+        { Operator::B_ADD,             { Associativity::LEFT_TO_RIGHT, 4 }  },
+        { Operator::B_SUBTRACT,        { Associativity::LEFT_TO_RIGHT, 4 }  },
+        // Left-to-right
+        { Operator::LSHIFT,            { Associativity::LEFT_TO_RIGHT, 5 }  },
+        { Operator::RSHIFT,            { Associativity::LEFT_TO_RIGHT, 5 }  },
+        // Left-to-right
+        { Operator::R_LT,              { Associativity::LEFT_TO_RIGHT, 6 }  },
+        { Operator::R_LE,              { Associativity::LEFT_TO_RIGHT, 6 }  },
+        { Operator::R_GT,              { Associativity::LEFT_TO_RIGHT, 6 }  },
+        { Operator::R_GE,              { Associativity::LEFT_TO_RIGHT, 6 }  },
+        // Left-to-right
+        { Operator::R_EQUAL,           { Associativity::LEFT_TO_RIGHT, 7 }  },
+        { Operator::R_NEQUAL,          { Associativity::LEFT_TO_RIGHT, 7 }  },
+        // Left-to-right
+        { Operator::AND,               { Associativity::LEFT_TO_RIGHT, 8 }  },
+        // Left-to-right
+        { Operator::XOR,               { Associativity::LEFT_TO_RIGHT, 9 }  },
+        // Left-to-right
+        { Operator::OR,                { Associativity::LEFT_TO_RIGHT, 10 } },
+        // Left-to-right
+        { Operator::R_AND,             { Associativity::LEFT_TO_RIGHT, 11 } },
+        // Left-to-right
+        { Operator::R_OR,              { Associativity::LEFT_TO_RIGHT, 12 } },
 
-          // Right-to-left
-          { Operator::PRE_INC, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::PRE_DEC, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_PUSH, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_MINUS, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_PLUS, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_NOT, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_ADDR_OF, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_INDIRECTION, { Associativity::RIGHT_TO_LEFT, 2 } },
-          { Operator::U_ONES_COMPLEMENT, { Associativity::RIGHT_TO_LEFT, 2 } },
-          // Left-to-right
-          { Operator::B_MUL, { Associativity::LEFT_TO_RIGHT, 3 } },
-          { Operator::B_DIV, { Associativity::LEFT_TO_RIGHT, 3 } },
-          { Operator::B_MOD, { Associativity::LEFT_TO_RIGHT, 3 } },
-          // Left-to-right
-          { Operator::B_ADD, { Associativity::LEFT_TO_RIGHT, 4 } },
-          { Operator::B_SUBTRACT, { Associativity::LEFT_TO_RIGHT, 4 } },
-          // Left-to-right
-          { Operator::LSHIFT, { Associativity::LEFT_TO_RIGHT, 5 } },
-          { Operator::RSHIFT, { Associativity::LEFT_TO_RIGHT, 5 } },
-          // Left-to-right
-          { Operator::R_LT, { Associativity::LEFT_TO_RIGHT, 6 } },
-          { Operator::R_LE, { Associativity::LEFT_TO_RIGHT, 6 } },
-          { Operator::R_GT, { Associativity::LEFT_TO_RIGHT, 6 } },
-          { Operator::R_GE, { Associativity::LEFT_TO_RIGHT, 6 } },
-          // Left-to-right
-          { Operator::R_EQUAL, { Associativity::LEFT_TO_RIGHT, 7 } },
-          { Operator::R_NEQUAL, { Associativity::LEFT_TO_RIGHT, 7 } },
-          // Left-to-right
-          { Operator::AND, { Associativity::LEFT_TO_RIGHT, 8 } },
-          // Left-to-right
-          { Operator::XOR, { Associativity::LEFT_TO_RIGHT, 9 } },
-          // Left-to-right
-          { Operator::OR, { Associativity::LEFT_TO_RIGHT, 10 } },
-          // Left-to-right
-          { Operator::R_AND, { Associativity::LEFT_TO_RIGHT, 11 } },
-          // Left-to-right
-          { Operator::R_OR, { Associativity::LEFT_TO_RIGHT, 12 } },
-
-          { Operator::B_TERNARY, { Associativity::RIGHT_TO_LEFT, 13 } },
-          { Operator::B_ASSIGN, { Associativity::RIGHT_TO_LEFT, 14 } } });
+        { Operator::B_TERNARY,         { Associativity::RIGHT_TO_LEFT, 13 } },
+        { Operator::B_ASSIGN,          { Associativity::RIGHT_TO_LEFT, 14 } }
+});
 
 constexpr auto BINARY_OPERATORS =
-    mapbox::eternal::map<std::string_view, Operator>(
-        { { "||", Operator::R_OR },
-          { "&&", Operator::R_AND },
-          { "==", Operator::R_EQUAL },
-          { "!=", Operator::R_NEQUAL },
-          { "<", Operator::R_LT },
-          { "<=", Operator::R_LE },
-          { ">", Operator::R_GT },
-          { ">=", Operator::R_GE },
-
-          { "^", Operator::XOR },
-          { "&", Operator::AND },
-          { "|", Operator::OR },
-          { "<<", Operator::LSHIFT },
-          { ">>", Operator::RSHIFT },
-
-          { "-", Operator::B_SUBTRACT },
-          { "+", Operator::B_ADD },
-          { "%", Operator::B_MOD },
-          { "*", Operator::B_MUL },
-          { "/", Operator::B_DIV } });
+    mapbox::eternal::map<std::string_view, Operator>({
+        { "||", Operator::R_OR       },
+        { "&&", Operator::R_AND      },
+        { "==", Operator::R_EQUAL    },
+        { "!=", Operator::R_NEQUAL   },
+        { "<",  Operator::R_LT       },
+        { "<=", Operator::R_LE       },
+        { ">",  Operator::R_GT       },
+        { ">=", Operator::R_GE       },
+        { "^",  Operator::XOR        },
+        { "&",  Operator::AND        },
+        { "|",  Operator::OR         },
+        { "<<", Operator::LSHIFT     },
+        { ">>", Operator::RSHIFT     },
+        { "-",  Operator::B_SUBTRACT },
+        { "+",  Operator::B_ADD      },
+        { "%",  Operator::B_MOD      },
+        { "*",  Operator::B_MUL      },
+        { "/",  Operator::B_DIV      }
+});
 
 constexpr bool is_left_associative(Operator op)
 {

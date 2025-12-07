@@ -102,25 +102,21 @@ class Symbol_Table
         return keys;
     }
 
-    inline Symbol get_symbol_by_name(
-        std::string const& name,
+    inline Symbol get_symbol_by_name(std::string const& name,
         std::source_location const& trace =
             std::source_location::current()) const
     {
-        credence_assert_message_trace(
-            table_.find(name) != table_.end(),
+        credence_assert_message_trace(table_.find(name) != table_.end(),
             fmt::format("symbol not found `{}`", name),
             trace);
         return table_.at(name);
     }
 
-    inline Pointer get_pointer_by_name(
-        std::string const& name,
+    inline Pointer get_pointer_by_name(std::string const& name,
         std::source_location const& trace =
             std::source_location::current()) const
     {
-        credence_assert_message_trace(
-            addr_.find(name) != addr_.end(),
+        credence_assert_message_trace(addr_.find(name) != addr_.end(),
             fmt::format("address symbol not found `{}`", name),
             trace);
         return addr_.at(name);

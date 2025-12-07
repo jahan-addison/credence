@@ -16,23 +16,24 @@
 
 #pragma once
 
-#include "instructions.h"           // for Register, Operand_Size, Immediate
-#include <credence/ir/ita.h>        // for Instruction
-#include <credence/ir/table.h>      // for Table
-#include <credence/map.h>           // for Ordered_Map
 #include <credence/target/target.h> // for Backend
-#include <credence/types.h>         // for RValue, is_temporary, LValue
-#include <credence/util.h>          // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <cstddef>                  // for size_t
-#include <deque>                    // for deque
-#include <functional>               // for function
-#include <map>                      // for map
-#include <ostream>                  // for basic_ostream, endl
-#include <ostream>                  // for ostream
-#include <string>                   // for basic_string, string, char_traits
-#include <tuple>                    // for get, tuple
-#include <utility>                  // for pair, move
-#include <variant>                  // for monostate
+
+#include "instructions.h"      // for Register, Operand_Size, Immediate
+#include "syscall.h"           // for syscall_ns
+#include <credence/ir/ita.h>   // for Instruction
+#include <credence/ir/table.h> // for Table
+#include <credence/map.h>      // for Ordered_Map
+#include <credence/types.h>    // for RValue, is_temporary, LValue
+#include <credence/util.h>     // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <deque>               // for deque
+#include <functional>          // for function
+#include <map>                 // for map
+#include <ostream>             // for basic_ostream, endl
+#include <ostream>             // for ostream
+#include <string>              // for basic_string, string, char_traits
+#include <tuple>               // for get, tuple
+#include <utility>             // for pair, move
+#include <variant>             // for monostate
 
 namespace credence::target::x86_64 {
 
@@ -97,21 +98,17 @@ class Stack
         Offset offset) const;
 
     constexpr Offset allocate(Operand_Size operand);
-    constexpr void allocate_aligned_lvalue(
-        LValue const& lvalue,
+    constexpr void allocate_aligned_lvalue(LValue const& lvalue,
         Size value_size,
         Operand_Size operand_size);
-    constexpr void set_address_from_accumulator(
-        LValue const& lvalue,
+    constexpr void set_address_from_accumulator(LValue const& lvalue,
         Register acc);
     constexpr void set_address_from_address(LValue const& lvalue);
     constexpr void set_address_from_type(LValue const& lvalue, Type type);
-    constexpr void set_address_from_size(
-        LValue const& lvalue,
+    constexpr void set_address_from_size(LValue const& lvalue,
         Offset allocate,
         Operand_Size operand = Operand_Size::Dword);
-    constexpr void set_address_from_immediate(
-        LValue const& lvalue,
+    constexpr void set_address_from_immediate(LValue const& lvalue,
         Immediate const& rvalue);
 
   private:
@@ -146,13 +143,11 @@ enum Instruction_Flag : flags
 
 constexpr std::string emit_immediate_storage(Immediate const& immediate);
 
-constexpr std::string emit_stack_storage(
-    Stack const& stack,
+constexpr std::string emit_stack_storage(Stack const& stack,
     Stack::Offset offset,
     flag::flags flags);
 
-constexpr std::string emit_register_storage(
-    Register device,
+constexpr std::string emit_register_storage(Register device,
     Operand_Size size,
     flag::flags flags);
 
@@ -184,12 +179,9 @@ class Code_Generator final
     using Register = detail::Register;
     using Directive = detail::Directive;
     using Mnemonic = detail::Mnemonic;
-
-  private:
     using LValue = detail::Stack::LValue;
     using RValue = detail::Stack::RValue;
 
-  private:
     using Storage_Operands = std::pair<Storage, Storage>;
     using Operand_Size = detail::Operand_Size;
     using Operator_Symbol = std::string;
@@ -203,6 +195,7 @@ class Code_Generator final
 
   private:
     void emit_syntax_directive(std::ostream& os);
+    void emit_stdlib_externs(std::ostream& os);
     void emit_text_section(std::ostream& os);
     void emit_data_section(std::ostream& os);
 
@@ -222,6 +215,7 @@ class Code_Generator final
     void from_mov_ita(ir::Quadruple const& inst) override;
     void from_return_ita() override;
     void from_push_ita() override;
+    void from_pop_ita() override;
     void from_leave_ita() override;
     void from_label_ita(ir::Quadruple const& inst) override;
     void from_call_ita(ir::Quadruple const& inst) override;
@@ -229,20 +223,30 @@ class Code_Generator final
     void from_jmp_e_ita(ir::Quadruple const& inst) override;
 
   private:
-    std::deque<Register> available_qword_register = {
-        Register::rdi, Register::r8,  Register::r9,
-        Register::rsi, Register::rdx, Register::rcx
-    };
-    std::deque<Register> available_dword_register = {
-        Register::edi, Register::r8d, Register::r9d,
-        Register::esi, Register::edx, Register::ecx
-    };
-    std::deque<Register> available_argument_register = {
-        Register::r9,  Register::r8,  Register::r10,
-        Register::rdx, Register::rsi, Register::rdi
-    };
+    std::deque<Register> available_qword_register = { Register::rdi,
+        Register::r8,
+        Register::r9,
+        Register::rsi,
+        Register::rdx,
+        Register::rcx };
+    std::deque<Register> available_dword_register = { Register::edi,
+        Register::r8d,
+        Register::r9d,
+        Register::esi,
+        Register::edx,
+        Register::ecx };
+    std::deque<Register> available_argument_register = { Register::r9,
+        Register::r8,
+        Register::r10,
+        Register::rdx,
+        Register::rsi,
+        Register::rdi };
 
   private:
+    type::Stack get_arguments_from_call_stack();
+    type::semantic::Size get_string_size_from_storage(Storage const& storage);
+    syscall_ns::syscall_arguments_t get_operand_storage_from_call_stack(
+        type::Stack const& stack);
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
     constexpr Register get_second_register_from_size(
@@ -250,7 +254,6 @@ class Code_Generator final
     constexpr Register get_accumulator_register_from_storage(
         Storage const& storage);
     Storage get_storage_for_binary_operator(RValue const& rvalue);
-    type::Stack get_arguments_from_call_stack();
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -304,39 +307,49 @@ class Code_Generator final
     void set_stack_frame_from_table(type::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    bool no_stdlib{ false }; // for testing
     Storage get_argument_storage();
+    // clang-format on
     Storage get_storage_device(
         detail::Operand_Size size = detail::Operand_Size::Qword);
-
     inline void reset_avail_registers()
     {
-        available_qword_register = {
-            Register::rdi, Register::r8,  Register::r9,
-            Register::rsi, Register::rdx, Register::rcx
-        };
-        available_dword_register = {
-            Register::edi, Register::esi, Register::r8d,
-            Register::r9d, Register::edx, Register::ecx
-        };
-        available_argument_register = {
-            Register::r9,  Register::r8,  Register::r10,
-            Register::rdx, Register::rsi, Register::rdi
-        };
+        available_qword_register = { Register::rdi,
+            Register::r8,
+            Register::r9,
+            Register::rsi,
+            Register::rdx,
+            Register::rcx };
+        available_dword_register = { Register::edi,
+            Register::esi,
+            Register::r8d,
+            Register::r9d,
+            Register::edx,
+            Register::ecx };
+        available_argument_register = { Register::r9,
+            Register::r8,
+            Register::r10,
+            Register::rdx,
+            Register::rsi,
+            Register::rdi };
     }
-    inline void reset_argument_registers() {
-        available_argument_register = {
-            Register::r9,  Register::r8,  Register::r10,
-            Register::rdx, Register::rsi, Register::rdi
-        };
+    inline void reset_argument_registers()
+    {
+        available_argument_register = { Register::r9,
+            Register::r8,
+            Register::r10,
+            Register::rdx,
+            Register::rsi,
+            Register::rdi };
     }
-    // clang-format on
+
   private:
     using Vector_Entry_Pair =
         std::pair<ir::detail::Vector::Address, detail::Operand_Size>;
-    Vector_Entry_Pair get_rip_offset_address(
-        LValue const& lvalue,
+    Vector_Entry_Pair get_rip_offset_address(LValue const& lvalue,
         RValue const& offset);
     Storage get_lvalue_address(LValue const& lvalue, bool use_prefix = true);
+    type::semantic::Size get_lvalue_string_size(LValue const& lvalue);
 
   private:
     /**
@@ -439,4 +452,10 @@ class Code_Generator final
 
 void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
 
+#ifdef CREDENCE_TEST
+void emit(std::ostream& os,
+    util::AST_Node& symbols,
+    util::AST_Node const& ast,
+    bool no_stdlib = true);
+#endif
 } // namespace x86_64

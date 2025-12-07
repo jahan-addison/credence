@@ -202,9 +202,11 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
 
     Expression expression{};
     std::map<std::string, Operator> const other_unary = {
-        { "!", Operator::U_NOT },         { "~", Operator::U_ONES_COMPLEMENT },
-        { "*", Operator::U_INDIRECTION }, { "-", Operator::U_MINUS },
-        { "+", Operator::U_PLUS },
+        { "!", Operator::U_NOT             },
+        { "~", Operator::U_ONES_COMPLEMENT },
+        { "*", Operator::U_INDIRECTION     },
+        { "-", Operator::U_MINUS           },
+        { "+", Operator::U_PLUS            },
     };
 
     if (node["root"].JSON_type() != util::AST_Node::Class::Array)
@@ -272,8 +274,8 @@ Expression_Parser::from_assignment_expression_node(Node const& node)
         auto left_child_node = indirect_node;
         auto right_child_node = node["left"]["right"];
         if (!is_symbol(left_child_node["left"]))
-            expression_parser_error(
-                "identifier of assignment not declared with 'auto' or 'extrn'",
+            expression_parser_error("identifier of assignment not "
+                                    "declared with 'auto' or 'extrn'",
                 left_child_node["left"]["root"].to_string());
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
@@ -290,8 +292,8 @@ Expression_Parser::from_assignment_expression_node(Node const& node)
         auto left_child_node = node["left"];
         auto right_child_node = node["right"];
         if (!is_symbol(left_child_node))
-            expression_parser_error(
-                "identifier of assignment not declared with 'auto' or 'extrn'",
+            expression_parser_error("identifier of assignment not "
+                                    "declared with 'auto' or 'extrn'",
                 left_child_node["root"].to_string());
 
         auto lhs = from_lvalue_expression_node(left_child_node);
@@ -319,13 +321,14 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
             name = node["right"]["root"].to_string();
         else
             name = node["root"].to_string();
-        // hoist function definitions from the first pass to the memory table
+        // hoist function definitions from the first pass to the memory
+        // table
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
-                expression_parser_error(
-                    "identifier does not exist in current scope, did you mean "
-                    "to use extrn?",
+                expression_parser_error("identifier does not exist in "
+                                        "current scope, did you mean "
+                                        "to use extrn?",
                     name);
             else
                 symbols_.set_symbol_by_name(
@@ -348,24 +351,19 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
                 auto offset_value = node["left"]["root"];
                 if (offset_value.JSON_type() ==
                     util::AST_Node::Class::Integral) {
-                    lvalue = value::make_lvalue(
-                        fmt::format(
-                            "{}[{}]",
-                            node["root"].to_string(),
-                            offset_value.to_int()));
+                    lvalue = value::make_lvalue(fmt::format("{}[{}]",
+                        node["root"].to_string(),
+                        offset_value.to_int()));
                 } else
-                    lvalue = value::make_lvalue(
-                        fmt::format(
-                            "{}[{}]",
-                            node["root"].to_string(),
-                            offset_value.to_string()));
+                    lvalue = value::make_lvalue(fmt::format("{}[{}]",
+                        node["root"].to_string(),
+                        offset_value.to_string()));
             },
         m::pattern | "indirect_lvalue" =
             [&] {
                 if (node["left"].has_key("left")) {
-                    lvalue = value::make_lvalue(
-                        fmt::format(
-                            "*{}", node["left"]["left"]["root"].to_string()));
+                    lvalue = value::make_lvalue(fmt::format(
+                        "*{}", node["left"]["left"]["root"].to_string()));
                 } else
                     lvalue = value::make_lvalue(
                         fmt::format("*{}", node["left"]["root"].to_string()));
@@ -397,9 +395,9 @@ Expression_Parser::Literal Expression_Parser::from_indirect_identifier_node(
     credence_assert_equal(node["node"].to_string(), "indirect_lvalue");
     credence_assert(node.has_key("left"));
     if (!is_symbol(node["left"]))
-        expression_parser_error(
-            "indirect identifier not defined, did you forget to declare with "
-            "auto or extrn?",
+        expression_parser_error("indirect identifier not defined, did you "
+                                "forget to declare with "
+                                "auto or extrn?",
             node["root"].to_string());
 
     return symbols_.get_symbol_by_name(node["left"]["root"].to_string());
@@ -430,7 +428,7 @@ Expression_Parser::Literal Expression_Parser::from_number_literal_node(
 {
     credence_assert_equal(node["node"].to_string(), "number_literal");
     return { static_cast<int>(node["root"].to_int()),
-             value::TYPE_LITERAL.at("int") };
+        value::TYPE_LITERAL.at("int") };
 }
 
 /**
@@ -441,9 +439,10 @@ Expression_Parser::Literal Expression_Parser::from_string_literal_node(
 {
     credence_assert_equal(node["node"].to_string(), "string_literal");
     auto string_literal = util::unescape_string(node["root"].to_string());
-    return { string_literal.substr(1, string_literal.size() - 2),
-             { "string",
-               string_literal.substr(1, string_literal.size() - 2).size() } };
+    return {
+        string_literal.substr(1, string_literal.size() - 2),
+        { "string", string_literal.substr(1, string_literal.size() - 2).size() }
+    };
 }
 
 /**
@@ -454,14 +453,13 @@ Expression_Parser::Literal Expression_Parser::from_constant_literal_node(
 {
     credence_assert_equal(node["node"].to_string(), "constant_literal");
     return { static_cast<char>(node["root"].to_string()[0]),
-             value::TYPE_LITERAL.at("char") };
+        value::TYPE_LITERAL.at("char") };
 }
 
 /**
  * @brief Raise error expressing parsing error
  */
-inline void Expression_Parser::expression_parser_error(
-    std::string_view message,
+inline void Expression_Parser::expression_parser_error(std::string_view message,
     std::string_view symbol,
     std::source_location const& location)
 {

@@ -22,51 +22,29 @@
 #include <source_location>
 #include <string_view>
 
-#define credence_error(message) (                                            \
-    credence::detail::assert_fail(std::source_location::current(), message)  \
-)
+#define credence_error(message) \
+    (credence::detail::assert_fail(std::source_location::current(), message))
 
-#define credence_compile_error(location, message, symbol, symbols) (  \
-    credence::detail::compile_error_impl(                             \
-        location,                                                     \
-        message,                                                      \
-        symbol,                                                       \
-        symbols)                                                      \
-)
+#define credence_compile_error(location, message, symbol, symbols) \
+    (credence::detail::compile_error_impl(location, message, symbol, symbols))
 
-#define credence_assert(condition) (              \
-    credence::detail::assert_impl(                \
-        std::source_location::current(),          \
-        condition)                                \
-)
+#define credence_assert(condition) \
+    (credence::detail::assert_impl(std::source_location::current(), condition))
 
-#define credence_assert_message(condition, message) (   \
-    credence::detail::assert_impl(                      \
-        std::source_location::current(),                \
-        condition,                                      \
-        message)                                        \
-)
+#define credence_assert_message(condition, message) \
+    (credence::detail::assert_impl(                 \
+        std::source_location::current(), condition, message))
 
-#define credence_assert_message_trace(condition, message, location) (   \
-    credence::detail::assert_impl(                                      \
-        location,                                                       \
-        condition,                                                      \
-        message)                                                        \
-)
+#define credence_assert_message_trace(condition, message, location) \
+    (credence::detail::assert_impl(location, condition, message))
 
-#define credence_assert_equal(actual, expected) (       \
-    credence::detail::assert_equal_impl(                \
-        std::source_location::current(),                \
-        actual,                                         \
-        expected)                                       \
-)
+#define credence_assert_equal(actual, expected) \
+    (credence::detail::assert_equal_impl(       \
+        std::source_location::current(), actual, expected))
 
-#define credence_assert_nequal(actual, expected) (         \
-    credence::detail::assert_nequal_impl(                  \
-        std::source_location::current(),                   \
-        actual,                                            \
-        expected)                                          \
-    )
+#define credence_assert_nequal(actual, expected) \
+    (credence::detail::assert_nequal_impl(       \
+        std::source_location::current(), actual, expected))
 
 namespace credence::detail {
 
@@ -89,8 +67,7 @@ class Credence_Exception : public std::exception
     }
 };
 
-inline void compile_error_impl(
-    std::source_location const& location,
+inline void compile_error_impl(std::source_location const& location,
     std::string_view message,
     std::string_view symbol_name,
     json::JSON const& symbols)
@@ -98,25 +75,26 @@ inline void compile_error_impl(
     auto symbol = symbol_name.data();
 #ifndef DEBUG
     if (symbols.has_key(symbol))
-        throw Credence_Exception(
-            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
-            "with: "
-            "\"{}\"\n  > from line {} column {}:{}",
+        throw Credence_Exception("\n  Credence could not compile "
+                                 "source:\n    on symbol '{}'\n    "
+                                 "with: "
+                                 "\"{}\"\n  > from line {} column {}:{}",
             symbol,
             message,
             symbols[symbol]["line"].to_int(),
             symbols[symbol]["column"].to_int(),
             symbols[symbol]["end_column"].to_int());
     else
-        throw Credence_Exception(
-            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
-            "with: {}",
+        throw Credence_Exception("\n  Credence could not compile "
+                                 "source:\n    on symbol '{}'\n    "
+                                 "with: {}",
             symbol,
             message);
 #else
     if (symbols.has_key(symbol))
         throw Credence_Exception(
-            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
+            "\n  Credence could not compile source:\n    on symbol '{}'\n "
+            "   "
             "with: "
             "\"{}\"\n  > from line {} column {}:{}\n\n\n >>> In file "
             "'{}'\n line {}\n   ::: '{}'\n",
@@ -129,11 +107,11 @@ inline void compile_error_impl(
             location.line(),
             location.function_name());
     else
-        throw Credence_Exception(
-            "\n  Credence could not compile source:\n    on symbol '{}'\n    "
-            "with: \"{}\""
-            "\n\n\n >>> In file "
-            "'{}'\n line {}\n   ::: '{}'\n",
+        throw Credence_Exception("\n  Credence could not compile "
+                                 "source:\n    on symbol '{}'\n    "
+                                 "with: \"{}\""
+                                 "\n\n\n >>> In file "
+                                 "'{}'\n line {}\n   ::: '{}'\n",
             symbol,
             message,
             location.file_name(),
@@ -142,8 +120,7 @@ inline void compile_error_impl(
 #endif
 }
 
-inline void assert_fail(
-    std::source_location const& location,
+inline void assert_fail(std::source_location const& location,
     std::string_view message = "")
 {
     if (message.empty()) {
@@ -166,8 +143,7 @@ inline void assert_fail(
     }
 }
 
-inline void assert_impl(
-    std::source_location const& location,
+inline void assert_impl(std::source_location const& location,
     bool condition,
     std::string_view message = "")
 {
@@ -195,8 +171,7 @@ inline void assert_impl(
 }
 
 template<typename T1, typename T2>
-constexpr inline void assert_equal_impl(
-    std::source_location const& location,
+constexpr inline void assert_equal_impl(std::source_location const& location,
     const T1& actual,
     const T2& expected)
 {
@@ -204,8 +179,7 @@ constexpr inline void assert_equal_impl(
 }
 
 template<typename T1, typename T2>
-constexpr inline void assert_nequal_impl(
-    std::source_location const& location,
+constexpr inline void assert_nequal_impl(std::source_location const& location,
     const T1& actual,
     const T2& expected)
 {

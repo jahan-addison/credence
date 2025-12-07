@@ -117,8 +117,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
                     [&] {
                         parameter_lvalues.emplace_back(
                             ident["root"].to_string());
-                        symbols_.set_symbol_by_name(
-                            ident["root"].to_string(),
+                        symbols_.set_symbol_by_name(ident["root"].to_string(),
                             value::Expression::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
@@ -126,10 +125,11 @@ Instructions ITA::build_from_function_definition(Node const& node)
                         parameter_lvalues.emplace_back(
                             ident["root"].to_string());
                         auto size = ident["left"]["root"].to_int();
-                        symbols_.set_symbol_by_name(
-                            ident["root"].to_string(),
-                            { static_cast<unsigned char>('0'),
-                              { "byte", size } });
+                        symbols_.set_symbol_by_name(ident["root"].to_string(),
+                            {
+                                static_cast<unsigned char>('0'),
+                                { "byte", size }
+                        });
                     },
                 m::pattern | "indirect_lvalue" =
                     [&] {
@@ -162,6 +162,11 @@ Instructions ITA::build_from_function_definition(Node const& node)
     return instructions;
 }
 
+/**
+ * @brief Build the function label from a parameter pack
+ *  Example:
+ *     __main(argc,argv):
+ */
 constexpr std::string ITA::build_function_label_from_parameters(
     std::string_view name,
     Parameters const& parameters)
@@ -197,7 +202,8 @@ void ITA::build_from_vector_definition(Node const& node)
         ita_error(
             fmt::format(
                 "invalid vector definition, right-hand-side allocation of "
-                "\"{}\" items is out of range; expected no more than \"{}\" "
+                "\"{}\" items is out of range; expected no more than "
+                "\"{}\" "
                 "items ",
                 right_child_node.to_deque().size(),
                 size),
@@ -217,8 +223,7 @@ void ITA::build_from_vector_definition(Node const& node)
 /**
  * @brief Setup branch state and label stack based on statement type
  */
-void ITA::build_statement_setup_branches(
-    std::string_view type,
+void ITA::build_statement_setup_branches(std::string_view type,
     Instructions& instructions)
 {
     if (branch.is_branching_statement(type)) {
@@ -230,16 +235,14 @@ void ITA::build_statement_setup_branches(
 /**
  * @brief Teardown branch state and jump to resume from label on stack
  */
-void ITA::build_statement_teardown_branches(
-    std::string_view type,
+void ITA::build_statement_teardown_branches(std::string_view type,
     Instructions& instructions)
 {
     if (branch.is_branching_statement(type)) {
         bool lookbehind = type == "while";
         if (instructions.empty() or
             not branch.last_instruction_is_jump(instructions.back()))
-            instructions.emplace_back(make_quadruple(
-                Instruction::GOTO,
+            instructions.emplace_back(make_quadruple(Instruction::GOTO,
                 std::get<1>(branch.get_parent_branch(lookbehind).value()),
                 ""));
         branch.stack.pop();
@@ -251,8 +254,7 @@ void ITA::build_statement_teardown_branches(
  *
  * @brief Construct a set of ita instructions from a block statement
  */
-Instructions ITA::build_from_block_statement(
-    Node const& node,
+Instructions ITA::build_from_block_statement(Node const& node,
     bool root_function_scope)
 {
     credence_assert_equal(node["node"].to_string(), "statement");
@@ -339,15 +341,13 @@ Instructions ITA::build_from_block_statement(
  * Note that generally the build_from_block_statement add
  * the GOTO, we add it here during stacks of branches
  */
-void ITA::insert_branch_jump_and_resume_instructions(
-    Node const& block,
+void ITA::insert_branch_jump_and_resume_instructions(Node const& block,
     Instructions& predicate_instructions,
     Instructions& branch_instructions,
     Quadruple const& label,
     detail::Branch::Last_Branch const& tail)
 {
-    predicate_instructions.emplace_back(make_quadruple(
-        Instruction::IF,
+    predicate_instructions.emplace_back(make_quadruple(Instruction::IF,
         build_from_branch_comparator_rvalue(block, predicate_instructions),
         detail::instruction_to_string(Instruction::GOTO),
         std::get<1>(label)));
@@ -362,8 +362,7 @@ void ITA::insert_branch_jump_and_resume_instructions(
 /**
  * @brief Construct block statement ita instructions for a branch
  */
-void ITA::insert_branch_block_instructions(
-    Node const& block,
+void ITA::insert_branch_block_instructions(Node const& block,
     Instructions& branch_instructions)
 {
     if (block["root"].to_string() == "block") {
@@ -377,22 +376,20 @@ void ITA::insert_branch_block_instructions(
 }
 
 /**
- * @brief Turn an rvalue into a "truthy" comparator for statement predicates
+ * @brief Turn an rvalue into a "truthy" comparator for statement
+ * predicates
  */
-std::string ITA::build_from_branch_comparator_rvalue(
-    Node const& block,
+std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
     Instructions& instructions)
 {
     std::string temp_lvalue{};
     auto rvalue = Expression_Parser::parse(block, internal_symbols_, symbols_);
-    auto comparator_instructions =
-        expression_node_to_temporary_instructions(
-            symbols_, block, internal_symbols_, &temporary)
-            .first;
+    auto comparator_instructions = expression_node_to_temporary_instructions(
+        symbols_, block, internal_symbols_, &temporary)
+                                       .first;
 
     m::match(value::get_expression_type(rvalue.value))(
-        m::pattern | m::or_(
-                         std::string{ "relation" },
+        m::pattern | m::or_(std::string{ "relation" },
                          std::string{ "unary" },
                          std::string{ "symbol" },
                          std::string{ "array" }) =
@@ -403,8 +400,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
             },
         m::pattern | m::or_(std::string{ "lvalue" }, std::string{ "literal" }) =
             [&] {
-                auto rhs = fmt::format(
-                    "{} {}",
+                auto rhs = fmt::format("{} {}",
                     detail::instruction_to_string(Instruction::CMP),
                     value::expression_type_to_string(rvalue.value, false));
                 auto temp = ir::make_temporary(&temporary, rhs);
@@ -433,8 +429,7 @@ std::string ITA::build_from_branch_comparator_rvalue(
 /**
  * @brief Construct ita instructions from a case statement in a switch
  */
-ITA::Branch_Instructions ITA::build_from_case_statement(
-    Node const& node,
+ITA::Branch_Instructions ITA::build_from_case_statement(Node const& node,
     std::string const& switch_label,
     detail::Branch::Last_Branch const& tail)
 {
@@ -451,8 +446,7 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     auto condition =
         Expression_Parser::parse(node["left"], internal_symbols_, symbols_);
 
-    predicate_instructions.emplace_back(make_quadruple(
-        Instruction::JMP_E,
+    predicate_instructions.emplace_back(make_quadruple(Instruction::JMP_E,
         switch_label,
         value::expression_type_to_string(condition.value, false),
         std::get<1>(jump)));
@@ -475,8 +469,7 @@ ITA::Branch_Instructions ITA::build_from_case_statement(
     if (break_statement)
         if (branch_instructions.empty() or
             !branch.last_instruction_is_jump(branch_instructions.back()))
-            branch_instructions.emplace_back(make_quadruple(
-                Instruction::GOTO,
+            branch_instructions.emplace_back(make_quadruple(Instruction::GOTO,
                 std::get<1>(branch.get_parent_branch().value()),
                 ""));
 
@@ -583,8 +576,7 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
     if (!blocks.at(1).is_null()) {
         auto else_label = make_temporary();
         if (!branch.last_instruction_is_jump(branch_instructions.back()))
-            branch_instructions.emplace_back(make_quadruple(
-                Instruction::GOTO,
+            branch_instructions.emplace_back(make_quadruple(Instruction::GOTO,
                 std::get<1>(branch.get_parent_branch().value()),
                 ""));
         predicate_instructions.emplace_back(
@@ -648,16 +640,14 @@ Instructions ITA::build_from_return_statement(Node const& node)
     auto return_instructions = expression_node_to_temporary_instructions(
         symbols_, return_statement, internal_symbols_, &temporary);
 
-    instructions.insert(
-        instructions.end(),
+    instructions.insert(instructions.end(),
         return_instructions.first.begin(),
         return_instructions.first.end());
 
     if (!return_instructions.second.empty() and instructions.empty()) {
         auto last_rvalue = std::get<value::Expression::Type_Pointer>(
             return_instructions.second.back());
-        instructions.emplace_back(make_quadruple(
-            Instruction::RETURN,
+        instructions.emplace_back(make_quadruple(Instruction::RETURN,
             value::expression_type_to_string(*last_rvalue),
             ""));
     } else {
@@ -672,8 +662,7 @@ Instructions ITA::build_from_return_statement(Node const& node)
 /**
  * @brief Symbol construction from extrn declaration statements
  */
-void ITA::build_from_extrn_statement(
-    Node const& node,
+void ITA::build_from_extrn_statement(Node const& node,
     Instructions& instructions)
 {
     credence_assert_equal(node["node"].to_string(), "statement");
@@ -696,8 +685,7 @@ void ITA::build_from_extrn_statement(
 /**
  * @brief Symbol construction from auto declaration statements
  */
-void ITA::build_from_auto_statement(
-    Node const& node,
+void ITA::build_from_auto_statement(Node const& node,
     Instructions& instructions)
 {
     credence_assert_equal(node["node"].to_string(), "statement");
@@ -711,8 +699,8 @@ void ITA::build_from_auto_statement(
                     auto name = ident["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        ita_error(
-                            "identifier is already defined in auto declaration",
+                        ita_error("identifier is already defined in auto "
+                                  "declaration",
                             name);
 
 #endif
@@ -727,24 +715,26 @@ void ITA::build_from_auto_statement(
                     auto name = ident["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        ita_error(
-                            "identifier is already defined in auto declaration",
+                        ita_error("identifier is already defined in auto "
+                                  "declaration",
                             name);
 
 #endif
                     instructions.emplace_back(
                         make_quadruple(Instruction::LOCL, name));
-                    symbols_.set_symbol_by_name(
-                        name,
-                        { static_cast<unsigned char>('0'), { "byte", size } });
+                    symbols_.set_symbol_by_name(name,
+                        {
+                            static_cast<unsigned char>('0'),
+                            { "byte", size }
+                    });
                 },
             m::pattern | "indirect_lvalue" =
                 [&] {
                     auto name = ident["left"]["root"].to_string();
 #ifndef CREDENCE_TEST
                     if (symbols_.is_defined(name))
-                        ita_error(
-                            "identifier is already defined in auto declaration",
+                        ita_error("identifier is already defined in auto "
+                                  "declaration",
                             name);
 
 #endif
@@ -767,7 +757,7 @@ Instructions ITA::build_from_rvalue_statement(Node const& node)
     auto statement = node["left"];
 
     return expression_node_to_temporary_instructions(
-               symbols_, statement, internal_symbols_, &temporary)
+        symbols_, statement, internal_symbols_, &temporary)
         .first;
 }
 
@@ -846,7 +836,8 @@ constexpr inline bool detail::Branch::last_instruction_is_jump(
 }
 
 /**
- * @brief Increment branch level, create return label and add to branch stack
+ * @brief Increment branch level, create return label and add to branch
+ * stack
  */
 inline void detail::Branch::increment_branch_level()
 {
@@ -897,8 +888,7 @@ detail::Branch::Last_Branch detail::Branch::get_parent_branch(bool last)
 /**
  * @brief Raise ITA construction error
  */
-inline void ITA::ita_error(
-    std::string_view message,
+inline void ITA::ita_error(std::string_view message,
     std::string_view symbol,
     std::source_location const& location)
 {

@@ -14,14 +14,12 @@ The compiler works in 3 stages:
 * The Lexer, Parser first-pass, built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
 
-* The target platforms - currently x86_64, arm64, and Z80
+* The target platforms - x86_64, arm64, and z80 for Linux and BSD (Darwin)
 
----
+## Features
 
-There are a few differences between the compiler and B specification, namely:
-
-* **Strongly typed** with type inference
-  * Vectors (arrays) may be non-homogeneous, but are typed by their initial values at compile-time
+* **Strongly typed** with type inference, unlike the original B language
+  * Vectors (arrays) may be non-homogeneous, but are typed by their initial values at compile-time like a tuple
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
 * Boolean coercion for all data types in conditional structures
@@ -32,6 +30,29 @@ There are a few differences between the compiler and B specification, namely:
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte
+
+Note: Currently, windows is not supported.
+
+## Targets
+
+### x86-64:
+  * Compliance with the Application Binary Interface (ABI) for System V
+  * SIMD memory alignment requirements
+### Arm64:
+  * In progress
+### z80:
+  * In progress
+
+## Standard Library
+
+* The standard library object file is pre-compiled in `stdlib/` for each platform
+
+In addition to a small standard library, platform syscall invocation is available, invalid invocation is a compiletime error.
+
+* **Linux** x86_64
+  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L58)
+* **BSD** (Darwin) x86_64
+  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L453)
 
 ---
 
@@ -54,12 +75,6 @@ Usage:
 ```bash
 ./credence --help
 ```
-
-## Targets
-
-### x86-64:
-  * Compliance with the Application Binary Interface (ABI) for System V
-  * SIMD memory alignment requirements
 
 #### Example
 
@@ -268,7 +283,10 @@ Note: `$PYTHONHOME` must be set to an installation that has [chakram](https://gi
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
+# install latest clang
+wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
+sudo apt-get install -y gcc-10 llvm valgrind clang iwyu python3-dev cppcheck clang-tidy pipx
 # Inside the repository:
 echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.profile
 source ~/.profile

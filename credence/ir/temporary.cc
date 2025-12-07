@@ -67,8 +67,7 @@ namespace ir {
 
 namespace m = matchit;
 
-constexpr std::string make_binary_temporary_string(
-    std::string_view s1,
+constexpr std::string make_binary_temporary_string(std::string_view s1,
     type::Operator s2,
     std::string_view s3)
 {
@@ -76,8 +75,7 @@ constexpr std::string make_binary_temporary_string(
     return fmt::format("{} {} {}"_cf, s1, type::operator_to_string(s2), s3);
 }
 
-constexpr std::string make_unary_temporary_string(
-    type::Operator s1,
+constexpr std::string make_unary_temporary_string(type::Operator s1,
     std::string_view s2)
 {
     using namespace fmt::literals;
@@ -116,8 +114,7 @@ void Temporary::binary_operands_balanced_temporary_stack(type::Operator op)
         make_binary_temporary_string(lhs.first, op, std::get<1>(temp_rhs)));
     // an lvalue at the end of a call stack
     if (operand1->index() == 6 and operand_stack.size() == 0) {
-        auto temp_lhs = ir::make_temporary(
-            temporary_index,
+        auto temp_lhs = ir::make_temporary(temporary_index,
             make_binary_temporary_string(lhs.first, op, std::get<1>(temp_rhs)));
         instructions.emplace_back(temp_lhs);
     }
@@ -169,8 +166,7 @@ void Temporary::binary_operands_unbalanced_temporary_stack(type::Operator op)
                         instructions[instructions.size() - last_index];
                     last_index++;
                 }
-                auto operand_temp = ir::make_temporary(
-                    temporary_index,
+                auto operand_temp = ir::make_temporary(temporary_index,
                     make_binary_temporary_string(
                         std::get<1>(last_lvalue), op, std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
@@ -179,8 +175,7 @@ void Temporary::binary_operands_unbalanced_temporary_stack(type::Operator op)
         // cppcheck-suppress syntaxError
         m::pattern | 1 =
             [&] {
-                auto operand_temp = ir::make_temporary(
-                    temporary_index,
+                auto operand_temp = ir::make_temporary(temporary_index,
                     make_binary_temporary_string(
                         rhs_lvalue, op, std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
@@ -201,8 +196,7 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
     Instructions instructions{};
     std::string temp_name{};
     std::visit(
-        util::overload{
-            [&](std::monostate) {},
+        util::overload{ [&](std::monostate) {},
             [&](value::Expression::Pointer& s) {
                 auto unwrap_type = value::make_value_type_pointer(s->value);
                 auto pointer =
@@ -227,8 +221,7 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
                 ir::insert(instructions, rhs.second);
                 auto temp = ir::make_temporary(temporary_index, rhs.first);
 
-                auto unary = ir::make_temporary(
-                    temporary_index,
+                auto unary = ir::make_temporary(temporary_index,
                     make_unary_temporary_string(op, std::get<1>(temp)));
                 instructions.emplace_back(unary);
                 temp_name = std::get<1>(unary);
@@ -244,8 +237,7 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
                         unwrap_lhs_type);
                     auto rhs = instruction_temporary_from_expression_operand(
                         unwrap_rhs_type);
-                    auto relation = ir::make_temporary(
-                        temporary_index,
+                    auto relation = ir::make_temporary(temporary_index,
                         make_binary_temporary_string(lhs.first, op, rhs.first));
                     instructions.emplace_back(relation);
                     temp_name = std::get<1>(relation);
@@ -365,8 +357,7 @@ void Temporary::from_call_operands_to_temporary_instructions()
         instructions.emplace_back(make_quadruple(Instruction::CALL, rhs.first));
     }
     if (parameters_size > 0)
-        instructions.emplace_back(make_quadruple(
-            Instruction::POP,
+        instructions.emplace_back(make_quadruple(Instruction::POP,
             std::to_string(
                 parameters_size * value::TYPE_LITERAL.at("word").second),
             "",
@@ -395,8 +386,8 @@ void Temporary::from_call_operands_to_temporary_instructions()
  * The final temporary is "_t3", which we set to our x operand.
  *
  * If there is a stack of temporaries from a previous operand, we pop them
- * and use the newest temporary's idenfitier for the instruction name of the
- * top of the temporary stack.
+ * and use the newest temporary's idenfitier for the instruction name of
+ * the top of the temporary stack.
  *
  * I.e., the sub expression "~ 5" was pushed on to a temporary stack, with
  * identifier _t2. We popped it off and used it in our final temporary.
@@ -441,14 +432,13 @@ void Temporary::unary_operand_to_temporary_stack(type::Operator op)
                 m::match(std::cmp_equal(tss, 0))(
                     m::pattern | true =
                         [&] {
-                            // If the operand is an lvalue, use it, otherwise
-                            // create a temporary and assign it the unary
-                            // expression
+                            // If the operand is an lvalue, use it,
+                            // otherwise create a temporary and assign it
+                            // the unary expression
                             if (value::is_value_type_pointer_type(
                                     operand1, "lvalue") and
                                 is_in_place_unary_operator(op)) {
-                                auto unary = make_quadruple(
-                                    Instruction::MOV,
+                                auto unary = make_quadruple(Instruction::MOV,
                                     value::expression_type_to_string(
                                         *operand1, false),
                                     type::operator_to_string(op),
@@ -467,8 +457,7 @@ void Temporary::unary_operand_to_temporary_stack(type::Operator op)
                     m::pattern | m::_ =
                         [&] {
                             // pop the last expression as the unary operand
-                            auto unary = ir::make_temporary(
-                                temporary_index,
+                            auto unary = ir::make_temporary(temporary_index,
                                 make_unary_temporary_string(op, rhs.first));
                             instructions.emplace_back(unary);
                             temporary_stack.emplace(std::get<1>(unary));
@@ -497,7 +486,8 @@ void Temporary::unary_operand_to_temporary_stack(type::Operator op)
  *
  * The binary temporary is "_t3", which we return.
  *
- * We must also keep note of evaluated expressions, i.e wrapped in parenthesis:
+ * We must also keep note of evaluated expressions, i.e wrapped in
+ * parenthesis:
  *
  * `(5 + 5) * (6 * 6)`
  *
@@ -532,8 +522,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                 temporary_stack.pop();
                 auto lhs = temporary_stack.top();
                 temporary_stack.pop();
-                auto last_instruction = ir::make_temporary(
-                    temporary_index,
+                auto last_instruction = ir::make_temporary(temporary_index,
                     make_binary_temporary_string(lhs, op, rhs));
                 instructions.emplace_back(last_instruction);
             },
@@ -545,8 +534,9 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
             [&] {
                 m::match(oss)(
                     // if there is only one operand on the stack, the next
-                    // result was already evaluated and we take the temporary
-                    // lvalues from the last two instructions as operands
+                    // result was already evaluated and we take the
+                    // temporary lvalues from the last two instructions as
+                    // operands
                     m::pattern | (oss == 1) =
                         [&] { binary_operands_unbalanced_temporary_stack(op); },
 
@@ -577,8 +567,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                                     make_binary_temporary_string(
                                         lhs_name.first, op, rhs_name.first));
                                 value::Expression::LValue temp_lvalue =
-                                    std::make_pair(
-                                        std::get<1>(operand_temp),
+                                    std::make_pair(std::get<1>(operand_temp),
                                         value::Expression::NULL_LITERAL);
                                 operand_stack.emplace(
                                     value::make_value_type_pointer(
@@ -602,8 +591,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
  * @brief
  * Construct a set of ITA instructions from an expression queue.
  */
-Instructions expression_queue_to_temporary_instructions(
-    queue::Queue& queue,
+Instructions expression_queue_to_temporary_instructions(queue::Queue& queue,
     int* index)
 {
     using namespace credence::type;
@@ -676,12 +664,12 @@ Instructions expression_queue_to_temporary_instructions(
                             break;
                         case Operator::B_TERNARY:
                             temporary.binary_operands_to_temporary_stack(op);
-                            temporary.instructions.emplace_back(make_quadruple(
-                                Instruction::POP,
-                                std::to_string(
-                                    value::TYPE_LITERAL.at("word").second),
-                                "",
-                                ""));
+                            temporary.instructions.emplace_back(
+                                make_quadruple(Instruction::POP,
+                                    std::to_string(
+                                        value::TYPE_LITERAL.at("word").second),
+                                    "",
+                                    ""));
                             break;
                     }
                 },
@@ -714,10 +702,9 @@ Expression_Instructions expression_node_to_temporary_instructions(
                         value::make_value_type_pointer(expression.value));
                 }
             } else {
-                operands.emplace_back(
-                    value::make_value_type_pointer(
-                        Expression_Parser::parse(expression, details, symbols)
-                            .value));
+                operands.emplace_back(value::make_value_type_pointer(
+                    Expression_Parser::parse(expression, details, symbols)
+                        .value));
             }
         }
         auto queue = queue::make_queue_from_expression_operands(operands);

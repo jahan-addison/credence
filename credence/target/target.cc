@@ -20,11 +20,18 @@
 
 namespace credence::target {
 
-void add_stdlib_functions_to_symbols(util::AST_Node& symbols)
+/**
+ * @brief Add the standard library and platform syscall routines to symbols
+ */
+void add_stdlib_functions_to_symbols(util::AST_Node& symbols, Platform platform)
 {
-    // #if defined(__x86_64__) || defined(_M_X64)
-    x86_64::library::add_stdlib_functions_to_symbols(symbols);
-    // #endif
+    switch (platform) {
+        case Platform::credence_x86_64_platform:
+            x86_64::library::add_stdlib_functions_to_symbols(symbols);
+            break;
+        default:
+            x86_64::library::add_stdlib_functions_to_symbols(symbols);
+    }
 }
 
 } // namespace target

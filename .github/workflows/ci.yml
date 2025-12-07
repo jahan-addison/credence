@@ -34,6 +34,8 @@ jobs:
       shell: bash
       run: |
         sudo apt-get update
+        # wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+        # sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
         sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
         echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.bashrc
         source ~/.bashrc
@@ -82,6 +84,14 @@ jobs:
         ./build/credence -d -t ast $(pwd)/examples/1.b
         ./build/credence -d $(pwd)/test/fixtures/readme.b
         ./build/test_suite
+        export CREDENCE_ENV_HOME="$(pwd)"
+        chmod +x ./bin/credence
+        chmod +x ./test/compiled-test.sh
+        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
+        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b
+        ./test/compiled-test.sh syscall_test
+        ./test/compiled-test.sh stdlib_test
+
 
     - name: memcheck
       if: startsWith(matrix.os, 'ubuntu')

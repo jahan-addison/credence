@@ -9,9 +9,9 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
  */
 
 #include "instructions.h"
@@ -26,8 +26,7 @@ namespace m = matchit;
 /**
  * @brief Compute the result from trivial relational expression
  */
-Immediate get_result_from_trivial_relational_expression(
-    Immediate const& lhs,
+Immediate get_result_from_trivial_relational_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs)
 {
@@ -39,18 +38,15 @@ Immediate get_result_from_trivial_relational_expression(
     auto lhs_type = type::get_type_from_rvalue_data_type(lhs);
     auto rhs_type = type::get_type_from_rvalue_data_type(lhs);
 
-    // clang-format off
-    m::match(op) (
-        make_trivial_immediate_binary_result(==),
+    m::match(op)(make_trivial_immediate_binary_result(==),
         make_trivial_immediate_binary_result(!=),
         make_trivial_immediate_binary_result(<),
         make_trivial_immediate_binary_result(>),
         make_trivial_immediate_binary_result(&&),
         make_trivial_immediate_binary_result(||),
         make_trivial_immediate_binary_result(<=),
-        make_trivial_immediate_binary_result(>=)
-    );
-    // clang-format on
+        make_trivial_immediate_binary_result(>=));
+
     return detail::make_numeric_immediate(result, "byte");
 }
 
@@ -60,17 +56,16 @@ Immediate get_result_from_trivial_relational_expression(
 std::string get_storage_as_string(Storage const& storage)
 {
     std::ostringstream result{};
-    std::visit(
-        util::overload{
-            [&](std::monostate) {},
-            [&](Stack_Offset const& s) {
-                result << fmt::format("stack offset: {}", s);
-            },
-            [&](Register const& s) { result << s; },
-            [&](Immediate const& s) {
-                result << type::get_value_from_rvalue_data_type(s);
-            },
-        },
+    std::visit(util::overload{
+                   [&](std::monostate) {},
+                   [&](Stack_Offset const& s) {
+                       result << fmt::format("stack offset: {}", s);
+                   },
+                   [&](Register const& s) { result << s; },
+                   [&](Immediate const& s) {
+                       result << type::get_value_from_rvalue_data_type(s);
+                   },
+               },
         storage);
     return result.str();
 }
@@ -78,8 +73,7 @@ std::string get_storage_as_string(Storage const& storage)
 /**
  * @brief Compute the result from trivial integral expression
  */
-Immediate get_result_from_trivial_integral_expression(
-    Immediate const& lhs,
+Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs)
 {
@@ -111,8 +105,7 @@ Immediate get_result_from_trivial_integral_expression(
 /**
  * @brief Compute the result from trivial bitwise expression
  */
-Immediate get_result_from_trivial_bitwise_expression(
-    Immediate const& lhs,
+Immediate get_result_from_trivial_bitwise_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs)
 {
@@ -140,8 +133,7 @@ Immediate get_result_from_trivial_bitwise_expression(
  *    add rax, rdi
  *    imul rax, [rbp - 4]
  */
-Instruction_Pair add_2ary_inst(
-    Mnemonic mnemonic,
+Instruction_Pair add_2ary_inst(Mnemonic mnemonic,
     Storage const& dest,
     Storage const& src)
 {

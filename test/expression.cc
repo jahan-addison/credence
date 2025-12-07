@@ -23,38 +23,51 @@ struct Fixture
     Fixture()
     {
         assignment_symbol_table = credence::util::AST_Node::load(
-            "{\n  \"main\" : {\n    \"column\" : 1,\n    \"end_column\" : 5,\n "
+            "{\n  \"main\" : {\n    \"column\" : 1,\n    \"end_column\" : "
+            "5,\n "
             "   "
-            "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : 0,\n    "
+            "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : "
+            "0,\n    "
             "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    "
             "\"column\" "
             ": 3,\n    \"end_column\" : 4,\n    \"end_pos\" : 13,\n    "
             "\"line\" : "
-            "2,\n    \"start_pos\" : 12,\n    \"type\" : \"number_literal\"\n  "
+            "2,\n    \"start_pos\" : 12,\n    \"type\" : "
+            "\"number_literal\"\n  "
             "}\n}");
         lvalue_ast_node_json = credence::util::AST_Node::load(
-            " {\n        \"left\" : [{\n            \"left\" : [{\n            "
+            " {\n        \"left\" : [{\n            \"left\" : [{\n       "
+            "     "
             "    "
-            "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n        "
+            "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n   "
+            "     "
             "    "
-            "  }, {\n                \"node\" : \"lvalue\",\n                "
-            "\"root\" : \"y\"\n              }, {\n                \"node\" : "
-            "\"lvalue\",\n                \"root\" :\"z\"\n              }],\n "
+            "  }, {\n                \"node\" : \"lvalue\",\n             "
+            "   "
+            "\"root\" : \"y\"\n              }, {\n                "
+            "\"node\" : "
+            "\"lvalue\",\n                \"root\" :\"z\"\n              "
+            "}],\n "
             "   "
             "        \"node\" : \"statement\",\n            \"root\" : "
             "\"auto\"\n  "
             "        }, {\n            \"left\" : [[{\n                  "
             "\"left\" "
-            ": {\n                    \"node\" : \"lvalue\",\n                 "
+            ": {\n                    \"node\" : \"lvalue\",\n            "
+            "     "
             "   "
             "\"root\" : \"x\"\n                  },\n                  "
             "\"node\" : "
-            "\"assignment_expression\",\n                  \"right\" : {\n     "
+            "\"assignment_expression\",\n                  \"right\" : "
+            "{\n     "
             "    "
-            "           \"node\" : \"number_literal\",\n                    "
-            "\"root\" : 5\n                  },\n                  \"root\" : "
+            "           \"node\" : \"number_literal\",\n                  "
+            "  "
+            "\"root\" : 5\n                  },\n                  "
+            "\"root\" : "
             "[\"=\", null]\n                }]],\n            \"node\" : "
-            "\"statement\",\n            \"root\" : \"rvalue\"\n          }]\n "
+            "\"statement\",\n            \"root\" : \"rvalue\"\n          "
+            "}]\n "
             "}\n ");
     }
     ~Fixture() = default;
@@ -65,58 +78,97 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
     credence::util::AST_Node obj;
     using std::get;
     obj["test"] = credence::util::AST_Node::load(
-        "[{\n                  \"node\" : \"constant_literal\",\n              "
+        "[{\n                  \"node\" : \"constant_literal\",\n         "
+        "     "
         "    \"root\" : \"x\"\n                }, {\n                  "
-        "\"node\" : \"number_literal\",\n                  \"root\" : 10\n     "
-        "           }, {\n                  \"node\" : \"string_literal\",\n   "
-        "               \"root\" : \"\\\"hello world\\\"\"\n                }, "
-        "{\n                  \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
-        "},\n                  \"node\" : \"assignment_expression\",\n         "
+        "\"node\" : \"number_literal\",\n                  \"root\" : "
+        "10\n     "
+        "           }, {\n                  \"node\" : "
+        "\"string_literal\",\n   "
+        "               \"root\" : \"\\\"hello world\\\"\"\n              "
+        "  }, "
+        "{\n                  \"left\" : {\n                    \"node\" "
+        ": "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
+        "    "
+        "},\n                  \"node\" : \"assignment_expression\",\n    "
+        "     "
         "         \"right\" : {\n                    \"node\" : "
-        "\"number_literal\",\n                    \"root\" : 5\n               "
-        "   },\n                  \"root\" : [\"=\", null]\n                }, "
-        "{\n                  \"node\" : \"evaluated_expression\",\n           "
-        "       \"root\" : {\n                    \"left\" : {\n               "
+        "\"number_literal\",\n                    \"root\" : 5\n          "
+        "     "
+        "   },\n                  \"root\" : [\"=\", null]\n              "
+        "  }, "
+        "{\n                  \"node\" : \"evaluated_expression\",\n      "
+        "     "
+        "       \"root\" : {\n                    \"left\" : {\n          "
+        "     "
         "       \"node\" : \"lvalue\",\n                      \"root\" : "
-        "\"putchar\"\n                    },\n                    \"node\" : "
-        "\"function_expression\",\n                    \"right\" : [{\n        "
+        "\"putchar\"\n                    },\n                    "
+        "\"node\" : "
+        "\"function_expression\",\n                    \"right\" : [{\n   "
+        "     "
         "                \"node\" : \"lvalue\",\n                        "
         "\"root\" : \"x\"\n                      }],\n                    "
-        "\"root\" : \"putchar\"\n                  }\n                }, {\n   "
+        "\"root\" : \"putchar\"\n                  }\n                }, "
+        "{\n   "
         "               \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"getchar\"\n             "
-        "     },\n                  \"node\" : \"function_expression\",\n      "
+        "\"lvalue\",\n                    \"root\" : \"getchar\"\n        "
+        "     "
+        "     },\n                  \"node\" : \"function_expression\",\n "
+        "     "
         "            \"right\" : [{\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"c\"\n                 "
-        "   }],\n                  \"root\" : \"getchar\"\n                }, "
-        "{\n                  \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n                  "
-        "},\n                  \"node\" : \"relation_expression\",\n           "
+        "\"lvalue\",\n                      \"root\" : \"c\"\n            "
+        "     "
+        "   }],\n                  \"root\" : \"getchar\"\n               "
+        " }, "
+        "{\n                  \"left\" : {\n                    \"node\" "
+        ": "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
+        "    "
+        "},\n                  \"node\" : \"relation_expression\",\n      "
+        "     "
         "       \"right\" : {\n                    \"node\" : "
-        "\"number_literal\",\n                    \"root\" : 5\n               "
-        "   },\n                  \"root\" : [\"<\"]\n                }, {\n   "
-        "               \"node\" : \"post_inc_dec_expression\",\n              "
-        "    \"right\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "             \"root\" : \"x\"\n                  },\n                 "
+        "\"number_literal\",\n                    \"root\" : 5\n          "
+        "     "
+        "   },\n                  \"root\" : [\"<\"]\n                }, "
+        "{\n   "
+        "               \"node\" : \"post_inc_dec_expression\",\n         "
+        "     "
+        "    \"right\" : {\n                    \"node\" : \"lvalue\",\n  "
+        "     "
+        "             \"root\" : \"x\"\n                  },\n            "
+        "     "
         " \"root\" : [\"++\"]\n                }, {\n                  "
-        "\"node\" : \"post_inc_dec_expression\",\n                  \"right\" "
-        ": {\n                    \"node\" : \"lvalue\",\n                    "
-        "\"root\" : \"x\"\n                  },\n                  \"root\" : "
-        "[\"--\"]\n                }, {\n                  \"left\" : {\n      "
-        "              \"node\" : \"number_literal\",\n                    "
+        "\"node\" : \"post_inc_dec_expression\",\n                  "
+        "\"right\" "
+        ": {\n                    \"node\" : \"lvalue\",\n                "
+        "    "
+        "\"root\" : \"x\"\n                  },\n                  "
+        "\"root\" : "
+        "[\"--\"]\n                }, {\n                  \"left\" : {\n "
+        "     "
+        "              \"node\" : \"number_literal\",\n                   "
+        " "
         "\"root\" : 5\n                  },\n                  \"node\" : "
-        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n         "
+        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n    "
+        "     "
         "       }, {\n                  \"left\" : {\n                    "
-        "\"node\" : \"evaluated_expression\",\n                    \"root\" : "
+        "\"node\" : \"evaluated_expression\",\n                    "
+        "\"root\" : "
         "{\n                      \"left\" : {\n                        "
-        "\"node\" : \"number_literal\",\n                        \"root\" : "
+        "\"node\" : \"number_literal\",\n                        \"root\" "
+        ": "
         "5\n                      },\n                      \"node\" : "
-        "\"unary_expression\",\n                      \"root\" : [\"~\"]\n     "
-        "               }\n                  },\n                  \"node\" : "
-        "\"relation_expression\",\n                  \"right\" : {\n           "
-        "         \"node\" : \"number_literal\",\n                    \"root\" "
-        ": 10\n                  },\n                  \"root\" : [\"^\"]\n    "
+        "\"unary_expression\",\n                      \"root\" : "
+        "[\"~\"]\n     "
+        "               }\n                  },\n                  "
+        "\"node\" : "
+        "\"relation_expression\",\n                  \"right\" : {\n      "
+        "     "
+        "         \"node\" : \"number_literal\",\n                    "
+        "\"root\" "
+        ": 10\n                  },\n                  \"root\" : "
+        "[\"^\"]\n    "
         "            }]");
     auto temp = Expression_Parser(obj);
     credence::value::Literal null = value::Expression::NULL_LITERAL;
@@ -136,14 +188,21 @@ TEST_CASE("rvalue.cc: Expression_Parser::function_expression")
     credence::util::AST_Node obj;
     using std::get;
     obj["test"] = credence::util::AST_Node::load(
-        "{\n                  \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"putchar\"\n             "
-        "     },\n                  \"node\" : \"function_expression\",\n      "
+        "{\n                  \"left\" : {\n                    \"node\" "
+        ": "
+        "\"lvalue\",\n                    \"root\" : \"putchar\"\n        "
+        "     "
+        "     },\n                  \"node\" : \"function_expression\",\n "
+        "     "
         "            \"right\" : [{\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"x\"\n                 "
-        "   }, {\n                      \"node\" : \"lvalue\",\n               "
-        "       \"root\" : \"y\"\n                    }, {\n                   "
-        "   \"node\" : \"lvalue\",\n                      \"root\" : \"z\"\n   "
+        "\"lvalue\",\n                      \"root\" : \"x\"\n            "
+        "     "
+        "   }, {\n                      \"node\" : \"lvalue\",\n          "
+        "     "
+        "       \"root\" : \"y\"\n                    }, {\n              "
+        "     "
+        "   \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"z\"\n   "
         "                 }]\n}\n                    ");
     auto temp = Expression_Parser(obj);
     credence::value::Literal null = value::Expression::NULL_LITERAL;
@@ -156,15 +215,12 @@ TEST_CASE("rvalue.cc: Expression_Parser::function_expression")
     auto test1 = temp.from_function_expression_node(obj["test"]);
     auto function = get<credence::value::Expression::Function>(test1.value);
     // parameters
-    CHECK(
-        get<credence::value::Expression::LValue>(function.second[0]->value)
-            .first == "x");
-    CHECK(
-        get<credence::value::Expression::LValue>(function.second[1]->value)
-            .first == "y");
-    CHECK(
-        get<credence::value::Expression::LValue>(function.second[2]->value)
-            .first == "z");
+    CHECK(get<credence::value::Expression::LValue>(function.second[0]->value)
+              .first == "x");
+    CHECK(get<credence::value::Expression::LValue>(function.second[1]->value)
+              .first == "y");
+    CHECK(get<credence::value::Expression::LValue>(function.second[2]->value)
+              .first == "z");
 }
 
 TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
@@ -172,19 +228,31 @@ TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
     credence::util::AST_Node obj;
     using std::get;
     obj["test"] = credence::util::AST_Node::load(
-        "[{\n                  \"node\" : \"evaluated_expression\",\n          "
-        "        \"root\" : {\n                    \"left\" : {\n              "
+        "[{\n                  \"node\" : \"evaluated_expression\",\n     "
+        "     "
+        "        \"root\" : {\n                    \"left\" : {\n         "
+        "     "
         "        \"node\" : \"number_literal\",\n                      "
-        "\"root\" : 5\n                    },\n                    \"node\" : "
-        "\"relation_expression\",\n                    \"right\" : {\n         "
-        "             \"node\" : \"number_literal\",\n                      "
-        "\"root\" : 5\n                    },\n                    \"root\" : "
-        "[\"*\"]\n                  }\n                }, {\n                  "
-        "\"node\" : \"evaluated_expression\",\n                  \"root\" : "
-        "{\n                    \"left\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"x\"\n                 "
-        "   },\n                    \"node\" : \"indirect_lvalue\",\n          "
-        "          \"root\" : [\"*\"]\n                  }\n                "
+        "\"root\" : 5\n                    },\n                    "
+        "\"node\" : "
+        "\"relation_expression\",\n                    \"right\" : {\n    "
+        "     "
+        "             \"node\" : \"number_literal\",\n                    "
+        "  "
+        "\"root\" : 5\n                    },\n                    "
+        "\"root\" : "
+        "[\"*\"]\n                  }\n                }, {\n             "
+        "     "
+        "\"node\" : \"evaluated_expression\",\n                  \"root\" "
+        ": "
+        "{\n                    \"left\" : {\n                      "
+        "\"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"x\"\n            "
+        "     "
+        "   },\n                    \"node\" : \"indirect_lvalue\",\n     "
+        "     "
+        "          \"root\" : [\"*\"]\n                  }\n              "
+        "  "
         "}]");
     auto temp = Expression_Parser(obj);
     credence::value::Literal null = value::Expression::NULL_LITERAL;
@@ -194,10 +262,9 @@ TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
     auto expressions = obj["test"].to_deque();
     auto test1 = temp.from_evaluated_expression_node(expressions.at(0));
     auto expr1 = get<credence::value::Expression::Pointer>(test1.value);
-    CHECK(
-        get<credence::value::Expression::Relation>(
-            get<credence::value::Expression::Pointer>(expr1->value)->value)
-            .first == Operator::B_MUL);
+    CHECK(get<credence::value::Expression::Relation>(
+              get<credence::value::Expression::Pointer>(expr1->value)->value)
+              .first == Operator::B_MUL);
     auto test2 = temp.from_evaluated_expression_node(expressions.at(1));
     auto expr2 = get<credence::value::Expression::Pointer>(test2.value);
     CHECK(get<credence::value::Expression::LValue>(expr2->value).first == "*x");
@@ -213,42 +280,52 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
         "\"right\": "
         "{\n      \"node\": \"number_literal\",\n      \"root\": 10\n    "
         "},\n  "
-        "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n   "
+        "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n  "
+        " "
         "   "
         "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
         "\"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n   "
+        "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n  "
+        " "
         "    "
-        " \"node\": \"number_literal\",\n        \"root\": 10\n      },\n  "
+        " \"node\": \"number_literal\",\n        \"root\": 10\n      },\n "
+        " "
         "    "
         "\"node\": \"ternary_expression\",\n      \"right\": {\n        "
-        "\"node\": \"number_literal\",\n        \"root\": 1\n      },\n    "
+        "\"node\": \"number_literal\",\n        \"root\": 1\n      },\n   "
+        " "
         "  "
         "\"root\": {\n        \"node\": \"number_literal\",\n        "
         "\"root\": "
-        "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n  "
+        "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n "
+        " "
         "{\n "
         "   \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": "
         "\"x\"\n  "
-        "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n  "
+        "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n "
+        " "
         "    "
         "\"node\": \"number_literal\",\n      \"root\": 5\n    },\n    "
-        "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n    "
+        "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n   "
+        " "
         "  "
         "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
         "\"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n "
+        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": "
+        "[\n "
         "    "
         " \"!=\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 0\n    },\n    \"root\": [\n "
+        "\"number_literal\",\n      \"root\": 0\n    },\n    \"root\": "
+        "[\n "
         "    "
         " \"^\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": [\n "
+        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": "
+        "[\n "
         "    "
         " \"<\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
@@ -268,159 +345,155 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
     using std::get;
 
     auto test1 = temp.from_relation_expression_node(relation_expressions.at(0));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test1.value).first ==
-        Operator::B_MUL);
+    CHECK(std::get<credence::value::Expression::Relation>(test1.value).first ==
+          Operator::B_MUL);
     arguments =
         std::get<credence::value::Expression::Relation>(test1.value).second;
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(arguments[1]->value).first) ==
-        10);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(arguments[1]->value).first) ==
+          10);
 
     // ternary relation test
     auto test2 = temp.from_relation_expression_node(relation_expressions.at(1));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test2.value).first ==
-        Operator::R_LE);
+    CHECK(std::get<credence::value::Expression::Relation>(test2.value).first ==
+          Operator::R_LE);
     arguments = std::move(
         std::get<credence::value::Expression::Relation>(test2.value).second);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        get<int>(get<credence::value::Literal>(arguments[1]->value).first) ==
-        5);
-    CHECK(
-        get<int>(get<credence::value::Literal>(arguments[2]->value).first) ==
-        10);
-    CHECK(
-        get<int>(get<credence::value::Literal>(arguments[3]->value).first) ==
-        1);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(get<int>(get<credence::value::Literal>(arguments[1]->value).first) ==
+          5);
+    CHECK(get<int>(get<credence::value::Literal>(arguments[2]->value).first) ==
+          10);
+    CHECK(get<int>(get<credence::value::Literal>(arguments[3]->value).first) ==
+          1);
 
     auto test3 = temp.from_relation_expression_node(relation_expressions.at(2));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test3.value).first ==
-        Operator::R_EQUAL);
+    CHECK(std::get<credence::value::Expression::Relation>(test3.value).first ==
+          Operator::R_EQUAL);
     arguments = std::move(
         std::get<credence::value::Expression::Relation>(test3.value).second);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(arguments[1]->value).first) ==
-        5);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(arguments[1]->value).first) ==
+          5);
 
     auto test4 = temp.from_relation_expression_node(relation_expressions.at(3));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test4.value).first ==
-        Operator::R_NEQUAL);
+    CHECK(std::get<credence::value::Expression::Relation>(test4.value).first ==
+          Operator::R_NEQUAL);
     arguments = std::move(
         std::get<credence::value::Expression::Relation>(test4.value).second);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(arguments[1]->value).first) ==
-        5);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(arguments[1]->value).first) ==
+          5);
 
     auto test5 = temp.from_relation_expression_node(relation_expressions.at(4));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test5.value).first ==
-        Operator::XOR);
+    CHECK(std::get<credence::value::Expression::Relation>(test5.value).first ==
+          Operator::XOR);
     arguments = std::move(
         std::get<credence::value::Expression::Relation>(test5.value).second);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(arguments[1]->value).first) ==
-        0);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(arguments[1]->value).first) ==
+          0);
 
     auto test6 = temp.from_relation_expression_node(relation_expressions.at(5));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test6.value).first ==
-        Operator::R_LT);
+    CHECK(std::get<credence::value::Expression::Relation>(test6.value).first ==
+          Operator::R_LT);
     arguments = std::move(
         std::get<credence::value::Expression::Relation>(test6.value).second);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(arguments[1]->value).first) ==
-        5);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(arguments[1]->value).first) ==
+          5);
 
     auto test7 = temp.from_relation_expression_node(relation_expressions.at(6));
-    CHECK(
-        std::get<credence::value::Expression::Relation>(test7.value).first ==
-        Operator::R_LE);
+    CHECK(std::get<credence::value::Expression::Relation>(test7.value).first ==
+          Operator::R_LE);
     arguments = std::move(
         std::get<credence::value::Expression::Relation>(test7.value).second);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(arguments[0]->value)
-            .first == "x");
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(arguments[1]->value).first) ==
-        10);
+    CHECK(std::get<credence::value::Expression::LValue>(arguments[0]->value)
+              .first == "x");
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(arguments[1]->value).first) ==
+          10);
 }
 
 TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
-        "[{\n                  \"node\" : \"post_inc_dec_expression\",\n   "
+        "[{\n                  \"node\" : \"post_inc_dec_expression\",\n  "
+        " "
         "    "
         "           \"right\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
+        " "
         "   "
-        "},\n                  \"root\" : [\"++\"]\n                }, {\n "
+        "},\n                  \"root\" : [\"++\"]\n                }, "
+        "{\n "
         "    "
         "             \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
-        "   "
-        "},\n                  \"node\" : \"pre_inc_dec_expression\",\n    "
-        "    "
-        "          \"root\" : [\"++\"]\n                }, {\n             "
-        "    "
-        " \"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "    "
-        "         \"root\" : \"x\"\n                  },\n                 "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
         " "
-        "\"node\" : \"address_of_expression\",\n                  \"root\" "
+        "   "
+        "},\n                  \"node\" : \"pre_inc_dec_expression\",\n   "
+        " "
+        "    "
+        "          \"root\" : [\"++\"]\n                }, {\n            "
+        " "
+        "    "
+        " \"left\" : {\n                    \"node\" : \"lvalue\",\n      "
+        " "
+        "    "
+        "         \"root\" : \"x\"\n                  },\n                "
+        " "
+        " "
+        "\"node\" : \"address_of_expression\",\n                  "
+        "\"root\" "
         ": "
-        "[\"&\"]\n                }, {\n                  \"left\" : {\n   "
+        "[\"&\"]\n                }, {\n                  \"left\" : {\n  "
+        " "
         "    "
         "             \"node\" : \"number_literal\",\n                    "
         "\"root\" : 5\n                  },\n                  \"node\" : "
-        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n     "
+        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n    "
+        " "
         "    "
         "       }, {\n                  \"left\" : {\n                    "
-        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n    "
+        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n   "
+        " "
         "    "
-        "          },\n                  \"node\" : \"indirect_lvalue\",\n "
+        "          },\n                  \"node\" : "
+        "\"indirect_lvalue\",\n "
         "    "
-        "             \"root\" : [\"*\"]\n                }, {\n           "
+        "             \"root\" : [\"*\"]\n                }, {\n          "
+        " "
         "    "
         "     \"left\" : {\n                      \"node\" : "
-        "\"number_literal\",\n                      \"root\" : 5\n         "
+        "\"number_literal\",\n                      \"root\" : 5\n        "
+        " "
         "    "
-        "       },\n                    \"node\" : \"unary_expression\",\n "
+        "       },\n                    \"node\" : "
+        "\"unary_expression\",\n "
         "    "
-        "               \"root\" : [\"-\"]\n                  },\n         "
+        "               \"root\" : [\"-\"]\n                  },\n        "
+        " "
         "    "
         "   {\n                  \"left\" : {\n                    "
         "\"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
+        " "
         "   "
-        "},\n                  \"node\" : \"unary_expression\",\n          "
+        "},\n                  \"node\" : \"unary_expression\",\n         "
+        " "
         "    "
         "    \"root\" : [\"!\"]\n                }]");
     auto temp = Expression_Parser(obj);
@@ -434,84 +507,74 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
 
     auto test1 = temp.from_unary_expression_node(unary_expressions.at(0));
     lvalue = std::get<credence::value::Expression::Unary>(test1.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test1.value).first ==
-        Operator::POST_INC);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(lvalue->value).first ==
-        "x");
+    CHECK(std::get<credence::value::Expression::Unary>(test1.value).first ==
+          Operator::POST_INC);
+    CHECK(std::get<credence::value::Expression::LValue>(lvalue->value).first ==
+          "x");
 
     auto test2 = temp.from_unary_expression_node(unary_expressions.at(1));
     lvalue = std::get<credence::value::Expression::Unary>(test2.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test2.value).first ==
-        Operator::PRE_INC);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(lvalue->value).first ==
-        "x");
+    CHECK(std::get<credence::value::Expression::Unary>(test2.value).first ==
+          Operator::PRE_INC);
+    CHECK(std::get<credence::value::Expression::LValue>(lvalue->value).first ==
+          "x");
 
     auto test3 = temp.from_unary_expression_node(unary_expressions.at(2));
     lvalue = std::get<credence::value::Expression::Unary>(test3.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test3.value).first ==
-        Operator::U_ADDR_OF);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(lvalue->value).first ==
-        "x");
+    CHECK(std::get<credence::value::Expression::Unary>(test3.value).first ==
+          Operator::U_ADDR_OF);
+    CHECK(std::get<credence::value::Expression::LValue>(lvalue->value).first ==
+          "x");
 
     auto test4 = temp.from_unary_expression_node(unary_expressions.at(3));
     constant = std::get<credence::value::Expression::Unary>(test4.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test4.value).first ==
-        Operator::U_ONES_COMPLEMENT);
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(constant->value).first) == 5);
+    CHECK(std::get<credence::value::Expression::Unary>(test4.value).first ==
+          Operator::U_ONES_COMPLEMENT);
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(constant->value).first) == 5);
 
     auto test5 = temp.from_unary_expression_node(unary_expressions.at(4));
     lvalue = std::get<credence::value::Expression::Unary>(test5.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test5.value).first ==
-        Operator::U_INDIRECTION);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(lvalue->value).first ==
-        "x");
+    CHECK(std::get<credence::value::Expression::Unary>(test5.value).first ==
+          Operator::U_INDIRECTION);
+    CHECK(std::get<credence::value::Expression::LValue>(lvalue->value).first ==
+          "x");
 
     auto test6 = temp.from_unary_expression_node(unary_expressions.at(5));
     constant = std::get<credence::value::Expression::Unary>(test6.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test6.value).first ==
-        Operator::U_MINUS);
-    CHECK(
-        std::get<int>(
-            std::get<credence::value::Literal>(constant->value).first) == 5);
+    CHECK(std::get<credence::value::Expression::Unary>(test6.value).first ==
+          Operator::U_MINUS);
+    CHECK(std::get<int>(
+              std::get<credence::value::Literal>(constant->value).first) == 5);
 
     auto test7 = temp.from_unary_expression_node(unary_expressions.at(6));
     lvalue = std::get<credence::value::Expression::Unary>(test7.value).second;
-    CHECK(
-        std::get<credence::value::Expression::Unary>(test7.value).first ==
-        Operator::U_NOT);
-    CHECK(
-        std::get<credence::value::Expression::LValue>(lvalue->value).first ==
-        "x");
+    CHECK(std::get<credence::value::Expression::Unary>(test7.value).first ==
+          Operator::U_NOT);
+    CHECK(std::get<credence::value::Expression::LValue>(lvalue->value).first ==
+          "x");
 }
 
-TEST_CASE_FIXTURE(
-    Fixture,
+TEST_CASE_FIXTURE(Fixture,
     "rvalue.cc: Expression_Parser::from_assignment_expression")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = credence::util::AST_Node::load(
-        "{\n                  \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n               "
+        "{\n                  \"left\" : {\n                    \"node\" "
+        ": "
+        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
+        " "
         "   "
-        "},\n                  \"node\" : \"assignment_expression\",\n     "
+        "},\n                  \"node\" : \"assignment_expression\",\n    "
+        " "
         "    "
         "         \"right\" : {\n                    \"node\" : "
-        "\"number_literal\",\n                    \"root\" : 5\n           "
+        "\"number_literal\",\n                    \"root\" : 5\n          "
+        " "
         "    "
-        "   },\n                  \"root\" : [\"=\", null]\n               "
+        "   },\n                  \"root\" : [\"=\", null]\n              "
+        " "
         " }");
     auto temp = Expression_Parser(obj["symbols"]);
     // no declaration with `auto' or `extern', should throw
@@ -520,7 +583,7 @@ TEST_CASE_FIXTURE(
     credence::value::Literal value_type = value::Expression::NULL_LITERAL;
 
     credence::value::Literal assigned_type = { 5,
-                                               value::TYPE_LITERAL.at("int") };
+        value::TYPE_LITERAL.at("int") };
 
     temp.symbols_.table_.emplace("x", value_type);
 
@@ -539,10 +602,9 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: Expression_Parser::is_symbol")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\"node\":  \"lvalue\","
-        "\"root\": \"x\""
-        "}");
+    obj["test"] = credence::util::AST_Node::load("{\"node\":  \"lvalue\","
+                                                 "\"root\": \"x\""
+                                                 "}");
     auto temp = Expression_Parser(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
@@ -559,18 +621,23 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_lvalue_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
-        "[\n               {\n                \"left\" : {\n               "
+        "[\n               {\n                \"left\" : {\n              "
+        " "
         "   "
-        "\"node\" : \"number_literal\",\n                  \"root\" : 50\n "
+        "\"node\" : \"number_literal\",\n                  \"root\" : "
+        "50\n "
         "    "
-        "           },\n                \"node\" : \"vector_lvalue\",\n    "
+        "           },\n                \"node\" : \"vector_lvalue\",\n   "
+        " "
         "    "
         "        \"root\" : \"x\"\n              }, {\n                "
-        "\"left\" : {\n                  \"node\" : \"lvalue\",\n          "
+        "\"left\" : {\n                  \"node\" : \"lvalue\",\n         "
+        " "
         "    "
         "    \"root\" : \"y\"\n                },\n                "
         "\"node\" : "
-        "\"indirect_lvalue\",\n                \"root\" : [\"*\"]\n        "
+        "\"indirect_lvalue\",\n                \"root\" : [\"*\"]\n       "
+        " "
         "    "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
         "\"root\" : \"z\"\n              }]");
@@ -618,9 +685,11 @@ TEST_CASE("ir/tble.cc: Expression_Parser::from_vector_idenfitier")
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
         "{\n                \"left\" : {\n                  \"node\" : "
-        "\"number_literal\",\n                  \"root\" : 50\n            "
+        "\"number_literal\",\n                  \"root\" : 50\n           "
+        " "
         "    "
-        "},\n                \"node\" : \"vector_lvalue\",\n               "
+        "},\n                \"node\" : \"vector_lvalue\",\n              "
+        " "
         " "
         "\"root\" : \"x\"\n              }");
 
@@ -635,10 +704,10 @@ TEST_CASE("ir/tble.cc: Expression_Parser::from_vector_idenfitier")
 TEST_CASE("rvalue.cc: Expression_Parser::from_constant_expression")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\"node\":  \"number_literal\","
-        "\"root\": 10"
-        "}");
+    obj["test"] =
+        credence::util::AST_Node::load("{\"node\":  \"number_literal\","
+                                       "\"root\": 10"
+                                       "}");
 
     auto temp = Expression_Parser(obj);
     auto data = temp.from_constant_expression_node(obj["test"]);
@@ -651,10 +720,10 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_constant_expression")
 TEST_CASE("rvalue.cc: Expression_Parser::from_number_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\"node\":  \"number_literal\","
-        "\"root\": 10"
-        "}");
+    obj["test"] =
+        credence::util::AST_Node::load("{\"node\":  \"number_literal\","
+                                       "\"root\": 10"
+                                       "}");
 
     auto temp = Expression_Parser(obj);
     auto data = temp.from_number_literal_node(obj["test"]);
@@ -668,7 +737,8 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_string_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
-        "{\n                  \"node\" : \"string_literal\",\n                 "
+        "{\n                  \"node\" : \"string_literal\",\n            "
+        "     "
         " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
     auto temp = Expression_Parser(obj);
@@ -682,10 +752,10 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_string_literal")
 TEST_CASE("rvalue.cc: Expression_Parser::from_constant_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\"node\":  \"constant_literal\","
-        "\"root\": \"x\""
-        "}");
+    obj["test"] =
+        credence::util::AST_Node::load("{\"node\":  \"constant_literal\","
+                                       "\"root\": \"x\""
+                                       "}");
 
     auto temp = Expression_Parser(obj);
     auto data = temp.from_constant_literal_node(obj["test"]);

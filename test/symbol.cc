@@ -17,8 +17,8 @@ TEST_CASE("symbol.cc: Symbol_table::get_symbol_by_name")
     CHECK(temp.get_symbol_by_name("test") == 10);
 
     auto temp2 = Symbol_Table<std::array<std::string, 2>>{};
-    temp2.table_.emplace("test",
-                         std::array<std::string, 2>({ "hello", "world" }));
+    temp2.table_.emplace(
+        "test", std::array<std::string, 2>({ "hello", "world" }));
 
     CHECK(temp2.get_symbol_by_name("test")[0] == "hello");
     CHECK(temp2.get_symbol_by_name("test")[1] == "world");

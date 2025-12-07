@@ -15,29 +15,34 @@
  */
 
 #include "syscall.h"
-#include "instructions.h"   // for Register, make_numeric_immediate, Mnemonic
+#include "instructions.h"   // for Register, make_numeric_immediate, add_in...
 #include <credence/error.h> // for assert_equal_impl, credence_assert, cred...
 #include <deque>            // for deque
-#include <string>           // for basic_string
+#include <string>           // for basic_string, string
 #include <variant>          // for variant
-#include <vector>           // for vector
 
-namespace credence::target::x86_64::syscall {
+namespace credence::target::x86_64::syscall_ns {
 
 namespace common {
+/**
+ * @brief Create instructions for a platform-independent exit syscall
+ */
 // cppcheck-suppress constParameterReference
 void exit_syscall(Instructions& instructions, int exit_status)
 {
     auto immediate = detail::make_numeric_immediate(exit_status);
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall::linux_ns::make_syscall(instructions, "exit", { immediate });
+    syscall_ns::linux_ns::make_syscall(instructions, "exit", { immediate });
 #elif defined(__APPLE__) || defined(__bsdi__)
-    syscall::bsd_ns::make_syscall(instructions, "exit", { immediate });
+    syscall_ns::bsd_ns::make_syscall(instructions, "exit", { immediate });
 #else
     credence_error("Operating system not supported");
 #endif
 }
 
+/**
+ * @brief Get the list of avalable syscalls on the current platform
+ */
 std::vector<std::string> get_platform_syscall_symbols()
 {
     std::vector<std::string> symbols{};
@@ -54,8 +59,13 @@ std::vector<std::string> get_platform_syscall_symbols()
 
 namespace linux_ns {
 
-void make_syscall(
-    Instructions& instructions,
+/**
+ * @brief Create instructions for a linux x86_64 platform syscall
+ *    See syscall.h for details
+ *
+ * Note that invalid invocation is a compiletime assertion error
+ */
+void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments)
 {
@@ -86,8 +96,13 @@ void make_syscall(
 
 namespace bsd_ns {
 
-void make_syscall(
-    Instructions& instructions,
+/**
+ * @brief Create instructions for a BSD (Darwin) x86_64 platform syscall
+ *    See syscall.h for details
+ *
+ * Note that invalid invocation is a compiletime assertion error
+ */
+void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments)
 {
@@ -119,6 +134,10 @@ void make_syscall(
 } // namespace bsd
 
 namespace common {
+
+/**
+ * @brief Create instructions for a platform-independent syscall
+ */
 void make_syscall(
     // cppcheck-suppress constParameterReference
     Instructions& instructions,
@@ -126,9 +145,9 @@ void make_syscall(
     syscall_arguments_t const& arguments)
 {
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall::linux_ns::make_syscall(instructions, syscall, arguments);
+    syscall_ns::linux_ns::make_syscall(instructions, syscall, arguments);
 #elif defined(__APPLE__) || defined(__bsdi__)
-    syscall::bsd_ns::make_syscall(instructions, syscall, arguments);
+    syscall_ns::bsd_ns::make_syscall(instructions, syscall, arguments);
 #else
     credence_error("Operating system not supported");
 #endif

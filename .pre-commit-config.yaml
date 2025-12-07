@@ -10,9 +10,8 @@ repos:
     hooks:
       - id: clang-format
         args: [--style=file]
-      # slow...
-      # - id: clang-tidy
-      #   args: [-p=./build,--header-filter=.*]
+      - id: clang-tidy
+        args: [-p=./build,--header-filter=.*]
       - id: cppcheck
       # example: https://github.com/ScintillaOrg/lexilla/blob/master/cppcheck.suppress
         args: [--enable=all, --inline-suppr, --error-exitcode=1, --language=c++, -I., --suppressions-list=./cppcheck.suppress]

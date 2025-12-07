@@ -1,0 +1,254 @@
+[
+  {
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "mess": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 207,
+      "line": 17,
+      "size": 2,
+      "start_pos": 203,
+      "type": "vector_definition"
+    },
+    "print": {
+      "column": 3,
+      "end_column": 8,
+      "end_pos": 77,
+      "line": 7,
+      "start_pos": 72,
+      "type": "lvalue"
+    },
+    "unit": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 198,
+      "line": 15,
+      "start_pos": 194,
+      "type": "vector_definition"
+    },
+    "write": {
+      "column": 3,
+      "end_column": 8,
+      "end_pos": 156,
+      "line": 12,
+      "start_pos": 151,
+      "type": "lvalue"
+    },
+    "x": {
+      "column": 8,
+      "end_column": 9,
+      "end_pos": 17,
+      "line": 2,
+      "start_pos": 16,
+      "type": "lvalue"
+    },
+    "y": {
+      "column": 11,
+      "end_column": 12,
+      "end_pos": 20,
+      "line": 2,
+      "start_pos": 19,
+      "type": "lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "y"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "unit"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "mess"
+                }
+              ],
+              "node": "statement",
+              "root": "extrn"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "lvalue",
+                      "root": "unit"
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "y"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "x"
+                      },
+                      "node": "vector_lvalue",
+                      "root": "mess"
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "string_literal",
+                        "root": "\"hello world\\n\""
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "lvalue",
+                        "root": "y"
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "left": {
+                          "node": "number_literal",
+                          "root": 1
+                        },
+                        "node": "vector_lvalue",
+                        "root": "mess"
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "write"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "number_literal",
+                        "root": 1
+                      },
+                      {
+                        "node": "string_literal",
+                        "root": "\"how cool is this man\\n\""
+                      },
+                      {
+                        "node": "number_literal",
+                        "root": 21
+                      }
+                    ],
+                    "root": "write"
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      },
+      {
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "number_literal",
+            "root": 0
+          }
+        ],
+        "root": "unit"
+      },
+      {
+        "left": {
+          "node": "number_literal",
+          "root": 2
+        },
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "string_literal",
+            "root": "\"hello \""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"world\\n\""
+          }
+        ],
+        "root": "mess"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

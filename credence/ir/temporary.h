@@ -150,16 +150,15 @@ class Temporary
 constexpr bool is_in_place_unary_operator(type::Operator op)
 {
     const auto unary_types = { type::Operator::PRE_DEC,
-                               type::Operator::POST_DEC,
-                               type::Operator::PRE_INC,
-                               type::Operator::POST_INC };
+        type::Operator::POST_DEC,
+        type::Operator::PRE_INC,
+        type::Operator::POST_INC };
     return std::ranges::find(unary_types, op) != unary_types.end();
 }
 
 } // namespace detail
 
-Instructions expression_queue_to_temporary_instructions(
-    queue::Queue& queue,
+Instructions expression_queue_to_temporary_instructions(queue::Queue& queue,
     int* index);
 
 Expression_Instructions expression_node_to_temporary_instructions(

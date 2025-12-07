@@ -47,8 +47,7 @@ namespace credence {
 
 namespace queue {
 
-void expression_pointer_to_queue_in_place(
-    Expression const& pointer,
+void expression_pointer_to_queue_in_place(Expression const& pointer,
     Queue& queue,
     Operator_Stack& operator_stack,
     int* parameter_size);
@@ -56,17 +55,16 @@ void expression_pointer_to_queue_in_place(
 /**
  * @brief Operator precedence check of the queue and operator stack
  */
-void associativity_operator_precedence(
-    type::Operator op1,
+void associativity_operator_precedence(type::Operator op1,
     Queue& queue,
     Operator_Stack& operator_stack)
 {
     while (!operator_stack.empty()) {
         auto op2 = operator_stack.top();
         if ((is_left_associative(op1) &&
-             get_precedence(op2) <= get_precedence(op2)) ||
+                get_precedence(op2) <= get_precedence(op2)) ||
             (!is_left_associative(op1) &&
-             get_precedence(op1) < get_precedence(op2))) {
+                get_precedence(op1) < get_precedence(op2))) {
             queue.emplace_back(operator_stack.top());
             operator_stack.pop();
         } else {
@@ -87,10 +85,10 @@ inline void balance_queue(Queue& queue, Operator_Stack& operator_stack)
 }
 
 /**
- * @brief Queue construction via operators and expressions ordered by precedence
+ * @brief Queue construction via operators and expressions ordered by
+ * precedence
  */
-void expression_pointer_to_queue_in_place(
-    Expression const& pointer,
+void expression_pointer_to_queue_in_place(Expression const& pointer,
     Queue& queue,
     Operator_Stack& operator_stack,
     int* parameter_size)
@@ -236,10 +234,10 @@ std::unique_ptr<Queue> make_queue_from_expression_operands(
 }
 
 /**
- * @brief Queue to string of operators and operands in reverse-polish notation
+ * @brief Queue to string of operators and operands in reverse-polish
+ * notation
  */
-std::string queue_of_expressions_to_string(
-    Queue const& queue,
+std::string queue_of_expressions_to_string(Queue const& queue,
     std::string_view separator)
 {
     auto oss = std::ostringstream();

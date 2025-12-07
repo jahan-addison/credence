@@ -1,8 +1,10 @@
 /build*
 /.vscode
 /cpm_modules
+/test/test 
 .DS_Store
 ast.json
+.swp
 .ast_cache
 .roxas_cache
 .credence_cache

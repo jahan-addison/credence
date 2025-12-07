@@ -132,8 +132,7 @@ class Table
         , hoisted_symbols(hoisted_symbols)
     {
     }
-    explicit Table(
-        ITA::Node const& hoisted_symbols,
+    explicit Table(ITA::Node const& hoisted_symbols,
         Instructions& instructions,
         Symbol_Table<> globals)
         : instructions(instructions)
@@ -167,8 +166,7 @@ class Table
     void build_symbols_from_vector_lvalues();
     void build_vector_definitions_from_globals();
     RValue from_temporary_lvalue(LValue const& lvalue);
-    static Table_PTR build_from_ast(
-        ITA::Node const& symbols,
+    static Table_PTR build_from_ast(ITA::Node const& symbols,
         ITA::Node const& ast);
 
     /**
@@ -202,15 +200,13 @@ class Table
         return get_type_from_rvalue_data_type(lhs) ==
                get_type_from_rvalue_data_type(rhs);
     }
-    inline bool lhs_rhs_type_is_equal(
-        LValue const& lhs,
+    inline bool lhs_rhs_type_is_equal(LValue const& lhs,
         type::Data_Type const& rvalue)
     {
         return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
     }
 
-    inline bool lhs_rhs_type_is_equal(
-        type::Data_Type const& lhs,
+    inline bool lhs_rhs_type_is_equal(type::Data_Type const& lhs,
         type::Data_Type const& rhs)
     {
         return type::get_type_from_rvalue_data_type(lhs) ==
@@ -220,8 +216,7 @@ class Table
     /**
      * @brief Check that the type of an lvalue is an integral type
      */
-    inline void assert_integral_unary_expression(
-        RValue const& rvalue,
+    inline void assert_integral_unary_expression(RValue const& rvalue,
         Type const& type,
         std::source_location const& location = std::source_location::current())
     {
@@ -240,13 +235,11 @@ class Table
     /**
      * @brief Either lhs or rhs are trivial vector assignments
      */
-    inline bool is_trivial_vector_assignment(
-        LValue const& lhs,
+    inline bool is_trivial_vector_assignment(LValue const& lhs,
         LValue const& rhs)
     {
-        return (
-            (vectors.contains(lhs) and vectors[lhs]->data.size() == 1) or
-            (vectors.contains(rhs) and vectors[rhs]->data.size() == 1));
+        return ((vectors.contains(lhs) and vectors[lhs]->data.size() == 1) or
+                (vectors.contains(rhs) and vectors[rhs]->data.size() == 1));
     }
 
   public:
@@ -299,50 +292,41 @@ class Table
     // clang-format on
 
   private:
-    void type_invalid_assignment_check(
-        LValue const& lvalue,
+    void type_invalid_assignment_check(LValue const& lvalue,
         RValue const& rvalue);
-    void type_invalid_assignment_check(
-        LValue const& lvalue,
+    void type_invalid_assignment_check(LValue const& lvalue,
         type::Data_Type const& rvalue);
-    void type_invalid_assignment_check(
-        LValue const& lvalue,
+    void type_invalid_assignment_check(LValue const& lvalue,
         Vector_PTR const& vector,
         RValue const& index);
-    void type_invalid_assignment_check(
-        Vector_PTR const& vector_lhs,
+    void type_invalid_assignment_check(Vector_PTR const& vector_lhs,
         Vector_PTR const& vector_rhs,
         RValue const& index);
-    void type_invalid_assignment_check(
-        Vector_PTR const& vector_lhs,
+    void type_invalid_assignment_check(Vector_PTR const& vector_lhs,
         Vector_PTR const& vector_rhs,
         RValue const& index_lhs,
         RValue const& index_rhs);
 
   private:
-    void type_safe_assign_pointer(
-        LValue const& lvalue,
+    void type_safe_assign_pointer(LValue const& lvalue,
         RValue const& rvalue,
         bool indirection = false);
-    void type_safe_assign_trivial_vector(
-        LValue const& lvalue,
+    void type_safe_assign_trivial_vector(LValue const& lvalue,
         RValue const& rvalue);
-    void type_safe_assign_dereference(
-        LValue const& lvalue,
+    void type_safe_assign_dereference(LValue const& lvalue,
         RValue const& rvalue);
     void type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue);
-    void type_safe_assign_pointer_or_vector_lvalue(
-        LValue const& lvalue,
+    void type_safe_assign_pointer_or_vector_lvalue(LValue const& lvalue,
         type::RValue_Reference_Type const& rvalue,
         bool indirection = false);
 
   private:
-    void from_trivial_vector_assignment(
-        LValue const& lhs,
+    void from_trivial_vector_assignment(LValue const& lhs,
         type::Data_Type const& rvalue);
 
   public:
-    type::Data_Type get_rvalue_data_type_at_pointer(LValue const& lvalue);
+    type::Data_Type get_rvalue_data_type_at_pointer(LValue const& lvalue,
+        std::source_location const& location = std::source_location::current());
 
   private:
     using Type_Check_Lambda = std::function<bool(type::semantic::LValue)>;
@@ -360,8 +344,7 @@ class Table
     };
 
   public:
-    void table_compiletime_error(
-        std::string_view message,
+    void table_compiletime_error(std::string_view message,
         type::RValue_Reference symbol,
         std::source_location const& location = std::source_location::current());
 

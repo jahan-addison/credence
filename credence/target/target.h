@@ -24,7 +24,15 @@
 
 namespace credence::target {
 
-void add_stdlib_functions_to_symbols(util::AST_Node& symbols);
+enum class Platform
+{
+    credence_x86_64_platform,
+    credence_arm64_platform,
+    credence_z80_platform
+};
+
+void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
+    Platform platform);
 
 /**
  * @brief
@@ -72,8 +80,8 @@ class Backend
     virtual void from_jmp_e_ita(IR const& inst) = 0;
 
     // default: do nothing, as ir::table has this data available
-    virtual void from_pop_ita([[maybe_unused]] IR const& inst) {}
-    virtual void from_globl_ita([[maybe_unused]] IR const& inst) {}
+    virtual void from_pop_ita() {}
+    virtual void from_globl_ita() {}
 
   protected:
     ir::Table::Table_PTR table;

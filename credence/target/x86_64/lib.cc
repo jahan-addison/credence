@@ -9,12 +9,13 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License.
  */
 
 #include "lib.h"
+#include "instructions.h"   // for Instructions
 #include "syscall.h"        // for syscall_list
 #include <algorithm>        // for __find, find
 #include <array>            // for array
@@ -25,11 +26,19 @@
 
 namespace credence::target::x86_64::library {
 
+/**
+ * @brief Check if a label is available as a syscall on the current
+ * platform
+ */
 bool is_syscall_function(type::semantic::Label const& label)
 {
-    auto syscalls = syscall::common::get_platform_syscall_symbols();
+    auto syscalls = syscall_ns::common::get_platform_syscall_symbols();
     return std::ranges::find(syscalls, label) != syscalls.end();
 }
+
+/**
+ * @brief Check if a label is available as standard library method
+ */
 
 bool is_library_function(type::semantic::Label const& label)
 {
@@ -37,11 +46,18 @@ bool is_library_function(type::semantic::Label const& label)
     return std::ranges::find(lib, label) != lib.end();
 }
 
+/**
+ * @brief Check if a label is either a syscall or standard library
+ * function on the current platform
+ */
 bool is_stdlib_function(type::semantic::Label const& label)
 {
     return is_syscall_function(label) or is_library_function(label);
 }
 
+/**
+ * @brief Get the list of all available standard library functions
+ */
 std::vector<std::string> get_library_symbols()
 {
     std::vector<std::string> symbols{};
@@ -53,6 +69,9 @@ std::vector<std::string> get_library_symbols()
     return symbols;
 }
 
+/**
+ * @brief Add a standard library function to the hoisted symbol table
+ */
 void detail::add_stdlib_function_to_table_symbols(
     std::string const& stdlib_function,
     util::AST_Node& symbols)
@@ -65,19 +84,57 @@ void detail::add_stdlib_function_to_table_symbols(
     node["type"] = "function_definition";
 }
 
+/**
+ * @brief Add a syscall routine to the hoisted symbol table
+ */
 void detail::add_syscall_functions_to_symbols(util::AST_Node& symbols)
 {
-    auto syscalls = syscall::common::get_platform_syscall_symbols();
+    auto syscalls = syscall_ns::common::get_platform_syscall_symbols();
     for (auto const& routine : syscalls)
         add_stdlib_function_to_table_symbols(routine, symbols);
 }
 
+/**
+ * @brief Add the standard library and syscall routines to the hoisted
+ * symbol table
+ */
 void add_stdlib_functions_to_symbols(util::AST_Node& symbols)
 {
     auto libcalls = get_library_symbols();
     for (auto const& f : libcalls)
         detail::add_stdlib_function_to_table_symbols(f, symbols);
     detail::add_syscall_functions_to_symbols(symbols);
+}
+
+/**
+ * @brief Create the instructions for a standard library call
+ * In each case, %rdi is ommitted as it holds the first syscall number
+ */
+void make_library_call(Instructions& instructions,
+    std::string_view library_function,
+    library_arguments_t const& arguments)
+{
+    using namespace x86_64::detail;
+    credence_assert(library_list.contains(library_function));
+    auto [arg_size] = library_list.at(library_function);
+    credence_assert_equal(arg_size, arguments.size());
+    std::deque<Register> argument_storage = {
+        Register::r9, Register::r8, Register::r10, Register::rdx, Register::rsi
+    };
+    for (auto const& arg : arguments) {
+        auto storage = argument_storage.back();
+        argument_storage.pop_back();
+        if (is_immediate_rip_address_offset(arg))
+            instructions.emplace_back(
+                x86_64::detail::Instruction{ Mnemonic::lea, storage, arg });
+        else
+            instructions.emplace_back(
+                x86_64::detail::Instruction{ Mnemonic::mov, storage, arg });
+    }
+    auto call_immediate =
+        x86_64::detail::make_array_immediate(library_function);
+    instructions.emplace_back(x86_64::detail::Instruction{
+        Mnemonic::call, call_immediate, x86_64::detail::O_NUL });
 }
 
 } // namespace library

@@ -66,25 +66,23 @@ using Locals = Symbol_Table<Data_Type, semantic::LValue>;
 using Temporary = std::pair<semantic::LValue, semantic::RValue>;
 using Parameters = std::vector<semantic::RValue>;
 
-// clang-format off
-constexpr auto unary_operators =
-    { "++", "--", "*", "&", "-", "+", "~", "!" };
-constexpr auto arithmetic_unary_operators =
-    { "++", "--", "-", "+" };
-constexpr auto arithmetic_binary_operators =
-    { "*", "/", "-", "+", "%" };
-constexpr auto bitwise_binary_operators =
-    { "<<", ">>", "|", "^", "&" };
-constexpr auto relation_binary_operators =
-    { "==", "!=", "<",  "&&",
-      "||", ">",  "<=", ">=" };
-constexpr auto integral_unary_types =
-    { "int", "double", "float", "long" };
+constexpr auto unary_operators = { "++", "--", "*", "&", "-", "+", "~", "!" };
+constexpr auto arithmetic_unary_operators = { "++", "--", "-", "+" };
+constexpr auto arithmetic_binary_operators = { "*", "/", "-", "+", "%" };
+constexpr auto bitwise_binary_operators = { "<<", ">>", "|", "^", "&" };
+constexpr auto relation_binary_operators = { "==",
+    "!=",
+    "<",
+    "&&",
+    "||",
+    ">",
+    "<=",
+    ">=" };
+
+constexpr auto integral_unary_types = { "int", "double", "float", "long" };
 
 constexpr Data_Type NULL_RVALUE_LITERAL =
     Data_Type{ "NULL", "null", sizeof(void*) };
-
-// clang-format on
 
 inline int integral_from_type_int(std::string const& t)
 {
@@ -134,8 +132,7 @@ constexpr bool is_binary_arithmetic_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
-    auto test = std::ranges::find_if(
-        arithmetic_binary_operators.begin(),
+    auto test = std::ranges::find_if(arithmetic_binary_operators.begin(),
         arithmetic_binary_operators.end(),
         [&](std::string_view s) {
             return rvalue.find(s) != std::string::npos;
@@ -145,8 +142,7 @@ constexpr bool is_binary_arithmetic_expression(semantic::RValue const& rvalue)
 
 constexpr bool is_binary_arithmetic_operator(RValue_Reference rvalue)
 {
-    auto test = std::ranges::find_if(
-        arithmetic_binary_operators.begin(),
+    auto test = std::ranges::find_if(arithmetic_binary_operators.begin(),
         arithmetic_binary_operators.end(),
         [&](std::string_view s) { return rvalue == s; });
     return test != arithmetic_binary_operators.end();
@@ -154,8 +150,7 @@ constexpr bool is_binary_arithmetic_operator(RValue_Reference rvalue)
 
 constexpr bool is_unary_arithmetic_operator(RValue_Reference rvalue)
 {
-    auto test = std::ranges::find_if(
-        arithmetic_unary_operators.begin(),
+    auto test = std::ranges::find_if(arithmetic_unary_operators.begin(),
         arithmetic_unary_operators.end(),
         [&](std::string_view s) { return rvalue == s; });
     return test != arithmetic_unary_operators.end();
@@ -168,8 +163,7 @@ constexpr bool is_bitwise_binary_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
-    auto test = std::ranges::find_if(
-        bitwise_binary_operators.begin(),
+    auto test = std::ranges::find_if(bitwise_binary_operators.begin(),
         bitwise_binary_operators.end(),
         [&](std::string_view s) {
             return rvalue.find(s) != std::string::npos;
@@ -179,8 +173,7 @@ constexpr bool is_bitwise_binary_expression(semantic::RValue const& rvalue)
 
 constexpr bool is_bitwise_binary_operator(RValue_Reference rvalue)
 {
-    auto test = std::ranges::find_if(
-        bitwise_binary_operators.begin(),
+    auto test = std::ranges::find_if(bitwise_binary_operators.begin(),
         bitwise_binary_operators.end(),
         [&](std::string_view s) { return rvalue == s; });
     return test != bitwise_binary_operators.end();
@@ -193,8 +186,7 @@ constexpr bool is_relation_binary_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
-    auto test = std::ranges::find_if(
-        relation_binary_operators.begin(),
+    auto test = std::ranges::find_if(relation_binary_operators.begin(),
         relation_binary_operators.end(),
         [&](std::string_view s) {
             return rvalue.find(s) != std::string::npos;
@@ -204,16 +196,12 @@ constexpr bool is_relation_binary_expression(semantic::RValue const& rvalue)
 
 constexpr bool is_relation_binary_operator(RValue_Reference rvalue)
 {
-    auto test = std::ranges::find_if(
-        relation_binary_operators.begin(),
+    auto test = std::ranges::find_if(relation_binary_operators.begin(),
         relation_binary_operators.end(),
         [&](std::string_view s) { return rvalue == s; });
     return test != relation_binary_operators.end();
 }
 
-/**
- * @brief Check if a symbol is in the symbol::Data_Type form
- */
 constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
 {
     return util::substring_count_of(rvalue, ":") == 2 and
@@ -226,8 +214,7 @@ constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
 constexpr std::string data_type_value_to_string(Data_Type const& value)
 {
     using namespace fmt::literals;
-    return fmt::format(
-        "({}:{}:{})"_cf,
+    return fmt::format("({}:{}:{})"_cf,
         std::get<0>(value),
         std::get<1>(value),
         std::get<2>(value));
@@ -242,7 +229,7 @@ constexpr semantic::Label get_label_as_human_readable(
 {
     if (util::contains(label, "("))
         return semantic::Label{ label.begin() + 2,
-                                label.begin() + label.find_first_of("(") };
+            label.begin() + label.find_first_of("(") };
     else
         return label;
 }
@@ -250,19 +237,16 @@ constexpr semantic::Label get_label_as_human_readable(
 /**
  * @brief Get unary rvalue from ITA rvalue string
  */
-constexpr semantic::RValue get_unary_rvalue_reference(
-    RValue_Reference rvalue,
+constexpr semantic::RValue get_unary_rvalue_reference(RValue_Reference rvalue,
     std::string_view unary_chracters = "+-*&+~!")
 {
     auto lvalue = std::string{ rvalue.begin(), rvalue.end() };
-    lvalue.erase(
-        std::remove_if(
-            lvalue.begin(),
-            lvalue.end(),
-            [&](char ch) {
-                return ::isspace(ch) or
-                       unary_chracters.find(ch) != std::string_view::npos;
-            }),
+    lvalue.erase(std::remove_if(lvalue.begin(),
+                     lvalue.end(),
+                     [&](char ch) {
+                         return ::isspace(ch) or unary_chracters.find(ch) !=
+                                                     std::string_view::npos;
+                     }),
         lvalue.end());
     return lvalue;
 }
@@ -341,17 +325,15 @@ constexpr bool is_temporary(RValue_Reference rvalue)
 }
 
 /**
- * @brief Parse semantic::RValue::Value_Type string into a 3-tuple of value,
- * type, and size
+ * @brief Parse semantic::RValue::Value_Type string into a 3-tuple of
+ * value, type, and size
  *
  * e.g. "(10:int:4)" -> (10, "int", 4UL)
  */
-inline Data_Type get_rvalue_datatype_from_string(
-    semantic::RValue const& rvalue,
+inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue,
     std::source_location const& location = std::source_location::current())
 {
-    credence::detail::assert_impl(
-        location,
+    credence::detail::assert_impl(location,
         is_rvalue_data_type(rvalue) == true,
         fmt::format("rvalue \"{}\" is not in data type form", rvalue));
     auto search = rvalue.find_last_of(":");
@@ -456,7 +438,7 @@ constexpr semantic::RValue from_lvalue_offset(RValue_Reference rvalue)
     if (!util::contains(rvalue, "]"))
         return rvalue.data();
     return std::string{ rvalue.begin(),
-                        rvalue.begin() + rvalue.find_first_of("[") };
+        rvalue.begin() + rvalue.find_first_of("[") };
 }
 
 /**
@@ -469,7 +451,7 @@ constexpr semantic::RValue from_decay_offset(RValue_Reference rvalue)
     if (!util::contains(rvalue, "]"))
         return rvalue.data();
     return std::string{ rvalue.begin() + rvalue.find_first_of("[") + 1,
-                        rvalue.begin() + rvalue.find_first_of("]") };
+        rvalue.begin() + rvalue.find_first_of("]") };
 }
 
 /**

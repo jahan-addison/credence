@@ -1,6 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
 #include <credence/target/x86_64/generator.h> // for emit
+#include <credence/target/x86_64/lib.h>       // for library
 #include <filesystem>                         // for path
 #include <fmt/format.h>                       // for format
 #include <simplejson.h>                       // for JSON
@@ -15,37 +16,57 @@ namespace fs = std::filesystem;
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
+#define NO_STDLIB 1
+
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
-#define SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST(ast_path, expected)                  \
- do {                                                                               \
-    using namespace credence::target::x86_64;                                       \
-    auto test = std::ostringstream{};                                               \
-    auto fixture_path = fs::path(ROOT_PATH);                                        \
-    fixture_path.append("test/fixtures/x86_64/ast");                                \
-    auto file_path = fs::path(fixture_path)                                         \
-        .append(fmt::format("{}.json", ast_path));                                  \
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();    \
-    credence::target::x86_64::emit(                                                 \
-        test, fixture_content[0], fixture_content[1]);                              \
-    REQUIRE(test.str() == expected);                                                \
- } while(0)
+#define SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST(ast_path, expected)           \
+    do {                                                                     \
+        using namespace credence::target::x86_64;                            \
+        auto test = std::ostringstream{};                                    \
+        auto fixture_path = fs::path(ROOT_PATH);                             \
+        fixture_path.append("test/fixtures/x86_64/ast");                     \
+        auto file_path =                                                     \
+            fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
+        auto fixture_content =                                               \
+            json::JSON::load_file(file_path.string()).to_deque();            \
+        credence::target::x86_64::emit(                                      \
+            test, fixture_content[0], fixture_content[1], true);             \
+        REQUIRE(test.str() == expected);                                     \
+    } while (0)
 
-#define SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST(ast_path)                       \
- do {                                                                               \
-    using namespace credence::target::x86_64;                                       \
-    auto test = std::ostringstream{};                                               \
-    auto fixture_path = fs::path(ROOT_PATH);                                        \
-    fixture_path.append("test/fixtures/x86_64/ast");                                \
-    auto file_path = fs::path(fixture_path)                                         \
-        .append(fmt::format("{}.json", ast_path));                                  \
-    auto fixture_content = json::JSON::load_file(file_path.string()).to_deque();    \
-    REQUIRE_THROWS(credence::target::x86_64::emit(                                  \
-        test, fixture_content[0], fixture_content[1]));                             \
- } while(0)
+#define SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(ast_path, expected) \
+    do {                                                                       \
+        using namespace credence::target::x86_64;                              \
+        auto test = std::ostringstream{};                                      \
+        auto fixture_path = fs::path(ROOT_PATH);                               \
+        fixture_path.append("test/fixtures/x86_64/ast");                       \
+        auto file_path =                                                       \
+            fs::path(fixture_path).append(fmt::format("{}.json", ast_path));   \
+        auto fixture_content =                                                 \
+            json::JSON::load_file(file_path.string()).to_deque();              \
+        library::add_stdlib_functions_to_symbols(fixture_content[0]);          \
+        credence::target::x86_64::emit(                                        \
+            test, fixture_content[0], fixture_content[1], false);              \
+        REQUIRE(test.str() == expected);                                       \
+    } while (0)
+
+#define SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST(ast_path)                 \
+    do {                                                                     \
+        using namespace credence::target::x86_64;                            \
+        auto test = std::ostringstream{};                                    \
+        auto fixture_path = fs::path(ROOT_PATH);                             \
+        fixture_path.append("test/fixtures/x86_64/ast");                     \
+        auto file_path =                                                     \
+            fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
+        auto fixture_content =                                               \
+            json::JSON::load_file(file_path.string()).to_deque();            \
+        REQUIRE_THROWS(credence::target::x86_64::emit(                       \
+            test, fixture_content[0], fixture_content[1], true));            \
+    } while (0)
 
 TEST_CASE("target/x86_64: fixture: math_constant.b")
 {
@@ -770,4 +791,128 @@ _L1:
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("globals_1", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: syscall kernel write")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "hello "
+
+._L_str2__:
+    .asciz "how cool is this man\n"
+
+._L_str3__:
+    .asciz "world\n"
+
+mess:
+    .quad ._L_str1__
+
+    .quad ._L_str3__
+
+unit:
+    .long 0
+
+.text
+    .global _start
+    .extern print
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov eax, dword ptr [rip + unit]
+    mov dword ptr [rbp - 4], eax
+    mov rax, qword ptr [rip + mess]
+    mov qword ptr [rbp - 12], rax
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, qword ptr [rbp - 12]
+    mov rdx, 6
+    syscall
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, qword ptr [rip + mess+8]
+    mov rdx, 6
+    syscall
+    mov rax, 1
+    mov rdi, 1
+    lea rsi, [rip + ._L_str2__]
+    mov rdx, 21
+    syscall
+_L1:
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "stdlib/write", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: stdlib print")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "hello "
+
+._L_str2__:
+    .asciz "hello world\n"
+
+._L_str3__:
+    .asciz "how cool is this man\n"
+
+._L_str4__:
+    .asciz "world\n"
+
+mess:
+    .quad ._L_str1__
+
+    .quad ._L_str4__
+
+unit:
+    .long 0
+
+.text
+    .global _start
+    .extern print
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov eax, dword ptr [rip + unit]
+    mov dword ptr [rbp - 4], eax
+    mov rax, qword ptr [rip + mess]
+    mov qword ptr [rbp - 12], rax
+    lea rsi, [rip + ._L_str2__]
+    mov rdx, 13
+    call print
+    mov rsi, qword ptr [rbp - 12]
+    mov rdx, 6
+    call print
+    mov rsi, qword ptr [rip + mess+8]
+    mov rdx, 7
+    call print
+    mov rax, 1
+    mov rdi, 1
+    lea rsi, [rip + ._L_str3__]
+    mov rdx, 21
+    syscall
+_L1:
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "stdlib/print", expected);
 }

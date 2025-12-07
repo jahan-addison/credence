@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Copyright (c) Jahan Addison
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#####################################################
+#  @brief cli
+#  @description
+#       Orchestrate GNU Assembler and GNU Linker
+#       with the compiled machine code by credence
+#####################################################
+
+ARCH=''
+CREDENCE_HOME=${CREDENCE_ENV_HOME:-$"$HOME/Git/credence"}
+CREDENCE_BINARY="$CREDENCE_HOME/build/credence"
+UNAMESTR=$(uname -s)
+STDLIB_TYPE=''
+SOURCE_NAME=''
+
+
+if [[ "$UNAMESTR" == 'Linux' ]]; then
+  STDLIB_TYPE='linux'
+elif [[ "$UNAMESTR" == 'Darwin' ]]; then
+  STDLIB_TYPE='bsd'
+fi
+
+if [ "$#" -eq 0 ]; then
+    echo "Credence Error: No arguments provided."
+    exit 1
+fi
+
+if ! type "as" >/dev/null 2>&1; then
+  echo "Credence Error: GNU Assembler not found for linkage, please install binutils."
+  exit 1
+fi
+
+if ! type "ld" >/dev/null 2>&1; then
+  echo "Credence Error: GNU Linker not found for linkage, please install binutils."
+  exit 1
+fi
+
+while getopts ":o:t:" opt; do
+  case $opt in
+    o) SOURCE_NAME="$OPTARG" ;;
+    t) ARCH="$OPTARG" ;;
+    \?) # do nothing
+  esac
+done
+
+STDLIB_PATH="$CREDENCE_HOME/stdlib/$ARCH/$STDLIB_TYPE/stdlib.o"
+
+"$CREDENCE_BINARY" "$@"
+
+if [[ "$UNAMESTR" == 'Linux' ]]; then
+  as -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
+  ld -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+elif [[ "$UNAMESTR" == 'Darwin' ]]; then
+  as -arch "$ARCH" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
+  ld -arch "$ARCH" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+fi
+

@@ -44,67 +44,71 @@
 #define mn(n) detail::Mnemonic::n
 #define rr(n) detail::Register::n
 #define dd(n) detail::Directive::n
-
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
 #define is_empty_storage(storage) is_variant(std::monostate, storage)
 
-#define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)    \
-    detail::Instruction_Pair name(detail::Storage const& dest, \
-        detail::Storage const& src)
+#define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
+    detail::Instruction_Pair name(                          \
+        detail::Storage const& dest, detail::Storage const& src)
 #define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)    \
     detail::Instruction_Pair name(detail::Storage const& dest, \
         detail::Storage const& s1,                             \
         detail::Storage const& s2)
-#define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)  \
+#define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
     detail::Instruction_Pair name(detail::Storage const& src)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name)    \
-    detail::Directive_Pair name(std::size_t* index, type::semantic::RValue const& rvalue)
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name) \
+    detail::Directive_Pair name(                               \
+        std::size_t* index, type::semantic::RValue const& rvalue)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name)    \
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name) \
     detail::Directives name(type::semantic::RValue const& rvalue)
 
 // Add an instruction
-#define add_inst(inst, op, lhs, rhs)         \
-    inst.emplace_back(detail::Instruction{op, lhs, rhs})
+#define add_inst(inst, op, lhs, rhs) \
+    inst.emplace_back(detail::Instruction{ op, lhs, rhs })
 
 // Add an instruction with a mnemonic shorthand
-#define add_inst_as(inst, op, lhs, rhs)      \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, rhs})
+#define add_inst_as(inst, op, lhs, rhs) \
+    inst.emplace_back(detail::Instruction{ Mnemonic::op, lhs, rhs })
 
 // Add an instruction with a mnemonic and destination shorthand
-#define add_inst_ll(inst, op, lhs, rhs)      \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, rhs})
+#define add_inst_ll(inst, op, lhs, rhs) \
+    inst.emplace_back(detail::Instruction{ Mnemonic::op, Register::lhs, rhs })
 
 // Add an instruction with a mnemonic and source operand shorthand
-#define add_inst_llr(inst, op, lhs, rhs)     \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,lhs, Register::rhs})
+#define add_inst_llr(inst, op, lhs, rhs) \
+    inst.emplace_back(detail::Instruction{ Mnemonic::op, lhs, Register::rhs })
 
-// Add an instruction with a mnemonic, destination, and source operand shorthand
-#define add_inst_llrs(inst, op, lhs, rhs)    \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::lhs, Register::rhs})
+// Add an instruction with a mnemonic, destination, and source operand
+// shorthand
+#define add_inst_llrs(inst, op, lhs, rhs) \
+    inst.emplace_back(                    \
+        detail::Instruction{ Mnemonic::op, Register::lhs, Register::rhs })
 
 // Add an instruction with a mnemonic shorthand, no operands (.e.g 'ret')
-#define add_inst_e(inst, op)                 \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,detail::O_NUL, detail::O_NUL})
+#define add_inst_e(inst, op) \
+    inst.emplace_back(       \
+        detail::Instruction{ Mnemonic::op, detail::O_NUL, detail::O_NUL })
 
 // Add an instruction with a mnemonic, no operands (.e.g 'ret')
-#define add_inst_ee(inst, op)                 \
-    inst.emplace_back(detail::Instruction{op,detail::O_NUL, detail::O_NUL})
+#define add_inst_ee(inst, op) \
+    inst.emplace_back(detail::Instruction{ op, detail::O_NUL, detail::O_NUL })
 
 // Add an instruction with a mnemonic with no operand (e.g. idiv)
-#define add_inst_d(inst, op, dest)           \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,dest, detail::O_NUL})
+#define add_inst_d(inst, op, dest) \
+    inst.emplace_back(detail::Instruction{ Mnemonic::op, dest, detail::O_NUL })
 
 // Add an instruction with a mnemonic with 1 operand and shorthand
-#define add_inst_ld(inst, op, dest)          \
-    inst.emplace_back(detail::Instruction{Mnemonic::op,Register::dest, detail::O_NUL})
+#define add_inst_ld(inst, op, dest) \
+    inst.emplace_back(              \
+        detail::Instruction{ Mnemonic::op, Register::dest, detail::O_NUL })
 
 // Add an instruction with a mnemonic with 1 operand (e.g. idiv)
-#define add_inst_ls(inst, op, dest)          \
-    inst.emplace_back(detail::Instruction{Mnemonic::op, dest, detail::O_NUL})
+#define add_inst_ls(inst, op, dest) \
+    inst.emplace_back(detail::Instruction{ Mnemonic::op, dest, detail::O_NUL })
 
 /**
  * @brief
@@ -113,34 +117,32 @@
  *
  */
 
-#define make_integral_relational_entry(T, op)               \
-    m::pattern | std::string{STRINGIFY(T)} = [&] {          \
-        result = type::integral_from_type<T>(lhs_imm) op    \
-        type::integral_from_type<T>(rhs_imm);               \
+#define make_integral_relational_entry(T, op)         \
+    m::pattern | std::string{ STRINGIFY(T) } = [&] {  \
+        result = type::integral_from_type<T>(lhs_imm) \
+            op type::integral_from_type<T>(rhs_imm);  \
     }
 
-#define make_string_relational_entry(op)                                       \
-    m::pattern | std::string{"string"} = [&] {                                 \
-        result = std::string_view{lhs_imm}.compare(std::string_view{rhs_imm}); \
+#define make_string_relational_entry(op)                                      \
+    m::pattern | std::string{ "string" } = [&] {                              \
+        result =                                                              \
+            std::string_view{ lhs_imm }.compare(std::string_view{ rhs_imm }); \
     }
 
 #define make_char_relational_entry(op)                                    \
-    m::pattern | std::string{"char"} = [&] {                              \
+    m::pattern | std::string{ "char" } = [&] {                            \
         result = static_cast<int>(static_cast<unsigned char>(lhs_imm[1])) \
-        op                                                                \
-        static_cast<int>(static_cast<unsigned char>(rhs_imm[1]));         \
+            op static_cast<int>(static_cast<unsigned char>(rhs_imm[1]));  \
     }
 
-#define make_trivial_immediate_binary_result(op)         \
-    m::pattern | std::string{STRINGIFY(op)} = [&] {      \
-        m::match(lhs_type) (                             \
-            make_integral_relational_entry(int, op),     \
-            make_integral_relational_entry(long, op),    \
-            make_integral_relational_entry(float, op),   \
-            make_integral_relational_entry(double, op),  \
-            make_string_relational_entry(op),            \
-            make_char_relational_entry(op)               \
-        );                                               \
+#define make_trivial_immediate_binary_result(op)                    \
+    m::pattern | std::string{ STRINGIFY(op) } = [&] {               \
+        m::match(lhs_type)(make_integral_relational_entry(int, op), \
+            make_integral_relational_entry(long, op),               \
+            make_integral_relational_entry(float, op),              \
+            make_integral_relational_entry(double, op),             \
+            make_string_relational_entry(op),                       \
+            make_char_relational_entry(op));                        \
     }
 
 /**
@@ -153,43 +155,37 @@
 #define REGISTER_OSTREAM(reg) \
     case rr(reg):             \
         os << STRINGIFY(reg); \
-    break
+        break
 
 #define REGISTER_STRING(reg)   \
     case rr(reg):              \
         return STRINGIFY(reg); \
-    break
-
-#define DIRECTIVE_OSTREAM(d)          \
-    case dd(d): {                     \
-        auto di = sv(STRINGIFY(d));   \
-        if (util::contains(di, "_"))  \
-            di.remove_suffix(1);      \
-        os << "." << di;              \
-    };                                \
-    break
-
-#define DIRECTIVE_OSTREAM_2ARY(d, g)                 \
-    case dd(d): {                                    \
-        auto di = sv(STRINGIFY(d)) == sv("start") ?  \
-            "global"                                 \
-            : sv(STRINGIFY(d));                      \
-        if (util::contains(di, "_"))                 \
-            di.remove_suffix(1);                     \
-        os << fmt::format(".{} {}",                  \
-            di,                                      \
-            STRINGIFY(g));                           \
-        };                                           \
         break
 
-#define MNEMONIC_OSTREAM(mnem)                             \
-    case mn(mnem): {                                       \
-        auto mnem_str = std::string_view{STRINGIFY(mnem)}; \
-        if (util::contains(mnem_str, "_"))                 \
-            mnem_str.remove_suffix(1);                     \
-        os << mnem_str;                                    \
-        };                                                 \
-    break
+#define DIRECTIVE_OSTREAM(d)         \
+    case dd(d): {                    \
+        auto di = sv(STRINGIFY(d));  \
+        if (util::contains(di, "_")) \
+            di.remove_suffix(1);     \
+        os << "." << di;             \
+    }; break
+
+#define DIRECTIVE_OSTREAM_2ARY(d, g)                                       \
+    case dd(d): {                                                          \
+        auto di =                                                          \
+            sv(STRINGIFY(d)) == sv("start") ? "global" : sv(STRINGIFY(d)); \
+        if (util::contains(di, "_"))                                       \
+            di.remove_suffix(1);                                           \
+        os << fmt::format(".{} {}", di, STRINGIFY(g));                     \
+    }; break
+
+#define MNEMONIC_OSTREAM(mnem)                               \
+    case mn(mnem): {                                         \
+        auto mnem_str = std::string_view{ STRINGIFY(mnem) }; \
+        if (util::contains(mnem_str, "_"))                   \
+            mnem_str.remove_suffix(1);                       \
+        os << mnem_str;                                      \
+    }; break
 
 namespace credence::target::x86_64::detail {
 
@@ -200,56 +196,124 @@ namespace credence::target::x86_64::detail {
  *
  */
 
-// clang-format off
 enum class Register
 {
-    rbp, rsp, rax, rbx, rcx,
-    rdx, rsi, rdi, r8, r9,
-    r10, r11, r12, r13, r14,
-    ebp, di, esp, eax, ebx,
-    edx, ecx, esi, edi, r8d,
-    ax, r9d, r10d, r11d, r12d,
-    r13d, r14d, r15d, al, dil,
+    rbp,
+    rsp,
+    rax,
+    rbx,
+    rcx,
+    rdx,
+    rsi,
+    rdi,
+    r8,
+    r9,
+    r10,
+    r11,
+    r12,
+    r13,
+    r14,
+    ebp,
+    di,
+    esp,
+    eax,
+    ebx,
+    edx,
+    ecx,
+    esi,
+    edi,
+    r8d,
+    ax,
+    r9d,
+    r10d,
+    r11d,
+    r12d,
+    r13d,
+    r14d,
+    r15d,
+    al,
+    dil,
 };
 
-constexpr const auto QWORD_REGISTER = {
-    Register::rdi, Register::r8,  Register::r9,
-    Register::rsi, Register::rdx, Register::rcx,
-    Register::rax
-};
-constexpr const auto DWORD_REGISTER = {
-    Register::edi, Register::r8d,  Register::r9d,
-    Register::esi, Register::edx, Register::ecx,
-    Register::eax
-};
+constexpr const auto QWORD_REGISTER = { Register::rdi,
+    Register::r8,
+    Register::r9,
+    Register::rsi,
+    Register::rdx,
+    Register::rcx,
+    Register::rax };
+constexpr const auto DWORD_REGISTER = { Register::edi,
+    Register::r8d,
+    Register::r9d,
+    Register::esi,
+    Register::edx,
+    Register::ecx,
+    Register::eax };
 
 enum class Mnemonic
 {
-    imul, lea, ret, sub, add,
-    neg, je, jne, jle, jl,
-    idiv, inc, dec, cqo, cdq,
-    leave, mov, push, pop, call,
-    cmp, sete, setne, setl, setg,
-    setle, setge, mov_, and_, or_,
-    xor_, not_, shl, shr, syscall
+    imul,
+    lea,
+    ret,
+    sub,
+    add,
+    neg,
+    je,
+    jne,
+    jle,
+    jl,
+    idiv,
+    inc,
+    dec,
+    cqo,
+    cdq,
+    leave,
+    mov,
+    push,
+    pop,
+    call,
+    cmp,
+    sete,
+    setne,
+    setl,
+    setg,
+    setle,
+    setge,
+    mov_,
+    and_,
+    or_,
+    xor_,
+    not_,
+    shl,
+    shr,
+    syscall
 };
 
 enum class Directive
 {
-    asciz, data, text, start, global,
-    long_, quad, float_, double_, byte_
+    asciz,
+    data,
+    text,
+    start,
+    global,
+    long_,
+    quad,
+    float_,
+    double_,
+    byte_,
+    extern_
 };
 
 // clang-format on
 
 /**
  * @brief
- *  Template function to compute type-safe trivial arithmetic binary expression
+ *  Template function to compute type-safe trivial arithmetic binary
+ * expression
  */
 
 template<typename T>
-T trivial_arithmetic_from_numeric_table_type(
-    std::string const& lhs,
+T trivial_arithmetic_from_numeric_table_type(std::string const& lhs,
     std::string const& op,
     std::string const& rhs)
 {
@@ -271,12 +335,12 @@ T trivial_arithmetic_from_numeric_table_type(
 
 /**
  * @brief
- *  Template function to compute type-safe trivial bitwise binary expression
+ *  Template function to compute type-safe trivial bitwise binary
+ * expression
  */
 
 template<typename T>
-T trivial_bitwise_from_numeric_table_type(
-    std::string const& lhs,
+T trivial_bitwise_from_numeric_table_type(std::string const& lhs,
     std::string const& op,
     std::string const& rhs)
 {
@@ -315,8 +379,8 @@ enum class Operand_Size : std::size_t
 };
 
 const std::map<Operand_Size, std::string> suffix = {
-    { Operand_Size::Byte, "b" },
-    { Operand_Size::Word, "w" },
+    { Operand_Size::Byte,  "b" },
+    { Operand_Size::Word,  "w" },
     { Operand_Size::Dword, "l" },
     { Operand_Size::Qword, "q" }
 };
@@ -354,8 +418,8 @@ constexpr Operand_Size get_operand_size_from_rvalue_datatype(
     using T = type::semantic::Type;
     T type = type::get_type_from_rvalue_data_type(rvalue);
     return m::match(type)(
-        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
-            [&] { return Operand_Size::Qword; },
+        m::pattern | m::or_(T{ "double" },
+                         T{ "long" }) = [&] { return Operand_Size::Qword; },
         m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
         m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
         m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
@@ -367,8 +431,8 @@ constexpr Operand_Size get_operand_size_from_type(type::semantic::Type type)
     namespace m = matchit;
     using T = type::semantic::Type;
     return m::match(type)(
-        m::pattern | m::or_(T{ "double" }, T{ "long" }) =
-            [&] { return Operand_Size::Qword; },
+        m::pattern | m::or_(T{ "double" },
+                         T{ "long" }) = [&] { return Operand_Size::Qword; },
         m::pattern | T{ "float" } = [&] { return Operand_Size::Dword; },
         m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
         m::pattern | T{ "string" } = [&] { return Operand_Size::Qword; },
@@ -398,6 +462,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
         DIRECTIVE_OSTREAM(float_);
         DIRECTIVE_OSTREAM(double_);
         DIRECTIVE_OSTREAM(byte_);
+        DIRECTIVE_OSTREAM(extern_);
     }
     return os;
 }
@@ -589,16 +654,13 @@ constexpr std::string make_label(type::semantic::Label const& label)
         return label;
 }
 
-Immediate get_result_from_trivial_integral_expression(
-    Immediate const& lhs,
+Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs);
-Immediate get_result_from_trivial_relational_expression(
-    Immediate const& lhs,
+Immediate get_result_from_trivial_relational_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs);
-Immediate get_result_from_trivial_bitwise_expression(
-    Immediate const& lhs,
+Immediate get_result_from_trivial_bitwise_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs);
 
@@ -686,7 +748,8 @@ inline Immediate make_u32_int_immediate(unsigned int imm)
 /**
  * @brief
  *
- * Easy macro expansion of instruction and directive definitions from templates
+ * Easy macro expansion of instruction and directive definitions from
+ * templates
  *
  */
 

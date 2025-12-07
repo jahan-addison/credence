@@ -62,8 +62,7 @@ using Instructions = std::deque<Quadruple>;
 /**
  * @brief Create a qaudruple-tuple from 4 operands, 3 optional
  */
-constexpr Quadruple make_quadruple(
-    Instruction op,
+constexpr Quadruple make_quadruple(Instruction op,
     std::string const& s1 = "",
     std::string const& s2 = "",
     std::string const& s3 = "")
@@ -83,12 +82,10 @@ inline void insert(Instructions& to, Instructions const& from)
  * @brief Create a temporary (e.g. _t5) lvalue from the current temporary
  * size Set as a Instruction::MOV instruction with the right-hamd-side
  */
-constexpr inline Quadruple make_temporary(
-    int* temporary_size,
+constexpr inline Quadruple make_temporary(int* temporary_size,
     std::string const& temp)
 {
-    return make_quadruple(
-        Instruction::MOV,
+    return make_quadruple(Instruction::MOV,
         std::string{ "_t" } +
             util::to_constexpr_string<int>(++(*temporary_size)),
         temp);
@@ -100,8 +97,7 @@ constexpr inline Quadruple make_temporary(
  */
 constexpr inline Quadruple make_temporary(int* temporary_size)
 {
-    return make_quadruple(
-        Instruction::LABEL,
+    return make_quadruple(Instruction::LABEL,
         std::string{ "_L" } +
             util::to_constexpr_string<int>(++(*temporary_size)),
         "");
@@ -250,8 +246,7 @@ class Branch
     {
         if (level == 1) {
             // _L1 label is reserved for function scope resume
-            root_branch = make_quadruple(
-                Instruction::LABEL,
+            root_branch = make_quadruple(Instruction::LABEL,
                 std::string{ "_L" } +
                     util::to_constexpr_string<int>(++(*temporary_index)),
                 "");
@@ -284,8 +279,7 @@ void emit_to(std::ostream& os, Quadruple const& ita, bool indent = false);
  * @brief Emit a std::deque of instructions to a std::ostream
  *   If indent is true indent with a tab for formatting
  */
-inline void emit(
-    std::ostream& os,
+inline void emit(std::ostream& os,
     Instructions const& instructions,
     bool indent = true) // not constexpr until C++23
 {
@@ -325,8 +319,7 @@ class ITA
     using Node = util::AST_Node;
 
   public:
-    friend constexpr std::ostream& detail::operator<<(
-        std::ostream& os,
+    friend constexpr std::ostream& detail::operator<<(std::ostream& os,
         Instruction const& op);
 
   public:
@@ -336,8 +329,7 @@ class ITA
      */
     constexpr inline Quadruple make_temporary()
     {
-        return make_quadruple(
-            Instruction::LABEL,
+        return make_quadruple(Instruction::LABEL,
             std::string{ "_L" } + util::to_constexpr_string<int>(++temporary),
             "");
     }
@@ -459,8 +451,7 @@ class ITA
     // clang-format on
 
   private:
-    void ita_error(
-        std::string_view message,
+    void ita_error(std::string_view message,
         std::string_view symbol,
         std::source_location const& location = std::source_location::current());
 

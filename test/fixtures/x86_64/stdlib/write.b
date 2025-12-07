@@ -3,12 +3,8 @@ main() {
   extrn unit, mess;
   x = unit;
   y = mess[x];
-
-  print("hello world\n");
-  print(y);
-  print(mess[1]);
-
-  // kernel::write(3)
+  write(1, y, 6);
+  write(1, mess[1], 6);
   write(1, "how cool is this man\n", 21);
 }
 

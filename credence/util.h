@@ -45,7 +45,11 @@ class JSON;
 #define CREDENCE_PROTECTED_UNLESS_TESTED protected
 #endif
 
-#define sv(m) std::string_view{m}
+#define sv(m)        \
+    std::string_view \
+    {                \
+        m            \
+    }
 
 namespace credence {
 
@@ -104,8 +108,7 @@ inline std::string capitalize(const char* str)
     return s;
 }
 
-constexpr inline std::size_t substring_count_of(
-    std::string_view text,
+constexpr inline std::size_t substring_count_of(std::string_view text,
     std::string_view sub)
 {
     std::size_t count = 0UL;
@@ -180,7 +183,8 @@ constexpr std::string unescape_string(std::string_view escaped_str)
                     case '"':
                         unescaped_str += '"';
                         break;
-                    // Add more cases for other escape sequences like \r, \f,
+                    // Add more cases for other escape sequences like \r,
+                    // \f,
                     // \b, \v, \a, etc. For Unicode escape sequences like
                     // \uXXXX, more complex parsing is needed.
                     default:
@@ -201,8 +205,7 @@ constexpr std::string unescape_string(std::string_view escaped_str)
 }
 
 template<typename... Args>
-constexpr std::string tuple_to_string(
-    std::tuple<Args...> const& t,
+constexpr std::string tuple_to_string(std::tuple<Args...> const& t,
     std::string_view separator = ", ")
 {
     std::string result{};
@@ -210,13 +213,13 @@ constexpr std::string tuple_to_string(
         [&](const auto&... elements) {
             bool first = true;
             (([&] {
-                 if (!first) {
-                     result += separator;
-                 }
-                 result += to_constexpr_string(elements);
-                 first = false;
-             })(),
-             ...);
+                if (!first) {
+                    result += separator;
+                }
+                result += to_constexpr_string(elements);
+                first = false;
+            })(),
+                ...);
         },
         t);
     result += ")";
@@ -246,8 +249,7 @@ constexpr unsigned int align_up_to_8(unsigned int n)
 // File helpers
 ////////////////
 
-void write_to_from_string_stream(
-    std::string_view file_name,
+void write_to_from_string_stream(std::string_view file_name,
     std::ostringstream const& oss,
     std::string_view ext = "bo");
 
@@ -258,8 +260,7 @@ std::string read_file_from_path(std::string_view path);
 //////////
 
 template<typename T>
-constexpr bool initializer_list_contains(
-    T const& needle,
+constexpr bool initializer_list_contains(T const& needle,
     std::initializer_list<T> const& haystack)
 {
     return std::ranges::find(haystack, needle);

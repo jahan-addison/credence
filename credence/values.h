@@ -40,33 +40,36 @@ struct Expression;
 #ifdef __clang__
 constexpr auto TYPE_LITERAL =
     mapbox::eternal::map<std::string_view, std::pair<std::string, std::size_t>>(
-        { { "word", { "word", sizeof(void*) } },
-          { "byte", { "byte", sizeof(unsigned char) } },
-          { "int", { "int", sizeof(int) } },
-          { "long", { "long", sizeof(long) } },
-          { "float", { "float", sizeof(float) } },
-          { "double", { "double", sizeof(double) } },
-          { "bool", { "bool", sizeof(bool) } },
-          { "null", { "null", 0 } },
-          { "char", { "char", sizeof(char) } } });
+        {
+            { "word",   { "word", sizeof(void*) }         },
+            { "byte",   { "byte", sizeof(unsigned char) } },
+            { "int",    { "int", sizeof(int) }            },
+            { "long",   { "long", sizeof(long) }          },
+            { "float",  { "float", sizeof(float) }        },
+            { "double", { "double", sizeof(double) }      },
+            { "bool",   { "bool", sizeof(bool) }          },
+            { "null",   { "null", 0 }                     },
+            { "char",   { "char", sizeof(char) }          }
+});
 #else
 static auto TYPE_LITERAL =
     mapbox::eternal::map<std::string_view, std::pair<std::string, std::size_t>>(
-        { { "word", { "word", sizeof(void*) } },
-          { "byte", { "byte", sizeof(unsigned char) } },
-          { "int", { "int", sizeof(int) } },
-          { "long", { "long", sizeof(long) } },
-          { "float", { "float", sizeof(float) } },
-          { "double", { "double", sizeof(double) } },
-          { "bool", { "bool", sizeof(bool) } },
-          { "null", { "null", 0 } },
-          { "char", { "char", sizeof(char) } } });
+        {
+            { "word",   { "word", sizeof(void*) }         },
+            { "byte",   { "byte", sizeof(unsigned char) } },
+            { "int",    { "int", sizeof(int) }            },
+            { "long",   { "long", sizeof(long) }          },
+            { "float",  { "float", sizeof(float) }        },
+            { "double", { "double", sizeof(double) }      },
+            { "bool",   { "bool", sizeof(bool) }          },
+            { "null",   { "null", 0 }                     },
+            { "char",   { "char", sizeof(char) }          }
+});
 #endif
 
 namespace detail {
 
-using Literal = std::variant<
-    std::monostate,
+using Literal = std::variant<std::monostate,
     int,
     long,
     unsigned char,
@@ -93,13 +96,13 @@ struct Expression
         std::pair<std::monostate, std::pair<std::string, std::size_t>>{
             std::monostate{},
             std::pair<std::string, std::size_t>{ "null", 0 }
-        };
+    };
 
     static constexpr auto WORD_LITERAL =
         std::pair<std::string, std::pair<std::string, std::size_t>>{
             "__WORD__",
             std::pair<std::string, std::size_t>{ "word", sizeof(void*) }
-        };
+    };
 
     using Pointer = std::shared_ptr<Expression>;
 
@@ -113,8 +116,7 @@ struct Expression
 
     using Function = std::pair<LValue, std::vector<Pointer>>;
 
-    using Type = std::variant<
-        std::monostate,
+    using Type = std::variant<std::monostate,
         Pointer,
         Array,
         Symbol,
@@ -154,17 +156,14 @@ constexpr std::string get_expression_type(Expression::Type const& value)
 
 constexpr bool is_integer_string(std::string_view const& str)
 {
-    return std::ranges::all_of(str, [](char c) {
-        return std::isdigit(static_cast<unsigned char>(c));
-    });
+    return std::ranges::all_of(str,
+        [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
 }
 
-std::string literal_to_string(
-    Literal const& literal,
+std::string literal_to_string(Literal const& literal,
     std::string_view separator = ":");
 
-std::string expression_type_to_string(
-    Expression::Type const& item,
+std::string expression_type_to_string(Expression::Type const& item,
     bool separate = true,
     std::string_view separator = ":");
 
@@ -176,18 +175,18 @@ inline Expression::LValue make_lvalue(std::string const& name)
 template<typename T>
 constexpr Expression::LValue make_lvalue(std::string name, T value)
 {
-    static_assert(
-        std::is_constructible_v<Literal, T>,
-        "Error: Type T is not a valid alternative in Expression::Literal_");
+    static_assert(std::is_constructible_v<Literal, T>,
+        "Error: Type T is not a valid alternative in "
+        "Expression::Literal_");
     return { std::move(name), std::move(value) };
 }
 
 template<typename T>
 constexpr Literal make_literal_value(T value, Size size)
 {
-    static_assert(
-        std::is_constructible_v<Literal, T>,
-        "Error: Type T is not a valid alternative in Expression::Literal_");
+    static_assert(std::is_constructible_v<Literal, T>,
+        "Error: Type T is not a valid alternative in "
+        "Expression::Literal_");
     return std::pair{ std::move(value), std::move(size) };
 }
 
@@ -200,21 +199,18 @@ inline Expression::Type_Pointer make_value_type_pointer(
 template<typename T>
 constexpr T get_literal_from_type_pointer(Expression::Type_Pointer const& type)
 {
-    static_assert(
-        std::is_constructible_v<Literal, T>,
+    static_assert(std::is_constructible_v<Literal, T>,
         "Error: Type T is not a valid alternative in value::Expression");
     return std::get<T>(std::get<Literal>(*type).first);
 }
 
-inline bool is_value_type_pointer_type(
-    Expression::Type_Pointer const& value,
+inline bool is_value_type_pointer_type(Expression::Type_Pointer const& value,
     std::string_view type)
 {
     return get_expression_type(*value) == type;
 }
 
-constexpr bool is_value_type(
-    Expression const& expression,
+constexpr bool is_value_type(Expression const& expression,
     std::string_view type)
 {
     return get_expression_type(expression.value) == type;

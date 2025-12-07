@@ -31,6 +31,8 @@
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
+// clang-format on
+
 #include <credence/target/x86_64/generator.h> // for x86_64
 
 int main(int argc, const char* argv[])
@@ -40,17 +42,14 @@ int main(int argc, const char* argv[])
     try {
         cxxopts::Options options("Credence", "Credence :: B Language Compiler");
         options.show_positional_help();
-        options.add_options()(
-            "a,ast-loader",
+
+        options.add_options()("a,ast-loader",
             "AST Loader [json, python]",
-            cxxopts::value<std::string>()->default_value("python"))(
-            "t,target",
+            cxxopts::value<std::string>()->default_value("python"))("t,target",
             "Target [ir, syntax, ast, arm64, x86_64, z80]",
-            cxxopts::value<std::string>()->default_value("ir"))(
-            "d,debug",
+            cxxopts::value<std::string>()->default_value("ir"))("d,debug",
             "Dump symbol table",
-            cxxopts::value<bool>()->default_value("false"))(
-            "o,output",
+            cxxopts::value<bool>()->default_value("false"))("o,output",
             "Output file",
             cxxopts::value<std::string>()->default_value("stdout"))(
             "h,help", "Print usage")(
@@ -68,10 +67,10 @@ int main(int argc, const char* argv[])
         std::string syntax_tree;
         credence::util::AST_Node ast;
         credence::util::AST_Node symbols;
-
         auto type = result["ast-loader"].as<std::string>();
         auto target = result["target"].as<std::string>();
         auto output = result["output"].as<std::string>();
+
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
 
@@ -134,17 +133,20 @@ int main(int argc, const char* argv[])
                 m::or_(sv("ast"), sv("syntax")) = [&] { return "bast"; },
             m::pattern | m::_ = [&] { return "bo"; });
 
-        // clang-format off
         m::match(target)(
             // cppcheck-suppress syntaxError
             m::pattern | "x86_64" =
                 [&]() {
-                credence::target::add_stdlib_functions_to_symbols(symbols);
-                credence::target::x86_64::emit(out_to, symbols, ast["root"]);
+                    credence::target::add_stdlib_functions_to_symbols(symbols,
+                        credence::target::Platform::credence_x86_64_platform);
+                    // clang-format off
+                    credence::target::x86_64::emit(out_to, symbols, ast["root"]);
+                    // clang-format on
                 },
             m::pattern | "ir" =
                 [&]() {
-                    credence::target::add_stdlib_functions_to_symbols(symbols);
+                    credence::target::add_stdlib_functions_to_symbols(symbols,
+                        credence::target::Platform::credence_x86_64_platform);
                     credence::ir::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "ast" =
@@ -164,7 +166,6 @@ int main(int argc, const char* argv[])
                     std::cerr << "Credence :: Invalid target option"
                               << std::endl;
                 });
-        // clang-format on
 
         credence::util::write_to_from_string_stream(output, out_to, extension);
 
