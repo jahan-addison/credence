@@ -27,6 +27,7 @@ The compiler works in 3 stages:
 * Support for C++ style comments
 * Logical and bitwise operators behave more like C
 * Operator precedence resembles C
+* VSCode extension provided in `ext/`
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte
@@ -326,7 +327,7 @@ make install
 * `cxxopts` - Lightweight commandline parser
 * `matchit` - Pattern matching
 * `fmt` - fast and constexpr string formatting
-* `eternal` - `constexpr` lookup tables
+* `eternal` - constexpr lookup tables
 * `pybind11`
 
 # License
