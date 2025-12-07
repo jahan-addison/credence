@@ -7,8 +7,7 @@ main() {
   print("hello world\n");
   print(y);
   print(mess[1]);
-
-  // kernel::write(3)
+  // syscall
   write(1, "how cool is this man\n", 21);
 }
 

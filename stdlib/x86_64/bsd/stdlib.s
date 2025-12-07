@@ -21,16 +21,18 @@
     .global print
 
 
+// @brief print
+// Arguments are handled by credence
+// %rsi should hold the buffer address
+// mov    rsi, qword ptr [rbp - 8],
+// %rdx should hold the buffer length
+// mov    rdx, qword ptr [rbp - 12]
 print:
     push    rbp
     mov     rbp, rsp
     sub     rsp, 16
     mov     rax, 33554436
     mov     rdi, 1
-    // %rsi should hold the buffer address
-    // mov    rsi, qword ptr [rbp - 8],
-    // %rdx should hold the buffer length
-    // mov    rdx, qword ptr [rbp - 12]
     syscall
     add     rsp, 16
     pop     rbp
