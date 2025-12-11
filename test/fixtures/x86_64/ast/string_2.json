@@ -3,17 +3,17 @@
     "k": {
       "column": 12,
       "end_column": 13,
-      "end_pos": 21,
-      "line": 2,
-      "start_pos": 20,
+      "end_pos": 38,
+      "line": 3,
+      "start_pos": 37,
       "type": "lvalue"
     },
     "m": {
       "column": 9,
       "end_column": 10,
-      "end_pos": 18,
-      "line": 2,
-      "start_pos": 17,
+      "end_pos": 35,
+      "line": 3,
+      "start_pos": 34,
       "type": "indirect_lvalue"
     },
     "main": {

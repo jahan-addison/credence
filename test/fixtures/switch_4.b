@@ -1,4 +1,3 @@
-// do rest of instructions
 convert(s,v) {
    auto m,i,j,c,sign,C;
    auto loop;

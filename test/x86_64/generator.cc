@@ -88,7 +88,6 @@ _start:
     add eax, dword ptr [rbp - 4]
     imul eax, 10
     mov dword ptr [rbp - 4], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -116,7 +115,6 @@ _start:
     mov eax, 2
     sub eax, dword ptr [rbp - 4]
     mov dword ptr [rbp - 8], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -161,7 +159,6 @@ _start:
     mov dword ptr [rbp - 12], edx
     mov eax, 10
     mov dword ptr [rbp - 12], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -190,7 +187,6 @@ _start:
     inc dword ptr [rbp - 4]
     dec dword ptr [rbp - 8]
     inc dword ptr [rbp - 8]
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -221,7 +217,6 @@ _start:
     inc dword ptr [rbp - 4]
     dec dword ptr [rbp - 8]
     inc dword ptr [rbp - 8]
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -257,7 +252,6 @@ _start:
     inc dword ptr [rbp - 4]
     mov eax, dword ptr [rbp - 4]
     mov dword ptr [rbp - 8], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -281,7 +275,6 @@ _start:
     mov rbp, rsp
     mov al, 1
     mov byte ptr [rbp - 1], al
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -316,7 +309,6 @@ _start:
     not edi
     and eax, edi
     mov dword ptr [rbp - 12], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -354,7 +346,6 @@ _start:
     not edi
     and eax, edi
     mov dword ptr [rbp - 12], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -392,7 +383,6 @@ _start:
     not edi
     and eax, edi
     mov dword ptr [rbp - 12], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -427,7 +417,6 @@ _start:
     not edi
     and eax, edi
     mov dword ptr [rbp - 12], eax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -453,7 +442,6 @@ _start:
     lea rax, [rbp - 12]
     mov qword ptr [rbp - 8], rax
     mov dword ptr [rbp - 16], 10
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -484,7 +472,6 @@ _start:
     mov dword ptr [rbp - 20], eax
     lea rax, [rbp - 16]
     mov qword ptr [rbp - 32], rax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -511,7 +498,6 @@ _start:
     mov qword ptr [rbp - 8], rax
     mov rax, qword ptr [rbp - 8]
     mov dword ptr [rax], 10
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -548,7 +534,6 @@ _start:
     mov rax, qword ptr [rbp - 8]
     mov dword ptr [rax], edi
     mov dword ptr [rbp - 12], 5
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -557,8 +542,9 @@ _L1:
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_4", expected);
 }
 
-TEST_CASE("target/x86_64: fixture: string_1.b")
+TEST_CASE("target/x86_64: fixture: strings")
 {
+    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("string_2");
     std::string expected = R"x86(
 .intel_syntax noprefix
 
@@ -582,42 +568,12 @@ _start:
     mov qword ptr [rbp - 16], rax
     lea rax, [rip + ._L_str1__]
     mov qword ptr [rbp - 24], rax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
 
 )x86";
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_1", expected);
-}
-
-TEST_CASE("target/x86_64: fixture: string_2.b")
-{
-    std::string expected = R"x86(
-.intel_syntax noprefix
-
-.data
-
-._L_str1__:
-    .asciz "hello world"
-
-.text
-    .global _start
-
-_start:
-    push rbp
-    mov rbp, rsp
-    lea rax, [rip + ._L_str1__]
-    mov qword ptr [rbp - 16], rax
-    lea rax, [rbp - 16]
-    mov qword ptr [rbp - 8], rax
-_L1:
-    mov rax, 60
-    mov rdi, 0
-    syscall
-
-)x86";
-    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("string_2", expected);
 }
 
 TEST_CASE("target/x86_64: fixture: vector_1.b")
@@ -637,7 +593,6 @@ _start:
     mov dword ptr [rbp - 8], 1
     mov dword ptr [rbp - 4], 2
     mov dword ptr [rbp - 16], 10
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -665,7 +620,6 @@ _start:
     mov dword ptr [rbp - 20], 3
     mov dword ptr [rbp - 16], 4
     mov dword ptr [rbp - 36], 10
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -697,47 +651,10 @@ _start:
     mov dword ptr [rbp - 28], 1
     mov dword ptr [rbp - 24], 2
     lea rax, [rip + ._L_str1__]
-    mov dword ptr [rbp - 20], rax
+    mov qword ptr [rbp - 20], rax
     lea rax, [rip + ._L_str2__]
-    mov dword ptr [rbp - 12], rax
+    mov qword ptr [rbp - 12], rax
     mov dword ptr [rbp - 36], 10
-_L1:
-    mov rax, 60
-    mov rdi, 0
-    syscall
-
-)x86";
-    SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("vector_3", expected);
-}
-
-TEST_CASE("target/x86_64: fixture: vector_3.b")
-{
-    std::string expected = R"x86(
-.intel_syntax noprefix
-
-.data
-
-._L_str1__:
-    .asciz "good afternoon"
-
-._L_str2__:
-    .asciz "good morning"
-
-.text
-    .global _start
-
-_start:
-    push rbp
-    mov rbp, rsp
-    mov dword ptr [rbp - 32], 0
-    mov dword ptr [rbp - 28], 1
-    mov dword ptr [rbp - 24], 2
-    lea rax, [rip + ._L_str1__]
-    mov dword ptr [rbp - 20], rax
-    lea rax, [rip + ._L_str2__]
-    mov dword ptr [rbp - 12], rax
-    mov dword ptr [rbp - 36], 10
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -784,7 +701,6 @@ _start:
     mov dword ptr [rbp - 4], eax
     mov rax, qword ptr [rip + mess+8]
     mov qword ptr [rbp - 12], rax
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -844,7 +760,6 @@ _start:
     lea rsi, [rip + ._L_str2__]
     mov rdx, 21
     syscall
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -907,7 +822,6 @@ _start:
     lea rsi, [rip + ._L_str3__]
     mov rdx, 21
     syscall
-_L1:
     mov rax, 60
     mov rdi, 0
     syscall
@@ -915,4 +829,155 @@ _L1:
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "stdlib/print", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: call_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "hello, how are you"
+
+.text
+    .global _start
+    .extern print
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    lea rax, [rip + ._L_str1__]
+    mov qword ptr [rbp - 8], rax
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rsi, qword ptr [rbp - 8]
+    mov rdx, 18
+    call print
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+
+identity:
+    push rbp
+    mov rbp, rsp
+    mov rax, rdi
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST("call_1", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: call_2.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "hello world"
+
+.text
+    .global _start
+    .extern print
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    lea rdi, [rip + ._L_str1__]
+    call test
+    mov qword ptr [rbp - 8], rax
+    mov rdi, qword ptr [rbp - 8]
+    call test
+    mov rsi, rax
+    mov rdx, 11
+    call print
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+
+test:
+    push rbp
+    mov rbp, rsp
+    mov rax, rdi
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST("call_2", expected);
+}
+
+TEST_CASE("target/x86_64: fixture: readme_2.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "for the readme"
+
+._L_str2__:
+    .asciz "hello, how are you"
+
+._L_str3__:
+    .asciz "in an array"
+
+._L_str4__:
+    .asciz "these are strings"
+
+strings:
+    .quad ._L_str4__
+
+    .quad ._L_str3__
+
+    .quad ._L_str1__
+
+.text
+    .global _start
+    .extern print
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    lea rax, [rip + ._L_str2__]
+    mov qword ptr [rbp - 8], rax
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rsi, qword ptr [rbp - 8]
+    mov rdx, 18
+    call print
+    mov rsi, qword ptr [rip + strings]
+    mov rdx, 17
+    call print
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+
+identity:
+    push rbp
+    mov rbp, rsp
+    mov rax, rdi
+    pop rbp
+    ret
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST("readme_2", expected);
 }

@@ -1,6 +1,6 @@
 main(argc, argv) {
-  // should fail
-  auto k, m, z;
+  // should pass
+  auto k, *m, *z;
   extrn array;
   k = array[2];
   m = "hello world";

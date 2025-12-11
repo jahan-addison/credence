@@ -80,17 +80,18 @@ jobs:
         poetry install
         make install
         cd ../../
-        ./build/credence -h
-        ./build/credence -d -t ast $(pwd)/examples/1.b
-        ./build/credence -d $(pwd)/test/fixtures/readme.b
         ./build/test_suite
         export CREDENCE_ENV_HOME="$(pwd)"
         chmod +x ./bin/credence
         chmod +x ./test/compiled-test.sh
         ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
         ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b
+        ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/x86_64/call_1.b
+        ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/x86_64/call_2.b
         ./test/compiled-test.sh syscall_test
         ./test/compiled-test.sh stdlib_test
+        ./test/compiled-test.sh call_test_1
+        ./test/compiled-test.sh call_test_2
 
 
     - name: memcheck
@@ -105,7 +106,10 @@ jobs:
         poetry install
         make install
         cd ../../
+        export CREDENCE_ENV_HOME="$(pwd)"
+        chmod +x ./bin/credence
+        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
+        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b
+        valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
+        valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
         valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
-        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -t x86_64 $(pwd)/test/fixtures/x86_64/math_constant_4.b
-        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -t x86_64 $(pwd)/test/fixtures/x86_64/bitwise_4.b
-        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -t x86_64 $(pwd)/test/fixtures/x86_64/pointers_4.b

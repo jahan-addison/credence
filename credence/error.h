@@ -15,12 +15,14 @@
  */
 
 #pragma once
+#include <credence/util.h>
 #include <exception>
 #include <fmt/compile.h>
 #include <fmt/format.h>
 #include <simplejson.h>
 #include <source_location>
 #include <string_view>
+#include <type_traits>
 
 #define credence_error(message) \
     (credence::detail::assert_fail(std::source_location::current(), message))
@@ -175,7 +177,11 @@ constexpr inline void assert_equal_impl(std::source_location const& location,
     const T1& actual,
     const T2& expected)
 {
-    assert_impl(location, actual == expected);
+    assert_impl(location,
+        actual == expected,
+        fmt::format("expected '{}' to equal '{}'",
+            util::to_constexpr_string(actual),
+            util::to_constexpr_string(expected)));
 }
 
 template<typename T1, typename T2>
@@ -183,7 +189,11 @@ constexpr inline void assert_nequal_impl(std::source_location const& location,
     const T1& actual,
     const T2& expected)
 {
-    assert_impl(location, actual != expected);
+    assert_impl(location,
+        actual != expected,
+        fmt::format("expected '{}' to not equal '{}'",
+            util::to_constexpr_string(actual),
+            util::to_constexpr_string(expected)));
 }
 
 } // namespace credence::detail

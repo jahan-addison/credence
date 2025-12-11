@@ -154,6 +154,8 @@ constexpr inline std::string to_constexpr_string(T const& val)
         return s;
     } else if constexpr (std::is_same_v<T, uint_least32_t>) {
         return std::to_string(val);
+    } else if constexpr (std::is_same_v<T, std::size_t>) {
+        return std::to_string(val);
     } else if constexpr (std::is_same_v<T, double>) {
         return "double_val";
     } else if constexpr (std::is_convertible_v<T, std::string_view>) {
@@ -161,6 +163,31 @@ constexpr inline std::string to_constexpr_string(T const& val)
     } else {
         return "unsupported_type";
     }
+}
+
+constexpr std::string_view WHITESPACE = " \t\n\r\f\v";
+
+constexpr std::string str_trim_ws(std::string const& ss)
+{
+    size_t start = ss.find_first_not_of(WHITESPACE);
+    if (start == std::string_view::npos) {
+        return "";
+    }
+    size_t end = ss.find_last_not_of(WHITESPACE);
+    size_t length = end - start + 1;
+    return ss.substr(start, length);
+}
+
+constexpr std::string get_numbers_from_string(std::string_view str)
+{
+    std::string result;
+    result.reserve(str.length()); // Pre-allocate memory for efficiency
+    for (char c : str) {
+        if (c >= '0' && c <= '9') {
+            result += c;
+        }
+    }
+    return result;
 }
 
 constexpr std::string unescape_string(std::string_view escaped_str)
@@ -259,11 +286,22 @@ std::string read_file_from_path(std::string_view path);
 // Other
 //////////
 
-template<typename T>
-constexpr bool initializer_list_contains(T const& needle,
-    std::initializer_list<T> const& haystack)
+template<typename Range, typename Value>
+constexpr bool range_contains(Value const& needle, Range const& haystack)
 {
-    return std::ranges::find(haystack, needle);
+    auto it = std::ranges::find(haystack, needle);
+    return it != std::ranges::end(haystack);
+}
+
+template<typename RangeT, typename ValueT>
+constexpr std::ptrdiff_t find_index(const RangeT& range, const ValueT& value)
+{
+    auto it = std::ranges::find(range, value);
+    if (it != std::ranges::end(range)) {
+        return std::distance(std::ranges::begin(range), it);
+    } else {
+        return -1;
+    }
 }
 
 } // namespace util

@@ -135,7 +135,10 @@ enum Instruction_Flag : flags
     Address = 1 << 0,
     Indirect = 1 << 1,
     Indirect_Source = 1 << 2,
-    Alloc = 1 << 3
+    Alloc = 1 << 3,
+    Argument = 1 << 4,
+    Stack_Source = 1 << 5,
+    Load = 1 << 6
 
 };
 
@@ -145,6 +148,10 @@ constexpr std::string emit_immediate_storage(Immediate const& immediate);
 
 constexpr std::string emit_stack_storage(Stack const& stack,
     Stack::Offset offset,
+    flag::flags flags);
+
+constexpr std::string emit_stack_storage(Stack::Offset offset,
+    Operand_Size size,
     flag::flags flags);
 
 constexpr std::string emit_register_storage(Register device,
@@ -214,7 +221,7 @@ class Code_Generator final
     void from_cmp_ita(ir::Quadruple const& inst) override;
     void from_mov_ita(ir::Quadruple const& inst) override;
     void from_return_ita() override;
-    void from_push_ita() override;
+    void from_push_ita(ir::Quadruple const& inst) override;
     void from_pop_ita() override;
     void from_leave_ita() override;
     void from_label_ita(ir::Quadruple const& inst) override;
@@ -235,18 +242,12 @@ class Code_Generator final
         Register::esi,
         Register::edx,
         Register::ecx };
-    std::deque<Register> available_argument_register = { Register::r9,
-        Register::r8,
-        Register::r10,
-        Register::rdx,
-        Register::rsi,
-        Register::rdi };
 
   private:
-    type::Stack get_arguments_from_call_stack();
     type::semantic::Size get_string_size_from_storage(Storage const& storage);
     syscall_ns::syscall_arguments_t get_operand_storage_from_call_stack(
         type::Stack const& stack);
+    Storage get_operand_storage_from_rvalue(RValue const& rvalue);
     constexpr Register get_accumulator_register_from_size(
         Operand_Size size = Operand_Size::Dword);
     constexpr Register get_second_register_from_size(
@@ -281,25 +282,19 @@ class Code_Generator final
     void insert_from_unary_to_unary_assignment(
         LValue const& lhs,
         LValue const& rhs);
-    void insert_from_global_vector_assignment(
-        LValue const& lhs,
+    void insert_from_global_vector_assignment(LValue const& lhs,
         LValue const& rhs);
-    void insert_from_mnemonic_operand(
-        LValue const& lhs,
-        RValue const& rhs);
+    void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
     void insert_from_temporary_lvalue(LValue const& lvalue);
     void insert_from_rvalue(RValue const& rvalue);
-    void insert_from_op_operands(
-        Storage_Operands& operands,
+    void insert_from_return_rvalue(
+        ir::detail::Function::Return_RValue const& ret);
+    void insert_from_op_operands(Storage_Operands& operands,
         std::string const& op);
-    void from_binary_operator_expression(
-        RValue const& expr);
-    void from_bitwise_operator_expression(
-        RValue const& expr);
-    void from_temporary_unary_operator_expression(
-        RValue const& expr);
-    void insert_from_immediate_rvalues(
-        Immediate const& lhs,
+    void from_binary_operator_expression(RValue const& expr);
+    void from_bitwise_operator_expression(RValue const& expr);
+    void from_temporary_unary_operator_expression(RValue const& expr);
+    void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs);
 
@@ -307,12 +302,11 @@ class Code_Generator final
     void set_stack_frame_from_table(type::semantic::Label const& name);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    bool no_stdlib{ false }; // for testing
-    Storage get_argument_storage();
+    bool no_stdlib{ false };
     // clang-format on
     Storage get_storage_device(
         detail::Operand_Size size = detail::Operand_Size::Qword);
-    inline void reset_avail_registers()
+    inline void reset_available_registers()
     {
         available_qword_register = { Register::rdi,
             Register::r8,
@@ -326,21 +320,6 @@ class Code_Generator final
             Register::r9d,
             Register::edx,
             Register::ecx };
-        available_argument_register = { Register::r9,
-            Register::r8,
-            Register::r10,
-            Register::rdx,
-            Register::rsi,
-            Register::rdi };
-    }
-    inline void reset_argument_registers()
-    {
-        available_argument_register = { Register::r9,
-            Register::r8,
-            Register::r10,
-            Register::rdx,
-            Register::rsi,
-            Register::rdi };
     }
 
   private:
@@ -430,7 +409,12 @@ class Code_Generator final
 
   private:
     detail::Stack stack{};
+    ir::detail::Function::Stack argument_stack{};
+    ir::detail::Function::Stack call_stack{ "main" };
+    Ordered_Map<type::semantic::Label, ir::detail::Function::Return_RValue>
+        stdlib_call{};
     std::string current_frame{};
+    std::string return_frame{};
     std::size_t call_size{ 0 };
     std::size_t ita_index{ 0 };
     std::size_t constant_index{ 0 };

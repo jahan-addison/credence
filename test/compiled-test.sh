@@ -16,9 +16,18 @@
 
 if [[ "$1" == "syscall_test" ]]; then
   printf -v expected_output '%s\n%s' "hello world" "how cool is this man"
-elif [[ "$1" == "stdlib_test" ]]; then
+fi
+if [[ "$1" == "stdlib_test" ]]; then
   printf -v expected_output '%s\n%s\n%s' "hello world" "hello world" "how cool is this man"
 fi
+if [[ "$1" == "call_test_1" ]]; then
+  printf -v expected_output '%s' "hello, how are you"
+fi
+if [[ "$1" == "call_test_2" ]]; then
+  printf -v expected_output '%s' "hello world"
+fi
+
+
 
 program_output=$(./"$1")
 

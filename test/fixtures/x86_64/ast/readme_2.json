@@ -1,0 +1,240 @@
+[
+  {
+    "identity": {
+      "column": 1,
+      "end_column": 9,
+      "end_pos": 139,
+      "line": 9,
+      "start_pos": 131,
+      "type": "function_definition"
+    },
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "print": {
+      "column": 3,
+      "end_column": 8,
+      "end_pos": 72,
+      "line": 5,
+      "start_pos": 67,
+      "type": "lvalue"
+    },
+    "strings": {
+      "column": 1,
+      "end_column": 8,
+      "end_pos": 169,
+      "line": 13,
+      "size": 3,
+      "start_pos": 162,
+      "type": "vector_definition"
+    },
+    "x": {
+      "column": 9,
+      "end_column": 10,
+      "end_pos": 18,
+      "line": 2,
+      "start_pos": 17,
+      "type": "indirect_lvalue"
+    },
+    "y": {
+      "column": 11,
+      "end_column": 12,
+      "end_pos": 142,
+      "line": 9,
+      "start_pos": 141,
+      "type": "indirect_lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "x"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "strings"
+                }
+              ],
+              "node": "statement",
+              "root": "extrn"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "string_literal",
+                      "root": "\"hello, how are you\""
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "left": {
+                          "node": "lvalue",
+                          "root": "identity"
+                        },
+                        "node": "function_expression",
+                        "right": [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "identity"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "left": {
+                                  "node": "lvalue",
+                                  "root": "identity"
+                                },
+                                "node": "function_expression",
+                                "right": [
+                                  {
+                                    "node": "lvalue",
+                                    "root": "x"
+                                  }
+                                ],
+                                "root": "identity"
+                              }
+                            ],
+                            "root": "identity"
+                          }
+                        ],
+                        "root": "identity"
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "left": {
+                          "node": "number_literal",
+                          "root": 0
+                        },
+                        "node": "vector_lvalue",
+                        "root": "strings"
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      },
+      {
+        "left": [
+          {
+            "left": {
+              "node": "lvalue",
+              "root": "y"
+            },
+            "node": "indirect_lvalue",
+            "root": [
+              "*"
+            ]
+          }
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "y"
+                }
+              ],
+              "node": "statement",
+              "root": "return"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "identity"
+      },
+      {
+        "left": {
+          "node": "number_literal",
+          "root": 3
+        },
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "string_literal",
+            "root": "\"these are strings\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"in an array\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"for the readme\""
+          }
+        ],
+        "root": "strings"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

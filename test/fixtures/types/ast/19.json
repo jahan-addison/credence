@@ -19,10 +19,10 @@
     "array": {
       "column": 1,
       "end_column": 6,
-      "end_pos": 121,
+      "end_pos": 123,
       "line": 10,
       "size": 3,
-      "start_pos": 116,
+      "start_pos": 118,
       "type": "vector_definition"
     },
     "k": {
@@ -34,12 +34,12 @@
       "type": "lvalue"
     },
     "m": {
-      "column": 11,
-      "end_column": 12,
-      "end_pos": 47,
+      "column": 12,
+      "end_column": 13,
+      "end_pos": 48,
       "line": 3,
-      "start_pos": 46,
-      "type": "lvalue"
+      "start_pos": 47,
+      "type": "indirect_lvalue"
     },
     "main": {
       "column": 1,
@@ -50,12 +50,12 @@
       "type": "function_definition"
     },
     "z": {
-      "column": 14,
-      "end_column": 15,
-      "end_pos": 50,
+      "column": 16,
+      "end_column": 17,
+      "end_pos": 52,
       "line": 3,
-      "start_pos": 49,
-      "type": "lvalue"
+      "start_pos": 51,
+      "type": "indirect_lvalue"
     }
   },
   {
@@ -81,12 +81,24 @@
                   "root": "k"
                 },
                 {
-                  "node": "lvalue",
-                  "root": "m"
+                  "left": {
+                    "node": "lvalue",
+                    "root": "m"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
                 },
                 {
-                  "node": "lvalue",
-                  "root": "z"
+                  "left": {
+                    "node": "lvalue",
+                    "root": "z"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
                 }
               ],
               "node": "statement",

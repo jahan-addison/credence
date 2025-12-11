@@ -182,6 +182,8 @@
 #define MNEMONIC_OSTREAM(mnem)                               \
     case mn(mnem): {                                         \
         auto mnem_str = std::string_view{ STRINGIFY(mnem) }; \
+        if (mnem_str.ends_with("q_"))                        \
+            mnem_str.remove_suffix(2);                       \
         if (util::contains(mnem_str, "_"))                   \
             mnem_str.remove_suffix(1);                       \
         os << mnem_str;                                      \
@@ -268,7 +270,6 @@ enum class Mnemonic
     cqo,
     cdq,
     leave,
-    mov,
     push,
     pop,
     call,
@@ -279,6 +280,8 @@ enum class Mnemonic
     setg,
     setle,
     setge,
+    mov,
+    movq_,
     mov_,
     and_,
     or_,
@@ -580,6 +583,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         MNEMONIC_OSTREAM(cdq);
         MNEMONIC_OSTREAM(leave);
         MNEMONIC_OSTREAM(mov);
+        MNEMONIC_OSTREAM(movq_);
         MNEMONIC_OSTREAM(mov_);
         MNEMONIC_OSTREAM(push);
         MNEMONIC_OSTREAM(pop);
@@ -650,8 +654,7 @@ constexpr std::string make_label(type::semantic::Label const& label)
 {
     if (label == "main")
         return "_start";
-    else
-        return label;
+    return label;
 }
 
 Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
@@ -706,6 +709,14 @@ inline void insert(Directives& to, Directives const& from)
 inline detail::Immediate make_array_immediate(std::string_view address)
 {
     return Immediate{ address, "string", 8UL };
+}
+
+/**
+ * @brief directive insertion for arbitrary immediate devices
+ */
+inline detail::Immediate make_direct_immediate(std::string_view str)
+{
+    return Immediate{ str, "string", 8UL };
 }
 
 /**

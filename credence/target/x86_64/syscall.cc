@@ -88,7 +88,7 @@ void make_syscall(Instructions& instructions,
         if (is_immediate_rip_address_offset(arg))
             add_inst_as(instructions, lea, storage, arg);
         else
-            add_inst_as(instructions, mov, storage, arg);
+            add_inst_as(instructions, movq_, storage, arg);
     }
     add_inst_ee(instructions, detail::Mnemonic::syscall);
 }

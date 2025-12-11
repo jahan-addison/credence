@@ -41,11 +41,9 @@ namespace credence {
 
 namespace ir {
 
-// clang-format off
 void emit(std::ostream& os,
-util::AST_Node const& symbols,
-util::AST_Node const& ast);
-// clang-format on
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast);
 
 namespace detail {
 
@@ -75,7 +73,7 @@ struct Vector
     int decay_index{ 0 };
     std::size_t size{ 0 };
     Label symbol{};
-    static constexpr std::size_t max_size{ 1000 };
+    static constexpr std::size_t max_size{ 999 };
 };
 
 /**
@@ -87,26 +85,49 @@ struct Function
         : symbol(label)
     {
     }
+    using LValue = type::semantic::LValue;
+    using RValue = type::semantic::RValue;
+    using Stack = type::Stack;
+    using Return_RValue = std::optional<std::pair<RValue, RValue>>;
     using Address_Table =
         Symbol_Table<type::semantic::Label, type::semantic::Address>;
-    void set_parameters_from_symbolic_label(type::semantic::Label const& label);
-    type::semantic::Label symbol{};
-    type::Labels labels{};
-    type::Locals locals{};
 
-    constexpr inline bool is_parameter(type::semantic::RValue const& parameter)
+    void set_parameters_from_symbolic_label(type::semantic::Label const& label);
+
+    constexpr bool is_pointer_parameter(RValue const& parameter)
+    {
+        using namespace fmt::literals;
+        return std::ranges::find(
+                   parameters, fmt::format("*{}"_cf, parameter)) !=
+               std::ranges::end(parameters);
+    }
+    constexpr bool is_scaler_parameter(RValue const& parameter)
     {
         return std::ranges::find(parameters, parameter) !=
                std::ranges::end(parameters);
     }
-
-    type::semantic::RValue ret{};
+    constexpr bool is_parameter(RValue const& parameter)
+    {
+        return is_scaler_parameter(parameter) or
+               is_pointer_parameter(parameter);
+    }
+    constexpr int get_index_of_parameter(RValue const& parameter)
+    {
+        for (std::size_t i = 0; i < parameters.size(); i++) {
+            if (type::get_unary_rvalue_reference(parameters[i]) == parameter)
+                return i;
+        }
+        return -1;
+    }
+    Return_RValue ret{};
     type::Parameters parameters{};
-    Ordered_Map<type::semantic::LValue, type::semantic::RValue> temporary{};
+    Ordered_Map<LValue, RValue> temporary{};
     Address_Table label_address{};
     std::array<type::semantic::Address, 2> address_location{};
-
-    static constexpr int max_depth = 1000;
+    type::semantic::Label symbol{};
+    type::Labels labels{};
+    type::Locals locals{};
+    static constexpr int max_depth = 999;
     unsigned int allocation = 0;
 };
 
@@ -185,9 +206,22 @@ class Table
     }
     inline bool is_pointer(RValue const& rvalue)
     {
-        auto locals = get_stack_frame_symbols();
-        return locals.is_pointer(rvalue) or rvalue.starts_with("&");
+        const auto& locals = get_stack_frame_symbols();
+        return locals.is_pointer(rvalue) or rvalue.starts_with("&") or
+               type::is_rvalue_data_type_string(rvalue);
     }
+    inline bool is_null_symbol(LValue const& lvalue)
+    {
+        auto frame = get_stack_frame();
+        if (is_vector(lvalue))
+            return false;
+        if (is_pointer(lvalue))
+            return frame->locals.get_pointer_by_name(lvalue) == "NULL";
+        return type::get_type_from_rvalue_data_type(
+                   frame->locals.get_symbol_by_name(
+                       util::str_trim_ws(lvalue).data())) == "null";
+    }
+
     inline bool is_vector_or_pointer(RValue const& rvalue)
     {
         return is_vector(rvalue) or is_pointer(rvalue);
@@ -222,7 +256,7 @@ class Table
     {
         if (std::ranges::find(type::integral_unary_types, type) ==
             type::integral_unary_types.end())
-            table_compiletime_error(
+            throw_compiletime_error(
                 fmt::format(
                     "invalid numeric unary expression on lvalue, lvalue "
                     "type "
@@ -243,6 +277,7 @@ class Table
     }
 
   public:
+    void set_stack_frame_return_value(RValue const& rvalue);
     constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
     inline std::shared_ptr<detail::Function> get_stack_frame()
     {
@@ -278,18 +313,16 @@ class Table
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
-    type::Data_Type from_rvalue_unary_expression(
-        LValue const& lvalue,
+    // clang-format on
+    void from_temporary_assignment(LValue const& lhs, LValue const& rhs);
+    type::Data_Type from_rvalue_unary_expression(LValue const& lvalue,
         RValue const& rvalue,
         type::RValue_Reference unary_operator);
     void from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs);
-    void from_pointer_or_vector_assignment(
-        LValue const& lhs,
+    void from_pointer_or_vector_assignment(LValue const& lhs,
         LValue const& rhs,
         bool indirection = false);
     void is_boundary_out_of_range(RValue const& rvalue);
-
-    // clang-format on
 
   private:
     void type_invalid_assignment_check(LValue const& lvalue,
@@ -344,7 +377,7 @@ class Table
     };
 
   public:
-    void table_compiletime_error(std::string_view message,
+    void throw_compiletime_error(std::string_view message,
         type::RValue_Reference symbol,
         std::source_location const& location = std::source_location::current());
 

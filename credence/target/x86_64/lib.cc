@@ -129,7 +129,7 @@ void make_library_call(Instructions& instructions,
                 x86_64::detail::Instruction{ Mnemonic::lea, storage, arg });
         else
             instructions.emplace_back(
-                x86_64::detail::Instruction{ Mnemonic::mov, storage, arg });
+                x86_64::detail::Instruction{ Mnemonic::movq_, storage, arg });
     }
     auto call_immediate =
         x86_64::detail::make_array_immediate(library_function);

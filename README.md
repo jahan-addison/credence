@@ -73,74 +73,97 @@ Usage:
       --source-code arg  B Source file
 ```
 
-```bash
-./credence --help
-```
+A complete assemble and linking tool is available in `bin/` that is installed with `make install`
+
 
 #### Example
 
-**Note**: access of vector (array) objects is type-safe at compiletime
-
 ```C
 main() {
-  auto x, y;
-  extrn unit, mess;
-  x = unit;
-  y = mess[x];
+  auto *x;
+  extrn strings;
+  x = "hello, how are you";
+  // using the provided stdlib print function in stdlib/
+  print(identity(identity(identity(x))));
+
+  print(strings[0]);
 }
 
-unit 1;
+identity(*y) {
+  return(y);
+}
 
-mess [3] "too bad", "tough luck", "that sucks";
+strings [3] "these are strings", "in an array", "for the readme";
 ```
 
 #### Linux x64:
 
 ```asm
+
 .intel_syntax noprefix
 
 .data
 
 ._L_str1__:
-    .asciz "that sucks"
+    .asciz "for the readme"
 
 ._L_str2__:
-    .asciz "too bad"
+    .asciz "hello, how are you"
 
 ._L_str3__:
-    .asciz "tough luck"
+    .asciz "in an array"
 
-mess:
-    .quad ._L_str2__
+._L_str4__:
+    .asciz "these are strings"
+
+strings:
+    .quad ._L_str4__
 
     .quad ._L_str3__
 
     .quad ._L_str1__
 
-unit:
-    .long 1
-
 .text
     .global _start
+    .extern print
 
 _start:
     push rbp
     mov rbp, rsp
-    mov eax, dword ptr [rip + unit]
-    mov dword ptr [rbp - 4], eax
-    mov rax, qword ptr [rip + mess+8]
-    mov qword ptr [rbp - 12], rax
-_L1:
+    sub rsp, 16
+    lea rax, [rip + ._L_str2__]
+    mov qword ptr [rbp - 8], rax
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rdi, qword ptr [rbp - 8]
+    call identity
+    mov rsi, qword ptr [rbp - 8]
+    mov rdx, 18
+    call print
+    mov rsi, qword ptr [rip + strings]
+    mov rdx, 17
+    call print
     mov rax, 60
     mov rdi, 0
     syscall
+
+
+identity:
+    push rbp
+    mov rbp, rsp
+    mov rax, rdi
+    pop rbp
+    ret
+
 ```
 
 ---
 
-If `unit` is set to `5`, you get the following error:
+An example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
 
-<img src="docs/images/credence-out-of-range.png" width="600px" alt="error"> </img>
+<img src="docs/images/credence-out-of-range-2.png" width="600px" alt="error"> </img>
 
 
 

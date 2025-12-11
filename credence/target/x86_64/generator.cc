@@ -40,12 +40,14 @@
 
 #define ir_i(name) credence::ir::Instruction::name
 
+#define credence_current std::source_location::current()
+
 namespace credence::target::x86_64 {
 
 namespace m = matchit;
 
 /**
- * @brief Code Generator
+ * @brief Code Generator Emission Factory
  *
  * Emit a complete x86-64 program from an AST and symbols
  */
@@ -135,9 +137,11 @@ void Code_Generator::emit_text_section(std::ostream& os)
     emit_stdlib_externs(os);
 
     build_text_section_instructions();
-
     for (std::size_t index = 0; index < instructions_.size(); index++) {
         auto inst = instructions_[index];
+        // You're going to need goggles to read the rest of this function,
+        // but it's essentially a state machine via instruction flags set
+        // during code translaion on registers and storage devices
         std::visit(
             util::overload{
                 [&](detail::Instruction const& s) {
@@ -145,12 +149,15 @@ void Code_Generator::emit_text_section(std::ostream& os)
                     auto flags = instruction_flag.contains(index)
                                      ? instruction_flag[index]
                                      : 0UL;
-
+                    if (flags & detail::flag::Load and
+                        not is_variant(Register, src))
+                        mnemonic = detail::Mnemonic::lea;
                     os << detail::tabwidth(4) << mnemonic;
-
                     auto size = get_operand_size_from_storage(src);
                     // apply any flags to the dest storage device
                     if (!is_empty_storage(dest)) {
+                        if (flags & detail::flag::Stack_Source)
+                            size = Operand_Size::Qword;
                         if (flags & detail::flag::Address)
                             size = get_operand_size_from_storage(dest);
                         os << " " << emit_storage_device(dest, size, flags);
@@ -160,9 +167,12 @@ void Code_Generator::emit_text_section(std::ostream& os)
                     }
                     // apply any flags to the source storage device
                     if (!is_empty_storage(src)) {
-                        if (flags & detail::flag::Alloc)
-                            src = detail::make_u32_int_immediate(
-                                stack.get_stack_frame_allocation_size());
+                        if (mnemonic == mn(movq_))
+                            flags |= detail::flag::Argument;
+                        if (mnemonic == mn(sub) or mnemonic == mn(add))
+                            if (flags & detail::flag::Alloc)
+                                src = detail::make_u32_int_immediate(
+                                    stack.get_stack_frame_allocation_size());
                         if (flags & detail::flag::Indirect_Source)
                             flags |= detail::flag::Indirect;
                         os << ", " << emit_storage_device(src, size, flags);
@@ -173,9 +183,17 @@ void Code_Generator::emit_text_section(std::ostream& os)
                     os << std::endl;
                 },
                 [&](type::semantic::Label const& s) {
+                    if (table->hoisted_symbols.has_key(s) and
+                        table->hoisted_symbols[s]["type"].to_string() ==
+                            "function_definition" and
+                        s != "main")
+                        detail::newline(os, 2);
+                    if (s == "_L1")
+                        return;
                     os << detail::make_label(s) << ":" << std::endl;
                 } },
             inst);
+        // clang-format on
     }
 }
 
@@ -211,6 +229,22 @@ constexpr std::string detail::emit_stack_storage(Stack const& stack,
     using namespace fmt::literals;
     std::string as_str{};
     auto size = stack.get_operand_size_from_offset(offset);
+    if (flags & flag::Argument)
+        size = Operand_Size::Qword;
+    std::string prefix = storage_prefix_from_operand_size(size);
+    if (flags & flag::Address)
+        as_str = fmt::format("[rbp - {}]"_cf, offset);
+    else
+        as_str = fmt::format("{} [rbp - {}]"_cf, prefix, offset);
+    return as_str;
+}
+
+constexpr std::string detail::emit_stack_storage(Stack::Offset offset,
+    Operand_Size size,
+    flag::flags flags)
+{
+    using namespace fmt::literals;
+    std::string as_str{};
     std::string prefix = storage_prefix_from_operand_size(size);
     if (flags & flag::Address)
         as_str = fmt::format("[rbp - {}]"_cf, offset);
@@ -234,7 +268,6 @@ constexpr std::string detail::emit_register_storage(Register device,
             fmt::format("{} [{}]"_cf, prefix, get_storage_as_string(device));
     else
         as_str = detail::register_as_string(device);
-
     return as_str;
 }
 
@@ -251,7 +284,12 @@ constexpr std::string Code_Generator::emit_storage_device(
     m::Id<Immediate> i;
     return m::match(storage)(
         m::pattern | m::as<detail::Stack::Offset>(s) =
-            [&] { return detail::emit_stack_storage(stack, *s, flags); },
+            [&] {
+                if (flags & detail::flag::Stack_Source)
+                    return detail::emit_stack_storage(*s, size, flags);
+                else
+                    return detail::emit_stack_storage(stack, *s, flags);
+            },
         m::pattern | m::as<Register>(r) =
             [&] { return detail::emit_register_storage(*r, size, flags); },
         m::pattern | m::as<Immediate>(i) =
@@ -279,7 +317,7 @@ void Code_Generator::build_text_section_instructions()
                 },
             m::pattern | ir_i(FUNC_END) = [&] { from_func_end_ita(); },
             m::pattern | ir_i(MOV) = [&] { from_mov_ita(inst); },
-            m::pattern | ir_i(PUSH) = [&] { from_push_ita(); },
+            m::pattern | ir_i(PUSH) = [&] { from_push_ita(inst); },
             m::pattern | ir_i(POP) = [&] { from_pop_ita(); },
             m::pattern | ir_i(CALL) = [&] { from_call_ita(inst); },
             m::pattern | ir_i(LOCL) = [&] { from_locl_ita(inst); },
@@ -409,7 +447,7 @@ void Code_Generator::from_func_end_ita()
             add_inst_ll(instructions_, add, rsp, imm);
         }
     }
-    reset_avail_registers();
+    reset_available_registers();
 }
 
 /**
@@ -468,9 +506,10 @@ void Code_Generator::from_locl_ita(ir::Quadruple const& inst)
 /**
  * @brief Translate from the IR Instruction::PUSH
  */
-void Code_Generator::from_push_ita()
+void Code_Generator::from_push_ita(ir::Quadruple const& inst)
 {
-    call_size++;
+    argument_stack.emplace_front(
+        table->from_temporary_lvalue(std::get<1>(inst)));
 }
 
 /**
@@ -479,29 +518,8 @@ void Code_Generator::from_push_ita()
 void Code_Generator::from_pop_ita()
 {
     call_size = 0;
-}
-
-/**
- * @brief The ir::Table stack has arguments ready from
- * ITA::Instruction::PUSH
- *
- * However, we have to flip the order of the stack, then flip the
- * individual function operands as we prepare for the call instruction
- *
- * Note that this stack is ir::Table::stack and not
- * x86_64::detail::Stack
- *
- */
-type::Stack Code_Generator::get_arguments_from_call_stack()
-{
-    type::Stack reorder{};
-    for (; call_size != 0UL;) {
-        auto rvalue = table->from_temporary_lvalue(table->stack.front());
-        reorder.emplace_front(rvalue);
-        table->stack.pop_front();
-        call_size--;
-    }
-    return reorder;
+    argument_stack.clear();
+    call_stack.pop_back();
 }
 
 /**
@@ -516,21 +534,66 @@ Code_Generator::get_operand_storage_from_call_stack(type::Stack const& stack)
 {
     syscall_ns::syscall_arguments_t arguments{};
     for (auto const& rvalue : stack) {
-        if (type::is_rvalue_data_type(rvalue)) {
-            auto immediate = type::get_rvalue_datatype_from_string(rvalue);
-            if (type::is_rvalue_data_type_string(immediate)) {
-                auto str_address = detail::make_asciz_immediate(
-                    string_storage[type::get_value_from_rvalue_data_type(
-                        immediate)]);
-                arguments.emplace_back(str_address);
-            } else
-                arguments.emplace_back(
-                    type::get_rvalue_datatype_from_string(rvalue));
+        if (rvalue == "RET") {
+            credence_assert(table->functions.contains(return_frame));
+            auto tail_frame = table->functions.at(return_frame);
+            arguments.emplace_back(
+                get_operand_storage_from_rvalue(tail_frame->ret->first));
         } else {
-            arguments.emplace_back(get_lvalue_address(rvalue));
+            arguments.emplace_back(get_operand_storage_from_rvalue(rvalue));
         }
     }
+    if (instructions_.size() > 1 and
+        instruction_flag.at(instructions_.size() - 1) & detail::flag::Load) {
+        instruction_flag[instructions_.size() - 1] &= ~detail::flag::Load;
+        set_instruction_flag(detail::flag::Load);
+    }
+
     return arguments;
+}
+
+/**
+ * @brief
+ *  A helper method to get the current storage device of an rvalue
+ */
+Code_Generator::Storage Code_Generator::get_operand_storage_from_rvalue(
+    RValue const& rvalue)
+{
+    Storage storage{};
+    auto& frame = table->functions[current_frame];
+    if (frame->is_parameter(rvalue)) {
+        auto index_of = frame->get_index_of_parameter(rvalue);
+        credence_assert_nequal(index_of, -1);
+        if (frame->is_pointer_parameter(rvalue))
+            return available_qword_register.at(index_of);
+        else
+            return available_dword_register.at(index_of);
+    }
+    if (stack.is_allocated(rvalue))
+        return get_lvalue_address(rvalue);
+    if (!return_frame.empty() and
+        not library::is_stdlib_function(return_frame)) {
+        auto& tail_call = table->functions[return_frame];
+        if (tail_call->locals.is_pointer(tail_call->ret->first) or
+            type::is_rvalue_data_type_string(tail_call->ret->first))
+            return Register::rax;
+        else
+            return Register::eax;
+    }
+    if (type::is_rvalue_data_type(rvalue)) {
+        auto immediate = type::get_rvalue_datatype_from_string(rvalue);
+        if (type::is_rvalue_data_type_string(immediate)) {
+            storage = detail::make_asciz_immediate(
+                string_storage[type::get_value_from_rvalue_data_type(
+                    immediate)]);
+            return storage;
+
+        } else {
+            storage = type::get_rvalue_datatype_from_string(rvalue);
+            return storage;
+        }
+    }
+    return get_lvalue_address(rvalue);
 }
 
 /**
@@ -548,24 +611,48 @@ void Code_Generator::from_call_ita(ir::Quadruple const& inst)
     m::match(function_name)(
         m::pattern | m::app(library::is_syscall_function, true) =
             [&] {
-                auto arguments = get_arguments_from_call_stack();
-                auto operands = get_operand_storage_from_call_stack(arguments);
+                auto operands =
+                    get_operand_storage_from_call_stack(argument_stack);
                 syscall_ns::common::make_syscall(
                     instructions_, function_name, operands);
             },
         m::pattern | m::app(library::is_stdlib_function, true) =
             [&] {
-                auto arguments = get_arguments_from_call_stack();
-                auto operands = get_operand_storage_from_call_stack(arguments);
+                auto operands =
+                    get_operand_storage_from_call_stack(argument_stack);
                 m::match(sv(function_name))(m::pattern | sv("print") = [&] {
                     auto buffer = operands.back();
-                    auto buffer_size = get_lvalue_string_size(arguments.back());
+                    auto buffer_size =
+                        get_lvalue_string_size(argument_stack.back());
                     operands.emplace_back(
                         detail::make_u32_int_immediate(buffer_size));
+                    set_instruction_flag(detail::flag::Argument);
                 });
                 library::make_library_call(
                     instructions_, function_name, operands);
+            },
+        m::pattern | m::_ =
+            [&] {
+                auto operands =
+                    get_operand_storage_from_call_stack(argument_stack);
+                for (auto const& operand : operands) {
+                    auto size = get_operand_size_from_storage(operand);
+                    auto storage = get_storage_device(size);
+                    if (is_variant(Immediate, operand)) {
+                        if (type::is_rvalue_data_type_string(
+                                std::get<Immediate>(operand)))
+                            set_instruction_flag(detail::flag::Load);
+                    }
+                    if (size == Operand_Size::Qword)
+                        set_instruction_flag(detail::flag::Argument);
+                    add_inst_as(instructions_, mov, storage, operand);
+                }
+                auto immediate = detail::make_direct_immediate(function_name);
+                add_inst_d(instructions_, call, immediate);
             });
+    call_stack.emplace_back(function_name);
+    return_frame = function_name;
+    reset_available_registers();
 }
 
 void Code_Generator::from_cmp_ita([[maybe_unused]] ir::Quadruple const& inst) {}
@@ -617,7 +704,10 @@ void Code_Generator::insert_from_mnemonic_operand(LValue const& lhs,
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 Storage lhs_storage = get_lvalue_address(lhs);
                 if (type::get_type_from_rvalue_data_type(imm) == "string") {
+                    // strings decay into QWord pointers
                     from_ita_string(type::get_value_from_rvalue_data_type(imm));
+                    set_instruction_flag(detail::flag::Stack_Source);
+                    stack.set_address_from_accumulator(lhs, Register::rax);
                     add_inst_as(instructions_, mov, lhs_storage, Register::rax);
                 } else
                     add_inst_as(instructions_, mov, lhs_storage, imm);
@@ -910,19 +1000,50 @@ void Code_Generator::insert_from_rvalue(RValue const& rvalue)
     } else if (type::is_unary_expression(rvalue)) {
         from_temporary_unary_operator_expression(rvalue);
     } else if (type::is_rvalue_data_type(rvalue)) {
-        auto imm = type::get_rvalue_datatype_from_string(rvalue);
-        add_inst_ll(instructions_, mov, eax, imm);
+        Storage immediate = get_operand_storage_from_rvalue(rvalue);
+        auto acc = get_accumulator_register_from_storage(immediate);
+        add_inst_as(instructions_, mov, acc, immediate);
+        if (type::get_type_from_rvalue_data_type(rvalue) == "string")
+            set_instruction_flag(detail::flag::Address);
     } else {
         if (rvalue == "RET") {
-            call_size = 0;
-            if (table->functions[current_frame]->ret.empty())
+            if (library::is_stdlib_function(return_frame))
                 return;
-        } else {
-            auto symbols = table->get_stack_frame_symbols();
-            auto imm = symbols.get_symbol_by_name(rvalue);
-            add_inst_ll(instructions_, mov, eax, imm);
+            credence_assert(table->functions.contains(return_frame));
+            auto stack_frame = table->functions[return_frame];
+            credence_assert(stack_frame->ret.has_value());
+            auto immediate =
+                get_operand_storage_from_rvalue(stack_frame->ret->first);
+            if (get_operand_size_from_storage(immediate) ==
+                Operand_Size::Qword) {
+                set_instruction_flag(detail::flag::Stack_Source);
+                special_register = Register::rax;
+                return;
+            }
+            return;
         }
+        auto symbols = table->get_stack_frame_symbols();
+        Storage immediate = symbols.get_symbol_by_name(rvalue);
+        auto acc = get_accumulator_register_from_storage(immediate);
+        add_inst_as(instructions_, mov, acc, immediate);
     }
+}
+
+/**
+ * @brief Translate and store the return value from a function body
+ *
+ *  test(*y) {
+ *   return(y); <---
+ *  }
+ */
+void Code_Generator::insert_from_return_rvalue(
+    ir::detail::Function::Return_RValue const& ret)
+{
+    auto immediate = get_operand_storage_from_rvalue(ret->second);
+    if (get_operand_size_from_storage(immediate) == Operand_Size::Qword)
+        add_inst_ll(instructions_, mov, rax, immediate);
+    else
+        add_inst_ll(instructions_, mov, eax, immediate);
 }
 
 /**
@@ -934,7 +1055,6 @@ void Code_Generator::insert_from_global_vector_assignment(LValue const& lhs,
 
     auto lhs_storage = get_lvalue_address(lhs);
     auto rhs_storage = get_lvalue_address(rhs);
-
     auto acc = get_accumulator_register_from_storage(lhs_storage);
     add_inst_as(instructions_, mov, acc, rhs_storage);
     add_inst_as(instructions_, mov, lhs_storage, acc);
@@ -957,30 +1077,28 @@ void Code_Generator::insert_from_unary_to_unary_assignment(LValue const& lhs,
     auto frame = table->functions[current_frame];
     auto& locals = table->get_stack_frame_symbols();
 
-    m::match(lhs_op, rhs_op)(
-        // *t = *k deference to dereference assignment
-        m::pattern | m::ds("*", "*") = [&] {
-            credence_assert_nequal(
-                stack.get(lhs_lvalue).second, Operand_Size::Empty);
-            credence_assert_nequal(
-                stack.get(rhs_lvalue).second, Operand_Size::Empty);
+    m::match(lhs_op, rhs_op)(m::pattern | m::ds("*", "*") = [&] {
+        credence_assert_nequal(
+            stack.get(lhs_lvalue).second, Operand_Size::Empty);
+        credence_assert_nequal(
+            stack.get(rhs_lvalue).second, Operand_Size::Empty);
 
-            auto acc = get_accumulator_register_from_size(Operand_Size::Qword);
-            Storage lhs_storage = stack.get(lhs_lvalue).first;
-            Storage rhs_storage = stack.get(rhs_lvalue).first;
-            auto size = detail::get_operand_size_from_type(
-                type::get_type_from_rvalue_data_type(locals.get_symbol_by_name(
-                    locals.get_pointer_by_name(lhs_lvalue))));
-            auto temp = get_second_register_from_size(size);
+        auto acc = get_accumulator_register_from_size(Operand_Size::Qword);
+        Storage lhs_storage = stack.get(lhs_lvalue).first;
+        Storage rhs_storage = stack.get(rhs_lvalue).first;
+        auto size = detail::get_operand_size_from_type(
+            type::get_type_from_rvalue_data_type(locals.get_symbol_by_name(
+                locals.get_pointer_by_name(lhs_lvalue))));
+        auto temp = get_second_register_from_size(size);
 
-            add_inst_as(instructions_, mov, acc, rhs_storage);
-            set_instruction_flag(
-                detail::flag::Indirect_Source | detail::flag::Address);
-            add_inst_as(instructions_, mov, temp, acc);
-            add_inst_as(instructions_, mov, acc, lhs_storage);
-            set_instruction_flag(detail::flag::Indirect);
-            add_inst_as(instructions_, mov, acc, temp);
-        });
+        add_inst_as(instructions_, mov, acc, rhs_storage);
+        set_instruction_flag(
+            detail::flag::Indirect_Source | detail::flag::Address);
+        add_inst_as(instructions_, mov, temp, acc);
+        add_inst_as(instructions_, mov, acc, lhs_storage);
+        set_instruction_flag(detail::flag::Indirect);
+        add_inst_as(instructions_, mov, acc, temp);
+    });
 }
 
 /**
@@ -1033,57 +1151,54 @@ Code_Generator::get_accumulator_register_from_storage(Storage const& storage)
                 auto size = stack.get_operand_size_from_offset(offset);
                 accumulator = get_accumulator_register_from_size(size);
             },
-
             [&](Register const& device) { accumulator = device; },
             [&](Immediate const& immediate) {
                 auto size =
                     detail::get_operand_size_from_rvalue_datatype(immediate);
                 accumulator = get_accumulator_register_from_size(size);
-            }
-
-        },
+            } },
         storage);
     return accumulator;
 }
 
 /**
- * @brief Translate and compute trivial immediate binary expressions
+ * @brief Translate trivial immediate binary expressions into an immediate value
  */
 void Code_Generator::insert_from_immediate_rvalues(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs)
 {
-    if (type::is_binary_arithmetic_operator(op)) {
-        auto imm =
-            detail::get_result_from_trivial_integral_expression(lhs, op, rhs);
-        auto acc = get_accumulator_register_from_size(
-            detail::get_operand_size_from_rvalue_datatype(lhs));
-        add_inst_as(instructions_, mov, acc, imm);
-        return;
-    }
-
-    if (type::is_relation_binary_operator(op)) {
-        auto imm =
-            detail::get_result_from_trivial_relational_expression(lhs, op, rhs);
-        auto acc = get_accumulator_register_from_size(Operand_Size::Byte);
-        special_register = acc;
-        add_inst_as(instructions_, mov, acc, imm);
-        return;
-    }
-
-    if (type::is_bitwise_binary_operator(op)) {
-        auto imm =
-            detail::get_result_from_trivial_bitwise_expression(lhs, op, rhs);
-        auto acc = get_accumulator_register_from_size(
-            detail::get_operand_size_from_rvalue_datatype(lhs));
-        if (!is_ir_instruction_temporary())
-            add_inst_as(instructions_, mov, acc, imm);
-        else
-            immediate_stack.emplace_back(imm);
-        return;
-    }
-
-    credence_error("unreachable");
+    m::match(op)(
+        m::pattern | m::app(type::is_binary_arithmetic_operator, true) =
+            [&] {
+                auto imm = detail::get_result_from_trivial_integral_expression(
+                    lhs, op, rhs);
+                auto acc = get_accumulator_register_from_size(
+                    detail::get_operand_size_from_rvalue_datatype(lhs));
+                add_inst_as(instructions_, mov, acc, imm);
+            },
+        m::pattern | m::app(type::is_relation_binary_operator, true) =
+            [&] {
+                auto imm =
+                    detail::get_result_from_trivial_relational_expression(
+                        lhs, op, rhs);
+                auto acc =
+                    get_accumulator_register_from_size(Operand_Size::Byte);
+                special_register = acc;
+                add_inst_as(instructions_, mov, acc, imm);
+            },
+        m::pattern | m::app(type::is_bitwise_binary_operator, true) =
+            [&] {
+                auto imm = detail::get_result_from_trivial_bitwise_expression(
+                    lhs, op, rhs);
+                auto acc = get_accumulator_register_from_size(
+                    detail::get_operand_size_from_rvalue_datatype(lhs));
+                if (!is_ir_instruction_temporary())
+                    add_inst_as(instructions_, mov, acc, imm);
+                else
+                    immediate_stack.emplace_back(imm);
+            },
+        m::pattern | m::_ = [&] { credence_error("unreachable"); });
 }
 
 /**
@@ -1127,8 +1242,8 @@ void Code_Generator::from_ita_unary_expression(std::string const& op,
 void Code_Generator::from_return_ita()
 {
     auto frame = table->functions[current_frame];
-    if (!frame->ret.empty())
-        insert_from_rvalue(frame->ret);
+    if (frame->ret.has_value())
+        insert_from_return_rvalue(frame->ret);
 }
 
 /**
@@ -1140,7 +1255,6 @@ void Code_Generator::from_leave_ita()
         syscall_ns::common::exit_syscall(instructions_, 0);
     } else {
         // function epilogue
-        add_inst_llrs(instructions_, xor_, eax, eax);
         add_inst_ld(instructions_, pop, rbp);
         add_inst_e(instructions_, ret);
     }
@@ -1343,13 +1457,14 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
                 table->vectors.at(vector)->data.at("0")));
     if (!table->hoisted_symbols.has_key(offset) and
         not value::is_integer_string(offset))
-        table->table_compiletime_error(
+        table->throw_compiletime_error(
             fmt::format("Invalid index '{} on vector lvalue", offset), vector);
     if (table->hoisted_symbols.has_key(offset)) {
-        auto index = table->get_rvalue_data_type_at_pointer(offset);
+        auto index =
+            table->get_rvalue_data_type_at_pointer(offset, credence_current);
         auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
         if (!table->vectors.at(vector)->data.contains(key))
-            table->table_compiletime_error(
+            table->throw_compiletime_error(
                 fmt::format(
                     "Invalid out-of-range index '{}' on vector lvalue", key),
                 vector);
@@ -1358,7 +1473,7 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
                 table->vectors.at(vector)->data.at(key)));
     } else if (value::is_integer_string(offset)) {
         if (!table->vectors.at(vector)->data.contains(offset))
-            table->table_compiletime_error(
+            table->throw_compiletime_error(
                 fmt::format(
                     "Invalid out-of-range index '{}' on vector lvalue", offset),
                 vector);
@@ -1372,25 +1487,73 @@ Code_Generator::Vector_Entry_Pair Code_Generator::get_rip_offset_address(
 }
 
 /**
- * @brief Get the length of a string by its lvalue storage
+ * @brief Get the length of a string by its lvalue storage device
  */
 type::semantic::Size Code_Generator::get_lvalue_string_size(
     LValue const& lvalue)
 {
     type::semantic::Size len{ 0 };
     std::string key{};
+    auto& locals = table->get_stack_frame_symbols();
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
+    // A stack of return calls, i.e. return_value = func(func(func(x)));
+    if (lvalue == "RET") {
+        credence_assert(table->functions.contains(return_frame));
+        auto tail_frame = table->functions.at(return_frame);
+        auto return_rvalue = tail_frame->ret->second;
+        // what was passed to this function in its parameters?
+        if (tail_frame->is_parameter(return_rvalue)) {
+            credence_assert(table->functions.contains(call_stack.back()));
+            // get the last frame in the call stack
+            auto last_stack_frame = table->functions.at(call_stack.back());
+            if (last_stack_frame->locals.is_pointer(tail_frame->ret->first)) {
+                return type::get_size_from_rvalue_data_type(
+                    last_stack_frame->locals.get_pointer_by_name(
+                        tail_frame->ret->first));
+            } else {
+                if (type::is_rvalue_data_type(tail_frame->ret->first))
+                    return type::get_size_from_rvalue_data_type(
+                        tail_frame->ret->first);
+                else
+                    return type::get_size_from_rvalue_data_type(
+                        last_stack_frame->locals.get_symbol_by_name(
+                            tail_frame->ret->first));
+            }
+        }
+        return type::get_size_from_rvalue_data_type(tail_frame->ret->first);
+    }
+    // The string is a local in the stack frame
+    if (locals.is_defined(lvalue)) {
+        if (locals.is_pointer(lvalue) and
+            type::is_rvalue_data_type_string(
+                locals.get_pointer_by_name(lvalue))) {
+            return type::get_size_from_rvalue_data_type(
+                type::get_rvalue_datatype_from_string(
+                    locals.get_pointer_by_name(lvalue)));
+        }
+        auto local_symbol = locals.get_symbol_by_name(lvalue);
+        auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
+        if (local_rvalue == "RET") {
+            credence_assert(table->functions.contains(return_frame));
+            auto tail_frame = table->functions.at(return_frame);
+            return type::get_size_from_rvalue_data_type(tail_frame->ret->first);
+        }
+        return type::get_size_from_rvalue_data_type(
+            locals.get_symbol_by_name(lvalue));
+    }
+
     if (type::is_dereference_expression(lvalue)) {
         len = type::get_size_from_rvalue_data_type(
             table->get_rvalue_data_type_at_pointer(
-                type::get_unary_rvalue_reference(lvalue)));
+                type::get_unary_rvalue_reference(lvalue), credence_current));
     } else if (is_global_vector(lhs)) {
         auto vector = table->vectors.at(lhs);
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index = table->get_rvalue_data_type_at_pointer(offset);
+            auto index = table->get_rvalue_data_type_at_pointer(
+                offset, credence_current);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
         len = type::get_size_from_rvalue_data_type(vector->data.at(key));
@@ -1399,7 +1562,8 @@ type::semantic::Size Code_Generator::get_lvalue_string_size(
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index = table->get_rvalue_data_type_at_pointer(offset);
+            auto index = table->get_rvalue_data_type_at_pointer(
+                offset, credence_current);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
         len = type::get_size_from_rvalue_data_type(vector->data.at(key));
@@ -1408,7 +1572,7 @@ type::semantic::Size Code_Generator::get_lvalue_string_size(
             type::get_rvalue_datatype_from_string(lvalue));
     } else {
         len = type::get_size_from_rvalue_data_type(
-            table->get_rvalue_data_type_at_pointer(lvalue));
+            table->get_rvalue_data_type_at_pointer(lvalue, credence_current));
     }
     return len;
 }
@@ -1529,6 +1693,7 @@ constexpr void detail::Stack::set_address_from_accumulator(LValue const& lvalue,
         return;
     auto register_size = get_operand_size_from_register(acc);
     auto allocation = detail::get_size_from_operand_size(register_size);
+
     allocate_aligned_lvalue(lvalue, allocation, register_size);
 }
 
@@ -1540,10 +1705,8 @@ constexpr void detail::Stack::set_address_from_type(LValue const& lvalue,
 {
     if (stack_address[lvalue].second != Operand_Size::Empty)
         return;
-
     auto operand_size = get_operand_size_from_type(type);
     auto value_size = get_size_from_operand_size(operand_size);
-
     allocate_aligned_lvalue(lvalue, value_size, operand_size);
 }
 

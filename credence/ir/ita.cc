@@ -133,11 +133,11 @@ Instructions ITA::build_from_function_definition(Node const& node)
                     },
                 m::pattern | "indirect_lvalue" =
                     [&] {
-                        parameter_lvalues.emplace_back(
-                            ident["left"]["root"].to_string());
-                        symbols_.set_symbol_by_name(
-                            ident["left"]["root"].to_string(),
-                            value::Expression::WORD_LITERAL);
+                        parameter_lvalues.emplace_back(fmt::format(
+                            "*{}", ident["left"]["root"].to_string())),
+                            symbols_.set_symbol_by_name(
+                                ident["left"]["root"].to_string(),
+                                value::Expression::WORD_LITERAL);
                     });
         }
     }

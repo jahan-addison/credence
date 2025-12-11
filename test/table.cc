@@ -104,10 +104,10 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
     // Type checking test cases from test/fixtures/types:
     const auto statuses = {
         false, false, false, false,
-        false, true,  true,  false,
+        false, false,  true,  false,
         false, true,  false, false,
         false, false, false, true,
-        false, true
+        false, true, true
     };
     // clang-format on
     auto type_fixtures_path = fs::path(ROOT_PATH);
@@ -1056,7 +1056,6 @@ _L1:
 )ita";
     std::ostringstream out_to{};
     auto table = make_table_with_global_symbols(switch_main_function, symbols);
-    auto& locals = table.functions["main"]->locals;
     auto instructions = table.instructions;
     credence::ir::detail::emit(out_to, instructions);
     REQUIRE(out_to.str() == expected_switch_main_function);
@@ -1065,8 +1064,7 @@ _L1:
     REQUIRE(table.functions.at("main")->allocation == 32);
     REQUIRE(table.functions.size() == 4);
     REQUIRE(table.functions.at("main")->labels.size() == 19);
-    REQUIRE(table.functions.at("main")->locals.size() == 8);
-    REQUIRE(locals.size() == 8);
+    REQUIRE(table.functions.at("main")->locals.size() == 10);
     out_to.str("");
     credence::ir::detail::emit_to(
         out_to, instructions[table.functions.at("main")->address_location[0]]);
@@ -1467,6 +1465,8 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_push_instruction")
     auto push_instruction2 = credence::ir::Quadruple{
         credence::ir::Instruction::PUSH, "_p2", "", ""
     };
+    table.functions.at("main")->temporary["_p1"] = "_p1";
+    table.functions.at("main")->temporary["_p2"] = "_p2";
     table.from_push_instruction(push_instruction);
     REQUIRE(table.stack.size() == 1);
     REQUIRE(table.stack.back() == "_p1");

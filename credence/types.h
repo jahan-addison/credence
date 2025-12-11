@@ -211,7 +211,7 @@ constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
 /**
  * @brief Data type tuple to string
  */
-constexpr std::string data_type_value_to_string(Data_Type const& value)
+constexpr std::string get_rvalue_data_type_as_string(Data_Type const& value)
 {
     using namespace fmt::literals;
     return fmt::format("({}:{}:{})"_cf,
@@ -402,12 +402,32 @@ constexpr semantic::RValue get_value_from_rvalue_data_type(
     return std::get<0>(rvalue);
 }
 
+constexpr semantic::Type get_value_from_rvalue_data_type(
+    type::semantic::RValue const& rvalue)
+{
+    if (is_rvalue_data_type(rvalue)) {
+        return get_value_from_rvalue_data_type(
+            get_rvalue_datatype_from_string(rvalue));
+    } else
+        return "null";
+}
+
 /**
  * @brief Get the type from a local in the stack frame
  */
 constexpr semantic::Type get_type_from_rvalue_data_type(Data_Type const& rvalue)
 {
     return std::get<1>(rvalue);
+}
+
+constexpr semantic::Type get_type_from_rvalue_data_type(
+    type::semantic::RValue const& rvalue)
+{
+    if (is_rvalue_data_type(rvalue)) {
+        return get_type_from_rvalue_data_type(
+            get_rvalue_datatype_from_string(rvalue));
+    } else
+        return "null";
 }
 
 /**
@@ -418,12 +438,49 @@ constexpr bool is_rvalue_data_type_string(Data_Type const& rvalue)
     return std::get<1>(rvalue) == "string";
 }
 
+constexpr bool is_rvalue_data_type_string(type::semantic::RValue const& rvalue)
+{
+    if (is_rvalue_data_type(rvalue)) {
+        return get_type_from_rvalue_data_type(
+                   get_rvalue_datatype_from_string(rvalue)) == "string";
+    } else
+        return false;
+}
+
+/**
+ * @brief Check if an rvalue data type is a word (pointer)
+ */
+
+constexpr bool is_rvalue_data_type_word(Data_Type const& rvalue)
+{
+    return std::get<1>(rvalue) == "word";
+}
+
+constexpr bool is_rvalue_data_type_word(type::semantic::RValue const& rvalue)
+{
+    if (is_rvalue_data_type(rvalue)) {
+        return get_type_from_rvalue_data_type(
+                   get_rvalue_datatype_from_string(rvalue)) == "word";
+    } else
+        return false;
+}
+
 /**
  * @brief Get the type from a local in the stack frame
  */
 constexpr semantic::Size get_size_from_rvalue_data_type(Data_Type const& rvalue)
 {
     return std::get<2>(rvalue);
+}
+
+constexpr semantic::Size get_size_from_rvalue_data_type(
+    type::semantic::RValue const& rvalue)
+{
+    if (is_rvalue_data_type(rvalue)) {
+        return get_size_from_rvalue_data_type(
+            get_rvalue_datatype_from_string(rvalue));
+    } else
+        return 0UL;
 }
 
 /**
