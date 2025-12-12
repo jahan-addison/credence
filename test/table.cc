@@ -101,13 +101,15 @@ struct Table_Fixture
 TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
 {
     // clang-format off
-    // Type checking test cases from test/fixtures/types:
+    // Type checking test cases from test/fixtures/types
+    // each index corresponds to an ast in the fixtures
     const auto statuses = {
         false, false, false, false,
         false, false,  true,  false,
         false, true,  false, false,
         false, false, false, true,
-        false, true, true
+        false, true, true, true,
+        true
     };
     // clang-format on
     auto type_fixtures_path = fs::path(ROOT_PATH);

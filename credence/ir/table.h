@@ -224,7 +224,8 @@ class Table
 
     inline bool is_vector_or_pointer(RValue const& rvalue)
     {
-        return is_vector(rvalue) or is_pointer(rvalue);
+        return is_vector(rvalue) or is_pointer(rvalue) or
+               type::is_dereference_expression(rvalue);
     }
 
   private:

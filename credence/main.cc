@@ -137,9 +137,9 @@ int main(int argc, const char* argv[])
             // cppcheck-suppress syntaxError
             m::pattern | "x86_64" =
                 [&]() {
+                    // clang-format off
                     credence::target::add_stdlib_functions_to_symbols(symbols,
                         credence::target::Platform::credence_x86_64_platform);
-                    // clang-format off
                     credence::target::x86_64::emit(out_to, symbols, ast["root"]);
                     // clang-format on
                 },

@@ -44,6 +44,22 @@ namespace ir {
 namespace m = matchit;
 
 /**
+ * @brief IR Emission factory
+ *
+ * Emit ita instructions type and vector boundary checking an
+ * and to an std::ostream Passes the global symbols from the ITA object
+ */
+void emit(std::ostream& os,
+    util::AST_Node const& symbols,
+    util::AST_Node const& ast)
+{
+    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
+    auto table = ir::Table{ symbols, instructions, globals };
+    table.build_from_ita_instructions();
+    detail::emit(os, table.instructions);
+}
+
+/**
  * @brief Construct table and run type-checking pass on IR instructions
  */
 Instructions Table::build_from_ita_instructions()
@@ -374,7 +390,6 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
             lvalue, type::get_unary_rvalue_reference(rvalue));
         return;
     }
-
     if (!rvalue_symbol.has_value())
         type_safe_assign_pointer_or_vector_lvalue(lvalue, rvalue, indirection);
     else
@@ -624,6 +639,12 @@ void Table::type_safe_assign_dereference(LValue const& lvalue,
                                 "right-hand-side is not a pointer",
             lhs_lvalue);
 
+    if (type::is_dereference_expression(lvalue) and
+        type::get_type_from_rvalue_data_type(rvalue) != "null") {
+        locals.set_symbol_by_name(lhs_lvalue, rvalue);
+        return;
+    }
+
     auto lhs_address = get_rvalue_data_type_at_pointer(lhs_lvalue);
     auto rhs_address = get_rvalue_data_type_at_pointer(rhs_lvalue);
 
@@ -636,6 +657,8 @@ void Table::type_safe_assign_dereference(LValue const& lvalue,
                 type::get_type_from_rvalue_data_type(lhs_address),
                 type::get_type_from_rvalue_data_type(rhs_address)),
             lvalue);
+
+    locals.set_symbol_by_name(lhs_lvalue, rvalue);
 }
 
 /**
@@ -989,6 +1012,7 @@ void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
     }
     if (lhs.starts_with("_p") and not rhs.starts_with("_t")) {
 #ifndef CREDENCE_TEST
+        // note that null pointers are not allowed as parameters, either
         if (!frame->is_parameter(rhs) and is_null_symbol(rhs))
             throw_compiletime_error("unitialized lvalue as argument", rhs);
 #endif
@@ -1259,6 +1283,10 @@ void Table::set_stack_frame_return_value(RValue const& rvalue)
             },
         m::pattern | m::app(is_parameter, true) =
             [&] {
+                if (stack.empty()) {
+                    frame->ret = std::make_pair("NULL", rvalue);
+                    return;
+                }
                 auto index_of = frame->get_index_of_parameter(rvalue);
                 credence_assert_nequal(index_of, -1);
                 frame->ret = std::make_pair(stack.at(index_of), rvalue);
@@ -1289,20 +1317,6 @@ void Table::set_stack_frame_return_value(RValue const& rvalue)
         m::pattern | m::_ = [&] { credence_error("unreachable"); }
 
     );
-}
-
-// clang-format off
-/**
- * @brief Emit ita instructions type and vector boundary checking an
- * and to an std::ostream Passes the global symbols from the ITA object
- */
-void emit(std::ostream& os, util::AST_Node const& symbols, util::AST_Node const& ast)
-{
-    // clang-format on
-    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
-    auto table = ir::Table{ symbols, instructions, globals };
-    table.build_from_ita_instructions();
-    detail::emit(os, table.instructions);
 }
 
 } // namespace ir

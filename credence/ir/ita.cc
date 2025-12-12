@@ -636,14 +636,9 @@ Instructions ITA::build_from_return_statement(Node const& node)
     credence_assert(node.has_key("left"));
     Instructions instructions{};
     auto return_statement = node["left"];
-
     auto return_instructions = expression_node_to_temporary_instructions(
         symbols_, return_statement, internal_symbols_, &temporary);
-
-    instructions.insert(instructions.end(),
-        return_instructions.first.begin(),
-        return_instructions.first.end());
-
+    ir::insert(instructions, return_instructions.first);
     if (!return_instructions.second.empty() and instructions.empty()) {
         auto last_rvalue = std::get<value::Expression::Type_Pointer>(
             return_instructions.second.back());
@@ -655,7 +650,6 @@ Instructions ITA::build_from_return_statement(Node const& node)
         instructions.emplace_back(
             make_quadruple(Instruction::RETURN, std::get<1>(last)));
     }
-
     return instructions;
 }
 
@@ -755,7 +749,6 @@ Instructions ITA::build_from_rvalue_statement(Node const& node)
     credence_assert_equal(node["root"].to_string(), "rvalue");
     credence_assert(node.has_key("left"));
     auto statement = node["left"];
-
     return expression_node_to_temporary_instructions(
         symbols_, statement, internal_symbols_, &temporary)
         .first;

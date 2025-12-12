@@ -1,0 +1,170 @@
+[
+  {
+    "argc": {
+      "column": 6,
+      "end_column": 10,
+      "end_pos": 9,
+      "line": 1,
+      "start_pos": 5,
+      "type": "lvalue"
+    },
+    "argv": {
+      "column": 12,
+      "end_column": 16,
+      "end_pos": 15,
+      "line": 1,
+      "start_pos": 11,
+      "type": "lvalue"
+    },
+    "m": {
+      "column": 9,
+      "end_column": 10,
+      "end_pos": 45,
+      "line": 3,
+      "start_pos": 44,
+      "type": "indirect_lvalue"
+    },
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "test": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 75,
+      "line": 8,
+      "start_pos": 71,
+      "type": "function_definition"
+    },
+    "x": {
+      "column": 7,
+      "end_column": 8,
+      "end_pos": 78,
+      "line": 8,
+      "start_pos": 77,
+      "type": "indirect_lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          {
+            "node": "lvalue",
+            "root": "argc"
+          },
+          {
+            "node": "lvalue",
+            "root": "argv"
+          }
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "m"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "assignment_expression",
+                      "right": {
+                        "node": "number_literal",
+                        "root": 5
+                      },
+                      "root": [
+                        "="
+                      ]
+                    },
+                    "node": "indirect_lvalue",
+                    "root": [
+                      "*"
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "test"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "lvalue",
+                        "root": "m"
+                      }
+                    ],
+                    "root": "test"
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      },
+      {
+        "left": [
+          {
+            "left": {
+              "node": "lvalue",
+              "root": "x"
+            },
+            "node": "indirect_lvalue",
+            "root": [
+              "*"
+            ]
+          }
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "x"
+                }
+              ],
+              "node": "statement",
+              "root": "return"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "test"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]
