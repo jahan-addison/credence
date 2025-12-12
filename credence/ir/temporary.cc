@@ -25,11 +25,11 @@
 #include <credence/util.h>       // for AST_Node, overload
 #include <credence/values.h>     // for expression_type_to_string, make_val...
 #include <deque>                 // for deque
+#include <easyjson.h>            // for JSON
 #include <fmt/compile.h>         // for format, operator""_cf
 #include <mapbox/eternal.hpp>    // for element, map
 #include <matchit.h>             // for Ds, Meet, _, Wildcard, pattern, ds
 #include <memory>                // for shared_ptr, unique_ptr
-#include <simplejson.h>          // for JSON
 #include <stddef.h>              // for size_t
 #include <string>                // for basic_string, char_traits, string
 #include <string_view>           // for basic_string_view, string_view

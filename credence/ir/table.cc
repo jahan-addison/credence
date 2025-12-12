@@ -587,7 +587,8 @@ type::Data_Type Table::get_rvalue_data_type_at_pointer(LValue const& lvalue,
                 offset),
             location);
         return vectors.at(address)->data[offset];
-
+    } else if (type::is_rvalue_data_type(lvalue)) {
+        return type::get_rvalue_datatype_from_string(lvalue);
     } else {
         return locals.get_symbol_by_name(lvalue_reference, location);
     }
@@ -781,7 +782,6 @@ void Table::is_boundary_out_of_range(RValue const& rvalue)
                     lvalue,
                     ul_offset),
                 rvalue);
-
     } else {
         auto stack_frame = get_stack_frame();
         auto& locals = get_stack_frame_symbols();
@@ -1105,7 +1105,7 @@ bool Table::stack_frame_contains_ita_instruction(Label name, Instruction inst)
 }
 
 /**
- * @brief Parse ITA::Node ast and symbols to a table instructions pair
+ * @brief Table factory from ITA::Node ast and symbols
  */
 Table::Table_PTR Table::build_from_ast(ITA::Node const& symbols,
     ITA::Node const& ast)
@@ -1226,12 +1226,14 @@ inline void Table::type_invalid_assignment_check(LValue const& lvalue,
  */
 inline void Table::throw_compiletime_error(std::string_view message,
     type::RValue_Reference symbol,
-    std::source_location const& location)
+    std::source_location const& location,
+    std::string_view type)
 {
-    credence_compile_error(location,
+    credence_compile_error_with_type(location,
         fmt::format("{} in function '{}'", message, get_stack_frame()->symbol),
         symbol,
-        hoisted_symbols);
+        hoisted_symbols,
+        type);
 }
 
 /**
@@ -1240,14 +1242,15 @@ inline void Table::throw_compiletime_error(std::string_view message,
 void Table::set_stack_frame_return_value(RValue const& rvalue)
 {
     auto frame = get_stack_frame();
+    Type_Check_Lambda local_contains =
+        std::bind(&Table::local_contains_, this, std::placeholders::_1);
     auto is_pointer_ = [&](RValue const& value) {
         return frame->locals.is_pointer(value);
     };
     auto is_parameter = [&](RValue const& value) {
         return frame->is_parameter(value);
     };
-    Type_Check_Lambda local_contains =
-        std::bind(&Table::local_contains_, this, std::placeholders::_1);
+
     m::match(rvalue)(
         m::pattern | m::app(is_pointer_, true) =
             [&] {
@@ -1270,14 +1273,6 @@ void Table::set_stack_frame_return_value(RValue const& rvalue)
             [&] {
                 auto datatype = type::get_rvalue_datatype_from_string(rvalue);
                 auto value_at = type::get_value_from_rvalue_data_type(datatype);
-                if (type::is_rvalue_data_type_string(rvalue)) {
-                    frame->ret = std::make_pair(value_at, rvalue);
-                    return;
-                }
-                if (type::is_rvalue_data_type_word(rvalue)) {
-                    frame->ret = std::make_pair(value_at, rvalue);
-                    return;
-                }
                 frame->ret = std::make_pair(value_at, rvalue);
             },
         m::pattern | m::app(is_vector_lvalue, true) =

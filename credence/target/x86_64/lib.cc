@@ -15,14 +15,16 @@
  */
 
 #include "lib.h"
-#include "instructions.h"   // for Instructions
-#include "syscall.h"        // for syscall_list
+#include "instructions.h"   // for Register, get_storage_as_string, is_qwor...
+#include "stack.h"          // for Stack
+#include "syscall.h"        // for get_platform_syscall_symbols
 #include <algorithm>        // for __find, find
-#include <array>            // for array
-#include <credence/error.h> // for assert_nequal_impl, credence_assert_nequal
-#include <credence/util.h>  // for AST_Node, AST
+#include <array>            // for array, get
+#include <credence/error.h> // for assert_equal_impl, credence_assert, cred...
+#include <credence/util.h>  // for contains, AST_Node, AST, overload
+#include <easyjson.h>       // for JSON, object
 #include <fmt/format.h>     // for format
-#include <vector>           // for vector
+#include <variant>          // for monostate, visit
 
 namespace credence::target::x86_64::library {
 
@@ -104,6 +106,38 @@ void add_stdlib_functions_to_symbols(util::AST_Node& symbols)
     for (auto const& f : libcalls)
         detail::add_stdlib_function_to_table_symbols(f, symbols);
     detail::add_syscall_functions_to_symbols(symbols);
+}
+
+/**
+ * @brief A compiletime check on a storage buffer
+ */
+bool is_address_device_pointer_to_buffer(Address& address,
+    ir::Table::Table_PTR& table,
+    x86_64::detail::Stack const& stack)
+{
+    bool is_buffer{ false };
+    // clang-format off
+    std::visit(util::overload{
+        [&](std::monostate) {},
+        [&](x86_64::detail::Stack_Offset& offset) {
+            auto lvalue = stack.get_lvalue_from_offset(offset);
+            is_buffer = type::is_rvalue_data_type_string(
+                table->get_rvalue_data_type_at_pointer(lvalue));
+        },
+        [&](x86_64::detail::Register& device) {
+            is_buffer = x86_64::detail::is_qword_register(device);
+        },
+        [&](x86_64::detail::Immediate& immediate) {
+            if (util::contains(
+                    x86_64::detail::get_storage_as_string(immediate),
+                    "rip +"))
+                is_buffer = true;
+            if (type::is_rvalue_data_type_string(immediate))
+                is_buffer = true;
+        }
+    }, address);
+    // clang-format on
+    return is_buffer;
 }
 
 /**

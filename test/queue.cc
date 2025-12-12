@@ -4,8 +4,8 @@
 #include <credence/queue.h>  // for rvalues_to_queue, queue_of_rvalues_to_s...
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/values.h> // for RValue, Type_
+#include <easyjson.h>        // for JSON
 #include <map>               // for map
-#include <simplejson.h>      // for JSON
 #include <string>            // for operator==, basic_string, operator<<
 #include <utility>           // for pair
 #include <variant>           // for monostate

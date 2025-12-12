@@ -5,9 +5,9 @@
 #include <credence/util.h>    // for AST_Node
 #include <credence/values.h>  // for Value_Type, TYPE_LITERAL, Byte, NULL_L...
 #include <deque>              // for deque
+#include <easyjson.h>         // for JSON
 #include <map>                // for map
 #include <mapbox/eternal.hpp> // for element, map
-#include <simplejson.h>       // for JSON
 #include <sstream>            // for basic_ostringstream, ostringstream
 #include <string>             // for basic_string, allocator, char_traits
 #include <string_view>        // for basic_string_view

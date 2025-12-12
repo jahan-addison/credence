@@ -22,12 +22,12 @@
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/util.h>      // for AST_Node, unescape_string
 #include <credence/values.h>    // for make_lvalue, Expression, TYPE_LITERAL
+#include <easyjson.h>           // for JSON, JSON_String
 #include <fmt/format.h>         // for format
 #include <map>                  // for map
 #include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
 #include <memory>               // for make_shared
-#include <simplejson.h>         // for JSON, JSON_String
 #include <string>               // for basic_string, operator==, char_traits
 #include <string_view>          // for basic_string_view
 #include <utility>              // for make_pair, pair, move

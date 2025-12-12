@@ -18,10 +18,10 @@
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLE...
 #include <deque>             // for deque, operator<=>, operator==
+#include <easyjson.h>        // for JSON, object
 #include <iomanip>           // for operator<<, setw
 #include <optional>          // for nullopt, nullopt_t, optional
 #include <ostream>           // for basic_ostream, operator<<, endl
-#include <simplejson.h>      // for JSON, object
 #include <source_location>   // for source_location
 #include <sstream>           // for basic_ostringstream, ostream
 #include <stack>             // for stack

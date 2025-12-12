@@ -2,9 +2,9 @@
 
 #include <credence/target/x86_64/generator.h> // for emit
 #include <credence/target/x86_64/lib.h>       // for library
+#include <easyjson.h>                         // for JSON
 #include <filesystem>                         // for path
 #include <fmt/format.h>                       // for format
-#include <simplejson.h>                       // for JSON
 #include <sstream>                            // for char_traits, basic_ost...
 #include <string>                             // for basic_string, allocator
 
@@ -32,7 +32,7 @@ namespace fs = std::filesystem;
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \
-            json::JSON::load_file(file_path.string()).to_deque();            \
+            easyjson::JSON::load_file(file_path.string()).to_deque();        \
         credence::target::x86_64::emit(                                      \
             test, fixture_content[0], fixture_content[1], true);             \
         REQUIRE(test.str() == expected);                                     \
@@ -47,7 +47,7 @@ namespace fs = std::filesystem;
         auto file_path =                                                       \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path));   \
         auto fixture_content =                                                 \
-            json::JSON::load_file(file_path.string()).to_deque();              \
+            easyjson::JSON::load_file(file_path.string()).to_deque();          \
         library::add_stdlib_functions_to_symbols(fixture_content[0]);          \
         credence::target::x86_64::emit(                                        \
             test, fixture_content[0], fixture_content[1], false);              \
@@ -63,7 +63,7 @@ namespace fs = std::filesystem;
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \
-            json::JSON::load_file(file_path.string()).to_deque();            \
+            easyjson::JSON::load_file(file_path.string()).to_deque();        \
         REQUIRE_THROWS(credence::target::x86_64::emit(                       \
             test, fixture_content[0], fixture_content[1], true));            \
     } while (0)
@@ -771,6 +771,7 @@ _start:
 
 TEST_CASE("target/x86_64: fixture: stdlib print")
 {
+    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/print_2");
     std::string expected = R"x86(
 .intel_syntax noprefix
 

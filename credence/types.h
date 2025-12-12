@@ -20,11 +20,11 @@
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <credence/values.h> // for Expression
 #include <deque>             // for deque
+#include <easyjson.h>        // for JSON
 #include <fmt/format.h>      // for format
 #include <initializer_list>  // for initializer_list
 #include <memory>            // for allocator, make_shared
 #include <set>               // for set
-#include <simplejson.h>      // for JSON
 #include <source_location>   // for source_location
 #include <string>            // for basic_string, string
 #include <string_view>       // for string_view

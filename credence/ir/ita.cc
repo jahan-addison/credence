@@ -24,11 +24,11 @@
 #include <credence/types.h>        // for get_unary_operator, is_unary_expr...
 #include <credence/util.h>         // for AST_Node
 #include <credence/values.h>       // for Expression, expression_type_to_st...
+#include <easyjson.h>              // for JSON
 #include <fmt/format.h>            // for format
 #include <initializer_list>        // for initializer_list
 #include <matchit.h>               // for pattern, PatternHelper, PatternPi...
 #include <memory>                  // for shared_ptr
-#include <simplejson.h>            // for JSON
 #include <utility>                 // for get, pair, cmp_not_equal
 #include <variant>                 // for get, monostate, variant
 

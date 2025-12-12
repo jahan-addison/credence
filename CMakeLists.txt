@@ -88,14 +88,14 @@ cpmaddpackage(
 
 cpmaddpackage(
   NAME
-  simplejson
+  easyjson
   VERSION
-  1.1.13
+  1.2.0
   GITHUB_REPOSITORY
-  jahan-addison/simplejson
+  jahan-addison/easyjson
   OPTIONS
-  "SIMPLEJSON_BUILD_EXAMPLES OFF"
-  "SIMPLEJSON_BUILD_TESTS OFF")
+  "EASYJSON_BUILD_EXAMPLES OFF"
+  "EASYJSON_BUILD_TESTS OFF")
 
 CPMAddPackage("gh:fmtlib/fmt#12.1.0")
 
@@ -135,9 +135,9 @@ target_include_directories(
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts fmt::fmt
-                         matchit simplejson "${eternal_SOURCE_DIR}/include")
+                         matchit easyjson "${eternal_SOURCE_DIR}/include")
 target_link_libraries(
   ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts fmt::fmt
-                         matchit simplejson eternal)
+                         matchit easyjson eternal)
 
 include(cmake/doctest.cmake)

@@ -15,17 +15,20 @@
  */
 #pragma once
 
-#include "credence/types.h" // for Label
-#include "instructions.h"   // for Instructions, Storage
-#include <array>            // for array
-#include <credence/util.h>  // for AST_Node
-#include <cstddef>          // for size_t
-#include <deque>            // for deque
-#include <map>              // for map
-#include <string>           // for string
-#include <string_view>      // for basic_string_view, string_view
-#include <utility>          // for pair
-#include <vector>           // for vector
+#include "credence/ir/table.h" // for Table
+#include "credence/types.h"    // for Label
+#include "instructions.h"      // for Instructions, Storage
+#include <array>               // for array
+#include <credence/util.h>     // for AST_Node
+#include <cstddef>             // for size_t
+#include <deque>               // for deque
+#include <map>                 // for map
+#include <string>              // for string
+#include <string_view>         // for basic_string_view, string_view
+#include <vector>              // for vector
+namespace credence::target::x86_64::detail {
+class Stack;
+}
 
 namespace credence::target::x86_64::library {
 
@@ -71,6 +74,10 @@ void add_stdlib_function_to_table_symbols(std::string const& stdlib_function,
 void add_syscall_functions_to_symbols(util::AST_Node& symbols);
 
 } // namespace detail
+
+bool is_address_device_pointer_to_buffer(Address& address,
+    ir::Table::Table_PTR& table,
+    x86_64::detail::Stack const& stack);
 
 void make_library_call(Instructions& instructions,
     std::string_view libary_function,

@@ -9,7 +9,7 @@ add_executable(Test_Suite ${sources} ${test_sources})
 
 target_include_directories(
   Test_Suite PUBLIC Python3::Python pybind11::headers fmt::fmt cxxopts::cxxopts
-                    matchit simplejson "${eternal_SOURCE_DIR}/include")
+                    matchit easyjson "${eternal_SOURCE_DIR}/include")
 
 target_link_libraries(
   Test_Suite
@@ -19,7 +19,7 @@ target_link_libraries(
   pybind11::headers
   matchit
   cxxopts::cxxopts
-  simplejson)
+  easyjson)
 
 set_target_properties(Test_Suite PROPERTIES CXX_STANDARD 20 OUTPUT_NAME
                                                             "test_suite")

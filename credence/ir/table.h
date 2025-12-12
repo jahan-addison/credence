@@ -23,6 +23,7 @@
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for Data_Type, Label, Address, RValue, LValue
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_Node
+#include <easyjson.h>        // for JSON
 #include <fmt/format.h>      // for format
 #include <functional>        // for bind, placeholders
 #include <initializer_list>  // for initializer_list
@@ -31,7 +32,6 @@
 #include <memory>            // for shared_ptr, unique_ptr
 #include <optional>          // for optional
 #include <ranges>            // for __fn, end
-#include <simplejson.h>      // for JSON
 #include <source_location>   // for source_location
 #include <string>            // for basic_string, operator==, string, char_...
 #include <string_view>       // for basic_string_view, string_view
@@ -379,7 +379,8 @@ class Table
   public:
     void throw_compiletime_error(std::string_view message,
         type::RValue_Reference symbol,
-        std::source_location const& location = std::source_location::current());
+        std::source_location const& location = std::source_location::current(),
+        std::string_view type = "symbol");
 
   public:
     Instructions instructions{};

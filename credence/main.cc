@@ -18,6 +18,7 @@
 #include <credence/ir/table.h> // emit_complete_ita
 #include <credence/util.h>     // for AST_Node, capitalize,
 #include <cxxopts.hpp>         // for value, ParseResult, OptionAdder, Opti...
+#include <easyjson.h>          // for JSON, operator<<
 #include <filesystem>          // for filesystem_error, operator<<
 #include <iostream>            // for basic_ostream, operator<<, endl, cerr
 #include <matchit.h>           // for pattern, match, PatternHelper, Patter...
@@ -26,7 +27,6 @@
 #include <pybind11/embed.h>    // for scoped_interpreter
 #include <pybind11/pybind11.h> // for error_already_set::what, module, module_
 #include <pybind11/pytypes.h>  // for object, object_api, error_already_set
-#include <simplejson.h>        // for JSON, operator<<
 #include <sstream>             // for basic_ostringstream
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view

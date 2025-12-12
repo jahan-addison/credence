@@ -15,11 +15,12 @@
  */
 
 #pragma once
+
 #include <credence/util.h>
+#include <easyjson.h>
 #include <exception>
 #include <fmt/compile.h>
 #include <fmt/format.h>
-#include <simplejson.h>
 #include <source_location>
 #include <string_view>
 #include <type_traits>
@@ -29,6 +30,11 @@
 
 #define credence_compile_error(location, message, symbol, symbols) \
     (credence::detail::compile_error_impl(location, message, symbol, symbols))
+
+#define credence_compile_error_with_type(     \
+    location, message, symbol, symbols, type) \
+    (credence::detail::compile_error_impl(    \
+        location, message, symbol, symbols, type))
 
 #define credence_assert(condition) \
     (credence::detail::assert_impl(std::source_location::current(), condition))
@@ -72,15 +78,17 @@ class Credence_Exception : public std::exception
 inline void compile_error_impl(std::source_location const& location,
     std::string_view message,
     std::string_view symbol_name,
-    json::JSON const& symbols)
+    easyjson::JSON const& symbols,
+    std::string_view type = "symbol")
 {
     auto symbol = symbol_name.data();
 #ifndef DEBUG
-    if (symbols.has_key(symbol))
+    if (symbols.has_key(symbol) and type == "symbol")
         throw Credence_Exception("\n  Credence could not compile "
-                                 "source:\n    on symbol '{}'\n    "
+                                 "source:\n    on {} '{}'\n    "
                                  "with: "
                                  "\"{}\"\n  > from line {} column {}:{}",
+            type,
             symbol,
             message,
             symbols[symbol]["line"].to_int(),
@@ -88,18 +96,20 @@ inline void compile_error_impl(std::source_location const& location,
             symbols[symbol]["end_column"].to_int());
     else
         throw Credence_Exception("\n  Credence could not compile "
-                                 "source:\n    on symbol '{}'\n    "
+                                 "source:\n    on {} '{}'\n    "
                                  "with: {}",
+            type,
             symbol,
             message);
 #else
-    if (symbols.has_key(symbol))
+    if (symbols.has_key(symbol) and type == "symbol")
         throw Credence_Exception(
-            "\n  Credence could not compile source:\n    on symbol '{}'\n "
+            "\n  Credence could not compile source:\n    on {} '{}'\n "
             "   "
             "with: "
             "\"{}\"\n  > from line {} column {}:{}\n\n\n >>> In file "
             "'{}'\n line {}\n   ::: '{}'\n",
+            type,
             symbol,
             message,
             symbols[symbol]["line"].to_int(),
@@ -110,10 +120,11 @@ inline void compile_error_impl(std::source_location const& location,
             location.function_name());
     else
         throw Credence_Exception("\n  Credence could not compile "
-                                 "source:\n    on symbol '{}'\n    "
+                                 "source:\n    on {} '{}'\n    "
                                  "with: \"{}\""
                                  "\n\n\n >>> In file "
                                  "'{}'\n line {}\n   ::: '{}'\n",
+            type,
             symbol,
             message,
             location.file_name(),

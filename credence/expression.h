@@ -20,8 +20,8 @@
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <credence/values.h> // for Expression, Literal
+#include <easyjson.h>        // for JSON
 #include <memory>            // for make_shared
-#include <simplejson.h>      // for JSON
 #include <source_location>   // for source_location
 #include <string>            // for basic_string, string
 #include <string_view>       // for string_view

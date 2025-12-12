@@ -16,105 +16,30 @@
 
 #pragma once
 
+#include "credence/symbol.h"        // for Symbol_Table
+#include "instructions.h"           // for Register, Operand_Size, Immediate
+#include "stack.h"                  // for Stack
+#include "syscall.h"                // for syscall_arguments_t
+#include <credence/ir/ita.h>        // for Quadruple, Instruction
+#include <credence/ir/table.h>      // for Table, Function, Vector
+#include <credence/map.h>           // for Ordered_Map
 #include <credence/target/target.h> // for Backend
-
-#include "instructions.h"      // for Register, Operand_Size, Immediate
-#include "syscall.h"           // for syscall_ns
-#include <credence/ir/ita.h>   // for Instruction
-#include <credence/ir/table.h> // for Table
-#include <credence/map.h>      // for Ordered_Map
-#include <credence/types.h>    // for RValue, is_temporary, LValue
-#include <credence/util.h>     // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <deque>               // for deque
-#include <functional>          // for function
-#include <map>                 // for map
-#include <ostream>             // for basic_ostream, endl
-#include <ostream>             // for ostream
-#include <string>              // for basic_string, string, char_traits
-#include <tuple>               // for get, tuple
-#include <utility>             // for pair, move
-#include <variant>             // for monostate
+#include <credence/types.h>         // for is_temporary, from_lvalue_offset
+#include <credence/util.h>          // for contains, AST_Node, CREDENCE_PR...
+#include <cstddef>                  // for size_t
+#include <deque>                    // for deque
+#include <functional>               // for function
+#include <map>                      // for map
+#include <ostream>                  // for ostream
+#include <string>                   // for basic_string, string, char_traits
+#include <string_view>              // for basic_string_view
+#include <tuple>                    // for get, tuple
+#include <utility>                  // for pair, move
+#include <variant>                  // for monostate, variant
 
 namespace credence::target::x86_64 {
 
 namespace detail {
-
-/**
- * @brief
- * Encapsulation of a push-down stack for the x86-64 architecture
- *
- * Provides a means to allocate, traverse, and verify offsets
- * on the stack by lvalues and vice-versa.
- *
- * Each instance should encompass a single stack frame in a function
- *
- */
-class Stack
-{
-  public:
-    explicit Stack() = default;
-    Stack(Stack const&) = delete;
-    Stack& operator=(Stack const&) = delete;
-
-  public:
-    using Type = type::semantic::Type;
-    using Size = type::semantic::Size;
-    using LValue = type::semantic::LValue;
-    using RValue = type::semantic::RValue;
-    using Offset = detail::Stack_Offset;
-    using Entry = std::pair<Offset, detail::Operand_Size>;
-    using Pair = std::pair<LValue, Entry>;
-    using Local = Ordered_Map<LValue, Entry>;
-
-  public:
-    constexpr Entry get(LValue const& lvalue);
-    constexpr Entry get(Offset offset);
-    constexpr inline void clear() { stack_address.clear(); }
-
-  public:
-    constexpr inline bool empty_at(LValue const& lvalue)
-    {
-        return stack_address[lvalue].second == detail::Operand_Size::Empty;
-    }
-    constexpr inline bool contains(LValue const& lvalue)
-    {
-        return stack_address.contains(lvalue);
-    }
-    constexpr inline bool is_allocated(LValue const& lvalue)
-    {
-        return stack_address.contains(lvalue) and not empty_at(lvalue);
-    }
-    constexpr Size get_stack_frame_allocation_size();
-
-  public:
-    constexpr std::string get_lvalue_from_offset(Offset offset) const;
-    constexpr Size get_stack_size_from_table_vector(
-        ir::detail::Vector const& vector);
-    constexpr Size get_stack_offset_from_table_vector_index(
-        LValue const& lvalue,
-        std::string const& key,
-        ir::detail::Vector const& vector);
-    constexpr detail::Operand_Size get_operand_size_from_offset(
-        Offset offset) const;
-
-    constexpr Offset allocate(Operand_Size operand);
-    constexpr void allocate_aligned_lvalue(LValue const& lvalue,
-        Size value_size,
-        Operand_Size operand_size);
-    constexpr void set_address_from_accumulator(LValue const& lvalue,
-        Register acc);
-    constexpr void set_address_from_address(LValue const& lvalue);
-    constexpr void set_address_from_type(LValue const& lvalue, Type type);
-    constexpr void set_address_from_size(LValue const& lvalue,
-        Offset allocate,
-        Operand_Size operand = Operand_Size::Dword);
-    constexpr void set_address_from_immediate(LValue const& lvalue,
-        Immediate const& rvalue);
-
-  private:
-    Offset size{ 0 };
-    Local stack_address{};
-};
 
 /**
  * @brief Push a platform-dependent newline character to an ostream
@@ -210,9 +135,6 @@ class Code_Generator final
     void build_text_section_instructions();
     void build_data_section_instructions();
     void build_data_section_from_globals();
-
-  public:
-    const Storage EMPTY_STORAGE = std::monostate{};
 
   private:
     void from_func_start_ita(type::semantic::Label const& name) override;

@@ -7,10 +7,10 @@
 #include <credence/symbol.h>   // for Symbol_Table
 #include <credence/types.h>    // for LValue, RValue, Data_Type, ...
 #include <credence/util.h>     // for AST_Node, AST
+#include <easyjson.h>          // for JSON, object
 #include <format>              // for format
 #include <memory>              // for allocator, shared_ptr
 #include <ostream>             // for basic_ostream
-#include <simplejson.h>        // for JSON, object
 #include <sstream>             // for basic_ostringstream, ostringstream
 #include <string>              // for basic_string, char_traits, string
 #include <string_view>         // for basic_string_view
@@ -117,7 +117,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
         auto file_path =
             fs::path(type_fixtures_path).append(std::format("{}.json", i));
         auto path_contents =
-            json::JSON::load_file(file_path.string()).to_deque();
+            easyjson::JSON::load_file(file_path.string()).to_deque();
         if (*status) {
             try {
                 make_table_with_global_symbols(

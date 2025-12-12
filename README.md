@@ -345,7 +345,7 @@ make install
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `simplejson++` - [Lightweight memory safe json library](https://github.com/jahan-addison/simplejson)
+* `easyjson` - [Lightweight memory safe json library](https://github.com/jahan-addison/easyjson)
 * `chakram` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/chakram)
 * `cxxopts` - Lightweight commandline parser
 * `matchit` - Pattern matching

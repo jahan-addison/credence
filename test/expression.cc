@@ -3,14 +3,14 @@
 #include <credence/expression.h> // for Expression_Parser
 #include <credence/symbol.h>     // for Symbol_Table
 #include <credence/values.h> // for credence::value::Literal, credence::value::Expression, Type_, Byte
-#include <deque>        // for deque
-#include <map>          // for map
-#include <memory>       // for shared_ptr
-#include <simplejson.h> // for JSON
-#include <string>       // for basic_string, string
-#include <tuple>        // for get, tie
-#include <utility>      // for pair, make_pair, get
-#include <variant>      // for get, monostate
+#include <deque>      // for deque
+#include <easyjson.h> // for JSON
+#include <map>        // for map
+#include <memory>     // for shared_ptr
+#include <string>     // for basic_string, string
+#include <tuple>      // for get, tie
+#include <utility>    // for pair, make_pair, get
+#include <variant>    // for get, monostate
 
 using namespace credence;
 using namespace credence::type;

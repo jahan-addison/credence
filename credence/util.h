@@ -28,10 +28,10 @@
 #include <tuple>            // for apply, tuple
 #include <type_traits>      // for is_same_v, is_convertible_v
 
-namespace json {
+namespace easyjson {
 class JSON;
 } // lines 30-30
-namespace json {
+namespace easyjson {
 class JSON;
 } // lines 31-31
 
@@ -57,7 +57,7 @@ namespace util {
 
 namespace fs = std::filesystem;
 
-namespace AST = json;
+namespace AST = easyjson;
 using AST_Node = AST::JSON;
 
 ////////////////////
