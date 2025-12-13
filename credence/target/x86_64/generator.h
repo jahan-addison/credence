@@ -283,8 +283,9 @@ class Code_Generator final
 
   private:
     Operand_Size get_operand_size_from_storage(Storage const& storage);
+    bool is_lvalue_storage_type(LValue const& lvalue,
+        std::string_view type_check);
 
-  private:
     /**
      * @brief Check if the current ir instruction
      * is a temporary lvalue assignment

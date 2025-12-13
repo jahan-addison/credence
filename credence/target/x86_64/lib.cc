@@ -121,7 +121,7 @@ bool is_address_device_pointer_to_buffer(Address& address,
     // clang-format off
     std::visit(util::overload{
         [&](std::monostate) {},
-        [&](x86_64::detail::Stack_Offset& offset) {
+        [&](x86_64::detail::Stack_Offset const& offset) {
             auto lvalue = stack.get_lvalue_from_offset(offset);
             is_buffer = type::is_rvalue_data_type_string(
                 table->get_rvalue_data_type_at_pointer(lvalue));

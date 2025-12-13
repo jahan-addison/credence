@@ -56,18 +56,18 @@ class Stack
     using Local = Ordered_Map<LValue, Entry>;
 
   public:
-    constexpr inline void clear() { stack_address.clear(); }
+    constexpr void clear() { stack_address.clear(); }
 
   public:
-    constexpr inline bool empty_at(LValue const& lvalue)
+    constexpr bool empty_at(LValue const& lvalue)
     {
         return stack_address[lvalue].second == detail::Operand_Size::Empty;
     }
-    constexpr inline bool contains(LValue const& lvalue)
+    constexpr bool contains(LValue const& lvalue)
     {
         return stack_address.contains(lvalue);
     }
-    constexpr inline bool is_allocated(LValue const& lvalue)
+    constexpr bool is_allocated(LValue const& lvalue)
     {
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
@@ -79,7 +79,7 @@ class Stack
     /**
      * @brief Get the stack location lvalue and size from an offset
      */
-    constexpr Entry get(Offset offset)
+    constexpr Entry get(Offset offset) const
     {
         auto find = std::find_if(stack_address.begin(),
             stack_address.end(),
@@ -270,7 +270,7 @@ class Stack
     /**
      * @brief Get the lvalue of a local variable allocated at an offset
      */
-    constexpr inline std::string get_lvalue_from_offset(Offset offset) const
+    constexpr std::string get_lvalue_from_offset(Offset offset) const
     {
         auto search = std::ranges::find_if(stack_address.begin(),
             stack_address.end(),

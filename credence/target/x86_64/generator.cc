@@ -625,10 +625,12 @@ void Code_Generator::from_call_ita(ir::Quadruple const& inst)
                 auto operands =
                     get_operand_storage_from_call_stack(argument_stack);
                 m::match(sv(function_name))(m::pattern | sv("print") = [&] {
-                    if (!library::is_address_device_pointer_to_buffer(
+                    if (!is_lvalue_storage_type(
+                            argument_stack.front(), "string") and
+                        not library::is_address_device_pointer_to_buffer(
                             operands.front(), table, stack))
                         table->throw_compiletime_error(
-                            fmt::format("1st argument '{}' is not a string",
+                            fmt::format("first argument '{}' is not a string",
                                 argument_stack.front()),
                             function_name,
                             credence_current,
@@ -763,6 +765,22 @@ void Code_Generator::insert_from_mnemonic_operand(LValue const& lhs,
         m::pattern | m::app(type::is_binary_expression,
                          true) = [&] { from_binary_operator_expression(rhs); },
         m::pattern | m::_ = [&] { credence_error("unreachable"); });
+}
+
+/**
+ * @brief Get the storage type of an lvalue, even if the lvalue is undefined
+ */
+bool Code_Generator::is_lvalue_storage_type(LValue const& lvalue,
+    std::string_view type_check)
+{
+    try {
+        return type::get_type_from_rvalue_data_type(
+                   type::get_rvalue_data_type_as_string(
+                       table->get_rvalue_data_type_at_pointer(lvalue))) ==
+               type_check;
+    } catch (...) {
+        return false;
+    }
 }
 
 /**
