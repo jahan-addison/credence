@@ -623,7 +623,7 @@ using Instruction_Pair = std::pair<Storage, Instructions>;
 using Directive_Pair = std::pair<std::string, Directives>;
 
 // Empty storage device
-constexpr auto O_NUL = std::monostate{};
+const Storage O_NUL = std::monostate{};
 
 /**
  * @brief Instruction type constructor

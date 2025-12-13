@@ -100,12 +100,14 @@ void detail::add_syscall_functions_to_symbols(util::AST_Node& symbols)
  * @brief Add the standard library and syscall routines to the hoisted
  * symbol table
  */
-void add_stdlib_functions_to_symbols(util::AST_Node& symbols)
+void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
+    bool with_syscalls)
 {
     auto libcalls = get_library_symbols();
     for (auto const& f : libcalls)
         detail::add_stdlib_function_to_table_symbols(f, symbols);
-    detail::add_syscall_functions_to_symbols(symbols);
+    if (with_syscalls)
+        detail::add_syscall_functions_to_symbols(symbols);
 }
 
 /**

@@ -38,7 +38,8 @@ namespace fs = std::filesystem;
         REQUIRE(test.str() == expected);                                     \
     } while (0)
 
-#define SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(ast_path, expected) \
+#define SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(                    \
+    ast_path, expected, syscall)                                               \
     do {                                                                       \
         using namespace credence::target::x86_64;                              \
         auto test = std::ostringstream{};                                      \
@@ -48,7 +49,7 @@ namespace fs = std::filesystem;
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path));   \
         auto fixture_content =                                                 \
             easyjson::JSON::load_file(file_path.string()).to_deque();          \
-        library::add_stdlib_functions_to_symbols(fixture_content[0]);          \
+        library::add_stdlib_functions_to_symbols(fixture_content[0], syscall); \
         credence::target::x86_64::emit(                                        \
             test, fixture_content[0], fixture_content[1], false);              \
         REQUIRE(test.str() == expected);                                       \
@@ -766,7 +767,7 @@ _start:
 
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
-        "stdlib/write", expected);
+        "stdlib/write", expected, true);
 }
 
 TEST_CASE("target/x86_64: fixture: stdlib print")
@@ -829,7 +830,7 @@ _start:
 
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
-        "stdlib/print", expected);
+        "stdlib/print", expected, true);
 }
 
 TEST_CASE("target/x86_64: fixture: call_1.b")
@@ -874,7 +875,8 @@ identity:
     ret
 
 )x86";
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST("call_1", expected);
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "call_1", expected, false);
 }
 
 TEST_CASE("target/x86_64: fixture: call_2.b")
@@ -916,7 +918,8 @@ test:
     ret
 
 )x86";
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST("call_2", expected);
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "call_2", expected, false);
 }
 
 TEST_CASE("target/x86_64: fixture: readme_2.b")
@@ -980,5 +983,55 @@ identity:
     ret
 
 )x86";
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST("readme_2", expected);
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "readme_2", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: address_of_1.b")
+{
+    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("address_of_1");
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "one"
+
+._L_str2__:
+    .asciz "three"
+
+._L_str3__:
+    .asciz "two"
+
+strings:
+    .quad ._L_str1__
+
+    .quad ._L_str3__
+
+    .quad ._L_str2__
+
+.text
+    .global _start
+    .extern print
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov dword ptr [rbp - 20], 5
+    lea rax, [rbp - 20]
+    mov qword ptr [rbp - 8], rax
+    mov rax, qword ptr [rip + strings+8]
+    mov qword ptr [rbp - 16], rax
+    mov rsi, qword ptr [rbp - 16]
+    mov rdx, 3
+    call print
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "address_of_2", expected, false);
 }

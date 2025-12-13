@@ -57,6 +57,11 @@ while getopts ":o:t:" opt; do
   esac
 done
 
+if [ -z "$SOURCE_NAME" ]; then
+  echo "Credence Error: -o argument is required for output path"
+  exit 1
+fi
+
 STDLIB_PATH="$CREDENCE_HOME/stdlib/$ARCH/$STDLIB_TYPE/stdlib.o"
 
 "$CREDENCE_BINARY" "$@"

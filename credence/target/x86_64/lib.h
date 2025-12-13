@@ -83,6 +83,7 @@ void make_library_call(Instructions& instructions,
     std::string_view libary_function,
     library_arguments_t const& arguments);
 
-void add_stdlib_functions_to_symbols(util::AST_Node& symbols);
+void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
+    bool with_syscalls = true);
 
 } // namespace library

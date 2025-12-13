@@ -791,6 +791,16 @@ void Code_Generator::from_temporary_unary_operator_expression(
                        : get_accumulator_register_from_size(size);
         add_inst_as(instructions_, mov, acc, stack.get(rvalue).first);
         from_ita_unary_expression(op, acc);
+    } else if (is_vector(rvalue)) {
+        auto address = get_lvalue_address(rvalue, false);
+        auto size = get_operand_size_from_storage(address);
+        auto acc = next_ir_instruction_is_temporary() and
+                           not last_ir_instruction_is_assignment()
+                       ? get_second_register_from_size(size)
+                       : get_accumulator_register_from_size(size);
+        address_ir_assignment = true;
+        special_register = Register::rax;
+        from_ita_unary_expression(op, acc, address);
     } else {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
         auto size = detail::get_operand_size_from_rvalue_datatype(immediate);
@@ -1233,7 +1243,10 @@ void Code_Generator::from_ita_unary_expression(std::string const& op,
                 set_instruction_flag(detail::flag::Address);
                 auto acc =
                     get_accumulator_register_from_size(Operand_Size::Qword);
-                instructions = detail::lea(acc, dest);
+                if (src != detail::O_NUL)
+                    instructions = detail::lea(dest, src);
+                else
+                    instructions = detail::lea(acc, dest);
             },
         m::pattern | std::string{ "*" } =
             [&] {
@@ -1245,6 +1258,7 @@ void Code_Generator::from_ita_unary_expression(std::string const& op,
         m::pattern |
             std::string{ "-" } = [&] { instructions = detail::neg(dest); },
         m::pattern | std::string{ "+" } = [&] {});
+
     detail::insert(instructions_, instructions.second);
 }
 
@@ -1544,6 +1558,9 @@ type::semantic::Size Code_Generator::get_lvalue_string_size(
                 type::get_rvalue_datatype_from_string(
                     locals.get_pointer_by_name(lvalue)));
         }
+        if (locals.is_pointer(lvalue))
+            return type::get_size_from_rvalue_data_type(
+                table->get_rvalue_data_type_at_pointer(lvalue));
         auto local_symbol = locals.get_symbol_by_name(lvalue);
         auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
         if (local_rvalue == "RET") {

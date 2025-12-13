@@ -427,6 +427,16 @@ void Table::type_safe_assign_pointer(LValue const& lvalue,
     }
     // pointer to address-of lvalue
     if (locals.is_pointer(lvalue) and type::get_unary_operator(rvalue) == "&") {
+        // do not allow "x = &string[k]", or pointer to string pointer
+        if (type::get_type_from_rvalue_data_type(
+                get_rvalue_data_type_at_pointer(
+                    type::get_unary_rvalue_reference(rvalue))) == "string")
+            throw_compiletime_error(
+                fmt::format(
+                    "invalid pointer assignment, right-hand-side '{}' is a "
+                    "pointer to string pointer, which is not allowed",
+                    rvalue),
+                lvalue);
         locals.set_symbol_by_name(lvalue, rvalue);
         return; // Ok
     }
@@ -437,6 +447,15 @@ void Table::type_safe_assign_pointer(LValue const& lvalue,
         locals.set_symbol_by_name(lvalue, rvalue);
         return; // Ok
     }
+    // pointer to string storage in a vector
+    if (locals.is_pointer(lvalue) and is_vector(rvalue)) {
+        if (type::get_type_from_rvalue_data_type(
+                get_rvalue_data_type_at_pointer(rvalue)) == "string") {
+            locals.set_symbol_by_name(lvalue, rvalue);
+            return; // Ok
+        }
+    }
+
     auto human_symbol = type::is_rvalue_data_type(rvalue)
                             ? type::get_value_from_rvalue_data_type(
                                   type::get_rvalue_datatype_from_string(rvalue))

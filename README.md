@@ -5,13 +5,11 @@
 * B Language grammar - [here](https://github.com/jahan-addison/chakram/blob/master/chakram/grammar.lark)
 * Language reference - [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
----
-
-### Blog series: [Credence](https://soliloq.uy/tag/credence/)
+## Blog series: [Credence](https://soliloq.uy/tag/credence/)
 
 The compiler works in 3 stages:
 
-* The Lexer, Parser first-pass, built with an LALR(1) grammar and parser generator in python that interfaces with C++ via `pybind11`
+* The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/chakram) in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
 
 * The target platforms - x86_64, arm64, and z80 for Linux and BSD (Darwin)
