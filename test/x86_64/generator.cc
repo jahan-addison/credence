@@ -13,11 +13,6 @@ using namespace credence::target::x86_64;
 
 namespace fs = std::filesystem;
 
-#define STRINGIFY2(X) #X
-#define STRINGIFY(X) STRINGIFY2(X)
-
-#define NO_STDLIB 1
-
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)

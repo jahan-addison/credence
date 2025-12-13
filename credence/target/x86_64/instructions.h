@@ -44,8 +44,6 @@
 #define mn(n) detail::Mnemonic::n
 #define rr(n) detail::Register::n
 #define dd(n) detail::Directive::n
-#define STRINGIFY2(X) #X
-#define STRINGIFY(X) STRINGIFY2(X)
 
 #define is_empty_storage(storage) is_variant(std::monostate, storage)
 

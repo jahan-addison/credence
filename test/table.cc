@@ -18,9 +18,6 @@
 
 namespace fs = std::filesystem;
 
-#define STRINGIFY2(X) #X
-#define STRINGIFY(X) STRINGIFY2(X)
-
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
 #define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)

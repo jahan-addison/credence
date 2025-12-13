@@ -17,11 +17,23 @@
 
 CREDENCE=$(pwd)
 UNAMESTR=$(uname -s)
+CXX=''
 
 if [ ! -d "$CREDENCE/credence" ]; then
     echo "Error: Please run script from credence root directory" >&2
     exit 1
 fi
+
+##############
+# @brief
+# Send message
+##############
+message() {
+    local CC='\033[38;5;113m'
+    local NC='\033[0m'
+
+    echo -e "\n${CC}$1${NC}\n"
+}
 
 MACOS_DETAILS=$(cat << EOM
 $(printf '\033[38;5;113m')
@@ -29,7 +41,7 @@ You may need to add the following lines to your shell environment:
 
 export CXX=/usr/bin/c++
 export SDKROOT="\$(xcrun --sdk macosx --show-sdk-path)"
-export PYENV_ROOT="\$HOME/.pyenv"
+export PATH=\$PATH:\$HOME/.local/bin:
 
 You might also need LLVM setup in your \$PATH:
 
@@ -38,51 +50,95 @@ $(printf '\033[0m')
 EOM
 )
 
+PYENV_DETAILS=$(cat << EOM
+$(printf '\033[38;5;113m')
+\$PYENV_ROOT not found, please add the following to your env:
+  export PYENV_ROOT="\$HOME/.pyenv"
+  [[ -d $PYENV_ROOT/bin ]] && export PATH="\$PYENV_ROOT/bin:\$PATH"
+  eval "\$(pyenv init - bash)"
+EOM
+)
+
 if [[ "$UNAMESTR" == 'Linux' ]]; then
 
+  message "Installing llvm@20 for Linux ..."
+
+  if ! command -v apt-get &> /dev/null
+  then
+      message "Error: apt-get command is not available."
+      message "This script requires a Debian-based system (e.g., Ubuntu, Debian, Mint)."
+      exit 1
+  fi
+
   sudo apt-get update
-  wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-  sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
-  sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck binutils cmake clang-tidy pipx
-  echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.bashrc
-  pipx install poetry
+  wget https://apt.llvm.org/llvm.sh
+  chmod +x llvm.sh
+  sudo ./llvm.sh 20
+
+  message "Installing pyenv ..."
+
+  curl https://pyenv.run | bash
+
+  message "Installing apt-get dependencies ..."
+
+  sudo apt-get install clang-20 llvm-20 lldb-20 lld-20 libc++-20-dev libc++abi-20-dev
+  sudo apt-get install -y python3-dev libpython3-dev gcc-10 valgrind iwyu cppcheck binutils cmake clang-tidy
+  python3 -m pip install --user pipx
+  sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-20 100
+  sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-20 100
   sudo update-alternatives \
     --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
     --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-10 \
     --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-10 \
     --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-  sudo update-alternatives \
-    --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-20 100 \
-    --slave /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-20 \
-    --slave /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-20
-  sudo update-alternatives \
-    --install /usr/bin/clang clang /usr/bin/clang-20 100
 
-  cmake -Bbuild -DCMAKE_CXX_COMPILER="$(which clang++)" -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+  CXX="$(which clang++-20)"
 
 elif [[ "$UNAMESTR" == 'Darwin' ]]; then
-  brew install include-what-you-use pipx include-what-you-use llvm@20 cmake gcc clang-format cppcheck coreutils poetry
+
+  message "Installing brew dependencies ..."
+
+  brew install include-what-you-use pipx pyenv include-what-you-use llvm@20 cmake gcc clang-format cppcheck coreutils poetry
 
   echo -e "$MACOS_DETAILS"
 
-  cmake -Bbuild -DCMAKE_CXX_COMPILER=/usr/bin/c++ -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+  CXX="$(which c++)"
 fi
 
-echo -e "\033[38;5;113mInstalling the Lexing and Parsing Python submodule...\033[0m"
+message "Installing the Parser Python submodule ..."
+
+if ! command -v pyenv &> /dev/null ; then
+  echo -e "$PYENV_DETAILS"
+  exit 1
+fi
 
 git submodule update --init --recursive
 # shellcheck disable=SC2164
-cd python/chakram
-poetry install
-make install
 
-cd ../../
+cd python/chakram
+pyenv init -sh
+pyenv install 3.14.2
+pyenv local 3.14.2
+pip install .
+# shellcheck disable=SC2164
+cd "$CREDENCE"
 
 echo "$(pwd)" > $HOME/.credence
-cmake --build build
+
+message "Building with cmake ..."
+
+cmake -Bbuild -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_COMPILER="$CXX" -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+message "Building targets ..."
+
+PYTHONHOME="$PYENV_ROOT/versions/3.14.2" cmake --build build
 chmod +x ./bin/credence
 
 sudo ln -sf "$CREDENCE"/bin/credence /usr/bin/credence
 
-echo -e "\033[38;5;113mDone.\033[0m"
+message "A binary is now available at '/usr/bin/credence' with an assembler and linker provided."
+
+message "The build files (including the test suite) are available in './build'"
+
+message "Done! 🚀"
 

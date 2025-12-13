@@ -28,6 +28,12 @@
 #include <tuple>            // for apply, tuple
 #include <type_traits>      // for is_same_v, is_convertible_v
 
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
+
+#define WIDE_AND_STRINGIFY(x) L##x
+#define WIDE_STRINGIFY(x) WIDE_AND_STRINGIFY(x)
+
 namespace easyjson {
 class JSON;
 } // lines 30-30

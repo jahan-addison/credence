@@ -3,8 +3,12 @@
 /cpm_modules
 /test/test 
 .DS_Store
+llvm.sh
+llvm.sh.*
 ast.json
-.swp
+*.swp
+CMakeFiles/
+CMakeCache.txt
 .ast_cache
 .roxas_cache
 .credence_cache

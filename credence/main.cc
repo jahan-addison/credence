@@ -31,8 +31,6 @@
 #include <string>              // for char_traits, string, basic_string
 #include <string_view>         // for operator<<, string_view
 
-// clang-format on
-
 #include <credence/target/x86_64/generator.h> // for x86_64
 
 int main(int argc, const char* argv[])
@@ -63,7 +61,6 @@ int main(int argc, const char* argv[])
             std::cout << options.help() << std::endl;
             exit(0);
         }
-
         std::string syntax_tree;
         credence::util::AST_Node ast;
         credence::util::AST_Node symbols;
@@ -77,9 +74,7 @@ int main(int argc, const char* argv[])
         if (type == "python") {
             py::scoped_interpreter guard{};
             try {
-                // PYTHONHOME should be set to an env that has this package
                 py::object python_module = py::module::import("chakram.parser");
-
                 py::object symbol_table_call = python_module.attr(
                     "get_source_program_symbol_table_as_json");
                 py::object syntax_symbols = symbol_table_call(source);
