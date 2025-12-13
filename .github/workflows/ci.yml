@@ -82,6 +82,7 @@ jobs:
         cd ../../
         ./build/test_suite
         export CREDENCE_ENV_HOME="$(pwd)"
+        echo "$(pwd)" > $HOME/.credence
         chmod +x ./bin/credence
         chmod +x ./test/compiled-test.sh
         ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
@@ -107,6 +108,7 @@ jobs:
         make install
         cd ../../
         export CREDENCE_ENV_HOME="$(pwd)"
+        echo "$(pwd)" > $HOME/.credence
         chmod +x ./bin/credence
         ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
         ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b

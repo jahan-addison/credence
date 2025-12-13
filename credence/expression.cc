@@ -25,7 +25,6 @@
 #include <easyjson.h>           // for JSON, JSON_String
 #include <fmt/format.h>         // for format
 #include <map>                  // for map
-#include <mapbox/eternal.hpp>   // for element, map
 #include <matchit.h>            // for pattern, PatternHelper, PatternPipable
 #include <memory>               // for make_shared
 #include <string>               // for basic_string, operator==, char_traits

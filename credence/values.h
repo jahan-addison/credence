@@ -18,7 +18,6 @@
 #include <credence/operators.h> // for Operator
 #include <credence/util.h>      // for is_variant
 #include <cstddef>              // for size_t
-#include <mapbox/eternal.hpp>   // for map
 #include <memory>               // for shared_ptr, make_shared
 #include <string>               // for basic_string, string
 #include <string_view>          // for basic_string_view, string_view
@@ -37,35 +36,18 @@ namespace value {
 
 struct Expression;
 
-#ifdef __clang__
-constexpr auto TYPE_LITERAL =
-    mapbox::eternal::map<std::string_view, std::pair<std::string, std::size_t>>(
-        {
-            { "word",   { "word", sizeof(void*) }         },
-            { "byte",   { "byte", sizeof(unsigned char) } },
-            { "int",    { "int", sizeof(int) }            },
-            { "long",   { "long", sizeof(long) }          },
-            { "float",  { "float", sizeof(float) }        },
-            { "double", { "double", sizeof(double) }      },
-            { "bool",   { "bool", sizeof(bool) }          },
-            { "null",   { "null", 0 }                     },
-            { "char",   { "char", sizeof(char) }          }
+const auto TYPE_LITERAL =
+    std::map<std::string_view, std::pair<std::string, std::size_t>>({
+        { "word",   { "word", sizeof(void*) }         },
+        { "byte",   { "byte", sizeof(unsigned char) } },
+        { "int",    { "int", sizeof(int) }            },
+        { "long",   { "long", sizeof(long) }          },
+        { "float",  { "float", sizeof(float) }        },
+        { "double", { "double", sizeof(double) }      },
+        { "bool",   { "bool", sizeof(bool) }          },
+        { "null",   { "null", 0 }                     },
+        { "char",   { "char", sizeof(char) }          }
 });
-#else
-static auto TYPE_LITERAL =
-    mapbox::eternal::map<std::string_view, std::pair<std::string, std::size_t>>(
-        {
-            { "word",   { "word", sizeof(void*) }         },
-            { "byte",   { "byte", sizeof(unsigned char) } },
-            { "int",    { "int", sizeof(int) }            },
-            { "long",   { "long", sizeof(long) }          },
-            { "float",  { "float", sizeof(float) }        },
-            { "double", { "double", sizeof(double) }      },
-            { "bool",   { "bool", sizeof(bool) }          },
-            { "null",   { "null", 0 }                     },
-            { "char",   { "char", sizeof(char) }          }
-});
-#endif
 
 namespace detail {
 

@@ -1,19 +1,18 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
-#include <credence/ir/ita.h>  // for ITA
-#include <credence/symbol.h>  // for Symbol_Table
-#include <credence/util.h>    // for AST_Node
-#include <credence/values.h>  // for Value_Type, TYPE_LITERAL, Byte, NULL_L...
-#include <deque>              // for deque
-#include <easyjson.h>         // for JSON
-#include <map>                // for map
-#include <mapbox/eternal.hpp> // for element, map
-#include <sstream>            // for basic_ostringstream, ostringstream
-#include <string>             // for basic_string, allocator, char_traits
-#include <string_view>        // for basic_string_view
-#include <tuple>              // for tuple
-#include <utility>            // for pair, make_pair
-#include <variant>            // for monostate
+#include <credence/ir/ita.h> // for ITA
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/util.h>   // for AST_Node
+#include <credence/values.h> // for Value_Type, TYPE_LITERAL, Byte, NULL_L...
+#include <deque>             // for deque
+#include <easyjson.h>        // for JSON
+#include <map>               // for map
+#include <sstream>           // for basic_ostringstream, ostringstream
+#include <string>            // for basic_string, allocator, char_traits
+#include <string_view>       // for basic_string_view
+#include <tuple>             // for tuple
+#include <utility>           // for pair, make_pair
+#include <variant>           // for monostate
 
 #define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)

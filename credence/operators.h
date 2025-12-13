@@ -18,7 +18,6 @@
 #include <array>
 #include <credence/util.h>
 #include <map>
-#include <mapbox/eternal.hpp>
 #include <ostream>
 #include <sstream>
 #include <type_traits>
@@ -87,8 +86,8 @@ enum class Associativity
 
 // B operator precedence is more or less the same as C. Where
 // there were differences I made small changes for consistency
-constexpr auto OPERATOR_PRECEDENCE =
-    mapbox::eternal::map<Operator, std::pair<Associativity, unsigned int>>({
+const auto OPERATOR_PRECEDENCE =
+    std::map<Operator, std::pair<Associativity, unsigned int>>({
         // Left-to-right
         { Operator::POST_INC,          { Associativity::LEFT_TO_RIGHT, 1 }  },
         { Operator::POST_DEC,          { Associativity::LEFT_TO_RIGHT, 1 }  },
@@ -137,35 +136,34 @@ constexpr auto OPERATOR_PRECEDENCE =
         { Operator::B_ASSIGN,          { Associativity::RIGHT_TO_LEFT, 14 } }
 });
 
-constexpr auto BINARY_OPERATORS =
-    mapbox::eternal::map<std::string_view, Operator>({
-        { "||", Operator::R_OR       },
-        { "&&", Operator::R_AND      },
-        { "==", Operator::R_EQUAL    },
-        { "!=", Operator::R_NEQUAL   },
-        { "<",  Operator::R_LT       },
-        { "<=", Operator::R_LE       },
-        { ">",  Operator::R_GT       },
-        { ">=", Operator::R_GE       },
-        { "^",  Operator::XOR        },
-        { "&",  Operator::AND        },
-        { "|",  Operator::OR         },
-        { "<<", Operator::LSHIFT     },
-        { ">>", Operator::RSHIFT     },
-        { "-",  Operator::B_SUBTRACT },
-        { "+",  Operator::B_ADD      },
-        { "%",  Operator::B_MOD      },
-        { "*",  Operator::B_MUL      },
-        { "/",  Operator::B_DIV      }
+const auto BINARY_OPERATORS = std::map<std::string_view, Operator>({
+    { "||", Operator::R_OR       },
+    { "&&", Operator::R_AND      },
+    { "==", Operator::R_EQUAL    },
+    { "!=", Operator::R_NEQUAL   },
+    { "<",  Operator::R_LT       },
+    { "<=", Operator::R_LE       },
+    { ">",  Operator::R_GT       },
+    { ">=", Operator::R_GE       },
+    { "^",  Operator::XOR        },
+    { "&",  Operator::AND        },
+    { "|",  Operator::OR         },
+    { "<<", Operator::LSHIFT     },
+    { ">>", Operator::RSHIFT     },
+    { "-",  Operator::B_SUBTRACT },
+    { "+",  Operator::B_ADD      },
+    { "%",  Operator::B_MOD      },
+    { "*",  Operator::B_MUL      },
+    { "/",  Operator::B_DIV      }
 });
 
-constexpr bool is_left_associative(Operator op)
+inline bool is_left_associative(Operator op)
 {
     return OPERATOR_PRECEDENCE.find(op)->second.first ==
            Associativity::LEFT_TO_RIGHT;
 }
 
-constexpr unsigned int get_precedence(Operator const op)
+inline unsigned int get_precedence(Operator const op)
 {
     return OPERATOR_PRECEDENCE.find(op)->second.second;
 }

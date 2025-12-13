@@ -18,7 +18,6 @@
 
 #include <credence/operators.h> // for Operator
 #include <credence/util.h>      // for overload
-#include <mapbox/eternal.hpp>   // for map
 #include <memory>               // for shared_ptr, make_shared
 #include <sstream>              // for basic_ostringstream, ostringstream
 #include <string>               // for basic_string, string, char_traits

@@ -99,15 +99,6 @@ cpmaddpackage(
 
 CPMAddPackage("gh:fmtlib/fmt#12.1.0")
 
-cpmaddpackage(
-  NAME
-  eternal
-  VERSION
-  1.0.1
-  GITHUB_REPOSITORY
-  dirkarnez/eternal
-  OPTIONS
-  "WITH_TESTS OFF")
 
 cpmaddpackage(NAME pybind11 VERSION 3.0.1 GITHUB_REPOSITORY pybind/pybind11)
 
@@ -135,9 +126,9 @@ target_include_directories(
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts fmt::fmt
-                         matchit easyjson "${eternal_SOURCE_DIR}/include")
+                         matchit easyjson)
 target_link_libraries(
   ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts fmt::fmt
-                         matchit easyjson eternal)
+                         matchit easyjson)
 
 include(cmake/doctest.cmake)

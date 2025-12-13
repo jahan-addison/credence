@@ -5,19 +5,19 @@
 * B Language grammar - [here](https://github.com/jahan-addison/chakram/blob/master/chakram/grammar.lark)
 * Language reference - [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
-## Blog series: [Credence](https://soliloq.uy/tag/credence/)
+## [Blog Series](https://soliloq.uy/tag/credence/)
 
 The compiler works in 3 stages:
 
 * The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/chakram) in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
 
-* The target platforms - x86_64, arm64, and z80 for Linux and BSD (Darwin)
+* The target platforms - x86_64, arm64 for Linux and BSD (Darwin)
 
 ## Features
 
 * **Strongly typed** with type inference, unlike the original B language
-  * Vectors (arrays) may be non-homogeneous, but are typed by their initial values at compile-time like a tuple
+  * Vectors (arrays) may be non-homogeneous, but their types are determined at compile time from their initial values, similarly to tuples
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
 * Boolean coercion for all data types in conditional structures
@@ -37,9 +37,9 @@ Note: Currently, windows is not supported.
 ### x86-64:
   * Compliance with the Application Binary Interface (ABI) for System V
   * SIMD memory alignment requirements
-### Arm64:
   * In progress
-### z80:
+
+### ARM64:
   * In progress
 
 ## Standard Library
@@ -71,10 +71,15 @@ Usage:
       --source-code arg  B Source file
 ```
 
-A complete assemble and linking tool is available in `bin/` that is installed with `make install`
+A complete assembler and linking tool is installed via the installation script.
 
 
-#### Example
+## Installation
+
+Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
+
+
+## Example
 
 ```C
 main() {
@@ -169,7 +174,7 @@ An example of compile-time boundary checking, if the `print(strings[0])` line is
 
 *Note*: The default compile target is currently the IR, [ITA](credence/ir/README.md):
 
-#### Example:
+### Example:
 
 ```C
 main() {
@@ -207,7 +212,7 @@ mess [3] "too bad", "tough luck", "that's the breaks";
 
 ```
 
-#### Produces:
+### Produces:
 
 
 ```asm
@@ -286,69 +291,21 @@ _L1:
 
 ```
 
----
-
-## Test suite
+## Test Suite
 
 ```bash
 make test
 ```
 
----
-
-## Installation
-
-Note: `$PYTHONHOME` must be set to an installation that has [chakram](https://github.com/jahan-addison/chakram) installed.
-
-
-### Linux
-
-```bash
-sudo apt-get update
-# install latest clang
-wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
-sudo apt-get install -y gcc-10 llvm valgrind clang iwyu python3-dev cppcheck clang-tidy pipx
-# Inside the repository:
-echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.profile
-source ~/.profile
-cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build
-```
-
-### MacOS
-
-```bash
-brew update
-brew install coreutils include-what-you-use llvm@20 cmake python3 pyenv
-# Inside the repository:
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-cmake --build build
-```
-
-#### Installing chakram
-
-```bash
-git submodule update --init --recursive
-cd python/chakram
-pipx install poetry # or similar
-poetry install
-# Be sure to use pyenv or similar
-make install
-```
-
----
-
 ## Dependencies
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `easyjson` - [Lightweight memory safe json library](https://github.com/jahan-addison/easyjson)
 * `chakram` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/chakram)
+* `easyjson` - [Lightweight memory safe json library](https://github.com/jahan-addison/easyjson)
 * `cxxopts` - Lightweight commandline parser
 * `matchit` - Pattern matching
-* `fmt` - fast and constexpr string formatting
-* `eternal` - constexpr lookup tables
+* `fmt` - fast constexpr string formatting
 * `pybind11`
 
 # License
