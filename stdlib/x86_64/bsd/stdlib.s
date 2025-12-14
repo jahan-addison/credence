@@ -19,8 +19,9 @@
 .text
 
     .global print
+    .global putchar
 
-
+////////////////////////////////////////////////////
 // @brief print
 // Arguments are handled by credence
 // %rsi should hold the buffer address
@@ -38,3 +39,19 @@ print:
     pop     rbp
     ret
 
+////////////////////////////////////////////////////
+// @brief putchar
+// Arguments are handled by credence
+// %rsi should hold the character immediate
+putchar:
+    push    rbp
+    mov     rbp, rsp
+    push    rsi
+    mov     rax, 33554436
+    mov     rdi, 1
+    mov     rsi, rsp
+    mov     rdx, 1
+    syscall
+    add     rsp, 8
+    pop     rbp
+    ret

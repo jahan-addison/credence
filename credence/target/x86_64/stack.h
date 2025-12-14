@@ -193,8 +193,7 @@ class Stack
      */
     constexpr Size get_stack_frame_allocation_size()
     {
-        return size > 16 ? util::align_up_to_16(size) - 8
-                         : util::align_up_to_16(size);
+        return size > 16 ? util::align_up_to_16(size) - 8 : 16UL;
     }
 
     /**

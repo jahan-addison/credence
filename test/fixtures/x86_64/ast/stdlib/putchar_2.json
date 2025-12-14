@@ -1,0 +1,77 @@
+[
+  {
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "putchar": {
+      "column": 3,
+      "end_column": 10,
+      "end_pos": 35,
+      "line": 3,
+      "start_pos": 28,
+      "type": "lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "putchar"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "number_literal",
+                        "root": 5
+                      }
+                    ],
+                    "root": "putchar"
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "putchar"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "string_literal",
+                        "root": "\"test\""
+                      }
+                    ],
+                    "root": "putchar"
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

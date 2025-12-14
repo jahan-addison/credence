@@ -162,7 +162,8 @@ int main(int argc, const char* argv[])
                               << std::endl;
                 });
 
-        credence::util::write_to_from_string_stream(output, out_to, extension);
+        credence::util::write_to_file_from_string_stream(
+            output, out_to, extension);
 
     } catch (cxxopts::exceptions::option_has_no_value const&) {
         std::cout << "Credence :: See \"--help\" for usage overview"

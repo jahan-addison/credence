@@ -15,7 +15,7 @@ namespace util {
 /**
  * @brief Create and write to a file by one std::ostream to another
  */
-void write_to_from_string_stream(std::string_view file_name,
+void write_to_file_from_string_stream(std::string_view file_name,
     std::ostringstream const& oss,
     std::string_view ext)
 {

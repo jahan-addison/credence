@@ -732,6 +732,7 @@ unit:
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -796,6 +797,7 @@ unit:
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -841,6 +843,7 @@ TEST_CASE("target/x86_64: fixture: call_1.b")
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -887,6 +890,7 @@ TEST_CASE("target/x86_64: fixture: call_2.b")
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -946,6 +950,7 @@ strings:
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -1009,6 +1014,7 @@ strings:
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -1044,6 +1050,7 @@ TEST_CASE("target/x86_64: fixture: string_3.b")
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
@@ -1062,4 +1069,36 @@ _start:
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "string_3", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: stdlib putchar")
+{
+    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/putchar_2");
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+.text
+    .global _start
+    .extern print
+    .extern putchar
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov rsi, 108
+    call putchar
+    mov rsi, 111
+    call putchar
+    mov rsi, 108
+    call putchar
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "stdlib/putchar_1", expected, false);
 }

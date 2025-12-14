@@ -18,11 +18,13 @@
 
 #include <algorithm>        // for all_of
 #include <cctype>           // for isdigit, toupper
+#include <charconv>         // for from_char
 #include <cstddef>          // for size_t
 #include <cstdint>          // for uint_least32_t, uint32_t
 #include <filesystem>       // for filesystem
 #include <fstream>          // for ostringstream
 #include <initializer_list> // for initializer_list
+#include <optional>         // for optional
 #include <string>           // for basic_string, string, to_string
 #include <string_view>      // for basic_string_view, string_view
 #include <tuple>            // for apply, tuple
@@ -103,6 +105,27 @@ constexpr fnv1a_hash fnv1a_32_hash(std::string const& data)
         hash *= detail::FNV_PRIME_32;
     }
     return hash;
+}
+
+inline std::optional<uint32_t> to_u32_int_safe(std::string_view s)
+{
+    uint32_t value{};
+    if (std::from_chars(s.data(), s.data() + s.size(), value).ec == std::errc{})
+        return value;
+    else
+        return std::nullopt;
+}
+
+constexpr std::string strip_char(std::string_view str, char char_to_strip)
+{
+    std::string result;
+    result.reserve(str.length());
+    for (char c : str) {
+        if (c != char_to_strip) {
+            result += c;
+        }
+    }
+    return result;
 }
 
 inline std::string capitalize(const char* str)
@@ -282,7 +305,7 @@ constexpr unsigned int align_up_to_8(unsigned int n)
 // File helpers
 ////////////////
 
-void write_to_from_string_stream(std::string_view file_name,
+void write_to_file_from_string_stream(std::string_view file_name,
     std::ostringstream const& oss,
     std::string_view ext = "bo");
 

@@ -66,9 +66,9 @@ A complete assembler and linking tool is installed via the installation script.
 
 ## Standard Library
 
-* The standard library object file is pre-compiled in `stdlib/` for each platform
+* The standard library object file is pre-compiled in `stdlib/` for each platform. **None of the standard library functions depend on the C runtime library**.
 
-In addition to a small standard library, the syscall table (i.e. `unistd.h`) is available for each platform, invalid invocation is a compiletime error.
+In addition to a small standard library, the syscall table functions such as `write(3)` are available for each platform, invalid invocation is a compiletime error.
 
 * **Linux** x86_64
   * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L58)

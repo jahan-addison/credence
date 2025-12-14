@@ -87,12 +87,14 @@ jobs:
         chmod +x ./test/compiled-test.sh
         ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
         ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b
+        ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/x86_64/stdlib/putchar_1.b
         ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/x86_64/call_1.b
         ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/x86_64/call_2.b
         ./test/compiled-test.sh syscall_test
         ./test/compiled-test.sh stdlib_test
         ./test/compiled-test.sh call_test_1
         ./test/compiled-test.sh call_test_2
+        ./test/compiled-test.sh stdlib_putchar_test
 
 
     - name: memcheck

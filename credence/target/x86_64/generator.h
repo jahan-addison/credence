@@ -208,6 +208,7 @@ class Code_Generator final
         LValue const& rhs);
     void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
     void insert_from_temporary_lvalue(LValue const& lvalue);
+    void insert_from_standard_library_function(std::string_view routine);
     void insert_from_rvalue(RValue const& rvalue);
     void insert_from_return_rvalue(
         ir::detail::Function::Return_RValue const& ret);

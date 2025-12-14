@@ -52,14 +52,19 @@ std::vector<std::string> get_library_symbols();
  *
  * print(1):
  *
- *  A `print' routine that is type safe for all value::Literal
+ *  A `print' routine that is type safe for all strings
  *
  *  The length of the buffer is provided at compiletime
+ *
+ * putchar(1):
+ *
+ *  A `putchar' routine that is type safe for all byte characters
  *
  * ------------------------------------------------------------------------
  */
 const library_list_t library_list = {
-    { "print", { 2 } }
+    { "print",   { 2 } },
+    { "putchar", { 1 } }
 };
 
 bool is_syscall_function(type::semantic::Label const& label);

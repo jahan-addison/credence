@@ -26,6 +26,9 @@ fi
 if [[ "$1" == "call_test_2" ]]; then
   printf -v expected_output '%s' "hello world"
 fi
+if [[ "$1" == "stdlib_putchar_test" ]]; then
+  printf -v expected_output '%s' "lol"
+fi
 
 
 

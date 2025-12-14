@@ -220,7 +220,11 @@ constexpr std::string storage_prefix_from_operand_size(
  */
 constexpr std::string detail::emit_immediate_storage(Immediate const& immediate)
 {
-    return type::get_value_from_rvalue_data_type(immediate);
+    auto [v_value, v_type, v_size] = immediate;
+    m::match(sv(v_type))(m::pattern | sv("char") = [&] {
+        v_value = util::strip_char(v_value, '\'');
+    });
+    return v_value;
 }
 
 /**
@@ -621,30 +625,7 @@ void Code_Generator::from_call_ita(ir::Quadruple const& inst)
                     instructions_, function_name, operands);
             },
         m::pattern | m::app(library::is_stdlib_function, true) =
-            [&] {
-                auto operands =
-                    get_operand_storage_from_call_stack(argument_stack);
-                m::match(sv(function_name))(m::pattern | sv("print") = [&] {
-                    if (!is_lvalue_storage_type(
-                            argument_stack.front(), "string") and
-                        not library::is_address_device_pointer_to_buffer(
-                            operands.front(), table, stack))
-                        table->throw_compiletime_error(
-                            fmt::format("first argument '{}' is not a string",
-                                argument_stack.front()),
-                            function_name,
-                            credence_current,
-                            "function invocation");
-                    auto buffer = operands.back();
-                    auto buffer_size =
-                        get_lvalue_string_size(argument_stack.back());
-                    operands.emplace_back(
-                        detail::make_u32_int_immediate(buffer_size));
-                    set_instruction_flag(detail::flag::Argument);
-                });
-                library::make_library_call(
-                    instructions_, function_name, operands);
-            },
+            [&] { insert_from_standard_library_function(function_name); },
         m::pattern | m::_ =
             [&] {
                 auto operands =
@@ -673,6 +654,48 @@ void Code_Generator::from_cmp_ita([[maybe_unused]] ir::Quadruple const& inst) {}
 void Code_Generator::from_if_ita([[maybe_unused]] ir::Quadruple const& inst) {}
 void Code_Generator::from_jmp_e_ita([[maybe_unused]] ir::Quadruple const& inst)
 {
+}
+
+/**
+ * @brief Translate and type check function invocation of standard library
+ * functions
+ *   See details in "lib.h" and the corresponding platform in 'stdlib'
+ */
+void Code_Generator::insert_from_standard_library_function(
+    std::string_view routine)
+{
+    auto operands = get_operand_storage_from_call_stack(argument_stack);
+    m::match(routine)(
+        m::pattern | sv("putchar") =
+            [&] {
+                if (!is_lvalue_storage_type(argument_stack.front(), "char"))
+                    table->throw_compiletime_error(
+                        fmt::format("argument '{}' is not a byte character",
+                            argument_stack.front()),
+                        routine,
+                        credence_current,
+                        "function invocation");
+            },
+        m::pattern | sv("print") =
+            [&] {
+                if (!is_lvalue_storage_type(
+                        argument_stack.front(), "string") and
+                    not library::is_address_device_pointer_to_buffer(
+                        operands.front(), table, stack))
+                    table->throw_compiletime_error(
+                        fmt::format("argument '{}' is not a string",
+                            argument_stack.front()),
+                        routine,
+                        credence_current,
+                        "function invocation");
+                auto buffer = operands.back();
+                auto buffer_size =
+                    get_lvalue_string_size(argument_stack.back());
+                operands.emplace_back(
+                    detail::make_u32_int_immediate(buffer_size));
+                set_instruction_flag(detail::flag::Argument);
+            });
+    library::make_library_call(instructions_, routine, operands);
 }
 
 /**

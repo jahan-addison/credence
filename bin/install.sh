@@ -132,6 +132,7 @@ cmake -Bbuild -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_COMPILER="$CXX" -DI
 message "Building targets ..."
 
 PYTHONHOME="$PYENV_ROOT/versions/3.14.2" cmake --build build
+
 chmod +x ./bin/credence
 
 sudo ln -sf "$CREDENCE"/bin/credence /usr/bin/credence
