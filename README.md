@@ -12,7 +12,7 @@ The compiler works in 3 stages:
 * The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/chakram) in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
 
-* The target platforms - x86_64, arm64 for Linux and BSD (Darwin)
+* The target platforms - x86_64, and ARM64 for Linux and BSD (Darwin)
 
 ## Features
 
@@ -30,30 +30,11 @@ The compiler works in 3 stages:
 * Binary operators may not be used directly after the `=` operator
 * Constant literals must be exactly 1 byte
 
-Note: Currently, windows is not supported.
+Note: currently, windows is not supported.
 
-## Targets
+## Installation
 
-### x86-64:
-  * Compliance with the Application Binary Interface (ABI) for System V
-  * SIMD memory alignment requirements
-  * In progress
-
-### ARM64:
-  * In progress
-
-## Standard Library
-
-* The standard library object file is pre-compiled in `stdlib/` for each platform
-
-In addition to a small standard library, platform syscall invocation is available, invalid invocation is a compiletime error.
-
-* **Linux** x86_64
-  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L58)
-* **BSD** (Darwin) x86_64
-  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L453)
-
----
+Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
 
 ## Usage
 
@@ -73,11 +54,26 @@ Usage:
 
 A complete assembler and linking tool is installed via the installation script.
 
+## Targets
 
-## Installation
+#### x86-64:
+  * Compliance with the Application Binary Interface (ABI) for System V
+  * SIMD memory alignment requirements
+  * In progress
 
-Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
+#### ARM64:
+  * In progress
 
+## Standard Library
+
+* The standard library object file is pre-compiled in `stdlib/` for each platform
+
+In addition to a small standard library, the syscall table (i.e. `unistd.h`) is available for each platform, invalid invocation is a compiletime error.
+
+* **Linux** x86_64
+  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L58)
+* **BSD** (Darwin) x86_64
+  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L453)
 
 ## Example
 

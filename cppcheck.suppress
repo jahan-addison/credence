@@ -19,7 +19,6 @@ cstyleCast
 // ignore dependencies
 // Use ** to match path separators (folders) for Cppcheck 2.18+
 *:*/**json**
-*:*/**eternal**
 *:*/**test**
 *:*/**python**
 *:*/**cpm_modules**

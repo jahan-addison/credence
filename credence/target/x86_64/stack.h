@@ -34,9 +34,6 @@ namespace credence::target::x86_64::detail {
  *
  * Provides a means to allocate, traverse, and verify offsets
  * on the stack by lvalues and vice-versa.
- *
- * Each instance should encompass a single stack frame in a function
- *
  */
 class Stack
 {
