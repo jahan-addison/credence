@@ -59,10 +59,10 @@ A complete assembler and linking tool is installed via the installation script.
 #### x86-64:
   * Compliance with the Application Binary Interface (ABI) for System V
   * SIMD memory alignment requirements
-  * In progress
+  * In progress - [Details here](/credence/target//x86_64/readme.md)
 
 #### ARM64:
-  * In progress
+  * Soon
 
 ## Standard Library
 

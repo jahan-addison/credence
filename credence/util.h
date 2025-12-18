@@ -183,6 +183,8 @@ constexpr inline std::string to_constexpr_string(T const& val)
         return s;
     } else if constexpr (std::is_same_v<T, uint_least32_t>) {
         return std::to_string(val);
+    } else if constexpr (std::is_same_v<T, unsigned int>) {
+        return std::to_string(val);
     } else if constexpr (std::is_same_v<T, std::size_t>) {
         return std::to_string(val);
     } else if constexpr (std::is_same_v<T, double>) {

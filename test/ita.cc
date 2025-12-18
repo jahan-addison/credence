@@ -73,7 +73,7 @@ struct ITA_Fixture
         auto os_test = std::ostringstream();
         auto ita = ITA_hoisted(definitions_symbols);
         auto test_instructions =
-            credence::ir::ITA::make_ITA_instructions(definitions_symbols, node);
+            credence::ir::ITA::make_ita_instructions(definitions_symbols, node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
         }
@@ -86,7 +86,7 @@ struct ITA_Fixture
     {
         auto os_test = std::ostringstream();
         auto test_instructions =
-            credence::ir::ITA::make_ITA_instructions(symbols, node);
+            credence::ir::ITA::make_ita_instructions(symbols, node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
         }

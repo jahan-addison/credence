@@ -15,7 +15,7 @@
  */
 
 #include "syscall.h"
-#include "instructions.h"   // for Register, make_numeric_immediate, add_in...
+#include "assembly.h"       // for Register, make_numeric_immediate, add_in...
 #include <credence/error.h> // for assert_equal_impl, credence_assert, cred...
 #include <deque>            // for deque
 #include <string>           // for basic_string, string
@@ -24,17 +24,21 @@
 namespace credence::target::x86_64::syscall_ns {
 
 namespace common {
+
 /**
  * @brief Create instructions for a platform-independent exit syscall
  */
 // cppcheck-suppress constParameterReference
 void exit_syscall(Instructions& instructions, int exit_status)
 {
-    auto immediate = detail::make_numeric_immediate(exit_status);
+    Register E_ADDRESS = Register::eax;
+    auto immediate = assembly::make_numeric_immediate(exit_status);
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall_ns::linux_ns::make_syscall(instructions, "exit", { immediate });
+    syscall_ns::linux_ns::make_syscall(
+        instructions, "exit", { immediate }, &E_ADDRESS);
 #elif defined(__APPLE__) || defined(__bsdi__)
-    syscall_ns::bsd_ns::make_syscall(instructions, "exit", { immediate });
+    syscall_ns::bsd_ns::make_syscall(
+        instructions, "exit", { immediate }, &E_ADDRESS);
 #else
     credence_error("Operating system not supported");
 #endif
@@ -67,30 +71,40 @@ namespace linux_ns {
  */
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
-    syscall_arguments_t const& arguments)
+    syscall_arguments_t const& arguments,
+    Register* address_of)
 {
-    using namespace detail;
     credence_assert(syscall_list.contains(syscall));
     credence_assert(arguments.size() <= 6);
     auto [number, arg_size] = syscall_list.at(syscall);
     credence_assert_equal(arg_size, arguments.size());
-    // clang-format off
-    std::deque<Register> argument_storage = {
-        Register::r9, Register::r8, Register::r10,
-        Register::rdx, Register::rsi, Register::rdi
-    };
-    // clang-format on
-    Storage syscall_number = make_numeric_immediate(number);
-    add_inst_ll(instructions, mov, rax, syscall_number);
+
+    std::deque<Register> argument_storage = { Register::r9,
+        Register::r8,
+        Register::r10,
+        Register::rdx,
+        Register::rsi,
+        Register::rdi };
+
+    assembly::Storage syscall_number = assembly::make_numeric_immediate(number);
+    asm__dest_rs(instructions, mov, rax, syscall_number);
+
     for (auto const& arg : arguments) {
         auto storage = argument_storage.back();
         argument_storage.pop_back();
         if (is_immediate_rip_address_offset(arg))
-            add_inst_as(instructions, lea, storage, arg);
-        else
-            add_inst_as(instructions, movq_, storage, arg);
+            add_asm__as(instructions, lea, storage, arg);
+        else {
+            if (storage == rr(rsi) and *address_of == Register::rcx) {
+                *address_of = Register::eax;
+                asm__src_rs(instructions, movq_, storage, rcx);
+                continue;
+            }
+            add_asm__as(instructions, movq_, storage, arg);
+        }
     }
-    add_inst_ee(instructions, detail::Mnemonic::syscall);
+
+    asm__zero_o(instructions, syscall);
 }
 } // namespace linux
 
@@ -104,9 +118,9 @@ namespace bsd_ns {
  */
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
-    syscall_arguments_t const& arguments)
+    syscall_arguments_t const& arguments,
+    Register* address_of)
 {
-    using namespace detail;
     credence_assert(syscall_list.contains(syscall));
     credence_assert(arguments.size() <= 6);
     auto [number, arg_size] = syscall_list.at(syscall);
@@ -117,18 +131,24 @@ void make_syscall(Instructions& instructions,
         Register::rdx, Register::rsi, Register::rdi
     };
     // clang-format on
-    Storage syscall_number =
-        make_numeric_immediate(SYSCALL_CLASS_UNIX + number);
-    add_inst_ll(instructions, mov, rax, syscall_number);
+    assembly::Storage syscall_number =
+        assembly::make_numeric_immediate(SYSCALL_CLASS_UNIX + number);
+    asm__dest_rs(instructions, mov, rax, syscall_number);
     for (auto const& arg : arguments) {
         auto storage = argument_storage.back();
         argument_storage.pop_back();
         if (is_immediate_rip_address_offset(arg))
-            add_inst_as(instructions, lea, storage, arg);
-        else
-            add_inst_as(instructions, mov, storage, arg);
+            add_asm__as(instructions, lea, storage, arg);
+        else {
+            if (storage == rr(rsi) and *address_of == Register::rcx) {
+                *address_of = Register::eax;
+                asm__src_rs(instructions, mov, storage, rcx);
+                continue;
+            }
+            add_asm__as(instructions, mov, storage, arg);
+        }
     }
-    add_inst_ee(instructions, detail::Mnemonic::syscall);
+    asm__zero_o(instructions, syscall);
 }
 
 } // namespace bsd
@@ -142,12 +162,15 @@ void make_syscall(
     // cppcheck-suppress constParameterReference
     Instructions& instructions,
     std::string_view syscall,
-    syscall_arguments_t const& arguments)
+    syscall_arguments_t const& arguments,
+    Register* address_of)
 {
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall_ns::linux_ns::make_syscall(instructions, syscall, arguments);
+    syscall_ns::linux_ns::make_syscall(
+        instructions, syscall, arguments, address_of);
 #elif defined(__APPLE__) || defined(__bsdi__)
-    syscall_ns::bsd_ns::make_syscall(instructions, syscall, arguments);
+    syscall_ns::bsd_ns::make_syscall(
+        instructions, syscall, arguments, address_of);
 #else
     credence_error("Operating system not supported");
 #endif

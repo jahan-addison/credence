@@ -431,20 +431,35 @@ constexpr semantic::Type get_type_from_rvalue_data_type(
 }
 
 /**
+ * @brief Check if an rvalue data type is a provided type
+ */
+constexpr bool is_rvalue_data_type_a_type(Data_Type const& rvalue,
+    std::string_view type_)
+{
+    return std::get<1>(rvalue) == type_;
+}
+
+constexpr bool is_rvalue_data_type_a_type(type::semantic::RValue const& rvalue,
+    std::string_view type_)
+{
+    if (is_rvalue_data_type(rvalue)) {
+        return get_type_from_rvalue_data_type(
+                   get_rvalue_datatype_from_string(rvalue)) == type_;
+    } else
+        return false;
+}
+
+/**
  * @brief Check if an rvalue data type is a string
  */
 constexpr bool is_rvalue_data_type_string(Data_Type const& rvalue)
 {
-    return std::get<1>(rvalue) == "string";
+    return is_rvalue_data_type_a_type(rvalue, "string");
 }
 
 constexpr bool is_rvalue_data_type_string(type::semantic::RValue const& rvalue)
 {
-    if (is_rvalue_data_type(rvalue)) {
-        return get_type_from_rvalue_data_type(
-                   get_rvalue_datatype_from_string(rvalue)) == "string";
-    } else
-        return false;
+    return is_rvalue_data_type_a_type(rvalue, "string");
 }
 
 /**
@@ -453,16 +468,12 @@ constexpr bool is_rvalue_data_type_string(type::semantic::RValue const& rvalue)
 
 constexpr bool is_rvalue_data_type_word(Data_Type const& rvalue)
 {
-    return std::get<1>(rvalue) == "word";
+    return is_rvalue_data_type_a_type(rvalue, "word");
 }
 
 constexpr bool is_rvalue_data_type_word(type::semantic::RValue const& rvalue)
 {
-    if (is_rvalue_data_type(rvalue)) {
-        return get_type_from_rvalue_data_type(
-                   get_rvalue_datatype_from_string(rvalue)) == "word";
-    } else
-        return false;
+    return is_rvalue_data_type_a_type(rvalue, "word");
 }
 
 /**

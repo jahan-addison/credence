@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "instructions.h"      // for get_size_from_operand_size, Operand_Size
+#include "assembly.h"          // for get_size_from_operand_size, Operand_Size
 #include <algorithm>           // for find_if, __find_if
 #include <credence/ir/table.h> // for Vector
 #include <credence/map.h>      // for Ordered_Map
@@ -26,14 +26,14 @@
 
 #pragma once
 
-namespace credence::target::x86_64::detail {
+namespace credence::target::x86_64::assembly {
 
 /**
  * @brief
- * Encapsulation of a push-down stack for the x86-64 architecture
+ * A push-down stack for the x86-64 architecture
  *
  * Provides a means to allocate, traverse, and verify offsets
- * on the stack by lvalues and vice-versa.
+ * that auto-align on the stack by lvalues and vice-versa.
  */
 class Stack
 {
@@ -45,10 +45,11 @@ class Stack
   public:
     using Type = type::semantic::Type;
     using Size = type::semantic::Size;
+    using Label = type::semantic::Label;
     using LValue = type::semantic::LValue;
     using RValue = type::semantic::RValue;
-    using Offset = detail::Stack_Offset;
-    using Entry = std::pair<Offset, detail::Operand_Size>;
+    using Offset = assembly::Stack_Offset;
+    using Entry = std::pair<Offset, assembly::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
     using Local = Ordered_Map<LValue, Entry>;
 
@@ -58,7 +59,7 @@ class Stack
   public:
     constexpr bool empty_at(LValue const& lvalue)
     {
-        return stack_address[lvalue].second == detail::Operand_Size::Empty;
+        return stack_address[lvalue].second == assembly::Operand_Size::Empty;
     }
     constexpr bool contains(LValue const& lvalue)
     {
@@ -82,7 +83,7 @@ class Stack
             stack_address.end(),
             [&](Pair const& entry) { return entry.second.first == offset; });
         if (find == stack_address.end())
-            return { 0, Operand_Size::Empty };
+            return { 0, assembly::Operand_Size::Empty };
         else
             return find->second;
     }
@@ -92,7 +93,7 @@ class Stack
      *
      * See instructions.h for details
      */
-    constexpr Offset allocate(Operand_Size operand)
+    constexpr Offset allocate(assembly::Operand_Size operand)
     {
         auto alloc = get_size_from_operand_size(operand);
         size += alloc;
@@ -104,13 +105,13 @@ class Stack
      *
      * See instructions.h for details
      */
-    constexpr detail::Operand_Size get_operand_size_from_offset(
+    constexpr assembly::Operand_Size get_operand_size_from_offset(
         Offset offset) const
     {
         return std::accumulate(stack_address.begin(),
             stack_address.end(),
-            Operand_Size::Empty,
-            [&](Operand_Size size, Pair const& entry) {
+            assembly::Operand_Size::Empty,
+            [&](assembly::Operand_Size size, Pair const& entry) {
                 if (entry.second.first == offset)
                     return entry.second.second;
                 return size;
@@ -121,12 +122,13 @@ class Stack
      * @brief Set and allocate an address from an immediate
      */
     constexpr void set_address_from_immediate(LValue const& lvalue,
-        Immediate const& rvalue)
+        assembly::Immediate const& rvalue)
     {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto operand_size = get_operand_size_from_rvalue_datatype(rvalue);
-        auto value_size = get_size_from_operand_size(operand_size);
+        auto operand_size =
+            assembly::get_operand_size_from_rvalue_datatype(rvalue);
+        auto value_size = assembly::get_size_from_operand_size(operand_size);
         allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
 
@@ -134,12 +136,12 @@ class Stack
      * @brief Set and allocate an address from an accumulator register size
      */
     constexpr void set_address_from_accumulator(LValue const& lvalue,
-        Register acc)
+        assembly::Register acc)
     {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto register_size = get_operand_size_from_register(acc);
-        auto allocation = detail::get_size_from_operand_size(register_size);
+        auto register_size = assembly::get_operand_size_from_register(acc);
+        auto allocation = assembly::get_size_from_operand_size(register_size);
 
         allocate_aligned_lvalue(lvalue, allocation, register_size);
     }
@@ -149,10 +151,10 @@ class Stack
      */
     constexpr void set_address_from_type(LValue const& lvalue, Type type)
     {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto operand_size = get_operand_size_from_type(type);
-        auto value_size = get_size_from_operand_size(operand_size);
+        auto operand_size = assembly::get_operand_size_from_type(type);
+        auto value_size = assembly::get_size_from_operand_size(operand_size);
         allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
 
@@ -164,7 +166,7 @@ class Stack
      */
     constexpr void allocate_aligned_lvalue(LValue const& lvalue,
         Size value_size,
-        Operand_Size operand_size)
+        assembly::Operand_Size operand_size)
     {
         if (get_lvalue_from_offset(size + value_size).empty()) {
             size += value_size;
@@ -181,9 +183,9 @@ class Stack
      */
     constexpr void set_address_from_address(LValue const& lvalue)
     {
-        auto qword_size = Operand_Size::Qword;
+        auto qword_size = assembly::Operand_Size::Qword;
         size = util::align_up_to_8(
-            size + detail::get_size_from_operand_size(qword_size));
+            size + assembly::get_size_from_operand_size(qword_size));
         stack_address.insert(lvalue, { size, qword_size });
     }
 
@@ -217,8 +219,8 @@ class Stack
                 if (entry.first == key)
                     search = true;
                 if (!search)
-                    offset -= detail::get_size_from_operand_size(
-                        detail::get_operand_size_from_rvalue_datatype(
+                    offset -= assembly::get_size_from_operand_size(
+                        assembly::get_operand_size_from_rvalue_datatype(
                             entry.second));
                 return offset;
             });
@@ -240,8 +242,8 @@ class Stack
     [&](type::semantic::Size offset,
         ir::detail::Vector::Entry const& entry) {
         return offset +
-            detail::get_size_from_operand_size(
-                detail::get_operand_size_from_rvalue_datatype(
+            assembly::get_size_from_operand_size(
+                assembly::get_operand_size_from_rvalue_datatype(
                 entry.second));
     });
 
@@ -255,9 +257,9 @@ class Stack
      */
     constexpr void set_address_from_size(LValue const& lvalue,
         Offset allocate,
-        Operand_Size operand = Operand_Size::Dword)
+        assembly::Operand_Size operand = assembly::Operand_Size::Dword)
     {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
         size += allocate;
         stack_address.insert(lvalue, { size, operand });

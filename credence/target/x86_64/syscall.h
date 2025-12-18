@@ -16,24 +16,25 @@
 
 #pragma once
 
-#include "instructions.h" // for Instructions, Storage
-#include <array>          // for array
-#include <cstddef>        // for size_t
-#include <deque>          // for deque
-#include <map>            // for map
-#include <stdint.h>       // for uint32_t
-#include <string>         // for basic_string, string
-#include <string_view>    // for basic_string_view, string_view
-#include <utility>        // for pair
-#include <vector>         // for vector
+#include "assembly.h"  // for Instructions, Storage
+#include <array>       // for array
+#include <cstddef>     // for size_t
+#include <deque>       // for deque
+#include <map>         // for map
+#include <stdint.h>    // for uint32_t
+#include <string>      // for basic_string, string
+#include <string_view> // for basic_string_view, string_view
+#include <utility>     // for pair
+#include <vector>      // for vector
 
 namespace credence::target::x86_64::syscall_ns {
 
-using Instructions = detail::Instructions;
+using Instructions = x86_64::assembly::Instructions;
+using Register = x86_64::assembly::Register;
 
 using syscall_t = std::array<std::size_t, 2>;
 using syscall_list_t = std::map<std::string_view, syscall_t>;
-using syscall_arguments_t = std::deque<detail::Storage>;
+using syscall_arguments_t = std::deque<assembly::Storage>;
 
 namespace common {
 
@@ -41,7 +42,8 @@ namespace common {
 void exit_syscall(Instructions& instructions, int exit_status = 0);
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
-    syscall_arguments_t const& arguments);
+    syscall_arguments_t const& arguments,
+    Register* address_of);
 
 } // namespace common
 
@@ -440,7 +442,8 @@ const syscall_list_t syscall_list = {
 
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
-    syscall_arguments_t const& arguments);
+    syscall_arguments_t const& arguments,
+    Register* address_of);
 
 } // namespace linux
 
@@ -536,7 +539,8 @@ const syscall_list_t syscall_list = {
 
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
-    syscall_arguments_t const& arguments);
+    syscall_arguments_t const& arguments,
+    Register* address_of);
 
 } // namespace bsd
 

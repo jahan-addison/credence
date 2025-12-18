@@ -322,8 +322,9 @@ struct Instruction_Accessor
 /**
  * @brief Buffer accessor that stores addresses of strings and global vectors
  */
-struct Buffer_Accessor
+class Buffer_Accessor
 {
+  public:
     explicit Buffer_Accessor(Table_Pointer& table)
         : table_(table)
     {
@@ -333,7 +334,6 @@ struct Buffer_Accessor
     std::size_t get_string_size_from_storage(Storage const& storage);
     void set_buffer_size_from_syscall(std::string_view routine,
         Stack_Frame::IR_Stack& argument_stack);
-
     constexpr bool has_bytes() { return read_bytes_cache_ == 0UL; }
     constexpr std::size_t read_bytes()
     {
@@ -349,16 +349,15 @@ struct Buffer_Accessor
 
     friend class Address_Accessor;
 
+  public:
     void insert(RValue const& string_key, Label const& asciz_address)
     {
         string_cache_.insert_or_assign(string_key, asciz_address);
     }
-
     RValue get_string_address_offset(RValue const& string)
     {
         return string_cache_.at(string);
     }
-
     inline bool is_allocated_string(RValue const& rvalue)
     {
         return string_cache_.contains(rvalue);

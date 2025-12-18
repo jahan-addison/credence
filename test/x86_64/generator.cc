@@ -1,7 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
 #include <credence/target/x86_64/generator.h> // for emit
-#include <credence/target/x86_64/lib.h>       // for library
+#include <credence/target/x86_64/runtime.h>   // for library
 #include <easyjson.h>                         // for JSON
 #include <filesystem>                         // for path
 #include <fmt/format.h>                       // for format
@@ -44,7 +44,7 @@ namespace fs = std::filesystem;
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path));   \
         auto fixture_content =                                                 \
             easyjson::JSON::load_file(file_path.string()).to_deque();          \
-        library::add_stdlib_functions_to_symbols(fixture_content[0], syscall); \
+        runtime::add_stdlib_functions_to_symbols(fixture_content[0], syscall); \
         credence::target::x86_64::emit(                                        \
             test, fixture_content[0], fixture_content[1], false);              \
         REQUIRE(test.str() == expected);                                       \
@@ -435,8 +435,8 @@ _start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 5
-    lea rax, [rbp - 12]
-    mov qword ptr [rbp - 8], rax
+    lea rcx, [rbp - 12]
+    mov qword ptr [rbp - 8], rcx
     mov dword ptr [rbp - 16], 10
     mov rax, 60
     mov rdi, 0
@@ -466,8 +466,8 @@ _start:
     mov dword ptr [rbp - 16], eax
     mov eax, dword ptr [rbp - 8]
     mov dword ptr [rbp - 20], eax
-    lea rax, [rbp - 16]
-    mov qword ptr [rbp - 32], rax
+    lea rcx, [rbp - 16]
+    mov qword ptr [rbp - 32], rcx
     mov rax, 60
     mov rdi, 0
     syscall
@@ -490,8 +490,8 @@ _start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 100
-    lea rax, [rbp - 12]
-    mov qword ptr [rbp - 8], rax
+    lea rcx, [rbp - 12]
+    mov qword ptr [rbp - 8], rcx
     mov rax, qword ptr [rbp - 8]
     mov dword ptr [rax], 10
     mov rax, 60
@@ -502,7 +502,7 @@ _start:
     SETUP_X86_64_FIXTURE_AND_TEST_FROM_AST("pointers_3", expected);
 }
 
-TEST_CASE("target/x86_64: fixture: pointers_3.b")
+TEST_CASE("target/x86_64: fixture: pointers_4.b")
 {
     std::string expected = R"x86(
 .intel_syntax noprefix
@@ -516,10 +516,10 @@ _start:
     push rbp
     mov rbp, rsp
     mov dword ptr [rbp - 12], 100
-    lea rax, [rbp - 12]
-    mov qword ptr [rbp - 8], rax
-    mov rax, qword ptr [rbp - 8]
-    mov qword ptr [rbp - 24], rax
+    lea rcx, [rbp - 12]
+    mov qword ptr [rbp - 8], rcx
+    mov rcx, qword ptr [rbp - 8]
+    mov qword ptr [rbp - 24], rcx
     mov eax, 20
     add eax, 10
     add eax, 10
@@ -558,12 +558,12 @@ TEST_CASE("target/x86_64: fixture: strings")
 _start:
     push rbp
     mov rbp, rsp
-    lea rax, [rip + ._L_str1__]
-    mov qword ptr [rbp - 8], rax
-    lea rax, [rip + ._L_str2__]
-    mov qword ptr [rbp - 16], rax
-    lea rax, [rip + ._L_str1__]
-    mov qword ptr [rbp - 24], rax
+    lea rcx, [rip + ._L_str1__]
+    mov qword ptr [rbp - 8], rcx
+    lea rcx, [rip + ._L_str2__]
+    mov qword ptr [rbp - 16], rcx
+    lea rcx, [rip + ._L_str1__]
+    mov qword ptr [rbp - 24], rcx
     mov rax, 60
     mov rdi, 0
     syscall
@@ -646,10 +646,10 @@ _start:
     mov dword ptr [rbp - 32], 0
     mov dword ptr [rbp - 28], 1
     mov dword ptr [rbp - 24], 2
-    lea rax, [rip + ._L_str1__]
-    mov qword ptr [rbp - 20], rax
-    lea rax, [rip + ._L_str2__]
-    mov qword ptr [rbp - 12], rax
+    lea rcx, [rip + ._L_str1__]
+    mov qword ptr [rbp - 20], rcx
+    lea rcx, [rip + ._L_str2__]
+    mov qword ptr [rbp - 12], rcx
     mov dword ptr [rbp - 36], 10
     mov rax, 60
     mov rdi, 0
@@ -849,8 +849,8 @@ _start:
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    lea rax, [rip + ._L_str1__]
-    mov qword ptr [rbp - 8], rax
+    lea rcx, [rip + ._L_str1__]
+    mov qword ptr [rbp - 8], rcx
     mov rdi, qword ptr [rbp - 8]
     call identity
     mov rdi, qword ptr [rbp - 8]
@@ -956,8 +956,8 @@ _start:
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    lea rax, [rip + ._L_str2__]
-    mov qword ptr [rbp - 8], rax
+    lea rcx, [rip + ._L_str2__]
+    mov qword ptr [rbp - 8], rcx
     mov rdi, qword ptr [rbp - 8]
     call identity
     mov rdi, qword ptr [rbp - 8]
@@ -1021,10 +1021,10 @@ _start:
     mov rbp, rsp
     sub rsp, 24
     mov dword ptr [rbp - 20], 5
-    lea rax, [rbp - 20]
-    mov qword ptr [rbp - 8], rax
-    mov rax, qword ptr [rip + strings+8]
-    mov qword ptr [rbp - 16], rax
+    lea rcx, [rbp - 20]
+    mov qword ptr [rbp - 8], rcx
+    mov rcx, qword ptr [rip + strings+8]
+    mov qword ptr [rbp - 16], rcx
     mov rsi, qword ptr [rbp - 16]
     mov rdx, 3
     call print
@@ -1057,8 +1057,8 @@ _start:
     mov rbp, rsp
     sub rsp, 24
     mov dword ptr [rbp - 12], 2
-    lea rax, [rip + ._L_str1__]
-    mov qword ptr [rbp - 8], rax
+    lea rcx, [rip + ._L_str1__]
+    mov qword ptr [rbp - 8], rcx
     mov rsi, qword ptr [rbp - 8]
     mov rdx, 11
     call print

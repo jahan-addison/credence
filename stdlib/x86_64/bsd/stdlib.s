@@ -20,6 +20,7 @@
 
     .global print
     .global putchar
+    .global getchar
 
 ////////////////////////////////////////////////////
 // @brief print
@@ -44,6 +45,22 @@ print:
 // Arguments are handled by credence
 // %rsi should hold the character immediate
 putchar:
+    push    rbp
+    mov     rbp, rsp
+    push    rsi
+    mov     rax, 33554436
+    mov     rdi, 1
+    mov     rsi, rsp
+    mov     rdx, 1
+    syscall
+    add     rsp, 8
+    pop     rbp
+    ret
+
+////////////////////////////////////////////////////
+// @brief getchar
+// The character from stdin is in %rax
+getchar:
     push    rbp
     mov     rbp, rsp
     push    rsi

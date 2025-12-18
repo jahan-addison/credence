@@ -2,7 +2,7 @@
 
 #include <filesystem>
 
-#include <credence/ir/ita.h>   // for make_ITA_instructions, ITA
+#include <credence/ir/ita.h>   // for make_ita_instructions, ITA
 #include <credence/ir/table.h> // for Table
 #include <credence/symbol.h>   // for Symbol_Table
 #include <credence/types.h>    // for LValue, RValue, Data_Type, ...
@@ -79,7 +79,7 @@ struct Table_Fixture
     {
         using namespace credence::ir;
 
-        auto [globals, instructions] = make_ITA_instructions(symbols, node);
+        auto [globals, instructions] = make_ita_instructions(symbols, node);
         auto table = Table{ symbols, instructions, globals };
         table.build_vector_definitions_from_globals();
         table.build_from_ita_instructions();
@@ -106,7 +106,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
         false, true,  false, false,
         false, false, false, true,
         false, true, true, true,
-        true
+        true, true
     };
     // clang-format on
     auto type_fixtures_path = fs::path(ROOT_PATH);

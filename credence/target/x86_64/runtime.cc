@@ -114,7 +114,7 @@ void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
 }
 
 /**
- * @brief A compiletime check on a storage buffer
+ * @brief A compiletime allocation check on a buffer in a storage device
  */
 bool is_address_device_pointer_to_buffer(Address& address,
     std::shared_ptr<ir::Table>& table,
@@ -149,8 +149,8 @@ bool is_address_device_pointer_to_buffer(Address& address,
 
 /**
  * @brief Create the instructions for a standard library call
- *
- * In each case, %rdi is ommitted as it holds the first syscall number
+
+ *  In each case, %rdi is ommitted as it holds the first syscall number
  */
 void make_library_call(Instructions& instructions,
     std::string_view library_function,

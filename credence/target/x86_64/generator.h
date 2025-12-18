@@ -16,135 +16,395 @@
 
 #pragma once
 
-#include "credence/symbol.h"        // for Symbol_Table
-#include "instructions.h"           // for Register, Operand_Size, Immediate
+#include "assembly.h"               // for Instructions, Storage, Directives
+#include "memory.h"                 // for Memory_Access, RValue, Stack_Frame
 #include "stack.h"                  // for Stack
 #include "syscall.h"                // for syscall_arguments_t
-#include <credence/ir/ita.h>        // for Quadruple, Instruction
-#include <credence/ir/table.h>      // for Table, Function, Vector
-#include <credence/map.h>           // for Ordered_Map
-#include <credence/target/target.h> // for Backend
-#include <credence/types.h>         // for is_temporary, from_lvalue_offset
-#include <credence/util.h>          // for contains, AST_Node, CREDENCE_PR...
+#include <credence/ir/ita.h>        // for Quadruple, Instructions
+#include <credence/ir/table.h>      // for Function, Table
+#include <credence/target/target.h> // for IR_Visitor
+#include <credence/util.h>          // for AST_Node
 #include <cstddef>                  // for size_t
-#include <deque>                    // for deque
-#include <functional>               // for function
-#include <map>                      // for map
 #include <ostream>                  // for ostream
-#include <string>                   // for basic_string, string, char_traits
-#include <string_view>              // for basic_string_view
-#include <tuple>                    // for get, tuple
-#include <utility>                  // for pair, move
-#include <variant>                  // for monostate, variant
+#include <string>                   // for basic_string, string
+#include <string_view>              // for string_view
+#include <utility>                  // for move
 
 namespace credence::target::x86_64 {
 
-namespace detail {
+using Instruction_Pair = assembly::Instruction_Pair;
+
+void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
+
+constexpr std::string emit_immediate_storage(
+    assembly::Immediate const& immediate);
+
+constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
+    assembly::Operand_Size size,
+    flag::flags flags);
+
+constexpr std::string emit_register_storage(assembly::Register device,
+    assembly::Operand_Size size,
+    flag::flags flags);
+
+void emit_x86_64_assembly_intel_prologue(std::ostream& os);
+
+assembly::Operand_Size get_operand_size_from_storage(
+    assembly::Storage const& storage,
+    memory::Stack_Pointer& stack);
+
+class Assembly_Emitter;
 
 /**
- * @brief Push a platform-dependent newline character to an ostream
+ * @brief Storage Emitter for destination and source storage devices
  */
-inline void newline(std::ostream& os, int amount = 1)
+class Storage_Emitter
 {
-    for (; amount > 0; amount--)
-        os << std::endl;
-}
+  public:
+    explicit Storage_Emitter(memory::Memory_Access& accessor,
+        std::size_t index,
+        Storage& source_storage)
+        : accessor_(accessor)
+        , instrunction_index_(index)
+        , source_storage_(source_storage)
+    {
+    }
 
-namespace flag {
+    constexpr void set_address_size(Operand_Size address)
+    {
+        address_size = address;
+    }
 
-using flags = unsigned int;
+    constexpr void reset_address_size() { address_size = Operand_Size::Empty; }
 
-enum Instruction_Flag : flags
-{
-    None = 0,
-    Address = 1 << 0,
-    Indirect = 1 << 1,
-    Indirect_Source = 1 << 2,
-    Alloc = 1 << 3,
-    Argument = 1 << 4,
-    Stack_Source = 1 << 5,
-    Load = 1 << 6
+    std::string get_storage_device_as_string(assembly::Storage const& storage,
+        Operand_Size size);
 
+    void emit(std::ostream& os,
+        assembly::Storage const& storage,
+        assembly::Mnemonic mnemonic,
+        memory::Operand_Type type_);
+
+  private:
+    memory::Memory_Access accessor_;
+    std::size_t instrunction_index_;
+
+  private:
+    Operand_Size address_size = Operand_Size::Empty;
+    Storage& source_storage_;
 };
 
-} // namespace flag
+/**
+ * @brief Text Emitter for the text section in a x86_64 application
+ */
+class Text_Emitter
+{
+  public:
+    explicit Text_Emitter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+        instructions_ = accessor->instruction_accessor;
+    }
+    friend class Assembly_Emitter;
 
-constexpr std::string emit_immediate_storage(Immediate const& immediate);
+    void emit_stdlib_externs(std::ostream& os);
+    void emit_text_directives(std::ostream& os);
+    void emit_text_section(std::ostream& os);
 
-constexpr std::string emit_stack_storage(Stack const& stack,
-    Stack::Offset offset,
-    flag::flags flags);
+    // clang-format off
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    bool test_no_stdlib{ false };
+    // clang-format on
 
-constexpr std::string emit_stack_storage(Stack::Offset offset,
-    Operand_Size size,
-    flag::flags flags);
+  private:
+    memory::Memory_Access accessor_;
 
-constexpr std::string emit_register_storage(Register device,
-    Operand_Size size,
-    flag::flags flags);
-
-} // namespace detail
+  private:
+    memory::Instruction_Pointer instructions_;
+};
 
 /**
- * @brief Code generator for the x86-64 architecture and ISA
+ * @brief Data Emitter for the data section in a x86_64 application
+ */
+
+class Data_Emitter
+{
+  public:
+    explicit Data_Emitter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+    }
+    friend class Assembly_Emitter;
+
+  public:
+    void emit_data_section(std::ostream& os);
+
+  private:
+    void set_data_globals();
+    void set_data_strings();
+
+  private:
+    assembly::Directives get_instructions_from_directive_type(
+        assembly::Directive directive,
+        RValue const& rvalue);
+
+  private:
+    memory::Memory_Access accessor_;
+
+  private:
+    assembly::Directives instructions_;
+};
+
+class Instruction_Inserter
+{
+  public:
+    explicit Instruction_Inserter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+    }
+    void insert(ir::Instructions const& ir_instructions);
+
+  private:
+    memory::Memory_Access accessor_;
+};
+
+/**
+ * @brief Operand Inserter to translate operand types into x64 instructions
+ */
+class Operand_Inserter
+{
+  public:
+    explicit Operand_Inserter(memory::Memory_Access accessor,
+        memory::Stack_Frame& stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(stack_frame)
+    {
+    }
+    Storage get_operand_storage_from_rvalue(RValue const& rvalue);
+    void insert_from_immediate_rvalues(Immediate const& lhs,
+        std::string const& op,
+        Immediate const& rhs);
+    void insert_from_operands(Storage_Operands& operands,
+        std::string const& op);
+    void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
+
+  private:
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame& stack_frame_;
+};
+
+/**
+ * @brief Expression Inserter to translate rvalue types into x64 instructions
+ */
+struct Expression_Inserter
+{
+    explicit Expression_Inserter(memory::Memory_Access accessor,
+        memory::Stack_Frame& stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(stack_frame)
+    {
+    }
+    void insert_from_string(RValue const& str);
+    Instruction_Pair insert_from_expression(RValue const& expr);
+    void insert_from_global_vector_assignment(LValue const& lhs,
+        LValue const& rhs);
+    void insert_from_temporary_lvalue(LValue const& lvalue);
+    void insert_from_rvalue(RValue const& rvalue);
+    void insert_from_return_rvalue(
+        ir::detail::Function::Return_RValue const& ret);
+
+  private:
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame& stack_frame_;
+};
+
+/**
+ * @brief Binary Operator Inserter to translate binary expressions
+ */
+struct Binary_Operator_Inserter
+{
+    explicit Binary_Operator_Inserter(memory::Memory_Access accessor,
+        memory::Stack_Frame& stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(stack_frame)
+    {
+    }
+    void from_binary_operator_expression(RValue const& rvalue);
+
+  private:
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame& stack_frame_;
+};
+
+/**
+ * @brief Unary Operator to translate unary operator expressions
+ */
+struct Unary_Operator_Inserter
+{
+    explicit Unary_Operator_Inserter(memory::Memory_Access accessor,
+        memory::Stack_Frame& stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(stack_frame)
+    {
+    }
+    void insert_from_unary_expression(std::string const& op,
+        Storage const& dest,
+        Storage const& src = assembly::O_NUL);
+    void insert_from_unary_to_unary_assignment(LValue const& lhs,
+        LValue const& rhs);
+    void from_temporary_unary_operator_expression(RValue const& expr);
+
+  private:
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame& stack_frame_;
+};
+
+/**
+ * @brief Relational Operator Inserter to translate relational operands
+ */
+struct Relational_Operator_Inserter
+{
+    explicit Relational_Operator_Inserter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+    }
+    Instruction_Pair from_relational_expression_operands(
+        Storage_Operands const& operands,
+        std::string const& binary_op);
+
+  private:
+    memory::Memory_Access accessor_;
+};
+
+/**
+ * @brief Arithemtic Operator Inserter to translate arithemtic expressions
+ */
+struct Arithemtic_Operator_Inserter
+{
+    explicit Arithemtic_Operator_Inserter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+    }
+    Instruction_Pair from_arithmetic_expression_operands(
+        Storage_Operands const& operands,
+        std::string const& binary_op);
+
+  private:
+    memory::Memory_Access accessor_;
+};
+
+/**
+ * @brief Bitwise Operator Inserter to translate bitwise expressions
+ */
+struct Bitwise_Operator_Inserter
+{
+    explicit Bitwise_Operator_Inserter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+    }
+    Instruction_Pair from_bitwise_expression_operands(
+        Storage_Operands const& operands,
+        std::string const& binary_op);
+    void from_bitwise_operator_expression(RValue const& expr);
+
+  private:
+    memory::Memory_Access accessor_;
+};
+
+/**
+ * @brief Invocation Inserter to translate function invocation and arguments
+ */
+struct Invocation_Inserter
+{
+    explicit Invocation_Inserter(memory::Memory_Access accessor,
+        memory::Stack_Frame& stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(stack_frame)
+    {
+    }
+    syscall_ns::syscall_arguments_t get_operands_storage_from_argument_stack();
+    void insert_from_standard_library_function(std::string_view routine,
+        assembly::Instructions& instructions);
+    void insert_from_user_defined_function(std::string_view routine,
+        assembly::Instructions& instructions);
+    void insert_from_syscall_function(std::string_view routine,
+        assembly::Instructions& instructions);
+
+  private:
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame& stack_frame_;
+};
+
+/**
+ * @brief Assembly Emitter that emits the data and text section of an x64
+ * application
+ */
+class Assembly_Emitter
+{
+  public:
+    explicit Assembly_Emitter(memory::Memory_Access accessor)
+        : accessor_(std::move(accessor))
+    {
+        ir_instructions_ = accessor_->table_accessor.table_->instructions;
+    }
+
+  public:
+    void emit(std::ostream& os);
+
+  private:
+    memory::Memory_Access accessor_;
+
+  private:
+    ir::Instructions ir_instructions_;
+
+    // clang-format off
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    Data_Emitter data_{ accessor_ };
+    Text_Emitter text_{accessor_};
+    // clang-format on
+};
+
+/**
+ * @brief IR Visitor for the x86-64 architecture and ISA
  *
- * The Storage_Container is defined in instructions.h, and
+ * The Storage_Container is defined in assembly.h, and
  * each intermediate instruction is a quadruple defined in ita.h.
  *
  * Macros and helpers to compose mnemonics, registers, and immediate
  * values instructions are defined in instructions.h.
  *
- * Emits to an std::ostream.
- *
  */
-class Code_Generator final
-    : public target::Backend<detail::Storage, ir::Quadruple>
+
+class IR_Instruction_Visitor final
+    : public target::IR_Visitor<ir::Quadruple, x86_64::assembly::Instructions>
 {
   public:
-    Code_Generator() = delete;
-    explicit Code_Generator(ir::Table::Table_PTR table)
-        : Backend(std::move(table))
+    explicit IR_Instruction_Visitor(memory::Memory_Access& accessor,
+        memory::Stack_Frame stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(std::move(stack_frame))
     {
     }
 
-  private:
-    using Register = detail::Register;
-    using Directive = detail::Directive;
-    using Mnemonic = detail::Mnemonic;
-    using LValue = detail::Stack::LValue;
-    using RValue = detail::Stack::RValue;
+    using Instructions = x86_64::assembly::Instructions;
 
-    using Storage_Operands = std::pair<Storage, Storage>;
-    using Operand_Size = detail::Operand_Size;
-    using Operator_Symbol = std::string;
-    using Instruction_Pair = detail::Instruction_Pair;
-    using Immediate = detail::Immediate;
-    using Directives = detail::Directives;
-    using Instructions = detail::Instructions;
+    void set_stack_frame_from_table(Label const& function_name);
 
   public:
-    void emit(std::ostream& os) override;
+    constexpr void set_iterator_index(std::size_t index)
+    {
+        iterator_index_ = index;
+    }
 
-  private:
-    void emit_syntax_directive(std::ostream& os);
-    void emit_stdlib_externs(std::ostream& os);
-    void emit_text_section(std::ostream& os);
-    void emit_data_section(std::ostream& os);
-
-  private:
-    void build_text_section_instructions();
-    void build_data_section_instructions();
-    void build_data_section_from_globals();
-
-  private:
-    void from_func_start_ita(type::semantic::Label const& name) override;
-    void from_func_end_ita() override;
+  public:
     void from_locl_ita(ir::Quadruple const& inst) override;
+    void from_pop_ita() override;
+    void from_push_ita(ir::Quadruple const& inst) override;
+    void from_func_start_ita(Label const& name) override;
+    void from_func_end_ita() override;
     void from_cmp_ita(ir::Quadruple const& inst) override;
     void from_mov_ita(ir::Quadruple const& inst) override;
     void from_return_ita() override;
-    void from_push_ita(ir::Quadruple const& inst) override;
-    void from_pop_ita() override;
     void from_leave_ita() override;
     void from_label_ita(ir::Quadruple const& inst) override;
     void from_call_ita(ir::Quadruple const& inst) override;
@@ -152,213 +412,12 @@ class Code_Generator final
     void from_jmp_e_ita(ir::Quadruple const& inst) override;
 
   private:
-    std::deque<Register> available_qword_register = { Register::rdi,
-        Register::r8,
-        Register::r9,
-        Register::rsi,
-        Register::rdx,
-        Register::rcx };
-    std::deque<Register> available_dword_register = { Register::edi,
-        Register::r8d,
-        Register::r9d,
-        Register::esi,
-        Register::edx,
-        Register::ecx };
+    std::size_t iterator_index_{ 0 };
 
   private:
-    type::semantic::Size get_string_size_from_storage(Storage const& storage);
-    syscall_ns::syscall_arguments_t get_operand_storage_from_call_stack(
-        type::Stack const& stack);
-    Storage get_operand_storage_from_rvalue(RValue const& rvalue);
-    constexpr Register get_accumulator_register_from_size(
-        Operand_Size size = Operand_Size::Dword);
-    constexpr Register get_second_register_from_size(
-        Operand_Size size = Operand_Size::Dword);
-    constexpr Register get_accumulator_register_from_storage(
-        Storage const& storage);
-    Storage get_storage_for_binary_operator(RValue const& rvalue);
-
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    constexpr std::string emit_storage_device(
-        Storage const& storage,
-        Operand_Size size,
-        detail::flag::flags flag);
-    void from_ita_string(RValue const& str);
-    Instruction_Pair from_ita_expression(RValue const& expr);
-    void from_ita_unary_expression(
-        std::string const& op,
-        Storage const& dest,
-        Storage const& src = detail::O_NUL);
-    Instruction_Pair from_bitwise_expression_operands(
-        Storage_Operands const& operands,
-        std::string const& binary_op);
-    Instruction_Pair from_arithmetic_expression_operands(
-        Storage_Operands const& operands,
-        std::string const& binary_op);
-    Instruction_Pair from_relational_expression_operands(
-        Storage_Operands const& operands,
-        std::string const& binary_op);
-
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    void insert_from_unary_to_unary_assignment(
-        LValue const& lhs,
-        LValue const& rhs);
-    void insert_from_global_vector_assignment(LValue const& lhs,
-        LValue const& rhs);
-    void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
-    void insert_from_temporary_lvalue(LValue const& lvalue);
-    void insert_from_standard_library_function(std::string_view routine);
-    void insert_from_rvalue(RValue const& rvalue);
-    void insert_from_return_rvalue(
-        ir::detail::Function::Return_RValue const& ret);
-    void insert_from_op_operands(Storage_Operands& operands,
-        std::string const& op);
-    void from_binary_operator_expression(RValue const& expr);
-    void from_bitwise_operator_expression(RValue const& expr);
-    void from_temporary_unary_operator_expression(RValue const& expr);
-    void insert_from_immediate_rvalues(Immediate const& lhs,
-        std::string const& op,
-        Immediate const& rhs);
-
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    void set_stack_frame_from_table(type::semantic::Label const& name);
-
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    bool no_stdlib{ false };
-    // clang-format on
-    Storage get_storage_device(
-        detail::Operand_Size size = detail::Operand_Size::Qword);
-    inline void reset_available_registers()
-    {
-        available_qword_register = { Register::rdi,
-            Register::r8,
-            Register::r9,
-            Register::rsi,
-            Register::rdx,
-            Register::rcx };
-        available_dword_register = { Register::edi,
-            Register::esi,
-            Register::r8d,
-            Register::r9d,
-            Register::edx,
-            Register::ecx };
-    }
-
-  private:
-    using Vector_Entry_Pair =
-        std::pair<ir::detail::Vector::Address, detail::Operand_Size>;
-    Vector_Entry_Pair get_rip_offset_address(LValue const& lvalue,
-        RValue const& offset);
-    Storage get_lvalue_address(LValue const& lvalue, bool use_prefix = true);
-    type::semantic::Size get_lvalue_string_size(LValue const& lvalue);
-
-  private:
-    /**
-     * Short-form Lambda helpers for matchit predicate pattern matching
-     */
-    using Operand_Lambda = std::function<bool(RValue)>;
-    Operand_Lambda is_immediate = [&](RValue const& rvalue) {
-        return type::is_rvalue_data_type(rvalue);
-    };
-    Operand_Lambda is_address = [&](RValue const& rvalue) {
-        return stack.is_allocated(rvalue);
-    };
-    Operand_Lambda is_temporary = [&](RValue const& rvalue) {
-        return type::is_temporary(rvalue);
-    };
-    Operand_Lambda is_parameter = [&](RValue const& rvalue) {
-        return rvalue.starts_with("_p");
-    };
-    Operand_Lambda is_vector = [&](RValue const& rvalue) {
-        return table->vectors.contains(type::from_lvalue_offset(rvalue));
-    };
-    Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
-        auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table->vectors.contains(rvalue_reference) and
-               table->globals.is_pointer(rvalue_reference);
-    };
-    Operand_Lambda is_vector_offset = [&](RValue const& rvalue) {
-        return util::contains(rvalue, "[") and util::contains(rvalue, "]");
-    };
-
-  private:
-    Operand_Size get_operand_size_from_storage(Storage const& storage);
-    bool is_lvalue_storage_type(LValue const& lvalue,
-        std::string_view type_check);
-
-    /**
-     * @brief Check if the current ir instruction
-     * is a temporary lvalue assignment
-     */
-    inline bool is_ir_instruction_temporary()
-    {
-        return type::is_temporary(std::get<1>(table->instructions[ita_index]));
-    }
-    /**
-     * @brief Get the lvalue of the current ir instruction
-     */
-    inline std::string get_ir_instruction_lvalue()
-    {
-        return std::get<1>(table->instructions[ita_index]);
-    }
-    /**
-     * @brief Check if last ir instruction was Instruction::MOV
-     *
-     * Primarily used to determine if we need a second register for an
-     * expression
-     */
-    inline bool last_ir_instruction_is_assignment()
-    {
-        if (ita_index < 1)
-            return false;
-        auto last = table->instructions[ita_index - 1];
-        return std::get<0>(last) == ir::Instruction::MOV and
-               not type::is_temporary(std::get<1>(last));
-    }
-    /**
-     * @brief Check if next ir instruction is a temporary assignment
-     *
-     * Primarily used to determine if we need a second register for an
-     * expression
-     */
-    inline bool next_ir_instruction_is_temporary()
-    {
-        if (table->instructions.size() < ita_index + 1)
-            return false;
-        auto next = table->instructions[ita_index + 1];
-        return std::get<0>(next) == ir::Instruction::MOV and
-               type::is_temporary(std::get<1>(next));
-    }
-
-  private:
-    detail::Stack stack{};
-    ir::detail::Function::Stack argument_stack{};
-    ir::detail::Function::Stack call_stack{ "main" };
-    Ordered_Map<type::semantic::Label, ir::detail::Function::Return_RValue>
-        stdlib_call{};
-    std::string current_frame{};
-    std::string return_frame{};
-    std::size_t call_size{ 0 };
-    std::size_t ita_index{ 0 };
-    std::size_t constant_index{ 0 };
-
-    Register special_register{ Register::eax };
-
-  private:
-    std::deque<Immediate> immediate_stack{};
-    bool address_ir_assignment{ false };
-
-  private:
-    void set_instruction_flag(detail::flag::Instruction_Flag set_flag);
-    void set_instruction_flag(detail::flag::flags flags);
-    Ordered_Map<unsigned int, detail::flag::flags> instruction_flag{};
-    std::map<std::string, RValue> string_storage{};
-    Instructions instructions_{};
-    Directives data_{};
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame stack_frame_;
 };
-
-void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
 
 #ifdef CREDENCE_TEST
 void emit(std::ostream& os,
