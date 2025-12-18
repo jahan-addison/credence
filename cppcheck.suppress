@@ -10,6 +10,9 @@ missingIncludeSystem
 unusedStructMember
 unmatchedSuppression
 
+// matchit causes issues with cppcheck
+syntaxError
+
 // Ignore debug methods
 unusedFunction
 

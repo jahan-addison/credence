@@ -15,8 +15,8 @@
  */
 
 #include "target.h"
-#include "x86_64/lib.h"    // for library
-#include <credence/util.h> // for AST_Node
+#include "x86_64/runtime.h" // for runtime
+#include <credence/util.h>  // for AST_Node
 
 namespace credence::target {
 
@@ -27,10 +27,10 @@ void add_stdlib_functions_to_symbols(util::AST_Node& symbols, Platform platform)
 {
     switch (platform) {
         case Platform::credence_x86_64_platform:
-            x86_64::library::add_stdlib_functions_to_symbols(symbols);
+            x86_64::runtime::add_stdlib_functions_to_symbols(symbols);
             break;
         default:
-            x86_64::library::add_stdlib_functions_to_symbols(symbols);
+            x86_64::runtime::add_stdlib_functions_to_symbols(symbols);
     }
 }
 

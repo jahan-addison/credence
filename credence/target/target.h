@@ -36,55 +36,33 @@ void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
 
 /**
  * @brief
- *  Abstract pure virtual target architecture class
- *
- *  * Storage_Type_Variant should encapsulate all devices that may fit in a
- * mnemonic operand
- *  * IR is the type of the data structure of IR instructions, most likely
- * ir::Quadruple
- *
- * The pure virtual methods construct a visitor of ir::ITA instructions
+ * The pure virtual methods construct a visitor of ir::ITA::Instructions
  */
-template<typename Storage_Type_Variant, typename IR>
-class Backend
+template<typename IR, typename Instructions>
+class IR_Visitor
 {
   public:
-    Backend(Backend const&) = delete;
-    Backend& operator=(Backend const&) = delete;
-
-  protected:
-    virtual ~Backend() = default;
-    Backend(ir::Table::Table_PTR table)
-        : table(std::move(table))
-    {
-    }
+    IR_Visitor() = default;
+    IR_Visitor(IR_Visitor const&) = delete;
+    IR_Visitor& operator=(IR_Visitor const&) = delete;
 
   public:
-    virtual void emit(std::ostream& os) = 0;
+    virtual ~IR_Visitor() = default;
 
-  protected:
-    using Storage = Storage_Type_Variant;
-
-  private:
-    virtual void from_func_start_ita(type::semantic::Label const& name) = 0;
+  public:
+    virtual void from_func_start_ita(std::string const& name) = 0;
     virtual void from_func_end_ita() = 0;
     virtual void from_cmp_ita(IR const& inst) = 0;
     virtual void from_mov_ita(IR const& inst) = 0;
     virtual void from_return_ita() = 0;
     virtual void from_leave_ita() = 0;
-    virtual void from_locl_ita(IR const& inst) = 0;
     virtual void from_label_ita(IR const& inst) = 0;
-    virtual void from_push_ita(IR const& inst) = 0;
     virtual void from_call_ita(IR const& inst) = 0;
     virtual void from_if_ita(IR const& inst) = 0;
     virtual void from_jmp_e_ita(IR const& inst) = 0;
-
-    // default: do nothing, as ir::table has this data available
-    virtual void from_pop_ita() {}
-    virtual void from_globl_ita() {}
-
-  protected:
-    ir::Table::Table_PTR table;
+    virtual void from_push_ita(IR const& inst) = 0;
+    virtual void from_locl_ita(IR const& inst) = 0;
+    virtual void from_pop_ita() = 0;
 };
 
 } // namespace credence::target
