@@ -5,6 +5,7 @@ checkersReport
 normalCheckLevelMaxBranches
 
 missingIncludeSystem
+useInitializationList
 
 // Causes false positives
 unusedStructMember
