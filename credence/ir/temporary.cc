@@ -171,7 +171,6 @@ void Temporary::binary_operands_unbalanced_temporary_stack(type::Operator op)
                 instructions.emplace_back(operand_temp);
                 temporary_stack.emplace(std::get<1>(operand_temp));
             },
-        // cppcheck-suppress syntaxError
         m::pattern | 1 =
             [&] {
                 auto operand_temp = ir::make_temporary(temporary_index,

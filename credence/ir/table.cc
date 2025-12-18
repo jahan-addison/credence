@@ -53,7 +53,7 @@ void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast)
 {
-    auto [globals, instructions] = ir::make_ITA_instructions(symbols, ast);
+    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
     auto table = ir::Table{ symbols, instructions, globals };
     table.build_from_ita_instructions();
     detail::emit(os, table.instructions);
@@ -603,9 +603,12 @@ type::Data_Type Table::get_rvalue_data_type_at_pointer(LValue const& lvalue,
     auto lvalue_reference = type::get_unary_rvalue_reference(lvalue);
     if (lvalue_reference == "RET")
         return type::NULL_RVALUE_LITERAL;
-    if (locals.is_pointer(lvalue_reference))
-        return get_rvalue_data_type_at_pointer(
-            locals.get_pointer_by_name(lvalue, location));
+    if (locals.is_pointer(lvalue_reference)) {
+        auto address_at = locals.get_pointer_by_name(lvalue, location);
+        if (address_at == "NULL")
+            return type::NULL_RVALUE_LITERAL;
+        return get_rvalue_data_type_at_pointer(address_at);
+    }
     // array decay
     else if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
         auto frame = get_stack_frame();
@@ -629,7 +632,7 @@ type::Data_Type Table::get_rvalue_data_type_at_pointer(LValue const& lvalue,
 }
 
 /**
- * @brief Type check the assignment of 2 dereferenced lvalue pointers
+ * @brief Type check the assignment of dereferenced lvalue pointers
  */
 void Table::type_safe_assign_dereference(LValue const& lvalue,
     RValue const& rvalue)
@@ -647,6 +650,15 @@ void Table::type_safe_assign_dereference(LValue const& lvalue,
         throw_compiletime_error("invalid pointer dereference, "
                                 "right-hand-side is not a pointer",
             lvalue);
+
+    if (type::is_dereference_expression(rvalue)) {
+        auto symbol = get_rvalue_data_type_at_pointer(rhs_lvalue);
+        if (type::get_type_from_rvalue_data_type(symbol) == "null")
+            throw_compiletime_error("invalid pointer dereference, "
+                                    "right-hand-side is a null pointer!",
+                lvalue);
+    }
+
     if (!locals.is_pointer(lhs_lvalue) and
         not type::is_dereference_expression(rvalue))
         throw_compiletime_error("invalid pointer dereference, "
@@ -931,7 +943,6 @@ type::Data_Type Table::from_rvalue_unary_expression(LValue const& lvalue,
     auto& locals = get_stack_frame_symbols();
 
     return m::match(unary_operator)(
-        // cppcheck-suppress syntaxError
         m::pattern | "*" =
             [&] {
                 if (locals.is_pointer(lvalue))
@@ -1032,8 +1043,8 @@ void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
     if (lhs.starts_with("_p") and not rhs.starts_with("_t")) {
 #ifndef CREDENCE_TEST
         // note that null pointers are not allowed as parameters, either
-        if (!frame->is_parameter(rhs) and is_null_symbol(rhs))
-            throw_compiletime_error("unitialized lvalue as argument", rhs);
+        // if (!frame->is_parameter(rhs) and is_null_symbol(rhs))
+        //     throw_compiletime_error("unitialized lvalue as argument", rhs);
 #endif
     }
 }
@@ -1153,7 +1164,7 @@ bool Table::stack_frame_contains_ita_instruction(Label name, Instruction inst)
 Table::Table_PTR Table::build_from_ast(ITA::Node const& symbols,
     ITA::Node const& ast)
 {
-    auto [globals, instructions] = make_ITA_instructions(symbols, ast);
+    auto [globals, instructions] = make_ita_instructions(symbols, ast);
     return std::make_unique<Table>(Table{ symbols, instructions, globals });
 }
 

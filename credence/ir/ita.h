@@ -364,14 +364,14 @@ class ITA
     /**
      * @brief Instructions factory methods
      */
-    static inline Instructions make_ITA_instructions(
+    static inline Instructions make_ita_instructions(
         ITA::Node const& internal_symbols,
         ITA::Node const& node)
     {
         auto ita = ITA{ internal_symbols };
         return ita.build_from_definitions(node);
     }
-    static inline Instruction_Pair make_ITA_instructions_with_globals(
+    static inline Instruction_Pair make_ita_instructions_with_globals(
         ITA::Node const& internal_symbols,
         ITA::Node const& node)
     {
@@ -479,11 +479,11 @@ class ITA
 
 // clang-format on
 
-inline ITA::Instruction_Pair make_ITA_instructions(
+inline ITA::Instruction_Pair make_ita_instructions(
     util::AST_Node const& internals_symbols,
     util::AST_Node const& definitions)
 {
-    return ITA::make_ITA_instructions_with_globals(
+    return ITA::make_ita_instructions_with_globals(
         internals_symbols, definitions);
 }
 

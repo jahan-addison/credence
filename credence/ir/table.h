@@ -45,6 +45,8 @@ void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast);
 
+using Stack = std::deque<type::semantic::RValue>;
+
 namespace detail {
 
 /**
@@ -87,7 +89,6 @@ struct Function
     }
     using LValue = type::semantic::LValue;
     using RValue = type::semantic::RValue;
-    using Stack = type::Stack;
     using Return_RValue = std::optional<std::pair<RValue, RValue>>;
     using Address_Table =
         Symbol_Table<type::semantic::Label, type::semantic::Address>;
@@ -390,7 +391,7 @@ class Table
     ITA::Node hoisted_symbols;
     Symbol_Table<> globals{};
     detail::Function::Address_Table address_table{};
-    type::Stack stack{};
+    Stack stack{};
     Functions functions{};
     Vectors vectors{};
     type::Strings strings{};

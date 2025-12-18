@@ -112,7 +112,6 @@ Instructions ITA::build_from_function_definition(Node const& node)
         !parameters.to_deque().front().is_null()) {
         for (auto& ident : parameters.array_range()) {
             m::match(ident["node"].to_string())(
-                // cppcheck-suppress syntaxError
                 m::pattern | "lvalue" =
                     [&] {
                         parameter_lvalues.emplace_back(
