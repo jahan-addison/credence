@@ -95,7 +95,7 @@ identity(*y) {
 strings [3] "these are strings", "in an array", "for the readme";
 ```
 
-#### Linux x64:
+#### Linux x86-64:
 
 ```asm
 
@@ -125,26 +125,27 @@ strings:
 .text
     .global _start
     .extern print
+    .extern putchar
 
 _start:
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    lea rax, [rip + ._L_str2__]
-    mov qword ptr [rbp - 8], rax
+    lea rcx, [rip + ._L_str2__]
+    mov qword ptr [rbp - 8], rcx
     mov rdi, qword ptr [rbp - 8]
     call identity
     mov rdi, qword ptr [rbp - 8]
     call identity
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rsi, qword ptr [rbp - 8]
-    mov rdx, 18
+    mov rdi, qword ptr [rbp - 8]
+    mov rsi, 18
     call print
-    mov rsi, qword ptr [rip + strings]
-    mov rdx, 17
+    mov rdi, qword ptr [rip + strings]
+    mov rsi, 17
     call print
-    mov rax, 60
+    mov rax, 33554433
     mov rdi, 0
     syscall
 

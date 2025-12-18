@@ -807,14 +807,14 @@ _start:
     mov dword ptr [rbp - 4], eax
     mov rax, qword ptr [rip + mess]
     mov qword ptr [rbp - 12], rax
-    lea rsi, [rip + ._L_str2__]
-    mov rdx, 13
+    lea rdi, [rip + ._L_str2__]
+    mov rsi, 13
     call print
-    mov rsi, qword ptr [rbp - 12]
-    mov rdx, 6
+    mov rdi, qword ptr [rbp - 12]
+    mov rsi, 6
     call print
-    mov rsi, qword ptr [rip + mess+8]
-    mov rdx, 7
+    mov rdi, qword ptr [rip + mess+8]
+    mov rsi, 7
     call print
     mov rax, 1
     mov rdi, 1
@@ -857,8 +857,8 @@ _start:
     call identity
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rsi, qword ptr [rbp - 8]
-    mov rdx, 18
+    mov rdi, qword ptr [rbp - 8]
+    mov rsi, 18
     call print
     mov rax, 60
     mov rdi, 0
@@ -901,8 +901,8 @@ _start:
     mov qword ptr [rbp - 8], rax
     mov rdi, qword ptr [rbp - 8]
     call test
-    mov rsi, rax
-    mov rdx, 11
+    mov rdi, rax
+    mov rsi, 11
     call print
     mov rax, 60
     mov rdi, 0
@@ -964,11 +964,11 @@ _start:
     call identity
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rsi, qword ptr [rbp - 8]
-    mov rdx, 18
+    mov rdi, qword ptr [rbp - 8]
+    mov rsi, 18
     call print
-    mov rsi, qword ptr [rip + strings]
-    mov rdx, 17
+    mov rdi, qword ptr [rip + strings]
+    mov rsi, 17
     call print
     mov rax, 60
     mov rdi, 0
@@ -1025,8 +1025,8 @@ _start:
     mov qword ptr [rbp - 8], rcx
     mov rcx, qword ptr [rip + strings+8]
     mov qword ptr [rbp - 16], rcx
-    mov rsi, qword ptr [rbp - 16]
-    mov rdx, 3
+    mov rdi, qword ptr [rbp - 16]
+    mov rsi, 3
     call print
     mov rax, 60
     mov rdi, 0
@@ -1059,8 +1059,8 @@ _start:
     mov dword ptr [rbp - 12], 2
     lea rcx, [rip + ._L_str1__]
     mov qword ptr [rbp - 8], rcx
-    mov rsi, qword ptr [rbp - 8]
-    mov rdx, 11
+    mov rdi, qword ptr [rbp - 8]
+    mov rsi, 11
     call print
     mov rax, 60
     mov rdi, 0
@@ -1088,11 +1088,11 @@ _start:
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    mov rsi, 108
+    mov rdi, 108
     call putchar
-    mov rsi, 111
+    mov rdi, 111
     call putchar
-    mov rsi, 108
+    mov rdi, 108
     call putchar
     mov rax, 60
     mov rdi, 0

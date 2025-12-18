@@ -10,7 +10,7 @@
 
 ## stack.h
 
-#### Pushdown stack that represents the x86_64 stack and memory-safe offset resolution
+#### Pushdown stack that represents the x86_64 stack with memory-safe offset resolution
 
 ## syscall.h
 
@@ -18,9 +18,9 @@
 
 ## runtime.h
 
-#### Standard library helpers and compile-time invocation type-safe helpers
+#### Standard library helpers and compile-time type-safe invocation methods
 
 ## memory.h
 
-#### Memory accessors buffer mediators for safe access during code generation
+#### Memory accessors, mediators for memory-safe access during code generation
 

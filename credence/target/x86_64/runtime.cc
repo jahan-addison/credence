@@ -149,8 +149,6 @@ bool is_address_device_pointer_to_buffer(Address& address,
 
 /**
  * @brief Create the instructions for a standard library call
-
- *  In each case, %rdi is ommitted as it holds the first syscall number
  */
 void make_library_call(Instructions& instructions,
     std::string_view library_function,
@@ -165,7 +163,8 @@ void make_library_call(Instructions& instructions,
         assembly::Register::r8,
         assembly::Register::r10,
         assembly::Register::rdx,
-        assembly::Register::rsi };
+        assembly::Register::rsi,
+        assembly::Register::rdi };
 
     for (auto const& arg : arguments) {
         auto storage = argument_storage.back();
@@ -174,7 +173,7 @@ void make_library_call(Instructions& instructions,
             instructions.emplace_back(
                 assembly::Instruction{ assembly::Mnemonic::lea, storage, arg });
         } else {
-            if (storage == assembly::Register::rsi and
+            if (storage == assembly::Register::rdi and
                 *address_of == assembly::Register::rcx) {
                 *address_of = assembly::Register::eax;
                 instructions.emplace_back(

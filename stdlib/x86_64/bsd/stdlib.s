@@ -25,15 +25,17 @@
 ////////////////////////////////////////////////////
 // @brief print
 // Arguments are handled by credence
-// %rsi should hold the buffer address
-// mov    rsi, qword ptr [rbp - 8],
-// %rdx should hold the buffer length
-// mov    rdx, qword ptr [rbp - 12]
+// %rdi should hold the buffer address
+// mov    rdi, qword ptr [rbp - 8],
+// %rsx should hold the buffer length
+// mov    rsi, qword ptr [rbp - 12]
 print:
     push    rbp
     mov     rbp, rsp
     sub     rsp, 16
     mov     rax, 33554436
+    mov     rdx, rsi
+    mov     rsi, rdi
     mov     rdi, 1
     syscall
     add     rsp, 16
@@ -43,11 +45,11 @@ print:
 ////////////////////////////////////////////////////
 // @brief putchar
 // Arguments are handled by credence
-// %rsi should hold the character immediate
+// %rdi should hold the character immediate
 putchar:
     push    rbp
     mov     rbp, rsp
-    push    rsi
+    push    rdi
     mov     rax, 33554436
     mov     rdi, 1
     mov     rsi, rsp
@@ -63,7 +65,7 @@ putchar:
 getchar:
     push    rbp
     mov     rbp, rsp
-    push    rsi
+    push    rdi
     mov     rax, 33554436
     mov     rdi, 1
     mov     rsi, rsp
