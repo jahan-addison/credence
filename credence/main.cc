@@ -129,7 +129,6 @@ int main(int argc, const char* argv[])
             m::pattern | m::_ = [&] { return "bo"; });
 
         m::match(target)(
-            // cppcheck-suppress syntaxError
             m::pattern | "x86_64" =
                 [&]() {
                     // clang-format off

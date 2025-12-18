@@ -56,7 +56,6 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
     }
 
     m::match(node_type)(
-        // cppcheck-suppress syntaxError
         m::pattern | "constant_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "number_literal" =
