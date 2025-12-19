@@ -15,129 +15,26 @@
  */
 #pragma once
 
-#include <algorithm>         // for __find, find
-#include <array>             // for array
-#include <credence/error.h>  // for credence_assert
-#include <credence/ir/ita.h> // for ITA, Quadruple, Instructions
-#include <credence/map.h>    // for Ordered_Map
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for Data_Type, Label, Address, RValue, LValue
-#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_Node
-#include <easyjson.h>        // for JSON
-#include <fmt/format.h>      // for format
-#include <functional>        // for bind, placeholders
-#include <initializer_list>  // for initializer_list
-#include <iosfwd>            // for ostream
-#include <map>               // for map
-#include <memory>            // for shared_ptr, unique_ptr
-#include <optional>          // for optional
-#include <ranges>            // for __fn, end
-#include <source_location>   // for source_location
-#include <string>            // for basic_string, operator==, string, char_...
-#include <string_view>       // for basic_string_view, string_view
-#include <tuple>             // for get
+#include <credence/ir/ita.h>    // for Quadruple, Instructions, ITA
+#include <credence/ir/object.h> // for Object, LValue, Label, Object_PTR
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for Data_Type, Address, RValue_Reference
+#include <credence/util.h>      // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_...
+#include <easyjson.h>           // for JSON
+#include <iosfwd>               // for ostream
+#include <memory>               // for make_shared
+#include <string>               // for basic_string
+#include <utility>              // for move
 
-namespace credence {
-
-namespace ir {
+namespace credence::ir {
 
 void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast);
 
-using Stack = std::deque<type::semantic::RValue>;
-
-namespace detail {
-
-/**
- * Symbolic vector definition and allocation
- */
-struct Vector
-{
-    using Label = type::semantic::Label;
-    using Address = type::semantic::Address;
-    using Size = type::semantic::Size;
-    using Entry = std::pair<Label, type::Data_Type>;
-    using Storage = Ordered_Map<Label, type::Data_Type>;
-    using Offset = Ordered_Map<Label, Address>;
-    Vector() = delete;
-    explicit Vector(Label label, Address size_of)
-        : size(size_of)
-        , symbol(std::move(label))
-    {
-    }
-    Storage data{};
-    Offset offset{};
-    constexpr void set_address_offset(Label const& index, Address address)
-    {
-        offset.insert(index, address);
-    }
-    int decay_index{ 0 };
-    std::size_t size{ 0 };
-    Label symbol{};
-    static constexpr std::size_t max_size{ 999 };
-};
-
-/**
- * Symbolic function stack frame
- */
-struct Function
-{
-    explicit Function(type::semantic::Label const& label)
-        : symbol(label)
-    {
-    }
-    using LValue = type::semantic::LValue;
-    using RValue = type::semantic::RValue;
-    using Return_RValue = std::optional<std::pair<RValue, RValue>>;
-    using Address_Table =
-        Symbol_Table<type::semantic::Label, type::semantic::Address>;
-
-    void set_parameters_from_symbolic_label(type::semantic::Label const& label);
-
-    constexpr bool is_pointer_parameter(RValue const& parameter)
-    {
-        using namespace fmt::literals;
-        return std::ranges::find(
-                   parameters, fmt::format("*{}"_cf, parameter)) !=
-               std::ranges::end(parameters);
-    }
-    constexpr bool is_scaler_parameter(RValue const& parameter)
-    {
-        return std::ranges::find(parameters, parameter) !=
-               std::ranges::end(parameters);
-    }
-    constexpr bool is_parameter(RValue const& parameter)
-    {
-        return is_scaler_parameter(parameter) or
-               is_pointer_parameter(parameter);
-    }
-    constexpr int get_index_of_parameter(RValue const& parameter)
-    {
-        for (std::size_t i = 0; i < parameters.size(); i++) {
-            if (type::get_unary_rvalue_reference(parameters[i]) == parameter)
-                return i;
-        }
-        return -1;
-    }
-    Return_RValue ret{};
-    type::Parameters parameters{};
-    Ordered_Map<LValue, RValue> temporary{};
-    Address_Table label_address{};
-    std::array<type::semantic::Address, 2> address_location{};
-    type::semantic::Label symbol{};
-    type::Labels labels{};
-    type::Locals locals{};
-    static constexpr int max_depth = 999;
-    unsigned int allocation = 0;
-};
-
-} // namespace detail
-
 /**
  * @brief
- * Provides instruction location maps, stack frame with all local
- * definitions, type data, and value sizes as a pre-selection pass
+ * IR Instruction visitor to build the table object for type and storage data
  */
 class Table
 {
@@ -145,157 +42,39 @@ class Table
   public:
     Table() = delete;
     ~Table() = default;
+
+#ifdef CREDENCE_TEST
     explicit Table(ITA::Node const& hoisted_symbols)
-        : hoisted_symbols(hoisted_symbols)
     {
+        objects_ = std::make_shared<object::Object>(object::Object{});
+        objects_->hoisted_symbols = std::move(hoisted_symbols);
+        instructions_ = std::make_shared<ir::Instructions>();
+        objects_->ir_instructions = instructions_;
+        objects_->globals = Symbol_Table<>{};
     }
-    explicit Table(ITA::Node const& hoisted_symbols, Instructions& instructions)
-        : instructions(instructions)
-        , hoisted_symbols(hoisted_symbols)
-    {
-    }
-    explicit Table(ITA::Node const& hoisted_symbols,
+#endif
+    explicit Table(ITA::Node hoisted_symbols,
         Instructions& instructions,
         Symbol_Table<> globals)
-        : instructions(instructions)
-        , hoisted_symbols(hoisted_symbols)
-        , globals(std::move(globals))
     {
+        objects_ = std::make_shared<object::Object>(object::Object{});
+        instructions_ =
+            std::make_shared<ir::Instructions>(std::move(instructions));
+        objects_->ir_instructions = instructions_;
+        objects_->hoisted_symbols = std::move(hoisted_symbols);
+        objects_->globals = std::move(globals);
     }
 
-    using Table_PTR = std::unique_ptr<Table>;
-
-  private:
-    using LValue = type::semantic::LValue;
-    using Type = type::semantic::Type;
-    using Size = type::semantic::Size;
-    using RValue = type::semantic::RValue;
-    using Label = type::semantic::Label;
+  public:
+    object::Object_PTR& get_table_object() { return objects_; }
+    object::Instruction_PTR& get_table_instructions() { return instructions_; }
 
   public:
-    using Function_PTR = std::shared_ptr<detail::Function>;
-    using Vector_PTR = std::shared_ptr<detail::Vector>;
-
-  private:
-    using Stack_Frame = std::optional<Function_PTR>;
-    using Functions = std::map<std::string, Function_PTR>;
-    using Vectors = std::map<std::string, Vector_PTR>;
+    void build_from_ir_instructions();
 
   public:
-    Stack_Frame stack_frame;
-    Instructions build_from_ita_instructions();
-    bool stack_frame_contains_ita_instruction(Label name, Instruction inst);
-    void build_symbols_from_vector_lvalues();
+    void build_vector_definitions_from_symbols();
     void build_vector_definitions_from_globals();
-    RValue from_temporary_lvalue(LValue const& lvalue);
-    static Table_PTR build_from_ast(ITA::Node const& symbols,
-        ITA::Node const& ast);
-
-    /**
-     * @brief Get the type from a local in the stack frame
-     */
-    Type get_type_from_rvalue_data_type(LValue const& lvalue);
-    Size get_size_from_local_lvalue(LValue const& lvalue);
-
-  public:
-    inline bool is_vector(RValue const& rvalue)
-    {
-        auto label = util::contains(rvalue, "[")
-                         ? type::from_lvalue_offset(rvalue)
-                         : rvalue;
-        return vectors.contains(label);
-    }
-    inline bool is_pointer(RValue const& rvalue)
-    {
-        const auto& locals = get_stack_frame_symbols();
-        return locals.is_pointer(rvalue) or rvalue.starts_with("&") or
-               type::is_rvalue_data_type_string(rvalue);
-    }
-    inline bool is_null_symbol(LValue const& lvalue)
-    {
-        auto frame = get_stack_frame();
-        if (is_vector(lvalue))
-            return false;
-        if (is_pointer(lvalue))
-            return frame->locals.get_pointer_by_name(lvalue) == "NULL";
-        return type::get_type_from_rvalue_data_type(
-                   frame->locals.get_symbol_by_name(
-                       util::str_trim_ws(lvalue).data())) == "null";
-    }
-
-    inline bool is_vector_or_pointer(RValue const& rvalue)
-    {
-        return is_vector(rvalue) or is_pointer(rvalue) or
-               type::is_dereference_expression(rvalue);
-    }
-
-  private:
-    /** Left-hand-side and right-hand-side type equality check */
-    inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
-    {
-        return get_type_from_rvalue_data_type(lhs) ==
-               get_type_from_rvalue_data_type(rhs);
-    }
-    inline bool lhs_rhs_type_is_equal(LValue const& lhs,
-        type::Data_Type const& rvalue)
-    {
-        return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
-    }
-
-    inline bool lhs_rhs_type_is_equal(type::Data_Type const& lhs,
-        type::Data_Type const& rhs)
-    {
-        return type::get_type_from_rvalue_data_type(lhs) ==
-               type::get_type_from_rvalue_data_type(rhs);
-    }
-
-    /**
-     * @brief Check that the type of an lvalue is an integral type
-     */
-    inline void assert_integral_unary_expression(RValue const& rvalue,
-        Type const& type,
-        std::source_location const& location = std::source_location::current())
-    {
-        if (std::ranges::find(type::integral_unary_types, type) ==
-            type::integral_unary_types.end())
-            throw_compiletime_error(
-                fmt::format(
-                    "invalid numeric unary expression on lvalue, lvalue "
-                    "type "
-                    "\"{}\" is not a numeric type",
-                    type),
-                rvalue,
-                location);
-    }
-
-    /**
-     * @brief Either lhs or rhs are trivial vector assignments
-     */
-    inline bool is_trivial_vector_assignment(LValue const& lhs,
-        LValue const& rhs)
-    {
-        return ((vectors.contains(lhs) and vectors[lhs]->data.size() == 1) or
-                (vectors.contains(rhs) and vectors[rhs]->data.size() == 1));
-    }
-
-  public:
-    void set_stack_frame_return_value(RValue const& rvalue);
-    constexpr inline bool is_stack_frame() { return stack_frame.has_value(); }
-    inline std::shared_ptr<detail::Function> get_stack_frame()
-    {
-        credence_assert(is_stack_frame());
-        return stack_frame.value();
-    }
-
-    inline type::Locals& get_stack_frame_symbols()
-    {
-        return get_stack_frame()->locals;
-    }
-
-    void set_stack_frame(Label const& label);
-
-  public:
-    type::Data_Type from_integral_unary_expression(RValue const& lvalue);
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -311,11 +90,8 @@ class Table
     void from_mov_ita_instruction(Quadruple const& instruction);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::semantic::Address instruction_index{ 0 };
-
-  CREDENCE_PRIVATE_UNLESS_TESTED:
+    type::Data_Type from_integral_unary_expression(RValue const& lvalue);
     void from_temporary_reassignment(LValue const& lhs, LValue const& rhs);
-    // clang-format on
     void from_temporary_assignment(LValue const& lhs, LValue const& rhs);
     type::Data_Type from_rvalue_unary_expression(LValue const& lvalue,
         RValue const& rvalue,
@@ -324,80 +100,26 @@ class Table
     void from_pointer_or_vector_assignment(LValue const& lhs,
         LValue const& rhs,
         bool indirection = false);
-    void is_boundary_out_of_range(RValue const& rvalue);
-
-  private:
-    void type_invalid_assignment_check(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_invalid_assignment_check(LValue const& lvalue,
-        type::Data_Type const& rvalue);
-    void type_invalid_assignment_check(LValue const& lvalue,
-        Vector_PTR const& vector,
-        RValue const& index);
-    void type_invalid_assignment_check(Vector_PTR const& vector_lhs,
-        Vector_PTR const& vector_rhs,
-        RValue const& index);
-    void type_invalid_assignment_check(Vector_PTR const& vector_lhs,
-        Vector_PTR const& vector_rhs,
-        RValue const& index_lhs,
-        RValue const& index_rhs);
-
-  private:
-    void type_safe_assign_pointer(LValue const& lvalue,
-        RValue const& rvalue,
-        bool indirection = false);
-    void type_safe_assign_trivial_vector(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_safe_assign_dereference(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue);
-    void type_safe_assign_pointer_or_vector_lvalue(LValue const& lvalue,
-        type::RValue_Reference_Type const& rvalue,
-        bool indirection = false);
-
   private:
     void from_trivial_vector_assignment(LValue const& lhs,
         type::Data_Type const& rvalue);
-
-  public:
-    type::Data_Type get_rvalue_data_type_at_pointer(LValue const& lvalue,
-        std::source_location const& location = std::source_location::current());
-
   private:
-    using Type_Check_Lambda = std::function<bool(type::semantic::LValue)>;
-    bool vector_contains_(type::semantic::LValue const& lvalue)
+    void throw_object_type_error(std::string_view message,
+        std::string_view symbol,
+        std::string_view type_ = "symbol")
     {
-        return vectors.contains(lvalue);
+        throw_compiletime_error(message,
+            symbol,
+            __source__,
+            type_,
+            objects_->get_stack_frame()->symbol,
+            objects_->hoisted_symbols);
     }
-    bool local_contains_(type::semantic::LValue const& lvalue)
-    {
-        const auto& locals = get_stack_frame_symbols();
-        return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
-    }
-    Type_Check_Lambda is_vector_lvalue = [&](LValue const& lvalue) {
-        return util::contains(lvalue, "[") and util::contains(lvalue, "]");
-    };
 
-  public:
-    void throw_compiletime_error(std::string_view message,
-        type::RValue_Reference symbol,
-        std::source_location const& location = std::source_location::current(),
-        std::string_view type = "symbol");
-
-  public:
-    Instructions instructions{};
-
-  public:
-    ITA::Node hoisted_symbols;
-    Symbol_Table<> globals{};
-    detail::Function::Address_Table address_table{};
-    Stack stack{};
-    Functions functions{};
-    Vectors vectors{};
-    type::Strings strings{};
-    type::Labels labels{};
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    type::semantic::Address instruction_index{ 0 };
+    object::Instruction_PTR instructions_{};
+    object::Object_PTR objects_;
 };
-
-} // namespace ir
-
-} // namespace credence
+// clang-format on
+} // namespace credence::ir

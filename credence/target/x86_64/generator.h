@@ -16,14 +16,14 @@
 
 #pragma once
 
-#include "assembly.h"               // for Instructions, Storage, Directives
-#include "memory.h"                 // for Memory_Access, RValue, Stack_Frame
+#include "assembly.h"               // for Instructions, Operand_Size, Storage
+#include "credence/ir/object.h"     // for Function, Object
+#include "memory.h"                 // for Memory_Access, RValue, LValue
 #include "stack.h"                  // for Stack
 #include "syscall.h"                // for syscall_arguments_t
 #include <credence/ir/ita.h>        // for Quadruple, Instructions
-#include <credence/ir/table.h>      // for Function, Table
 #include <credence/target/target.h> // for IR_Visitor
-#include <credence/util.h>          // for AST_Node
+#include <credence/util.h>          // for AST_Node, CREDENCE_PRIVATE_UNLES...
 #include <cstddef>                  // for size_t
 #include <ostream>                  // for ostream
 #include <string>                   // for basic_string, string
@@ -208,10 +208,10 @@ struct Expression_Inserter
     Instruction_Pair insert_from_expression(RValue const& expr);
     void insert_from_global_vector_assignment(LValue const& lhs,
         LValue const& rhs);
-    void insert_from_temporary_lvalue(LValue const& lvalue);
+    void insert_lvalue_at_temporary_object_address(LValue const& lvalue);
     void insert_from_rvalue(RValue const& rvalue);
     void insert_from_return_rvalue(
-        ir::detail::Function::Return_RValue const& ret);
+        ir::object::Function::Return_RValue const& ret);
 
   private:
     memory::Memory_Access accessor_;
@@ -345,7 +345,7 @@ class Assembly_Emitter
     explicit Assembly_Emitter(memory::Memory_Access accessor)
         : accessor_(std::move(accessor))
     {
-        ir_instructions_ = accessor_->table_accessor.table_->instructions;
+        ir_instructions_ = *accessor_->table_accessor.table_->ir_instructions;
     }
 
   public:

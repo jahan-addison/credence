@@ -40,7 +40,6 @@ template<typename Symbol = value::Literal, typename Pointer = value::Array>
 class Symbol_Table
 {
   public:
-    Symbol_Table& operator=(Symbol_Table const&) = delete;
     Symbol_Table() = default;
     ~Symbol_Table() = default;
 

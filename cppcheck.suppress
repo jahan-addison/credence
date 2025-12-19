@@ -9,6 +9,7 @@ useInitializationList
 
 // Causes false positives
 unusedStructMember
+derefInvalidIteratorRedundantCheck
 unmatchedSuppression
 
 // matchit causes issues with cppcheck

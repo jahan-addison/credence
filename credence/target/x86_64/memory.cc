@@ -34,6 +34,8 @@
 #include <utility>             // for make_pair, pair
 #include <variant>             // for variant
 
+#include <credence/ir/object.h>
+
 #define credence_current_location std::source_location::current()
 
 namespace credence::target::x86_64::memory {
@@ -52,7 +54,7 @@ void Stack_Frame::set_stack_frame(type::semantic::Label const& name)
  * @brief Get the current stack frame from the address in the Table by name
  */
 Stack_Frame::IR_Function Stack_Frame::get_stack_frame(
-    type::semantic::Label const& name)
+    type::semantic::Label const& name) const
 {
     return accessor_->table_accessor.table_->functions.at(name);
 }
@@ -60,7 +62,7 @@ Stack_Frame::IR_Function Stack_Frame::get_stack_frame(
 /**
  * @brief Get the current stack frame from the address in the Table
  */
-Stack_Frame::IR_Function Stack_Frame::get_stack_frame()
+Stack_Frame::IR_Function Stack_Frame::get_stack_frame() const
 {
     return accessor_->table_accessor.table_->functions.at(symbol);
 }
@@ -181,8 +183,10 @@ std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
     type::semantic::Size len{ 0 };
     std::string key{};
     auto& locals = table_->get_stack_frame_symbols();
+    auto& vectors = table_->vectors;
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
+    auto frame = stack_frame.get_stack_frame();
     auto return_frame = stack_frame.tail;
     // A stack of return calls, i.e. return_value = func(func(func(x)));
     if (lvalue == "RET") {
@@ -221,9 +225,12 @@ std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
                 type::get_rvalue_datatype_from_string(
                     locals.get_pointer_by_name(lvalue)));
         }
-        if (locals.is_pointer(lvalue))
-            return type::get_size_from_rvalue_data_type(
-                table_->get_rvalue_data_type_at_pointer(lvalue));
+        if (locals.is_pointer(lvalue)) {
+            auto rvalue_address =
+                ir::object::get_rvalue_at_lvalue_object_storage(
+                    lvalue, frame, vectors, __source__);
+            return type::get_size_from_rvalue_data_type(rvalue_address);
+        }
         auto local_symbol = locals.get_symbol_by_name(lvalue);
         auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
         if (local_rvalue == "RET") {
@@ -237,16 +244,18 @@ std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
 
     if (type::is_dereference_expression(lvalue)) {
         len = type::get_size_from_rvalue_data_type(
-            table_->get_rvalue_data_type_at_pointer(
+            ir::object::get_rvalue_at_lvalue_object_storage(
                 type::get_unary_rvalue_reference(lvalue),
-                credence_current_location));
+                frame,
+                vectors,
+                __source__));
     } else if (is_global_vector(lhs)) {
         auto vector = table_->vectors.at(lhs);
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index = table_->get_rvalue_data_type_at_pointer(
-                offset, credence_current_location);
+            auto index = ir::object::get_rvalue_at_lvalue_object_storage(
+                offset, frame, vectors, __source__);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
         len = type::get_size_from_rvalue_data_type(vector->data.at(key));
@@ -255,8 +264,8 @@ std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index = table_->get_rvalue_data_type_at_pointer(
-                offset, credence_current_location);
+            auto index = ir::object::get_rvalue_at_lvalue_object_storage(
+                offset, frame, vectors, __source__);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
         len = type::get_size_from_rvalue_data_type(vector->data.at(key));
@@ -265,8 +274,8 @@ std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
             type::get_rvalue_datatype_from_string(lvalue));
     } else {
         len = type::get_size_from_rvalue_data_type(
-            table_->get_rvalue_data_type_at_pointer(
-                lvalue, credence_current_location));
+            ir::object::get_rvalue_at_lvalue_object_storage(
+                lvalue, frame, vectors, credence_current_location));
     }
     return len;
 }
@@ -274,11 +283,12 @@ std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
 /**
  * @brief Get the %rip offset of a vector index and operand size
  */
-detail::Vector_Accessor::Vector_Entry_Pair
-detail::Vector_Accessor::get_rip_offset_address(LValue const& lvalue,
+Vector_Accessor::Vector_Entry_Pair Vector_Accessor::get_rip_offset_address(
+    LValue const& lvalue,
     RValue const& offset)
 {
-    // Note: Out-of-range is a compiletime error
+    auto frame = table_->get_stack_frame();
+    auto& vectors = table_->vectors;
     auto vector = type::from_lvalue_offset(lvalue);
     if (!is_vector_offset(lvalue))
         return std::make_pair(0UL,
@@ -286,33 +296,33 @@ detail::Vector_Accessor::get_rip_offset_address(LValue const& lvalue,
                 table_->vectors.at(vector)->data.at("0")));
     if (!table_->hoisted_symbols.has_key(offset) and
         not value::is_integer_string(offset))
-        table_->throw_compiletime_error(
+        throw_compiletime_error(
             fmt::format("Invalid index '{} on vector lvalue", offset), vector);
     if (table_->hoisted_symbols.has_key(offset)) {
-        auto index = table_->get_rvalue_data_type_at_pointer(
-            offset, credence_current_location);
+        auto index = ir::object::get_rvalue_at_lvalue_object_storage(
+            offset, frame, vectors, credence_current_location);
         auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
-        if (!table_->vectors.at(vector)->data.contains(key))
-            table_->throw_compiletime_error(
+        if (!vectors.at(vector)->data.contains(key))
+            throw_compiletime_error(
                 fmt::format(
                     "Invalid out-of-range index '{}' on vector lvalue", key),
                 vector);
-        return std::make_pair(table_->vectors.at(vector)->offset.at(key),
+        return std::make_pair(vectors.at(vector)->offset.at(key),
             assembly::get_operand_size_from_rvalue_datatype(
-                table_->vectors.at(vector)->data.at(key)));
+                vectors.at(vector)->data.at(key)));
     } else if (value::is_integer_string(offset)) {
-        if (!table_->vectors.at(vector)->data.contains(offset))
-            table_->throw_compiletime_error(
+        if (!vectors.at(vector)->data.contains(offset))
+            throw_compiletime_error(
                 fmt::format(
                     "Invalid out-of-range index '{}' on vector lvalue", offset),
                 vector);
-        return std::make_pair(table_->vectors.at(vector)->offset.at(offset),
+        return std::make_pair(vectors.at(vector)->offset.at(offset),
             assembly::get_operand_size_from_rvalue_datatype(
-                table_->vectors.at(vector)->data.at(offset)));
+                vectors.at(vector)->data.at(offset)));
     } else
         return std::make_pair(0UL,
             assembly::get_operand_size_from_rvalue_datatype(
-                table_->vectors.at(vector)->data.at("0")));
+                vectors.at(vector)->data.at("0")));
 }
 
 /**
@@ -370,9 +380,11 @@ bool Address_Accessor::is_lvalue_storage_type(LValue const& lvalue,
     std::string_view type_check)
 {
     try {
+        auto frame = table_->get_stack_frame();
         return type::get_type_from_rvalue_data_type(
                    type::get_rvalue_data_type_as_string(
-                       table_->get_rvalue_data_type_at_pointer(lvalue))) ==
+                       ir::object::get_rvalue_at_lvalue_object_storage(
+                           lvalue, frame, table_->vectors, __source__))) ==
                type_check;
     } catch (...) {
         return false;

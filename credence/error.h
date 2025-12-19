@@ -54,7 +54,9 @@
     (credence::detail::assert_nequal_impl(       \
         std::source_location::current(), actual, expected))
 
-namespace credence::detail {
+namespace credence {
+
+namespace detail {
 
 class Credence_Exception : public std::exception
 {
@@ -207,4 +209,20 @@ constexpr inline void assert_nequal_impl(std::source_location const& location,
             util::to_constexpr_string(expected)));
 }
 
-} // namespace credence::detail
+} // namespace detail
+
+inline void throw_compiletime_error(std::string_view message,
+    std::string_view symbol,
+    std::source_location const& location = std::source_location::current(),
+    std::string_view type_ = "symbol",
+    std::string_view scope = "main",
+    util::AST_Node const& symbols = util::AST::object())
+{
+    detail::compile_error_impl(location,
+        fmt::format("{} in function '{}'", message, scope),
+        symbol,
+        symbols,
+        type_);
+}
+
+} // namespace credence

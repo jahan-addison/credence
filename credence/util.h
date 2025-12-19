@@ -25,6 +25,7 @@
 #include <fstream>          // for ostringstream
 #include <initializer_list> // for initializer_list
 #include <optional>         // for optional
+#include <source_location>  // for source_location
 #include <string>           // for basic_string, string, to_string
 #include <string_view>      // for basic_string_view, string_view
 #include <tuple>            // for apply, tuple
@@ -35,6 +36,8 @@
 
 #define WIDE_AND_STRINGIFY(x) L##x
 #define WIDE_STRINGIFY(x) WIDE_AND_STRINGIFY(x)
+
+#define __source__ std::source_location::current()
 
 namespace easyjson {
 class JSON;

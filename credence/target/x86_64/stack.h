@@ -207,7 +207,7 @@ class Stack
     constexpr Size get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
-        ir::detail::Vector const& vector)
+        ir::object::Vector const& vector)
     {
         bool search{ false };
         auto vector_offset = get(lvalue).first;
@@ -215,7 +215,7 @@ class Stack
             vector.data.end(),
             vector_offset,
             [&](type::semantic::Size offset,
-                ir::detail::Vector::Entry const& entry) {
+                ir::object::Vector::Entry const& entry) {
                 if (entry.first == key)
                     search = true;
                 if (!search)
@@ -232,7 +232,7 @@ class Stack
      * Memory align to multiples of 16 bytes per the ABI
      */
     constexpr Size get_stack_size_from_table_vector(
-        ir::detail::Vector const& vector)
+        ir::object::Vector const& vector)
     {
         // clang-format off
     auto vector_size = size + std::accumulate(
@@ -240,7 +240,7 @@ class Stack
             vector.data.end(),
             0UL,
     [&](type::semantic::Size offset,
-        ir::detail::Vector::Entry const& entry) {
+        ir::object::Vector::Entry const& entry) {
         return offset +
             assembly::get_size_from_operand_size(
                 assembly::get_operand_size_from_rvalue_datatype(

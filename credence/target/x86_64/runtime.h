@@ -80,9 +80,8 @@ void add_syscall_functions_to_symbols(util::AST_Node& symbols);
 } // namespace detail
 
 bool is_address_device_pointer_to_buffer(Address& address,
-    std::shared_ptr<ir::Table>& table,
-    std::shared_ptr<assembly::Stack>& stack,
-    std::source_location const& location = std::source_location::current());
+    ir::object::Object_PTR& table,
+    std::shared_ptr<assembly::Stack>& stack);
 
 void make_library_call(Instructions& instructions,
     std::string_view libary_function,

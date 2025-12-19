@@ -75,7 +75,7 @@ See the branch state machine object for details [here](https://github.com/jahan-
 
 ## Table
 
-The `Table` serves as a pre-selection pass that constructs tables for functions, labels, and stack frames along with their corresponding local allocations. During this stage, it also performs vector management, out-of-range boundary checks, and type validation. The resulting data structures provide a foundation for generating type- and data-size-safe platform-specific machine code.
+The `Table` constructs a set of data structures in a [table object](/credence/ir/object.h) with allocations of functions, labels, vectors, and stack frames from the IR. During this stage, it also performs type checking, vector memory management, and out-of-range boundary checks via the [type checker](/credence/ir/types.h). The result provides a base for generating type- and size-safe platform-specific machine code.
 
 
 ## Example:

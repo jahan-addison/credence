@@ -1,20 +1,27 @@
-#include <doctest/doctest.h>
+#include <doctest/doctest.h> // for ResultBuilder, REQUIRE, TestCase
 
-#include <filesystem>
-
-#include <credence/ir/ita.h>   // for make_ita_instructions, ITA
-#include <credence/ir/table.h> // for Table
-#include <credence/symbol.h>   // for Symbol_Table
-#include <credence/types.h>    // for LValue, RValue, Data_Type, ...
-#include <credence/util.h>     // for AST_Node, AST
-#include <easyjson.h>          // for JSON, object
-#include <format>              // for format
-#include <memory>              // for allocator, shared_ptr
-#include <ostream>             // for basic_ostream
-#include <sstream>             // for basic_ostringstream, ostringstream
-#include <string>              // for basic_string, char_traits, string
-#include <string_view>         // for basic_string_view
-#include <tuple>               // for get
+#include <array>                // for array
+#include <credence/ir/ita.h>    // for Instruction, Quadruple, emit_to, emit
+#include <credence/ir/object.h> // for Object, Function, Vector
+#include <credence/ir/table.h>  // for Table, emit
+#include <credence/ir/types.h>  // for Type_Checker
+#include <credence/map.h>       // for Ordered_Map
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for is_unary_expression, get_unary_operator
+#include <credence/util.h>      // for AST_Node, STRINGIFY, AST
+#include <cstddef>              // for size_t
+#include <deque>                // for deque
+#include <easyjson.h>           // for JSON, object
+#include <filesystem>           // for path
+#include <format>               // for format
+#include <initializer_list>     // for initializer_list
+#include <map>                  // for map
+#include <memory>               // for allocator, shared_ptr, make_shared
+#include <sstream>              // for basic_ostringstream, ostringstream
+#include <string>               // for basic_string, char_traits, string
+#include <string_view>          // for basic_string_view
+#include <tuple>                // for get, tuple
+#include <utility>              // for get
 
 namespace fs = std::filesystem;
 
@@ -82,7 +89,7 @@ struct Table_Fixture
         auto [globals, instructions] = make_ita_instructions(symbols, node);
         auto table = Table{ symbols, instructions, globals };
         table.build_vector_definitions_from_globals();
-        table.build_from_ita_instructions();
+        table.build_from_ir_instructions();
         return table;
     }
     static inline credence::ir::Table make_table_with_frame(Node const& symbols)
@@ -95,7 +102,7 @@ struct Table_Fixture
     };
 };
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
+TEST_CASE_FIXTURE(Table_Fixture, "Type Checking")
 {
     // clang-format off
     // Type checking test cases from test/fixtures/types
@@ -137,7 +144,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Type Checking")
     }
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Integration")
+TEST_CASE_FIXTURE(Table_Fixture, "Integration")
 {
     auto symbols = LOAD_JSON_FROM_STRING(
         "{\"s\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 35, "
@@ -1054,23 +1061,25 @@ _L1:
 
 )ita";
     std::ostringstream out_to{};
-    auto table = make_table_with_global_symbols(switch_main_function, symbols);
-    auto instructions = table.instructions;
+    auto table_pointer =
+        make_table_with_global_symbols(switch_main_function, symbols);
+    auto table = table_pointer.get_table_object();
+    auto instructions = *table_pointer.get_table_instructions();
     credence::ir::detail::emit(out_to, instructions);
     REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(table.functions.at("main")->address_location[0] == 2);
-    REQUIRE(table.functions.at("main")->address_location[1] == 76);
-    REQUIRE(table.functions.at("main")->allocation == 32);
-    REQUIRE(table.functions.size() == 4);
-    REQUIRE(table.functions.at("main")->labels.size() == 19);
-    REQUIRE(table.functions.at("main")->locals.size() == 10);
+    REQUIRE(table->functions.at("main")->address_location[0] == 2);
+    REQUIRE(table->functions.at("main")->address_location[1] == 76);
+    REQUIRE(table->functions.at("main")->allocation == 32);
+    REQUIRE(table->functions.size() == 4);
+    REQUIRE(table->functions.at("main")->labels.size() == 19);
+    REQUIRE(table->functions.at("main")->locals.size() == 10);
     out_to.str("");
     credence::ir::detail::emit_to(
-        out_to, instructions[table.functions.at("main")->address_location[0]]);
+        out_to, instructions[table->functions.at("main")->address_location[0]]);
     REQUIRE(out_to.str() == "LOCL m;\n");
     out_to.str("");
     credence::ir::detail::emit_to(
-        out_to, instructions[table.functions.at("main")->address_location[1]]);
+        out_to, instructions[table->functions.at("main")->address_location[1]]);
     REQUIRE(out_to.str() == "GOTO _L25;\n");
     out_to.str("");
     credence::ir::emit(out_to, VECTOR_SYMBOLS, vector_2);
@@ -1080,35 +1089,35 @@ _L1:
     REQUIRE(out_to.str() == expected_bitwise_constant);
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_globl_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_globl_ita_instruction")
 {
-    auto table = make_table_with_frame(VECTOR_SYMBOLS);
-    table.vectors["mess"] = std::make_shared<credence::ir::detail::Vector>(
-        credence::ir::detail::Vector{ "mess", 10 });
-    REQUIRE_THROWS(table.from_globl_ita_instruction("snide"));
-    REQUIRE_NOTHROW(table.from_globl_ita_instruction("mess"));
+    auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
+    auto table = table_pointer.get_table_object();
+
+    table->vectors["mess"] = std::make_shared<credence::ir::object::Vector>(
+        credence::ir::object::Vector{ "mess", 10 });
+    REQUIRE_THROWS(table_pointer.from_globl_ita_instruction("snide"));
+    REQUIRE_NOTHROW(table_pointer.from_globl_ita_instruction("mess"));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_locl_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_locl_ita_instruction")
 {
-    auto table = make_table_with_frame(VECTOR_SYMBOLS);
-    auto& locals = table.get_stack_frame_symbols();
+    auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
+    auto table = table_pointer.get_table_object();
+    auto& locals = table->get_stack_frame_symbols();
     auto test1 = credence::ir::Quadruple{
         credence::ir::Instruction::LOCL, "snide", "", ""
     };
     auto test2 = credence::ir::Quadruple{
         credence::ir::Instruction::LOCL, "*ptr", "", ""
     };
-    REQUIRE_NOTHROW(table.from_locl_ita_instruction(test1));
-    REQUIRE_NOTHROW(table.from_locl_ita_instruction(test2));
+    REQUIRE_NOTHROW(table_pointer.from_locl_ita_instruction(test1));
+    REQUIRE_NOTHROW(table_pointer.from_locl_ita_instruction(test2));
     REQUIRE(locals.table_.contains("snide"));
     REQUIRE(locals.addr_.contains("ptr"));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::build_vector_definitions_from_globals")
+TEST_CASE_FIXTURE(Table_Fixture, "build_vector_definitions_from_globals")
 {
     auto ast = LOAD_JSON_FROM_STRING(
         "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
@@ -1291,50 +1300,52 @@ TEST_CASE_FIXTURE(Table_Fixture,
         "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  "
         "\"root\" : "
         "\"definitions\"\n}\n");
-    auto table = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
-    auto& locals = table.functions["main"]->locals;
+    auto table_pointer = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
+    auto table = table_pointer.get_table_object();
+    auto& locals = table->functions["main"]->locals;
     locals.set_symbol_by_name("mess", credence::type::NULL_RVALUE_LITERAL);
     locals.set_symbol_by_name("putchar", credence::type::NULL_RVALUE_LITERAL);
     locals.set_symbol_by_name("unit", credence::type::NULL_RVALUE_LITERAL);
-    REQUIRE(table.vectors.size() == 4);
-    REQUIRE(table.vectors["mess"]->data.size() == 6);
-    REQUIRE(table.vectors["putchar"]->data.size() == 1);
-    REQUIRE(std::get<0>(table.vectors["putchar"]->data["0"]) == "puts");
-    REQUIRE(std::get<0>(table.vectors["unit"]->data["0"]) == "10");
-    REQUIRE(std::get<1>(table.vectors["unit"]->data["0"]) == "int");
-    REQUIRE(std::get<0>(table.vectors["mess"]->data["0"]) == "too bad");
-    REQUIRE(std::get<0>(table.vectors["mess"]->data["1"]) == "tough luck");
+    REQUIRE(table->vectors.size() == 4);
+    REQUIRE(table->vectors["mess"]->data.size() == 6);
+    REQUIRE(table->vectors["putchar"]->data.size() == 1);
+    REQUIRE(std::get<0>(table->vectors["putchar"]->data["0"]) == "puts");
+    REQUIRE(std::get<0>(table->vectors["unit"]->data["0"]) == "10");
+    REQUIRE(std::get<1>(table->vectors["unit"]->data["0"]) == "int");
+    REQUIRE(std::get<0>(table->vectors["mess"]->data["0"]) == "too bad");
+    REQUIRE(std::get<0>(table->vectors["mess"]->data["1"]) == "tough luck");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_call_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_call_ita_instruction")
 {
-    auto table = make_table_with_frame(VECTOR_SYMBOLS);
-    REQUIRE_NOTHROW(table.from_call_ita_instruction("snide"));
-    REQUIRE_THROWS(table.from_call_ita_instruction("invalid"));
-    table.labels.emplace("invalid");
-    REQUIRE_NOTHROW(table.from_call_ita_instruction("invalid"));
+    auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
+    auto table = table_pointer.get_table_object();
+    REQUIRE_NOTHROW(table_pointer.from_call_ita_instruction("snide"));
+    REQUIRE_THROWS(table_pointer.from_call_ita_instruction("invalid"));
+    table->labels.emplace("invalid");
+    REQUIRE_NOTHROW(table_pointer.from_call_ita_instruction("invalid"));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_label_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_label_ita_instruction")
 {
-    auto table = make_table_with_frame(make_node());
-    auto frame = table.get_stack_frame();
-    table.instruction_index = 5;
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    table_pointer.instruction_index = 5;
     auto test1 = credence::ir::Quadruple{
         credence::ir::Instruction::LABEL, "_L1", "", ""
     };
-    REQUIRE_NOTHROW(table.from_label_ita_instruction(test1));
-    REQUIRE_THROWS(table.from_label_ita_instruction(test1));
+    REQUIRE_NOTHROW(table_pointer.from_label_ita_instruction(test1));
+    REQUIRE_THROWS(table_pointer.from_label_ita_instruction(test1));
     REQUIRE(frame->labels.contains("_L1"));
     REQUIRE(frame->label_address.addr_["_L1"] == 5UL);
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_mov_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_mov_ita_instruction")
 {
-    auto table = make_table_with_frame(VECTOR_SYMBOLS);
-    auto frame = table.get_stack_frame();
+    auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
     auto test1 = credence::ir::Quadruple{
         credence::ir::Instruction::MOV, "_t1", "(5:int:4)", ""
     };
@@ -1353,100 +1364,105 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_mov_ita_instruction")
         "--",
         "x",
     };
-    REQUIRE_NOTHROW(table.from_mov_ita_instruction(test1));
-    REQUIRE_NOTHROW(table.from_mov_ita_instruction(test2));
-    REQUIRE_THROWS(table.from_mov_ita_instruction(test3));
-    REQUIRE_THROWS(table.from_mov_ita_instruction(test5));
-    table.functions["main"]->locals.addr_["mess"] = "NULL";
-    REQUIRE_THROWS(table.from_mov_ita_instruction(test4));
-    table.functions["main"]->locals.table_["y"] = { "100", "int", 4UL };
-    REQUIRE_THROWS(table.from_mov_ita_instruction(test4));
-    REQUIRE_THROWS(table.from_mov_ita_instruction(test5));
-    table.functions["main"]->locals.table_["z"] = { "100", "int", 4UL };
-    REQUIRE_NOTHROW(table.from_mov_ita_instruction(test5));
+    REQUIRE_NOTHROW(table_pointer.from_mov_ita_instruction(test1));
+    REQUIRE_NOTHROW(table_pointer.from_mov_ita_instruction(test2));
+    REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test3));
+    REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test5));
+    table->functions["main"]->locals.addr_["mess"] = "NULL";
+    REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test4));
+    table->functions["main"]->locals.table_["y"] = { "100", "int", 4UL };
+    REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test4));
+    REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test5));
+    table->functions["main"]->locals.table_["z"] = { "100", "int", 4UL };
+    REQUIRE_NOTHROW(table_pointer.from_mov_ita_instruction(test5));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: vector and pointer-decay boundary checks")
+TEST_CASE_FIXTURE(Table_Fixture, "vector and pointer-decay boundary checks")
 {
-    auto table = make_table_with_frame(VECTOR_SYMBOLS);
+    auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    auto type_checker = credence::ir::Type_Checker{ table, frame };
     std::string test1 = "fail[10]";
     std::string test2 = "mess[1000000]";
     std::string test3 = "mess[z]";
     std::string test4 = "mess[2]";
     std::string test5 = "mess[10]";
     std::string test7 = "z";
-    REQUIRE_THROWS(table.is_boundary_out_of_range(test1));
-    REQUIRE_THROWS(table.is_boundary_out_of_range(test2));
-    REQUIRE_THROWS(table.is_boundary_out_of_range(test3));
+    REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test1));
+    REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test2));
+    REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test3));
     auto size = static_cast<std::size_t>(3);
-    table.vectors["mess"] = std::make_shared<credence::ir::detail::Vector>(
-        credence::ir::detail::Vector{ "mess", size });
-    table.functions["main"]->locals.table_["mess"] =
+    table->vectors["mess"] = std::make_shared<credence::ir::object::Vector>(
+        credence::ir::object::Vector{ "mess", size });
+    table->functions["main"]->locals.table_["mess"] =
         credence::type::NULL_RVALUE_LITERAL;
-    table.vectors["mess"]->data["0"] = credence::type::NULL_RVALUE_LITERAL;
-    table.vectors["mess"]->data["1"] = credence::type::NULL_RVALUE_LITERAL;
-    table.vectors["mess"]->data["2"] = credence::type::NULL_RVALUE_LITERAL;
-    REQUIRE_THROWS(table.is_boundary_out_of_range(test3));
-    table.functions["main"]->locals.table_["z"] = { "5", "int", 4UL };
-    REQUIRE_NOTHROW(table.is_boundary_out_of_range(test3));
-    REQUIRE_NOTHROW(table.is_boundary_out_of_range(test4));
-    REQUIRE_THROWS(table.is_boundary_out_of_range(test5));
+    table->vectors["mess"]->data["0"] = credence::type::NULL_RVALUE_LITERAL;
+    table->vectors["mess"]->data["1"] = credence::type::NULL_RVALUE_LITERAL;
+    table->vectors["mess"]->data["2"] = credence::type::NULL_RVALUE_LITERAL;
+    REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test3));
+    table->functions["main"]->locals.table_["z"] = { "5", "int", 4UL };
+    REQUIRE_NOTHROW(type_checker.is_boundary_out_of_range(test3));
+    REQUIRE_NOTHROW(type_checker.is_boundary_out_of_range(test4));
+    REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test5));
 
-    REQUIRE_THROWS(table.from_pointer_or_vector_assignment(test7, test4));
-    table.vectors["mess"]->data["2"] = { "5", "int", 4UL };
-    REQUIRE_NOTHROW(table.from_pointer_or_vector_assignment(test7, test4));
+    REQUIRE_THROWS(
+        table_pointer.from_pointer_or_vector_assignment(test7, test4));
+    table->vectors["mess"]->data["2"] = { "5", "int", 4UL };
+    REQUIRE_NOTHROW(
+        table_pointer.from_pointer_or_vector_assignment(test7, test4));
 
-    REQUIRE_THROWS(table.from_pointer_or_vector_assignment(test2, test7));
+    REQUIRE_THROWS(
+        table_pointer.from_pointer_or_vector_assignment(test2, test7));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_decay_offset")
+TEST_CASE_FIXTURE(Table_Fixture, "from_decay_offset")
 {
     auto table = make_table(make_node());
     REQUIRE(credence::type::from_decay_offset("sidno[errno]") == "errno");
     REQUIRE(credence::type::from_decay_offset("y[39]") == "39");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_lvalue_offset")
+TEST_CASE_FIXTURE(Table_Fixture, "from_lvalue_offset")
 {
     auto table = make_table(make_node());
     REQUIRE(credence::type::from_lvalue_offset("sidno[errno]") == "sidno");
     REQUIRE(credence::type::from_lvalue_offset("y[39]") == "y");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_func_start_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_func_start_ita_instruction")
 {
-    auto table = make_table_with_frame(make_node());
-    auto frame = table.get_stack_frame();
-    REQUIRE_THROWS(table.from_func_start_ita_instruction("__main()"));
-    table.instruction_index = 10;
-    table.from_func_start_ita_instruction("__convert(x,y,z)");
-    REQUIRE(table.get_stack_frame() == table.functions["convert"]);
-    REQUIRE(table.get_stack_frame()->parameters.size() == 3);
-    REQUIRE(table.get_stack_frame()->address_location[0] == 11);
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    REQUIRE_THROWS(table_pointer.from_func_start_ita_instruction("__main()"));
+    table_pointer.instruction_index = 10;
+    table_pointer.from_func_start_ita_instruction("__convert(x,y,z)");
+    REQUIRE(table->get_stack_frame() == table->functions["convert"]);
+    REQUIRE(table->get_stack_frame()->parameters.size() == 3);
+    REQUIRE(table->get_stack_frame()->address_location[0] == 11);
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_func_end_ita_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_func_end_ita_instruction")
 {
-    auto table = make_table_with_frame(make_node());
-    auto frame = table.get_stack_frame();
-    auto& locals = table.get_stack_frame_symbols();
-    table.instruction_index = 10;
-    table.functions["main"]->locals.table_["x"] = { "10", "int", 4UL };
-    table.instruction_index = 10;
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    auto& locals = table->get_stack_frame_symbols();
+    table_pointer.instruction_index = 10;
+    table->functions["main"]->locals.table_["x"] = { "10", "int", 4UL };
+    table_pointer.instruction_index = 10;
     frame->parameters.emplace_back("x");
-    table.from_func_end_ita_instruction();
-    REQUIRE(table.functions["main"]->address_location[1] == 9);
+    table_pointer.from_func_end_ita_instruction();
+    REQUIRE(table->functions["main"]->address_location[1] == 9);
     REQUIRE(locals.table_.contains("x"));
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::set_parameters_from_symbolic_label")
+TEST_CASE_FIXTURE(Table_Fixture, "set_parameters_from_symbolic_label")
 {
-    auto table = make_table_with_frame(make_node());
-    auto frame = table.get_stack_frame();
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
     frame->set_parameters_from_symbolic_label("__main(x,y,z,j)");
     REQUIRE(frame->parameters.size() == 4);
     REQUIRE(frame->parameters[0] == "x");
@@ -1455,44 +1471,51 @@ TEST_CASE_FIXTURE(Table_Fixture,
     REQUIRE(frame->parameters[3] == "j");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_push_instruction")
+TEST_CASE_FIXTURE(Table_Fixture, "from_push_instruction")
 {
-    auto table = make_table_with_frame(make_node());
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
     auto push_instruction = credence::ir::Quadruple{
         credence::ir::Instruction::PUSH, "_p1", "", ""
     };
     auto push_instruction2 = credence::ir::Quadruple{
         credence::ir::Instruction::PUSH, "_p2", "", ""
     };
-    table.functions.at("main")->temporary["_p1"] = "_p1";
-    table.functions.at("main")->temporary["_p2"] = "_p2";
-    table.from_push_instruction(push_instruction);
-    REQUIRE(table.stack.size() == 1);
-    REQUIRE(table.stack.back() == "_p1");
-    table.from_push_instruction(push_instruction2);
-    REQUIRE(table.stack.size() == 2);
-    REQUIRE(table.stack.back() == "_p2");
+    table->functions.at("main")->temporary["_p1"] = "_p1";
+    table->functions.at("main")->temporary["_p2"] = "_p2";
+    table_pointer.from_push_instruction(push_instruction);
+    REQUIRE(table->stack.size() == 1);
+    REQUIRE(table->stack.back() == "_p1");
+    table_pointer.from_push_instruction(push_instruction2);
+    REQUIRE(table->stack.size() == 2);
+    REQUIRE(table->stack.back() == "_p2");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_rvalue_unary_expression")
+TEST_CASE_FIXTURE(Table_Fixture, "from_rvalue_unary_expression")
 {
     using std::get;
-    auto table = make_table_with_frame(make_node());
-    table.functions["main"]->locals.table_["a"] = { "5", "int", 4UL };
-    table.functions["main"]->locals.addr_["b"] = "a";
-    table.functions["main"]->locals.table_["c"] = { "5", "int", 4UL };
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    table->functions["main"]->locals.table_["a"] = { "5", "int", 4UL };
+    table->functions["main"]->locals.addr_["b"] = "a";
+    table->functions["main"]->locals.table_["c"] = { "5", "int", 4UL };
     std::string test_rvalue = "~ 5";
     std::string test_pointer = "b";
     std::string test_pointer2 = "a";
     std::string test_pointer3 = "*b";
-    REQUIRE_NOTHROW(table.from_rvalue_unary_expression("c", test_rvalue, "~"));
-    auto test = table.from_rvalue_unary_expression("--a", test_rvalue, "--");
-    auto test2 = table.from_rvalue_unary_expression("a++", test_rvalue, "++");
-    auto test3 = table.from_rvalue_unary_expression("+a", test_rvalue, "+");
-    auto test4 = table.from_rvalue_unary_expression("b", test_pointer2, "&");
-    auto test5 =
-        table.from_rvalue_unary_expression("a", test_pointer3, test_pointer3);
+    REQUIRE_NOTHROW(
+        table_pointer.from_rvalue_unary_expression("c", test_rvalue, "~"));
+    auto test =
+        table_pointer.from_rvalue_unary_expression("--a", test_rvalue, "--");
+    auto test2 =
+        table_pointer.from_rvalue_unary_expression("a++", test_rvalue, "++");
+    auto test3 =
+        table_pointer.from_rvalue_unary_expression("+a", test_rvalue, "+");
+    auto test4 =
+        table_pointer.from_rvalue_unary_expression("b", test_pointer2, "&");
+    auto test5 = table_pointer.from_rvalue_unary_expression(
+        "a", test_pointer3, test_pointer3);
     REQUIRE(get<0>(test) == "5");
     REQUIRE(get<0>(test2) == "5");
     REQUIRE(get<0>(test3) == "5");
@@ -1500,8 +1523,7 @@ TEST_CASE_FIXTURE(Table_Fixture,
     REQUIRE(get<0>(test5) == "5");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_rvalue_binary_expression")
+TEST_CASE_FIXTURE(Table_Fixture, "from_rvalue_binary_expression")
 {
     auto table = make_table_with_frame(make_node());
     auto test1 = credence::type::from_rvalue_binary_expression("5 || 10");
@@ -1512,33 +1534,37 @@ TEST_CASE_FIXTURE(Table_Fixture,
     REQUIRE(test3 == credence::type::Binary_Expression{ "~_t1", "*_t2", "+" });
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::from_temporary_lvalue")
+TEST_CASE_FIXTURE(Table_Fixture, "lvalue_at_temporary_object_address")
 {
-    auto table = make_table_with_frame(make_node());
-    table.get_stack_frame()->temporary["_t1"] = "100";
-    table.get_stack_frame()->temporary["_t2"] = "5";
-    table.get_stack_frame()->temporary["_t3"] = "_t2";
-    table.get_stack_frame()->temporary["_t4"] = "_t3";
-    table.get_stack_frame()->temporary["_t5"] = "10";
-    table.get_stack_frame()->temporary["_t6"] = "_t4 || _t5";
-
-    REQUIRE(table.from_temporary_lvalue("_t1") == "100");
-    REQUIRE(table.from_temporary_lvalue("_t4") == "5");
-    REQUIRE(table.from_temporary_lvalue("_t6") == "_t4 || _t5");
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    table->get_stack_frame()->temporary["_t1"] = "100";
+    table->get_stack_frame()->temporary["_t2"] = "5";
+    table->get_stack_frame()->temporary["_t3"] = "_t2";
+    table->get_stack_frame()->temporary["_t4"] = "_t3";
+    table->get_stack_frame()->temporary["_t5"] = "10";
+    table->get_stack_frame()->temporary["_t6"] = "_t4 || _t5";
+    REQUIRE(table->lvalue_at_temporary_object_address("_t1", frame) == "100");
+    REQUIRE(table->lvalue_at_temporary_object_address("_t4", frame) == "5");
+    REQUIRE(table->lvalue_at_temporary_object_address("_t6", frame) ==
+            "_t4 || _t5");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_temporary_reassignment")
+TEST_CASE_FIXTURE(Table_Fixture, "from_temporary_reassignment")
 {
-    auto table = make_table_with_frame(make_node());
-    REQUIRE_NOTHROW(table.from_temporary_reassignment("_t1", "~ _t2"));
-    table.get_stack_frame()->temporary["_t1"] = "100";
-    table.get_stack_frame()->temporary["_t2"] = "5";
-    table.from_temporary_reassignment("_t1", "50");
-    table.from_temporary_reassignment("_t2", "~ _t1");
-    table.from_temporary_reassignment("_t3", "_t1");
-    table.from_temporary_reassignment("_t4", "_t1 || _t2");
-    auto& locals = table.functions["main"]->locals;
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto frame = table->get_stack_frame();
+    auto& locals = table->get_stack_frame_symbols();
+    REQUIRE_NOTHROW(table_pointer.from_temporary_reassignment("_t1", "~ _t2"));
+    table->get_stack_frame()->temporary["_t1"] = "100";
+    table->get_stack_frame()->temporary["_t2"] = "5";
+    table_pointer.from_temporary_reassignment("_t1", "50");
+    table_pointer.from_temporary_reassignment("_t2", "~ _t1");
+    table_pointer.from_temporary_reassignment("_t3", "_t1");
+    table_pointer.from_temporary_reassignment("_t4", "_t1 || _t2");
+    locals = table->functions["main"]->locals;
     auto test = locals.get_symbol_by_name("_t1");
     auto test2 = locals.get_symbol_by_name("_t2");
     auto test3 = locals.get_symbol_by_name("_t4");
@@ -1547,24 +1573,24 @@ TEST_CASE_FIXTURE(Table_Fixture,
     REQUIRE(std::get<0>(test3) == "_t1 || _t2");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_scaler_symbol_assignment")
+TEST_CASE_FIXTURE(Table_Fixture, "from_scaler_symbol_assignment")
 {
-    auto table = make_table_with_frame(make_node());
-    auto& locals = table.get_stack_frame_symbols();
-    REQUIRE_THROWS(table.from_scaler_symbol_assignment("a", "b"));
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto& locals = table->get_stack_frame_symbols();
+    REQUIRE_THROWS(table_pointer.from_scaler_symbol_assignment("a", "b"));
     locals.table_["a"] = { "5", "int", 4UL };
-    REQUIRE_THROWS(table.from_scaler_symbol_assignment("a", "c"));
+    REQUIRE_THROWS(table_pointer.from_scaler_symbol_assignment("a", "c"));
     locals.table_["c"] = { "5", "int", 4UL };
-    table.from_scaler_symbol_assignment("a", "c");
+    table_pointer.from_scaler_symbol_assignment("a", "c");
     REQUIRE(std::get<0>(locals.table_["a"]) == "5");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::from_integral_unary_expression")
+TEST_CASE_FIXTURE(Table_Fixture, "from_integral_unary_expression")
 {
-    auto table = make_table_with_frame(make_node());
-    auto& locals = table.get_stack_frame_symbols();
+    auto table_pointer = make_table_with_frame(make_node());
+    auto table = table_pointer.get_table_object();
+    auto& locals = table->get_stack_frame_symbols();
     credence::type::Data_Type expected1 = { "5", "int", 4UL };
     credence::type::Data_Type expected2 = { "5", "long", 8UL };
     credence::type::Data_Type expected3 = { "5", "double", 8UL };
@@ -1572,16 +1598,16 @@ TEST_CASE_FIXTURE(Table_Fixture,
     locals.set_symbol_by_name("b", expected2);
     locals.set_symbol_by_name("c", expected3);
     locals.set_symbol_by_name("x", { "hello world", "string", 15UL });
-    auto test = table.from_integral_unary_expression("a");
-    auto test2 = table.from_integral_unary_expression("b");
-    auto test3 = table.from_integral_unary_expression("c");
-    CHECK_THROWS(table.from_integral_unary_expression("x"));
+    auto test = table_pointer.from_integral_unary_expression("a");
+    auto test2 = table_pointer.from_integral_unary_expression("b");
+    auto test3 = table_pointer.from_integral_unary_expression("c");
+    CHECK_THROWS(table_pointer.from_integral_unary_expression("x"));
     REQUIRE(test == expected1);
     REQUIRE(test2 == expected2);
     REQUIRE(test3 == expected3);
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
+TEST_CASE_FIXTURE(Table_Fixture, "is_unary")
 {
     auto table = make_table(make_node());
     auto test1 = credence::type::is_unary_expression("*k");
@@ -1607,7 +1633,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::is_unary")
     REQUIRE(test10 == false);
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::get_unary")
+TEST_CASE_FIXTURE(Table_Fixture, "get_unary")
 {
     auto table = make_table(make_node());
     auto test1 = credence::type::get_unary_operator("*k");
@@ -1627,8 +1653,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "ir/table.cc: Table::get_unary")
     REQUIRE(test7 == "--");
 }
 
-TEST_CASE_FIXTURE(Table_Fixture,
-    "ir/table.cc: Table::get_unary_rvalue_reference")
+TEST_CASE_FIXTURE(Table_Fixture, "get_unary_rvalue_reference")
 {
     auto table = make_table(make_node());
     auto test1 = credence::type::get_unary_rvalue_reference("*k");
@@ -1646,7 +1671,7 @@ TEST_CASE_FIXTURE(Table_Fixture,
     REQUIRE(test6 == "u");
 }
 
-TEST_CASE("ir/table.cc: Table::get_rvalue_datatype_from_string")
+TEST_CASE("get_rvalue_datatype_from_string")
 {
     auto [test1_1, test1_2, test1_3] =
         credence::type::get_rvalue_datatype_from_string("(10:int:4)");

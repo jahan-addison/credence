@@ -16,33 +16,35 @@
 
 #include "generator.h"
 
-#include "assembly.h"          // for Instructions, inserter, add_asm...
-#include "credence/symbol.h"   // for Symbol_Table
-#include "memory.h"            // for Memory_Accessor, Instruction_Flag
-#include "runtime.h"           // for is_stdlib_function, get_library...
-#include "stack.h"             // for Stack
-#include "syscall.h"           // for syscall_arguments_t, exit_syscall
-#include <credence/error.h>    // for credence_assert, assert_nequal_...
-#include <credence/ir/ita.h>   // for Instruction, Quadruple, Instruc...
-#include <credence/ir/table.h> // for Table, Function, Vector
-#include <credence/types.h>    // for get_rvalue_datatype_from_string
-#include <credence/util.h>     // for is_variant, sv, AST_Node, overload
-#include <cstddef>             // for size_t
-#include <deque>               // for deque
-#include <easyjson.h>          // for JSON
-#include <fmt/base.h>          // for copy, println
-#include <fmt/compile.h>       // for format, operator""_cf
-#include <fmt/format.h>        // for format
-#include <matchit.h>           // for App, pattern, Id, app, Wildcard
-#include <memory>              // for shared_ptr, make_shared
-#include <ostream>             // for basic_ostream, operator<<, endl
-#include <ostream>             // for ostream
-#include <source_location>     // for source_location
-#include <string_view>         // for basic_string_view, string_view
-#include <tuple>               // for get, tuple
-#include <utility>             // for get, pair, make_pair, move
-#include <variant>             // for variant, monostate, visit, get
-#include <vector>              // for vector
+#include "assembly.h"           // for inserter, add_asm__as, newline
+#include "credence/symbol.h"    // for Symbol_Table
+#include "memory.h"             // for Memory_Accessor, Instruction_Ac...
+#include "runtime.h"            // for is_stdlib_function, get_library...
+#include "stack.h"              // for Stack
+#include "syscall.h"            // for syscall_arguments_t, exit_syscall
+#include <credence/error.h>     // for credence_assert, assert_nequal_...
+#include <credence/ir/ita.h>    // for Instruction, Quadruple, Instruc...
+#include <credence/ir/object.h> // for Object, Function, Vector
+#include <credence/ir/table.h>  // for Table
+#include <credence/ir/types.h>  // for Type_Checker
+#include <credence/types.h>     // for get_rvalue_datatype_from_string
+#include <credence/util.h>      // for is_variant, sv, AST_Node, overload
+#include <cstddef>              // for size_t
+#include <deque>                // for deque
+#include <easyjson.h>           // for JSON
+#include <fmt/base.h>           // for copy
+#include <fmt/compile.h>        // for format, operator""_cf
+#include <fmt/format.h>         // for format
+#include <matchit.h>            // for App, pattern, Id, app, Wildcard
+#include <memory>               // for shared_ptr, make_shared
+#include <ostream>              // for basic_ostream, operator<<, endl
+#include <ostream>              // for ostream
+#include <source_location>      // for source_location
+#include <string_view>          // for basic_string_view, string_view
+#include <tuple>                // for get, tuple
+#include <utility>              // for get, pair, make_pair
+#include <variant>              // for variant, monostate, visit, get
+#include <vector>               // for vector
 
 #define credence_current_location std::source_location::current()
 
@@ -60,9 +62,10 @@ void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
     auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
     auto table = std::make_shared<ir::Table>(
         ir::Table{ symbols, instructions, globals });
+    table->build_from_ir_instructions();
     auto stack = std::make_shared<assembly::Stack>();
-    table->build_from_ita_instructions();
-    auto accessor = std::make_shared<memory::Memory_Accessor>(table, stack);
+    auto accessor = std::make_shared<memory::Memory_Accessor>(
+        table->get_table_object(), stack);
     auto emitter = Assembly_Emitter{ accessor };
     emitter.emit(os);
 }
@@ -449,8 +452,9 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     // function prologue
     asm__dest_s(instruction_accessor->get_instructions(), push, rbp);
     asm__short(instruction_accessor->get_instructions(), mov_, rbp, rsp);
-    if (table->stack_frame_contains_ita_instruction(
-            name, ir::Instruction::CALL)) {
+    if (table->stack_frame_contains_ir_instruction(name,
+            ir::Instruction::CALL,
+            *accessor_->table_accessor.table_->ir_instructions)) {
         auto imm = assembly::make_u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
             flag::Align, instruction_accessor->size());
@@ -466,8 +470,9 @@ void IR_Instruction_Visitor::from_func_end_ita()
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& table = accessor_->table_accessor.table_;
     auto frame = stack_frame_.get_stack_frame();
-    if (table->stack_frame_contains_ita_instruction(
-            frame->symbol, ir::Instruction::CALL)) {
+    if (table->stack_frame_contains_ir_instruction(frame->symbol,
+            ir::Instruction::CALL,
+            *accessor_->table_accessor.table_->ir_instructions)) {
         auto imm = assembly::make_u32_int_immediate(0);
         if (frame->symbol != "main") {
             accessor_->flag_accessor.set_instruction_flag(
@@ -491,6 +496,9 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
     auto& table = accessor_->table_accessor.table_;
     auto& stack = accessor_->stack;
     auto& locals = accessor_->table_accessor.table_->get_stack_frame_symbols();
+
+    auto type_checker =
+        ir::Type_Checker{ accessor_->table_accessor.table_, frame };
 
     // The storage of an immediate (and, really, all) relational
     // expressions will be the `al` register, 1 for true, 0 for false
@@ -526,7 +534,8 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
         // Allocate on the stack from the size of the lvalue type
         m::pattern | m::_ =
             [&] {
-                auto type = table->get_type_from_rvalue_data_type(locl_lvalue);
+                auto type =
+                    type_checker.get_type_from_rvalue_data_type(locl_lvalue);
                 stack->set_address_from_type(locl_lvalue, type);
             }
 
@@ -539,8 +548,9 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
 void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
     auto& table = accessor_->table_accessor.table_;
+    auto frame = stack_frame_.get_stack_frame();
     stack_frame_.argument_stack.emplace_front(
-        table->from_temporary_lvalue(std::get<1>(inst)));
+        table->lvalue_at_temporary_object_address(std::get<1>(inst), frame));
 }
 
 /**
@@ -774,7 +784,7 @@ void Invocation_Inserter::insert_from_standard_library_function(
                         argument_stack.front(), "string") and
                     not runtime::is_address_device_pointer_to_buffer(
                         operands.front(), table, accessor_->stack))
-                    table->throw_compiletime_error(
+                    throw_compiletime_error(
                         fmt::format("argument '{}' is not a string",
                             argument_stack.front()),
                         routine,
@@ -822,7 +832,10 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
         m::pattern | m::ds(m::app(is_parameter, true), m::_) = [] {},
         // Translate an rvalue from a mutual-recursive temporary lvalue
         m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
-            [&] { expression_inserter.insert_from_temporary_lvalue(lhs); },
+            [&] {
+                expression_inserter.insert_lvalue_at_temporary_object_address(
+                    lhs);
+            },
         // Translate a unary-to-unary rvalue reference
         m::pattern | m::ds(m::app(type::is_unary_expression, true),
                          m::app(type::is_unary_expression, true)) =
@@ -899,9 +912,9 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 } else
                     add_asm__as(instructions, mov, lhs_storage, imm);
             },
-        // The storage of the rvalue from `insert_from_temporary_lvalue`
-        // in the function above is in the accumulator register, use it
-        // to assign to a local address
+        // The storage of the rvalue from
+        // `insert_lvalue_at_temporary_object_address` in the function above is
+        // in the accumulator register, use it to assign to a local address
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_storage.address_ir_assignment) {
@@ -1218,10 +1231,12 @@ void Operand_Inserter::insert_from_operands(Storage_Operands& operands,
 /**
  * @brief Inserter from rvalue at a temporary lvalue location
  */
-void Expression_Inserter::insert_from_temporary_lvalue(LValue const& lvalue)
+void Expression_Inserter::insert_lvalue_at_temporary_object_address(
+    LValue const& lvalue)
 {
+    auto frame = stack_frame_.get_stack_frame();
     auto& table = accessor_->table_accessor.table_;
-    auto temporary = table->from_temporary_lvalue(lvalue);
+    auto temporary = table->lvalue_at_temporary_object_address(lvalue, frame);
     insert_from_rvalue(temporary);
 }
 
@@ -1345,7 +1360,7 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
  *  }
  */
 void Expression_Inserter::insert_from_return_rvalue(
-    ir::detail::Function::Return_RValue const& ret)
+    ir::object::Function::Return_RValue const& ret)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto operand_inserter = Operand_Inserter{ accessor_, stack_frame_ };
@@ -1619,9 +1634,10 @@ void emit(std::ostream& os,
     auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
     auto table = std::make_shared<ir::Table>(
         ir::Table{ symbols, instructions, globals });
+    table->build_from_ir_instructions();
     auto stack = std::make_shared<assembly::Stack>();
-    table->build_from_ita_instructions();
-    auto accessor = std::make_shared<memory::Memory_Accessor>(table, stack);
+    auto accessor = std::make_shared<memory::Memory_Accessor>(
+        table->get_table_object(), stack);
     auto emitter = Assembly_Emitter{ accessor };
     emitter.text_.test_no_stdlib = no_stdlib;
     emitter.emit(os);

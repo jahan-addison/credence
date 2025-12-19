@@ -132,7 +132,7 @@ const general_purpose available_dword_register = { Register::edi,
 using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
-using Table_Pointer = std::shared_ptr<ir::Table>;
+using Table_Pointer = std::shared_ptr<ir::object::Object>;
 
 /**
  * @brief Get the intel-format prefix for storage device sizes
@@ -158,13 +158,13 @@ struct Stack_Frame
     {
     }
 
-    using IR_Function = ir::Table::Function_PTR;
+    using IR_Function = ir::object::Function_PTR;
     using IR_Stack = ir::Stack;
 
     void set_stack_frame(Label const& name);
 
-    IR_Function get_stack_frame(Label const& name);
-    IR_Function get_stack_frame();
+    IR_Function get_stack_frame(Label const& name) const;
+    IR_Function get_stack_frame() const;
 
     IR_Stack argument_stack{};
     IR_Stack call_stack{ "main" };
@@ -291,7 +291,7 @@ struct Vector_Accessor
     {
     }
     using Vector_Entry_Pair =
-        std::pair<ir::detail::Vector::Address, assembly::Operand_Size>;
+        std::pair<ir::object::Vector::Address, assembly::Operand_Size>;
     Vector_Entry_Pair get_rip_offset_address(LValue const& lvalue,
         RValue const& offset);
 
@@ -449,14 +449,15 @@ struct Table_Accessor
      */
     bool is_ir_instruction_temporary()
     {
-        return type::is_temporary(std::get<1>(table_->instructions[index]));
+        return type::is_temporary(
+            std::get<1>(table_->ir_instructions->at(index)));
     }
     /**
      * @brief Get the lvalue of the current ir instruction
      */
     std::string get_ir_instruction_lvalue()
     {
-        return std::get<1>(table_->instructions[index]);
+        return std::get<1>(table_->ir_instructions->at(index));
     }
     /**
      * @brief Check if last ir instruction was Instruction::MOV
@@ -468,7 +469,7 @@ struct Table_Accessor
     {
         if (index < 1)
             return false;
-        auto last = table_->instructions[index - 1];
+        auto last = table_->ir_instructions->at(index - 1);
         return std::get<0>(last) == ir::Instruction::MOV and
                not type::is_temporary(std::get<1>(last));
     }
@@ -480,9 +481,9 @@ struct Table_Accessor
      */
     bool next_ir_instruction_is_temporary()
     {
-        if (table_->instructions.size() < index + 1)
+        if (table_->ir_instructions->size() < index + 1)
             return false;
-        auto next = table_->instructions[index + 1];
+        auto next = table_->ir_instructions->at(index + 1);
         return std::get<0>(next) == ir::Instruction::MOV and
                type::is_temporary(std::get<1>(next));
     }
