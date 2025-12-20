@@ -51,13 +51,18 @@ std::vector<std::string> get_library_symbols();
  *
  * print(1):
  *
- *  A `print' routine that is type safe for all strings
+ *  A `print' routine that is type safe for buffer addresses and strings
  *
- *  The length of the buffer is provided at compiletime
+ *  The length of the buffer is resolved at compiletime
  *
  * putchar(1):
  *
- *  A `putchar' routine that is type safe for all byte characters
+ *  A `putchar' routine that writes to stdout for single byte characters
+ *
+ * getchar(1):
+ *
+ *  A `getchar' routine that reads from stdin for single byte characters
+
  *
  * ------------------------------------------------------------------------
  */

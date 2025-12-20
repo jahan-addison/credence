@@ -31,11 +31,42 @@
 #include <string_view>       // for basic_string_view
 #include <tuple>             // for tuple, get
 
-#include <credence/ir/object.h>
-
 namespace credence::ir::object {
 
 namespace m = matchit;
+
+namespace detail {
+
+/**
+ * @brief Get the rvalue at the address of an offset in memory
+ */
+RValue Vector_Offset::get_rvalue_offset_of_vector(RValue const& offset)
+{
+    // clang-format off
+    return stack_frame_->locals.is_defined(offset)
+    ? type::get_value_from_rvalue_data_type(
+        get_rvalue_at_lvalue_object_storage(
+            offset, stack_frame_, vectors_))
+    : offset;
+    // clang-format on
+}
+
+/**
+ * @brief Check that the offset rvalue is a valid address in the vector
+ */
+bool Vector_Offset::is_valid_vector_address_offset(LValue const& lvalue)
+{
+    auto lvalue_reference = type::get_unary_rvalue_reference(lvalue);
+    auto address = type::from_lvalue_offset(lvalue_reference);
+    auto offset = type::from_decay_offset(lvalue_reference);
+    if (stack_frame_->is_parameter(offset)) {
+        return true;
+    }
+    return vectors_.at(address)->data.contains(
+        get_rvalue_offset_of_vector(offset));
+}
+
+} // namespace detail
 
 /**
  * @brief Resolve the rvalue of a pointer in the table object and stack frame
@@ -47,6 +78,7 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 {
     auto& locals = stack_frame->locals;
     auto lvalue_reference = type::get_unary_rvalue_reference(lvalue);
+
     if (lvalue_reference == "RET")
         return type::NULL_RVALUE_LITERAL;
     if (locals.is_pointer(lvalue_reference)) {
@@ -55,33 +87,30 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
             return type::NULL_RVALUE_LITERAL;
         return get_rvalue_at_lvalue_object_storage(
             address_at, stack_frame, vectors, location);
-    } else if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
+    }
+    if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
+        auto vector_offset = detail::Vector_Offset{ stack_frame, vectors };
         auto address = type::from_lvalue_offset(lvalue_reference);
         auto offset = type::from_decay_offset(lvalue_reference);
-        // check that the offset rvalue is a valid address in the vector
-        // clang-format off
-        auto offset_rvalue = stack_frame->locals.is_defined(offset) or
-            stack_frame->is_parameter(offset)
-        ? type::get_value_from_rvalue_data_type(
-            get_rvalue_at_lvalue_object_storage(
-                offset, stack_frame, vectors))
-        : offset;
-        // clang-format on
+        auto offset_rvalue = vector_offset.get_rvalue_offset_of_vector(offset);
         if (stack_frame->is_parameter(offset)) {
             return type::Data_Type{ lvalue, "word", 8UL };
         }
-        credence_assert_message_trace(
-            vectors.at(address)->data.contains(offset_rvalue),
-            fmt::format("lvalue '{}' is not a vector with offset '{}'",
-                address,
-                offset_rvalue),
-            location);
+        if (!vector_offset.is_valid_vector_address_offset(lvalue))
+            throw_compiletime_error(
+                fmt::format("lvalue '{}' is not a vector with offset '{}' with "
+                            "and storage of '{}'",
+                    address,
+                    offset,
+                    offset_rvalue),
+                lvalue,
+                location);
         return vectors.at(address)->data[offset_rvalue];
-    } else if (type::is_rvalue_data_type(lvalue)) {
-        return type::get_rvalue_datatype_from_string(lvalue);
-    } else {
-        return locals.get_symbol_by_name(lvalue_reference, location);
     }
+    if (type::is_rvalue_data_type(lvalue))
+        return type::get_rvalue_datatype_from_string(lvalue);
+
+    return locals.get_symbol_by_name(lvalue_reference, location);
 }
 
 /**

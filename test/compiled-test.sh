@@ -31,9 +31,10 @@ if [[ "$1" == "stdlib_putchar_test" ]]; then
   printf -v expected_output '%s' "lol"
 fi
 
-
+program_name=$1
 
 if [[ "$1" == "stdin" ]]; then
+  program_name=$2
   if [[ "$2" == "stdlib_getchar_test" ]]; then
     expected_output='h'
     # shellcheck disable=SC2217
@@ -45,10 +46,10 @@ fi
 
 
 if [[ "$program_output" == "$expected_output" ]]; then
-  printf 'Source code compiled successfully for "%s" on current platform: %s\n' "$1" "$(uname -s)"
+  printf 'Source code compiled successfully for "%s" on current platform: %s\n' "$program_name" "$(uname -s)"
   exit 0
 else
-  printf 'Source code FAILED to compile for "%s" on current platform: %s\n' "$1" "$(uname -s)"
+  printf 'Source code FAILED to compile for "%s" on current platform: %s\n' "$program_name" "$(uname -s)"
   echo "--- Expected Output ---"
   echo "$expected_output"
   echo "--- Actual Output ---"

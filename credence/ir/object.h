@@ -165,6 +165,30 @@ using Stack_Frame = std::optional<Function_PTR>;
 using Functions = std::map<std::string, Function_PTR>;
 using Vectors = std::map<std::string, Vector_PTR>;
 
+namespace detail {
+/**
+ * @brief Vector offset rvalue resolution in the stack frame and global symbols
+ *
+ */
+struct Vector_Offset
+{
+    Vector_Offset() = delete;
+    explicit Vector_Offset(object::Function_PTR& stack_frame,
+        object::Vectors& vectors)
+        : stack_frame_(stack_frame)
+        , vectors_(vectors)
+    {
+    }
+    RValue get_rvalue_offset_of_vector(RValue const& offset);
+    bool is_valid_vector_address_offset(LValue const& lvalue);
+
+  private:
+    object::Function_PTR& stack_frame_;
+    object::Vectors& vectors_;
+};
+
+}
+
 type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
     object::Function_PTR& stack_frame,
     object::Vectors& vectors,
