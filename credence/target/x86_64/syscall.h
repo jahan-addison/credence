@@ -17,6 +17,7 @@
 #pragma once
 
 #include "assembly.h"  // for Instructions, Storage
+#include "memory.h"    // for Memory_Accessor
 #include <array>       // for array
 #include <cstddef>     // for size_t
 #include <deque>       // for deque
@@ -43,6 +44,12 @@ void exit_syscall(Instructions& instructions, int exit_status = 0);
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
+    Register* address_of);
+
+void make_syscall(Instructions& instructions,
+    std::string_view syscall,
+    syscall_arguments_t const& arguments,
+    memory::Stack_Frame& stack_frame,
     Register* address_of);
 
 } // namespace common
@@ -443,6 +450,12 @@ const syscall_list_t syscall_list = {
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
+    memory::Stack_Frame& stack_frame,
+    Register* address_of);
+
+void make_syscall(Instructions& instructions,
+    std::string_view syscall,
+    syscall_arguments_t const& arguments,
     Register* address_of);
 
 } // namespace linux
@@ -536,6 +549,12 @@ const syscall_list_t syscall_list = {
     { "setpriority", { 96, 3 } },
     { "socket",      { 97, 3 } }
 };
+
+void make_syscall(Instructions& instructions,
+    std::string_view syscall,
+    syscall_arguments_t const& arguments,
+    memory::Stack_Frame& stack_frame,
+    Register* address_of);
 
 void make_syscall(Instructions& instructions,
     std::string_view syscall,

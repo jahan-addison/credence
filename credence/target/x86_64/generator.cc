@@ -780,16 +780,18 @@ void Invocation_Inserter::insert_from_standard_library_function(
         m::pattern | sv("putchar") = [&] {},
         m::pattern | sv("print") =
             [&] {
-                if (!address_storage.is_lvalue_storage_type(
-                        argument_stack.front(), "string") and
-                    not runtime::is_address_device_pointer_to_buffer(
-                        operands.front(), table, accessor_->stack))
-                    throw_compiletime_error(
-                        fmt::format("argument '{}' is not a string",
-                            argument_stack.front()),
-                        routine,
-                        credence_current_location,
-                        "function invocation");
+                if (!argument_stack.front().starts_with("&"))
+                    if (!address_storage.is_lvalue_storage_type(
+                            argument_stack.front(), "string") and
+                        not runtime::is_address_device_pointer_to_buffer(
+                            operands.front(), table, accessor_->stack))
+                        throw_compiletime_error(
+                            fmt::format(
+                                "argument '{}' is not a valid buffer address",
+                                argument_stack.front()),
+                            routine,
+                            credence_current_location,
+                            "function invocation");
                 auto buffer = operands.back();
                 auto buffer_size =
                     address_storage.buffer_accessor.has_bytes()

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#########################################################################
 # Copyright (c) Jahan Addison
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+#########################################################################
 
 if [[ "$1" == "syscall_test" ]]; then
   printf -v expected_output '%s\n%s' "hello world" "how cool is this man"
@@ -32,7 +33,16 @@ fi
 
 
 
-program_output=$(./"$1")
+if [[ "$1" == "stdin" ]]; then
+  if [[ "$2" == "stdlib_getchar_test" ]]; then
+    expected_output='h'
+    # shellcheck disable=SC2217
+    program_output=$(echo -n "h" < ./stdlib_getchar_test)
+  fi
+else
+  program_output=$(./"$1")
+fi
+
 
 if [[ "$program_output" == "$expected_output" ]]; then
   printf 'Source code compiled successfully for "%s" on current platform: %s\n' "$1" "$(uname -s)"

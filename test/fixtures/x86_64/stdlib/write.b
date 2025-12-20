@@ -1,5 +1,5 @@
 main() {
-  auto x, y;
+  auto x, *y;
   extrn unit, mess;
   x = unit;
   y = mess[x];

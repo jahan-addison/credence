@@ -76,8 +76,7 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
     if (locals.is_pointer(lvalue) and is_vector(rvalue)) {
         if (type::get_type_from_rvalue_data_type(
                 get_rvalue_at_lvalue_object_storage(
-                    rvalue, stack_frame_, objects_->vectors, __source__)) ==
-            "string") {
+                    rvalue, stack_frame_, objects_->vectors)) == "string") {
             locals.set_symbol_by_name(lvalue, rvalue);
             return; // Ok
         }

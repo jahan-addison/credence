@@ -374,7 +374,7 @@ Address_Accessor::get_lvalue_address_and_instructions(LValue const& lvalue,
 }
 
 /**
- * @brief Get the storage type of an lvalue, even if the lvalue is undefined
+ * @brief Check if the type of an lvalue, even if the lvalue is undefined
  */
 bool Address_Accessor::is_lvalue_storage_type(LValue const& lvalue,
     std::string_view type_check)

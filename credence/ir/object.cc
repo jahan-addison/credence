@@ -58,16 +58,25 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
     } else if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
         auto address = type::from_lvalue_offset(lvalue_reference);
         auto offset = type::from_decay_offset(lvalue_reference);
+        // check that the offset rvalue is a valid address in the vector
+        // clang-format off
+        auto offset_rvalue = stack_frame->locals.is_defined(offset) or
+            stack_frame->is_parameter(offset)
+        ? type::get_value_from_rvalue_data_type(
+            get_rvalue_at_lvalue_object_storage(
+                offset, stack_frame, vectors))
+        : offset;
+        // clang-format on
         if (stack_frame->is_parameter(offset)) {
             return type::Data_Type{ lvalue, "word", 8UL };
         }
         credence_assert_message_trace(
-            vectors.at(address)->data.contains(offset),
+            vectors.at(address)->data.contains(offset_rvalue),
             fmt::format("lvalue '{}' is not a vector with offset '{}'",
                 address,
-                offset),
+                offset_rvalue),
             location);
-        return vectors.at(address)->data[offset];
+        return vectors.at(address)->data[offset_rvalue];
     } else if (type::is_rvalue_data_type(lvalue)) {
         return type::get_rvalue_datatype_from_string(lvalue);
     } else {

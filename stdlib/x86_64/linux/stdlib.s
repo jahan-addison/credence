@@ -19,6 +19,7 @@
 
     .global print
     .global putchar
+    .global getchar
 
 
 ////////////////////////////////////////////////////
@@ -58,3 +59,24 @@ putchar:
     pop     rbp
     ret
 
+////////////////////////////////////////////////////
+// @brief getchar
+// The character from stdin is into a byte in %rax
+getchar:
+    push    rbp
+    mov     rbp, rsp
+    sub     rsp, 16
+    mov     rax, 0
+    mov     rdi, 0
+    lea     rsi, [rbp - 1]
+    mov     rdx, 1
+    syscall
+    cmp     rax, 1
+    jl      .error_or_eof
+    movzx   rax, byte ptr [rbp - 1]
+    jmp     .done
+.error_or_eof:
+    mov     rax, -1
+.done:
+    leave
+    ret

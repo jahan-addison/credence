@@ -46,7 +46,7 @@ namespace fs = std::filesystem;
             easyjson::JSON::load_file(file_path.string()).to_deque();          \
         runtime::add_stdlib_functions_to_symbols(fixture_content[0], syscall); \
         credence::target::x86_64::emit(                                        \
-            test, fixture_content[0], fixture_content[1], false);              \
+            test, fixture_content[0], fixture_content[1], true);               \
         REQUIRE(test.str() == expected);                                       \
     } while (0)
 
@@ -731,8 +731,6 @@ unit:
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -796,8 +794,6 @@ unit:
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -842,8 +838,6 @@ TEST_CASE("target/x86_64: fixture: call_1.b")
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -889,8 +883,6 @@ TEST_CASE("target/x86_64: fixture: call_2.b")
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -949,8 +941,6 @@ strings:
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -1013,8 +1003,6 @@ strings:
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -1049,8 +1037,6 @@ TEST_CASE("target/x86_64: fixture: string_3.b")
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp
@@ -1081,8 +1067,6 @@ TEST_CASE("target/x86_64: fixture: stdlib putchar")
 
 .text
     .global _start
-    .extern print
-    .extern putchar
 
 _start:
     push rbp

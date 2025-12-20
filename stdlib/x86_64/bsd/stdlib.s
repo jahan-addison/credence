@@ -51,6 +51,7 @@ putchar:
     mov     rbp, rsp
     push    rdi
     mov     rax, 33554436
+
     mov     rdi, 1
     mov     rsi, rsp
     mov     rdx, 1
@@ -61,16 +62,24 @@ putchar:
 
 ////////////////////////////////////////////////////
 // @brief getchar
-// The character from stdin is in %rax
+// The character from stdin is into a byte in %rax
 getchar:
     push    rbp
     mov     rbp, rsp
-    push    rdi
-    mov     rax, 33554436
-    mov     rdi, 1
-    mov     rsi, rsp
+    sub     rsp, 16
+    mov     rax, 33554435
+    mov     rdi, 0
+    lea     rsi, [rbp - 1]
     mov     rdx, 1
     syscall
-    add     rsp, 8
-    pop     rbp
+    jc      .error
+    cmp     rax, 1
+    jl      .eof
+    movzx   rax, byte ptr [rbp - 1]
+    jmp     .done
+.error:
+.eof:
+    mov     rax, -1
+.done:
+    leave
     ret

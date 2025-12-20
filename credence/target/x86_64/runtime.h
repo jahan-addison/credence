@@ -63,7 +63,8 @@ std::vector<std::string> get_library_symbols();
  */
 const library_list_t library_list = {
     { "print",   { 2 } },
-    { "putchar", { 1 } }
+    { "putchar", { 1 } },
+    { "getchar", { 0 } }
 };
 
 bool is_syscall_function(type::semantic::Label const& label);
