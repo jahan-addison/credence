@@ -58,6 +58,7 @@ class IR_Visitor
     virtual void from_leave_ita() = 0;
     virtual void from_label_ita(IR const& inst) = 0;
     virtual void from_call_ita(IR const& inst) = 0;
+    virtual void from_goto_ita(IR const& inst) = 0;
     virtual void from_if_ita(IR const& inst) = 0;
     virtual void from_jmp_e_ita(IR const& inst) = 0;
     virtual void from_push_ita(IR const& inst) = 0;

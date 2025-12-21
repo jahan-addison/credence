@@ -120,31 +120,28 @@ bool is_address_device_pointer_to_buffer(Address& address,
     ir::object::Object_PTR& objects,
     std::shared_ptr<assembly::Stack>& stack)
 {
-    // clang-format off
     auto stack_frame = objects->get_stack_frame();
     bool is_buffer{ false };
-    std::visit(util::overload{
-    [&](std::monostate) {},
-    [&](assembly::Stack_Offset const& offset) {
-        auto lvalue = stack->get_lvalue_from_offset(offset);
-        auto type = type::get_type_from_rvalue_data_type(
-            ir::object::get_rvalue_at_lvalue_object_storage(lvalue,
-                stack_frame, objects->vectors, __source__));
-        is_buffer = type == "null" or type == "string";
-    },
-    [&](assembly::Register& device) {
-        is_buffer = assembly::is_qword_register(device);
-    },
-    [&](assembly::Immediate& immediate) {
-        if (util::contains(
-                assembly::get_storage_as_string(immediate),
-                "rip +"))
-            is_buffer = true;
-        if (type::is_rvalue_data_type_string(immediate))
-            is_buffer = true;
-    } },
+    std::visit(
+        util::overload{ [&](std::monostate) {},
+            [&](assembly::Stack_Offset const& offset) {
+                auto lvalue = stack->get_lvalue_from_offset(offset);
+                auto type = type::get_type_from_rvalue_data_type(
+                    ir::object::get_rvalue_at_lvalue_object_storage(
+                        lvalue, stack_frame, objects->vectors, __source__));
+                is_buffer = type == "null" or type == "string";
+            },
+            [&](assembly::Register& device) {
+                is_buffer = assembly::is_qword_register(device);
+            },
+            [&](assembly::Immediate& immediate) {
+                if (util::contains(
+                        assembly::get_storage_as_string(immediate), "rip +"))
+                    is_buffer = true;
+                if (type::is_rvalue_data_type_string(immediate))
+                    is_buffer = true;
+            } },
         address);
-    // clang-format on
     return is_buffer;
 }
 

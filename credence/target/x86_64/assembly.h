@@ -681,6 +681,14 @@ constexpr std::string make_label(type::semantic::Label const& label)
     return label;
 }
 
+constexpr std::string make_label(type::semantic::Label const& label,
+    type::semantic::Label const& scope)
+{
+    if (label == "main")
+        return "_start";
+    return fmt::format(".{}__{}", label, scope);
+}
+
 Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs);

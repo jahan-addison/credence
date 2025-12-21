@@ -45,7 +45,7 @@ namespace m = matchit;
 /**
  * @brief Set the current stack frame from the address in the Table
  */
-void Stack_Frame::set_stack_frame(type::semantic::Label const& name)
+void Stack_Frame::set_stack_frame(Label const& name)
 {
     accessor_->table_accessor.table_->set_stack_frame(name);
 }
@@ -53,8 +53,7 @@ void Stack_Frame::set_stack_frame(type::semantic::Label const& name)
 /**
  * @brief Get the current stack frame from the address in the Table by name
  */
-Stack_Frame::IR_Function Stack_Frame::get_stack_frame(
-    type::semantic::Label const& name) const
+Stack_Frame::IR_Function Stack_Frame::get_stack_frame(Label const& name) const
 {
     return accessor_->table_accessor.table_->functions.at(name);
 }
@@ -180,7 +179,7 @@ void Buffer_Accessor::set_buffer_size_from_syscall(std::string_view routine,
 std::size_t Buffer_Accessor::get_lvalue_string_size(LValue const& lvalue,
     Stack_Frame const& stack_frame)
 {
-    type::semantic::Size len{ 0 };
+    Size len{ 0 };
     std::string key{};
     auto& locals = table_->get_stack_frame_symbols();
     auto& vectors = table_->vectors;

@@ -155,6 +155,9 @@ class Data_Emitter
     assembly::Directives instructions_;
 };
 
+/**
+ * @brief Instruction Inserter used to map IR instructions to x64 assembly
+ */
 class Instruction_Inserter
 {
   public:
@@ -163,6 +166,22 @@ class Instruction_Inserter
     {
     }
     void insert(ir::Instructions const& ir_instructions);
+
+  private:
+    memory::Memory_Access accessor_;
+};
+
+/**
+ * @brief Branch Inserter used to map IR branches to x64 assembly
+ */
+class Branch_Inserter
+{
+  public:
+    explicit Branch_Inserter(memory::Memory_Access accessor)
+        : accessor_(accessor)
+    {
+    }
+    void insert(assembly::Instructions& instructions);
 
   private:
     memory::Memory_Access accessor_;
@@ -329,6 +348,9 @@ struct Invocation_Inserter
         assembly::Instructions& instructions);
     void insert_from_syscall_function(std::string_view routine,
         assembly::Instructions& instructions);
+    void insert_type_check_stdlib_print_arguments(
+        memory::Stack_Frame::IR_Stack const& argument_stack,
+        syscall_ns::syscall_arguments_t& operands);
 
   private:
     memory::Memory_Access accessor_;
@@ -360,7 +382,7 @@ class Assembly_Emitter
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Data_Emitter data_{ accessor_ };
-    Text_Emitter text_{accessor_};
+    Text_Emitter text_{ accessor_ };
     // clang-format on
 };
 
@@ -410,6 +432,7 @@ class IR_Instruction_Visitor final
     void from_call_ita(ir::Quadruple const& inst) override;
     void from_if_ita(ir::Quadruple const& inst) override;
     void from_jmp_e_ita(ir::Quadruple const& inst) override;
+    void from_goto_ita(ir::Quadruple const& inst) override;
 
   private:
     std::size_t iterator_index_{ 0 };

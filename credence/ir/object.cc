@@ -33,8 +33,6 @@
 
 namespace credence::ir::object {
 
-namespace m = matchit;
-
 namespace detail {
 
 /**
@@ -168,7 +166,7 @@ void set_stack_frame_return_value(RValue const& rvalue,
     auto is_parameter = [&](RValue const& value) {
         return frame->is_parameter(value);
     };
-
+    namespace m = matchit;
     m::match(rvalue)(
         m::pattern | m::app(is_pointer_, true) =
             [&] {

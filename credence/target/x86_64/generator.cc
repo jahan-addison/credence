@@ -46,8 +46,6 @@
 #include <variant>              // for variant, monostate, visit, get
 #include <vector>               // for vector
 
-#define credence_current_location std::source_location::current()
-
 namespace credence::target::x86_64 {
 
 namespace m = matchit;
@@ -71,7 +69,7 @@ void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
 }
 
 /**
- * @brief Emit the x64 instructions of a B language source
+ * @brief Emit a complete x86-64 program
  */
 void Assembly_Emitter::emit(std::ostream& os)
 {
@@ -229,23 +227,23 @@ void Data_Emitter::emit_data_section(std::ostream& os)
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
             auto data_item = instructions_[index];
+            // clang-format off
             std::visit(util::overload{
-                           [&](type::semantic::Label const& s) {
-                               os << s << ":" << std::endl;
-                           },
-                           [&](assembly::Data_Pair const& s) {
-                               os << assembly::tabwidth(4) << s.first;
-                               if (s.first == Directive::asciz)
-                                   os << " " << "\"" << s.second << "\"";
-                               else
-                                   os << " " << s.second;
-                               assembly::newline(os);
-                               if (index < instructions_.size() - 1)
-                                   assembly::newline(os);
-                           },
-                       },
-                data_item);
+                [&](Label const& s) { os << s << ":" << std::endl; },
+                [&](assembly::Data_Pair const& s) {
+                    os << assembly::tabwidth(4) << s.first;
+                    if (s.first == Directive::asciz)
+                        os << " " << "\"" << s.second << "\"";
+                    else
+                        os << " " << s.second;
+                    assembly::newline(os);
+                    if (index < instructions_.size() - 1)
+                        assembly::newline(os);
+                },
+            },
+            data_item);
         }
+    // clang-format on
 }
 
 /**
@@ -287,6 +285,8 @@ void Storage_Emitter::emit(std::ostream& os,
         flag_accessor.get_instruction_flags_at_index(instrunction_index_);
     auto size =
         get_operand_size_from_storage(source_storage_, accessor_->stack);
+    if (is_variant(std::monostate, storage))
+        return;
     switch (type_) {
         case memory::Operand_Type::Destination: {
             if (flag_accessor.index_contains_flag(
@@ -331,41 +331,52 @@ void Text_Emitter::emit_text_section(std::ostream& os)
     auto instructions_accessor = accessor_->instruction_accessor;
     auto& instructions = instructions_accessor->get_instructions();
     emit_text_directives(os);
+    Label label_stack_frame{ "main" };
+    Size label_size = 1UL;
     for (std::size_t index = 0; index < instructions_accessor->size();
         index++) {
         auto flags =
             accessor_->flag_accessor.get_instruction_flags_at_index(index);
         auto inst = instructions[index];
+        // clang-format off
         std::visit(
             util::overload{
-                [&](assembly::Instruction const& s) {
-                    auto [mnemonic, dest, src] = s;
-                    auto storage_emitter =
-                        Storage_Emitter{ accessor_, index, src };
-                    if (flags & flag::Load and not is_variant(Register, src))
-                        mnemonic = assembly::Mnemonic::lea;
-                    os << assembly::tabwidth(4) << mnemonic;
-                    if (!is_variant(std::monostate, dest))
-                        storage_emitter.emit(os,
-                            dest,
-                            mnemonic,
-                            memory::Operand_Type::Destination);
-                    if (!is_variant(std::monostate, src))
-                        storage_emitter.emit(
-                            os, src, mnemonic, memory::Operand_Type::Source);
-                    os << std::endl;
-                },
-                [&](type::semantic::Label const& s) {
-                    if (table->hoisted_symbols.has_key(s) and
-                        table->hoisted_symbols[s]["type"].to_string() ==
-                            "function_definition" and
-                        s != "main")
+            [&](assembly::Instruction const& s) {
+                auto [mnemonic, dest, src] = s;
+                auto storage_emitter =
+                    Storage_Emitter{ accessor_, index, src };
+                if (flags & flag::Load and not is_variant(Register, src))
+                    mnemonic = assembly::Mnemonic::lea;
+                os << assembly::tabwidth(4) << mnemonic;
+                storage_emitter.emit(
+                    os, dest, mnemonic, memory::Operand_Type::Destination);
+                storage_emitter.emit(
+                    os, src, mnemonic, memory::Operand_Type::Source);
+                assembly::newline(os, 1);
+            },
+            [&](Label const& s) {
+                // function labels
+                if (table->hoisted_symbols.has_key(s) and
+                    table->hoisted_symbols[s]["type"].to_string() ==
+                        "function_definition") {
+                    label_stack_frame = s;
+                    label_size =
+                        accessor_->table_accessor.table_->functions.at(s)
+                            ->labels.size();
+                    if (s != "main")
                         assembly::newline(os, 2);
-                    if (s == "_L1")
-                        return;
-                    os << assembly::make_label(s) << ":" << std::endl;
-                } },
-            inst);
+                    os << assembly::make_label(s) << ":";
+                    assembly::newline(os, 1);
+                    return;
+                }
+                // branch labels
+                if (label_size > 1) {
+                    os << assembly::make_label(s, label_stack_frame) << ":";
+                    assembly::newline(os, 1);
+                }
+            } },
+        inst);
+        // clang-format on
     }
 }
 
@@ -395,7 +406,7 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 }
 
 /**
- * @brief Primary IR instruction visitor to x64 instructions in memory
+ * @brief IR instruction visitor to map x64 instructions in memory
  */
 void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
 {
@@ -452,6 +463,7 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     // function prologue
     asm__dest_s(instruction_accessor->get_instructions(), push, rbp);
     asm__short(instruction_accessor->get_instructions(), mov_, rbp, rsp);
+    // align %rbp if there's a CALL in this stack frame
     if (table->stack_frame_contains_ir_instruction(name,
             ir::Instruction::CALL,
             *accessor_->table_accessor.table_->ir_instructions)) {
@@ -750,7 +762,6 @@ void Invocation_Inserter::insert_from_user_defined_function(
         auto size = get_operand_size_from_storage(operand, accessor_->stack);
         auto storage = accessor_->register_accessor.get_available_register(
             size, accessor_->stack);
-        // todo: if the item is on the stack and a pointer, use the address
         if (is_variant(Immediate, operand)) {
             if (type::is_rvalue_data_type_string(std::get<Immediate>(operand)))
                 accessor_->flag_accessor.set_instruction_flag(
@@ -772,42 +783,51 @@ void Invocation_Inserter::insert_from_standard_library_function(
     std::string_view routine,
     assembly::Instructions& instructions)
 {
-    auto& table = accessor_->table_accessor.table_;
-    auto& address_storage = accessor_->address_accessor;
     auto operands = get_operands_storage_from_argument_stack();
     auto& argument_stack = stack_frame_.argument_stack;
     m::match(routine)(
         m::pattern | sv("putchar") = [&] {},
+        m::pattern | sv("getchar") = [&] {},
         m::pattern | sv("print") =
             [&] {
-                if (!argument_stack.front().starts_with("&"))
-                    if (!address_storage.is_lvalue_storage_type(
-                            argument_stack.front(), "string") and
-                        not runtime::is_address_device_pointer_to_buffer(
-                            operands.front(), table, accessor_->stack))
-                        throw_compiletime_error(
-                            fmt::format(
-                                "argument '{}' is not a valid buffer address",
-                                argument_stack.front()),
-                            routine,
-                            credence_current_location,
-                            "function invocation");
-                auto buffer = operands.back();
-                auto buffer_size =
-                    address_storage.buffer_accessor.has_bytes()
-                        ? address_storage.buffer_accessor
-                              .get_lvalue_string_size(
-                                  argument_stack.back(), stack_frame_)
-                        : address_storage.buffer_accessor.read_bytes();
-                operands.emplace_back(
-                    assembly::make_u32_int_immediate(buffer_size));
-                accessor_->flag_accessor.set_instruction_flag(
-                    flag::Argument, accessor_->instruction_accessor->size());
+                insert_type_check_stdlib_print_arguments(
+                    argument_stack, operands);
             });
     runtime::make_library_call(instructions,
         routine,
         operands,
         accessor_->register_accessor.signal_register);
+}
+
+/**
+ * @brief Insert and type check the argument instructions for the print function
+ */
+void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
+    memory::Stack_Frame::IR_Stack const& argument_stack,
+    syscall_ns::syscall_arguments_t& operands)
+{
+    auto& table = accessor_->table_accessor.table_;
+    auto& address_storage = accessor_->address_accessor;
+    if (!argument_stack.front().starts_with("&"))
+        if (!address_storage.is_lvalue_storage_type(
+                argument_stack.front(), "string") and
+            not runtime::is_address_device_pointer_to_buffer(
+                operands.front(), table, accessor_->stack))
+            throw_compiletime_error(
+                fmt::format("argument '{}' is not a valid buffer address",
+                    argument_stack.front()),
+                "print",
+                __source__,
+                "function invocation");
+    auto buffer = operands.back();
+    auto buffer_size =
+        address_storage.buffer_accessor.has_bytes()
+            ? address_storage.buffer_accessor.get_lvalue_string_size(
+                  argument_stack.back(), stack_frame_)
+            : address_storage.buffer_accessor.read_bytes();
+    operands.emplace_back(assembly::make_u32_int_immediate(buffer_size));
+    accessor_->flag_accessor.set_instruction_flag(
+        flag::Argument, accessor_->instruction_accessor->size());
 }
 
 /**
@@ -872,6 +892,10 @@ void IR_Instruction_Visitor::from_jmp_e_ita(
     [[maybe_unused]] ir::Quadruple const& inst)
 {
 }
+void IR_Instruction_Visitor::from_goto_ita(
+    [[maybe_unused]] ir::Quadruple const& inst)
+{
+}
 
 /**
  * @brief Mnemonic operand default inserter via pattern matching
@@ -914,9 +938,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 } else
                     add_asm__as(instructions, mov, lhs_storage, imm);
             },
-        // The storage of the rvalue from
-        // `insert_lvalue_at_temporary_object_address` in the function above is
-        // in the accumulator register, use it to assign to a local address
+        // the expanded temporary rvalue is in a accumulator register, use it
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_storage.address_ir_assignment) {
@@ -976,10 +998,11 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
     auto& address_space = accessor_->address_accessor;
     auto& table_accessor = accessor_->table_accessor;
     auto& register_accessor = accessor_->register_accessor;
+
     credence_assert(type::is_unary_expression(expr));
+
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
-
     auto is_vector = [&](RValue const& rvalue) {
         return table_accessor.table_->vectors.contains(
             type::from_lvalue_offset(rvalue));
