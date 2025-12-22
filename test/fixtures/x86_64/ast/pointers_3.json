@@ -64,7 +64,7 @@
                     },
                     "node": "assignment_expression",
                     "right": {
-                      "node": "number_literal",
+                      "node": "integer_literal",
                       "root": 100
                     },
                     "root": [
@@ -103,7 +103,7 @@
                       },
                       "node": "assignment_expression",
                       "right": {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 10
                       },
                       "root": [

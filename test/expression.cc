@@ -33,7 +33,7 @@ struct Fixture
             ": 3,\n    \"end_column\" : 4,\n    \"end_pos\" : 13,\n    "
             "\"line\" : "
             "2,\n    \"start_pos\" : 12,\n    \"type\" : "
-            "\"number_literal\"\n  "
+            "\"integer_literal\"\n  "
             "}\n}");
         lvalue_ast_node_json = credence::util::AST_Node::load(
             " {\n        \"left\" : [{\n            \"left\" : [{\n       "
@@ -61,7 +61,7 @@ struct Fixture
             "\"assignment_expression\",\n                  \"right\" : "
             "{\n     "
             "    "
-            "           \"node\" : \"number_literal\",\n                  "
+            "           \"node\" : \"integer_literal\",\n                  "
             "  "
             "\"root\" : 5\n                  },\n                  "
             "\"root\" : "
@@ -73,7 +73,7 @@ struct Fixture
     ~Fixture() = default;
 };
 
-TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
+TEST_CASE("expression.cc: Expression_Parser::rvalue_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -81,7 +81,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
         "[{\n                  \"node\" : \"constant_literal\",\n         "
         "     "
         "    \"root\" : \"x\"\n                }, {\n                  "
-        "\"node\" : \"number_literal\",\n                  \"root\" : "
+        "\"node\" : \"integer_literal\",\n                  \"root\" : "
         "10\n     "
         "           }, {\n                  \"node\" : "
         "\"string_literal\",\n   "
@@ -94,7 +94,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
         "},\n                  \"node\" : \"assignment_expression\",\n    "
         "     "
         "         \"right\" : {\n                    \"node\" : "
-        "\"number_literal\",\n                    \"root\" : 5\n          "
+        "\"integer_literal\",\n                    \"root\" : 5\n          "
         "     "
         "   },\n                  \"root\" : [\"=\", null]\n              "
         "  }, "
@@ -128,7 +128,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
         "},\n                  \"node\" : \"relation_expression\",\n      "
         "     "
         "       \"right\" : {\n                    \"node\" : "
-        "\"number_literal\",\n                    \"root\" : 5\n          "
+        "\"integer_literal\",\n                    \"root\" : 5\n          "
         "     "
         "   },\n                  \"root\" : [\"<\"]\n                }, "
         "{\n   "
@@ -147,7 +147,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
         "\"root\" : "
         "[\"--\"]\n                }, {\n                  \"left\" : {\n "
         "     "
-        "              \"node\" : \"number_literal\",\n                   "
+        "              \"node\" : \"integer_literal\",\n                   "
         " "
         "\"root\" : 5\n                  },\n                  \"node\" : "
         "\"unary_expression\",\n                  \"root\" : [\"~\"]\n    "
@@ -156,7 +156,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
         "\"node\" : \"evaluated_expression\",\n                    "
         "\"root\" : "
         "{\n                      \"left\" : {\n                        "
-        "\"node\" : \"number_literal\",\n                        \"root\" "
+        "\"node\" : \"integer_literal\",\n                        \"root\" "
         ": "
         "5\n                      },\n                      \"node\" : "
         "\"unary_expression\",\n                      \"root\" : "
@@ -165,7 +165,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
         "\"node\" : "
         "\"relation_expression\",\n                  \"right\" : {\n      "
         "     "
-        "         \"node\" : \"number_literal\",\n                    "
+        "         \"node\" : \"integer_literal\",\n                    "
         "\"root\" "
         ": 10\n                  },\n                  \"root\" : "
         "[\"^\"]\n    "
@@ -183,7 +183,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::rvalue_expression")
     }
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::function_expression")
+TEST_CASE("expression.cc: Expression_Parser::function_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -223,7 +223,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::function_expression")
               .first == "z");
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
+TEST_CASE("expression.cc: Expression_Parser::evaluated_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -232,12 +232,12 @@ TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
         "     "
         "        \"root\" : {\n                    \"left\" : {\n         "
         "     "
-        "        \"node\" : \"number_literal\",\n                      "
+        "        \"node\" : \"integer_literal\",\n                      "
         "\"root\" : 5\n                    },\n                    "
         "\"node\" : "
         "\"relation_expression\",\n                    \"right\" : {\n    "
         "     "
-        "             \"node\" : \"number_literal\",\n                    "
+        "             \"node\" : \"integer_literal\",\n                    "
         "  "
         "\"root\" : 5\n                    },\n                    "
         "\"root\" : "
@@ -270,7 +270,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::evaluated_expression")
     CHECK(get<credence::value::Expression::LValue>(expr2->value).first == "*x");
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
+TEST_CASE("expression.cc: Expression_Parser::from_relation_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -278,7 +278,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
         "\"root\": "
         "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    "
         "\"right\": "
-        "{\n      \"node\": \"number_literal\",\n      \"root\": 10\n    "
+        "{\n      \"node\": \"integer_literal\",\n      \"root\": 10\n    "
         "},\n  "
         "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n  "
         " "
@@ -288,14 +288,14 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
         "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n  "
         " "
         "    "
-        " \"node\": \"number_literal\",\n        \"root\": 10\n      },\n "
+        " \"node\": \"integer_literal\",\n        \"root\": 10\n      },\n "
         " "
         "    "
         "\"node\": \"ternary_expression\",\n      \"right\": {\n        "
-        "\"node\": \"number_literal\",\n        \"root\": 1\n      },\n   "
+        "\"node\": \"integer_literal\",\n        \"root\": 1\n      },\n   "
         " "
         "  "
-        "\"root\": {\n        \"node\": \"number_literal\",\n        "
+        "\"root\": {\n        \"node\": \"integer_literal\",\n        "
         "\"root\": "
         "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n "
         " "
@@ -305,32 +305,32 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
         "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n "
         " "
         "    "
-        "\"node\": \"number_literal\",\n      \"root\": 5\n    },\n    "
+        "\"node\": \"integer_literal\",\n      \"root\": 5\n    },\n    "
         "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n   "
         " "
         "  "
         "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
         "\"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": "
+        "\"integer_literal\",\n      \"root\": 5\n    },\n    \"root\": "
         "[\n "
         "    "
         " \"!=\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 0\n    },\n    \"root\": "
+        "\"integer_literal\",\n      \"root\": 0\n    },\n    \"root\": "
         "[\n "
         "    "
         " \"^\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 5\n    },\n    \"root\": "
+        "\"integer_literal\",\n      \"root\": 5\n    },\n    \"root\": "
         "[\n "
         "    "
         " \"<\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
         "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
         "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"number_literal\",\n      \"root\": 10\n    },\n    \"root\": "
+        "\"integer_literal\",\n      \"root\": 10\n    },\n    \"root\": "
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
     auto temp = Expression_Parser(obj);
@@ -426,7 +426,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_relation_expression")
           10);
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
+TEST_CASE("expression.cc: Expression_Parser::from_unary_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -462,7 +462,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
         "[\"&\"]\n                }, {\n                  \"left\" : {\n  "
         " "
         "    "
-        "             \"node\" : \"number_literal\",\n                    "
+        "             \"node\" : \"integer_literal\",\n                    "
         "\"root\" : 5\n                  },\n                  \"node\" : "
         "\"unary_expression\",\n                  \"root\" : [\"~\"]\n    "
         " "
@@ -478,7 +478,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
         " "
         "    "
         "     \"left\" : {\n                      \"node\" : "
-        "\"number_literal\",\n                      \"root\" : 5\n        "
+        "\"integer_literal\",\n                      \"root\" : 5\n        "
         " "
         "    "
         "       },\n                    \"node\" : "
@@ -556,7 +556,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_unary_expression")
 }
 
 TEST_CASE_FIXTURE(Fixture,
-    "rvalue.cc: Expression_Parser::from_assignment_expression")
+    "expression.cc: Expression_Parser::from_assignment_expression")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
@@ -570,7 +570,7 @@ TEST_CASE_FIXTURE(Fixture,
         " "
         "    "
         "         \"right\" : {\n                    \"node\" : "
-        "\"number_literal\",\n                    \"root\" : 5\n          "
+        "\"integer_literal\",\n                    \"root\" : 5\n          "
         " "
         "    "
         "   },\n                  \"root\" : [\"=\", null]\n              "
@@ -598,7 +598,7 @@ TEST_CASE_FIXTURE(Fixture,
     CHECK(std::get<credence::value::Literal>((*rhs)->value) == assigned_type);
 }
 
-TEST_CASE_FIXTURE(Fixture, "rvalue.cc: Expression_Parser::is_symbol")
+TEST_CASE_FIXTURE(Fixture, "expression.cc: Expression_Parser::is_symbol")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
@@ -617,14 +617,14 @@ TEST_CASE_FIXTURE(Fixture, "rvalue.cc: Expression_Parser::is_symbol")
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_lvalue_expression")
+TEST_CASE("expression.cc: Expression_Parser::from_lvalue_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
         "[\n               {\n                \"left\" : {\n              "
         " "
         "   "
-        "\"node\" : \"number_literal\",\n                  \"root\" : "
+        "\"node\" : \"integer_literal\",\n                  \"root\" : "
         "50\n "
         "    "
         "           },\n                \"node\" : \"vector_lvalue\",\n   "
@@ -662,7 +662,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_lvalue_expression")
     CHECK(test3.second == empty_value);
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_indirect_identifier")
+TEST_CASE("expression.cc: Expression_Parser::from_indirect_identifier")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -685,7 +685,7 @@ TEST_CASE("ir/tble.cc: Expression_Parser::from_vector_idenfitier")
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
         "{\n                \"left\" : {\n                  \"node\" : "
-        "\"number_literal\",\n                  \"root\" : 50\n           "
+        "\"integer_literal\",\n                  \"root\" : 50\n           "
         " "
         "    "
         "},\n                \"node\" : \"vector_lvalue\",\n              "
@@ -701,11 +701,11 @@ TEST_CASE("ir/tble.cc: Expression_Parser::from_vector_idenfitier")
     CHECK(temp.from_vector_idenfitier_node(obj["test"]) == test);
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_constant_expression")
+TEST_CASE("expression.cc: Expression_Parser::from_constant_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"number_literal\","
+        credence::util::AST_Node::load("{\"node\":  \"integer_literal\","
                                        "\"root\": 10"
                                        "}");
 
@@ -717,23 +717,55 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_constant_expression")
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_number_literal")
+TEST_CASE("expression.cc: Expression_Parser::from_integer_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"number_literal\","
+        credence::util::AST_Node::load("{\"node\":  \"integer_literal\","
                                        "\"root\": 10"
                                        "}");
 
     auto temp = Expression_Parser(obj);
-    auto data = temp.from_number_literal_node(obj["test"]);
+    auto data = temp.from_integer_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
     CHECK(type.first == "int");
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_string_literal")
+TEST_CASE("expression.cc: Expression_Parser::from_float_literal")
+{
+    credence::util::AST_Node obj;
+    obj["test"] =
+        credence::util::AST_Node::load("{\"node\":  \"float_literal\","
+                                       "\"root\": 10.0002"
+                                       "}");
+
+    auto temp = Expression_Parser(obj);
+    auto data = temp.from_float_literal_node(obj["test"]);
+    auto [value, type] = data;
+    CHECK(std::get<float>(value) == 10.0002f);
+    CHECK(type.first == "float");
+    CHECK(type.second == sizeof(float));
+}
+
+TEST_CASE("expression.cc: Expression_Parser::from_double_literal")
+{
+    credence::util::AST_Node obj;
+    obj["test"] =
+        credence::util::AST_Node::load("{\"node\":  \"double_literal\","
+                                       "\"root\": 10.05"
+                                       "}");
+
+    auto temp = Expression_Parser(obj);
+    auto data = temp.from_double_literal_node(obj["test"]);
+    auto [value, type] = data;
+    CHECK(std::get<double>(value) == 10.05);
+    CHECK(type.first == "double");
+    CHECK(type.second == sizeof(double));
+}
+
+TEST_CASE("expression.cc: Expression_Parser::from_string_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -749,7 +781,7 @@ TEST_CASE("rvalue.cc: Expression_Parser::from_string_literal")
     CHECK(type.second == std::string{ "hello world" }.size());
 }
 
-TEST_CASE("rvalue.cc: Expression_Parser::from_constant_literal")
+TEST_CASE("expression.cc: Expression_Parser::from_constant_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] =

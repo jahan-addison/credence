@@ -760,7 +760,6 @@ Instructions ITA::build_from_rvalue_statement(Node const& node)
 void detail::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
 { // not constexpr until C++23
     Instruction op = std::get<Instruction>(ita);
-    // clang-format off
     const std::initializer_list<Instruction> lhs_instruction = {
         Instruction::GOTO,
         Instruction::GLOBL,
@@ -771,7 +770,7 @@ void detail::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
         Instruction::CALL
     };
     // clang-format on
-    if (std::ranges::find(lhs_instruction, op) != lhs_instruction.end()) {
+    if (util::range_contains(op, lhs_instruction)) {
         if (op == Instruction::LABEL) {
             os << std::get<1>(ita) << ":" << std::endl;
         } else {
@@ -815,7 +814,7 @@ void detail::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
  */
 constexpr inline bool detail::Branch::is_branching_statement(std::string_view s)
 {
-    return std::ranges::find(BRANCH_STATEMENTS, s) != BRANCH_STATEMENTS.end();
+    return util::range_contains(s, BRANCH_STATEMENTS);
 }
 
 /**

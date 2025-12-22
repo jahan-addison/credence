@@ -30,7 +30,7 @@
 #include <vector>               // for vector
 
 /****************************************************************************
- *  A set of functions that construct temporary lvalues "_tX" that aid in
+ *  A set of algorithms that construct temporary lvalues "_tX" that aid in
  *  breaking expressions into 3- or 4- tuples for linear instructions. The
  *  rvalue stack should be ordered by operator precedence.
  *
@@ -153,7 +153,7 @@ constexpr bool is_in_place_unary_operator(type::Operator op)
         type::Operator::POST_DEC,
         type::Operator::PRE_INC,
         type::Operator::POST_INC };
-    return std::ranges::find(unary_types, op) != unary_types.end();
+    return util::range_contains(op, unary_types);
 }
 
 } // namespace detail

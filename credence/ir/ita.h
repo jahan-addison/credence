@@ -460,7 +460,7 @@ class ITA
 
   private:
     detail::Branch branch{ &temporary };
-    inline detail::Branch::Branch_Instructions make_statement_instructions()
+    static detail::Branch::Branch_Instructions make_statement_instructions()
     {
         return std::make_pair(Instructions{}, Instructions{});
     }

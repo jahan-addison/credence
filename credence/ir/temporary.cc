@@ -37,7 +37,7 @@
 #include <variant>               // for visit, monostate, variant
 
 /****************************************************************************
- *  A set of functions that construct temporary lvalues "_tX" that aid in
+ *  A set of algorithms that construct temporary lvalues "_tX" that aid in
  *  breaking expressions into 3- or 4- tuples for linear instructions. The
  *  expression stack should be ordered by operator precedence.
  *

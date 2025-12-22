@@ -58,7 +58,11 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
     m::match(node_type)(
         m::pattern | "constant_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
-        m::pattern | "number_literal" =
+        m::pattern | "integer_literal" =
+            [&] { expression.value = from_constant_expression_node(node); },
+        m::pattern | "float_literal" =
+            [&] { expression.value = from_constant_expression_node(node); },
+        m::pattern | "double_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "string_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
@@ -95,13 +99,12 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
             },
         m::pattern | m::_ =
             [&] {
-                if (std::ranges::find(unary_types, node_type) !=
-                    unary_types.end()) {
+                if (util::range_contains(node_type, unary_types)) {
                     expression.value = std::make_shared<Expression>(
                         from_unary_expression_node(node));
                 } else {
                     credence_error(
-                        fmt::format("Invalid ast node type `{}`", node_type));
+                        fmt::format("Invalid AST node type `{}`", node_type));
                 }
             });
     return expression;
@@ -194,8 +197,7 @@ Expression_Parser::Expression Expression_Parser::from_unary_expression_node(
     using namespace type;
     auto unary_type = node["node"].to_string();
 
-    credence_assert_message(
-        std::ranges::find(unary_types, unary_type) != unary_types.end(),
+    credence_assert_message(util::range_contains(unary_type, unary_types),
         fmt::format("Invalid unary expression type `{}`", unary_type));
 
     Expression expression{};
@@ -379,7 +381,12 @@ Expression_Parser::Literal Expression_Parser::from_constant_expression_node(
         m::pattern | "constant_literal" =
             [&] { return from_constant_literal_node(node); },
         m::pattern |
-            "number_literal" = [&] { return from_number_literal_node(node); },
+            "integer_literal" = [&] { return from_integer_literal_node(node); },
+        m::pattern |
+            "float_literal" = [&] { return from_float_literal_node(node); },
+        m::pattern |
+            "double_literal" = [&] { return from_double_literal_node(node); },
+
         m::pattern |
             "string_literal" = [&] { return from_string_literal_node(node); });
 }
@@ -419,14 +426,36 @@ Expression_Parser::Literal Expression_Parser::from_vector_idenfitier_node(
 }
 
 /**
- * @brief Parse number literal node into symbols
+ * @brief Parse integer literal node into symbols
  */
-Expression_Parser::Literal Expression_Parser::from_number_literal_node(
+Expression_Parser::Literal Expression_Parser::from_integer_literal_node(
     Node const& node)
 {
-    credence_assert_equal(node["node"].to_string(), "number_literal");
+    credence_assert_equal(node["node"].to_string(), "integer_literal");
     return { static_cast<int>(node["root"].to_int()),
         value::TYPE_LITERAL.at("int") };
+}
+
+/**
+ * @brief Parse float literal node into symbols
+ */
+Expression_Parser::Literal Expression_Parser::from_float_literal_node(
+    Node const& node)
+{
+    credence_assert_equal(node["node"].to_string(), "float_literal");
+    return { static_cast<float>(node["root"].to_float()),
+        value::TYPE_LITERAL.at("float") };
+}
+
+/**
+ * @brief Parse double literal node into symbols
+ */
+Expression_Parser::Literal Expression_Parser::from_double_literal_node(
+    Node const& node)
+{
+    credence_assert_equal(node["node"].to_string(), "double_literal");
+    return { static_cast<double>(node["root"].to_float()),
+        value::TYPE_LITERAL.at("double") };
 }
 
 /**

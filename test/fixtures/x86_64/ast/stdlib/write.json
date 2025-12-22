@@ -134,7 +134,7 @@
                     "node": "function_expression",
                     "right": [
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 1
                       },
                       {
@@ -142,7 +142,7 @@
                         "root": "y"
                       },
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 6
                       }
                     ],
@@ -158,19 +158,19 @@
                     "node": "function_expression",
                     "right": [
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 1
                       },
                       {
                         "left": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 1
                         },
                         "node": "vector_lvalue",
                         "root": "mess"
                       },
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 6
                       }
                     ],
@@ -186,7 +186,7 @@
                     "node": "function_expression",
                     "right": [
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 1
                       },
                       {
@@ -194,7 +194,7 @@
                         "root": "\"how cool is this man\\n\""
                       },
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 21
                       }
                     ],
@@ -215,7 +215,7 @@
         "node": "vector_definition",
         "right": [
           {
-            "node": "number_literal",
+            "node": "integer_literal",
             "root": 0
           }
         ],
@@ -223,7 +223,7 @@
       },
       {
         "left": {
-          "node": "number_literal",
+          "node": "integer_literal",
           "root": 2
         },
         "node": "vector_definition",

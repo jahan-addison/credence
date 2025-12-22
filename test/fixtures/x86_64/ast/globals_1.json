@@ -131,7 +131,7 @@
         "node": "vector_definition",
         "right": [
           {
-            "node": "number_literal",
+            "node": "integer_literal",
             "root": 1
           }
         ],
@@ -139,7 +139,7 @@
       },
       {
         "left": {
-          "node": "number_literal",
+          "node": "integer_literal",
           "root": 3
         },
         "node": "vector_definition",

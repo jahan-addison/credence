@@ -122,7 +122,7 @@
                     "right": {
                       "left": {
                         "left": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 0
                         },
                         "node": "vector_lvalue",
@@ -166,21 +166,21 @@
       },
       {
         "left": {
-          "node": "number_literal",
+          "node": "integer_literal",
           "root": 3
         },
         "node": "vector_definition",
         "right": [
           {
-            "node": "number_literal",
+            "node": "integer_literal",
             "root": 10
           },
           {
-            "node": "number_literal",
+            "node": "integer_literal",
             "root": 20
           },
           {
-            "node": "number_literal",
+            "node": "integer_literal",
             "root": 30
           }
         ],
@@ -188,7 +188,7 @@
       },
       {
         "left": {
-          "node": "number_literal",
+          "node": "integer_literal",
           "root": 3
         },
         "node": "vector_definition",

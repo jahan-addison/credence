@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>         // for any_of
 #include <credence/error.h>  // for credence_assert_message
 #include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <credence/values.h> // for Literal, Array, ...
@@ -129,6 +130,13 @@ class Symbol_Table
     constexpr bool is_pointer(std::string const& name) const noexcept
     {
         return addr_.contains(name);
+    }
+
+    constexpr bool is_pointer_address(Pointer const& addr) const noexcept
+    {
+        return std::any_of(addr_.begin(), addr_.end(), [&](auto const& entry) {
+            return addr == entry.second;
+        });
     }
 
     /* clang-format off */

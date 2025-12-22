@@ -37,7 +37,7 @@
                     "node": "function_expression",
                     "right": [
                       {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 5
                       }
                     ],

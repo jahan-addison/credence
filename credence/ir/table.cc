@@ -187,9 +187,7 @@ void Table::build_vector_definitions_from_globals()
                 auto key = std::to_string(index++);
                 auto value = type::get_rvalue_datatype_from_string(
                     value::expression_type_to_string(item, false));
-                if (type::get_type_from_rvalue_data_type(value) == "string")
-                    objects_->strings.insert(
-                        type::get_value_from_rvalue_data_type(value));
+                insert_address_storage_rvalue(value);
                 objects_->vectors[symbol.first]->data[key] = value;
             }
         }
@@ -291,10 +289,36 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
     frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
     frame->allocation += size;
 
-    Type type = type::get_type_from_rvalue_data_type(rvalue_symbol);
+    insert_address_storage_rvalue(rvalue_symbol);
+}
+
+/**
+ * @brief Save literals that need %rip address in the data section
+ */
+void Table::insert_address_storage_rvalue(RValue const& rvalue)
+{
+    auto type = type::get_type_from_rvalue_data_type(rvalue);
+    if (type == "float")
+        objects_->floats.insert(type::integral_from_type<float>(
+            type::get_value_from_rvalue_data_type(rvalue)));
+    if (type == "double")
+        objects_->doubles.insert(type::integral_from_type<double>(
+            type::get_value_from_rvalue_data_type(rvalue)));
     if (type == "string")
-        objects_->strings.insert(
-            type::get_value_from_rvalue_data_type(rvalue_symbol));
+        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
+}
+
+void Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
+{
+    auto type = type::get_type_from_rvalue_data_type(rvalue);
+    if (type == "float")
+        objects_->floats.insert(type::integral_from_type<float>(
+            type::get_value_from_rvalue_data_type(rvalue)));
+    if (type == "double")
+        objects_->doubles.insert(type::integral_from_type<double>(
+            type::get_value_from_rvalue_data_type(rvalue)));
+    if (type == "string")
+        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }
 
 /**
@@ -379,9 +403,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
             if (type::is_rvalue_data_type(rvalue)) {
                 // update the lhs vector, if applicable
                 auto value = type::get_rvalue_datatype_from_string(rvalue);
-                if (type::get_type_from_rvalue_data_type(value) == "string")
-                    objects_->strings.insert(
-                        type::get_value_from_rvalue_data_type(value));
+                insert_address_storage_rvalue(value);
                 if (vectors.contains(lhs_lvalue))
                     vectors[lhs_lvalue]->data[offset] =
                         type::get_rvalue_datatype_from_string(rvalue);
@@ -572,10 +594,7 @@ void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
         frame->locals.set_symbol_by_name(lhs, rhs);
     if (type::is_rvalue_data_type(rhs)) {
         auto data_type = type::get_rvalue_datatype_from_string(rhs);
-        if (type::get_type_from_rvalue_data_type(data_type) == "string")
-            objects_->strings.emplace(
-                type::get_value_from_rvalue_data_type(data_type));
-        return;
+        insert_address_storage_rvalue(data_type);
     }
 }
 

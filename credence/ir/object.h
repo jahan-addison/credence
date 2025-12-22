@@ -124,14 +124,12 @@ struct Function
     constexpr bool is_pointer_parameter(RValue const& parameter)
     {
         using namespace fmt::literals;
-        return std::ranges::find(
-                   parameters, fmt::format("*{}"_cf, parameter)) !=
-               std::ranges::end(parameters);
+        return util::range_contains(
+            fmt::format("*{}"_cf, parameter), parameters);
     }
     constexpr bool is_scaler_parameter(RValue const& parameter)
     {
-        return std::ranges::find(parameters, parameter) !=
-               std::ranges::end(parameters);
+        return util::range_contains(parameter, parameters);
     }
     constexpr bool is_parameter(RValue const& parameter)
     {
@@ -146,7 +144,25 @@ struct Function
         }
         return -1;
     }
+    /**
+     * @brief Labels are linear until branching, get the address of the label
+     * before _L1 and branching starts
+     */
+    constexpr std::size_t get_index_of_label_before_reserved()
+    {
+        auto reserved_label_address = label_address.get_pointer_by_name("_L1");
+        if (labels.size() > 1) {
+            do {
+                reserved_label_address -= 1;
+                if (label_address.is_pointer_address(reserved_label_address))
+                    break;
+            } while (reserved_label_address > 0);
+        }
+        return reserved_label_address;
+    }
+
     Return_RValue ret{};
+    Label label_before_reserved{};
     type::Parameters parameters{};
     Ordered_Map<LValue, RValue> temporary{};
     Address_Table label_address{};
@@ -187,7 +203,7 @@ struct Vector_Offset
     object::Vectors& vectors_;
 };
 
-}
+} // namespace detail
 
 type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
     object::Function_PTR& stack_frame,
@@ -200,15 +216,8 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 class Object
 {
   public:
-    bool vector_contains(type::semantic::LValue const& lvalue)
-    {
-        return vectors.contains(lvalue);
-    }
-    bool local_contains(type::semantic::LValue const& lvalue)
-    {
-        const auto& locals = get_stack_frame_symbols();
-        return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
-    }
+    bool vector_contains(type::semantic::LValue const& lvalue);
+    bool local_contains(type::semantic::LValue const& lvalue);
 
   public:
     bool stack_frame_contains_ir_instruction(Label name,
@@ -217,25 +226,14 @@ class Object
 
   public:
     constexpr bool is_stack_frame() { return !stack_frame_symbol.empty(); }
-    inline Function_PTR get_stack_frame()
-    {
-        credence_assert(functions.contains(stack_frame_symbol));
-        return functions.at(stack_frame_symbol);
-    }
-    inline Function_PTR get_stack_frame(Label const& label)
-    {
-        credence_assert(functions.contains(label));
-        return functions.at(label);
-    }
-    inline type::Locals& get_stack_frame_symbols()
-    {
-        return get_stack_frame()->locals;
-    }
     constexpr void set_stack_frame(Label const& label)
     {
         stack_frame_symbol = label;
     }
     constexpr void reset_stack_frame() { stack_frame_symbol = std::string{}; }
+    Function_PTR get_stack_frame();
+    Function_PTR get_stack_frame(Label const& label);
+    type::Locals& get_stack_frame_symbols();
 
   public:
     RValue lvalue_at_temporary_object_address(LValue const& lvalue,
@@ -251,6 +249,8 @@ class Object
     Functions functions{};
     Vectors vectors{};
     type::Strings strings{};
+    type::Floats floats{};
+    type::Doubles doubles{};
     type::Labels labels{};
 };
 

@@ -33,6 +33,37 @@
 
 namespace credence::ir::object {
 
+/**
+ * @brief Pattern matching helpers
+ */
+bool Object::vector_contains(type::semantic::LValue const& lvalue)
+{
+    return vectors.contains(lvalue);
+}
+bool Object::local_contains(type::semantic::LValue const& lvalue)
+{
+    const auto& locals = get_stack_frame_symbols();
+    return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
+}
+
+/**
+ * @brief Stack frame helpers
+ */
+Function_PTR Object::get_stack_frame()
+{
+    credence_assert(functions.contains(stack_frame_symbol));
+    return functions.at(stack_frame_symbol);
+}
+Function_PTR Object::get_stack_frame(Label const& label)
+{
+    credence_assert(functions.contains(label));
+    return functions.at(label);
+}
+type::Locals& Object::get_stack_frame_symbols()
+{
+    return get_stack_frame()->locals;
+}
+
 namespace detail {
 
 /**

@@ -62,12 +62,12 @@
                         "node": "evaluated_expression",
                         "root": {
                           "left": {
-                            "node": "number_literal",
+                            "node": "integer_literal",
                             "root": 20
                           },
                           "node": "relation_expression",
                           "right": {
-                            "node": "number_literal",
+                            "node": "integer_literal",
                             "root": 5
                           },
                           "root": [
@@ -77,7 +77,7 @@
                       },
                       "node": "relation_expression",
                       "right": {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 1
                       },
                       "root": [
@@ -104,12 +104,12 @@
                       "node": "relation_expression",
                       "right": {
                         "left": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 1
                         },
                         "node": "relation_expression",
                         "right": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 1
                         },
                         "root": [

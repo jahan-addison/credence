@@ -39,7 +39,7 @@
               "left": [
                 {
                   "left": {
-                    "node": "number_literal",
+                    "node": "integer_literal",
                     "root": 5
                   },
                   "node": "vector_lvalue",
@@ -55,7 +55,7 @@
                   {
                     "left": {
                       "left": {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 0
                       },
                       "node": "vector_lvalue",
@@ -63,7 +63,7 @@
                     },
                     "node": "assignment_expression",
                     "right": {
-                      "node": "number_literal",
+                      "node": "integer_literal",
                       "root": 2
                     },
                     "root": [
@@ -75,7 +75,7 @@
                   {
                     "left": {
                       "left": {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 1
                       },
                       "node": "vector_lvalue",
@@ -101,7 +101,7 @@
                     "right": [
                       {
                         "left": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 1
                         },
                         "node": "vector_lvalue",

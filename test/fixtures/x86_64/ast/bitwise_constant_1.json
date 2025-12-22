@@ -71,7 +71,7 @@
                     "node": "assignment_expression",
                     "right": {
                       "left": {
-                        "node": "number_literal",
+                        "node": "integer_literal",
                         "root": 10
                       },
                       "node": "unary_expression",
@@ -96,7 +96,7 @@
                         "node": "evaluated_expression",
                         "root": {
                           "left": {
-                            "node": "number_literal",
+                            "node": "integer_literal",
                             "root": 10
                           },
                           "node": "relation_expression",
@@ -112,12 +112,12 @@
                       "node": "relation_expression",
                       "right": {
                         "left": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 2
                         },
                         "node": "relation_expression",
                         "right": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 1
                         },
                         "root": [

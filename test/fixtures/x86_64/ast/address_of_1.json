@@ -109,7 +109,7 @@
                     },
                     "node": "assignment_expression",
                     "right": {
-                      "node": "number_literal",
+                      "node": "integer_literal",
                       "root": 5
                     },
                     "root": [
@@ -149,7 +149,7 @@
                     "right": {
                       "left": {
                         "left": {
-                          "node": "number_literal",
+                          "node": "integer_literal",
                           "root": 1
                         },
                         "node": "vector_lvalue",
@@ -193,7 +193,7 @@
       },
       {
         "left": {
-          "node": "number_literal",
+          "node": "integer_literal",
           "root": 3
         },
         "node": "vector_definition",

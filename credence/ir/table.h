@@ -71,8 +71,6 @@ class Table
 
   public:
     void build_from_ir_instructions();
-
-  public:
     void build_vector_definitions_from_symbols();
     void build_vector_definitions_from_globals();
 
@@ -103,6 +101,8 @@ class Table
   private:
     void from_trivial_vector_assignment(LValue const& lhs,
         type::Data_Type const& rvalue);
+    void insert_address_storage_rvalue(RValue const& rvalue);
+    void insert_address_storage_rvalue(type::Data_Type const& rvalue);
   private:
     void throw_object_type_error(std::string_view message,
         std::string_view symbol,

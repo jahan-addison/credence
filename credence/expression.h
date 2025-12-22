@@ -130,7 +130,9 @@ class Expression_Parser
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Literal from_constant_expression_node(Node const& node);
-    Literal from_number_literal_node(Node const& node);
+    Literal from_integer_literal_node(Node const& node);
+    Literal from_float_literal_node(Node const& node);
+    Literal from_double_literal_node(Node const& node);
     Literal from_string_literal_node(Node const& node);
     Literal from_constant_literal_node(Node const& node);
 
