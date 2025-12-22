@@ -44,7 +44,7 @@ int main(int argc, const char* argv[])
         options.add_options()("a,ast-loader",
             "AST Loader [json, python]",
             cxxopts::value<std::string>()->default_value("python"))("t,target",
-            "Target [ir, syntax, ast, arm64, x86_64, z80]",
+            "Target [ir, syntax, ast, arm64, x86_64]",
             cxxopts::value<std::string>()->default_value("ir"))("d,debug",
             "Dump symbol table",
             cxxopts::value<bool>()->default_value("false"))("o,output",

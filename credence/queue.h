@@ -27,34 +27,87 @@
 #include <variant>              // for variant
 #include <vector>               // for vector
 
-namespace credence {
-
-namespace queue {
-
-/**
- * @brief
+/**************************************************************************
  *
- *  Shunting-yard queue and operator stack of expressions
- */
+ *           [~]
+ *           | | (~)  (~)  (~)    /~~~~~~~~~~~~
+ *        /~~~~~~~~~~~~~~~~~~~~~~~  [~_~_] |    * * * /~~~~~~~~~~~|
+ *      [|  %___________________           | |~~~~~~~~            |
+ *        \[___] ___   ___   ___\  No. 4   | |   A.T. & S.F.      |
+ *     /// [___+/-+-\-/-+-\-/-+ \\_________|=|____________________|=
+ *   //// @-=-@ \___/ \___/ \___/  @-==-@      @-==-@      @-==-@
+ *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ ***************************************************************************/
+
+namespace credence::queue {
 
 using Expression = value::Expression::Type_Pointer;
 using Expressions = std::vector<Expression>;
 using Operator_Stack = std::stack<type::Operator>;
 
 using Type = value::Expression::Type;
-using Item = std::variant<type::Operator, Expression>;
 
-using Queue = std::deque<Item>;
+namespace detail {
 
-std::unique_ptr<Queue> make_queue_from_expression_operands(
-    Expressions const& items);
+/**
+ * @brief
+ *
+ *  Shunting-yard queue via operator stack of expressions
+ */
+class Queue
+{
+  public:
+    Queue() = delete;
+    explicit Queue(int* parameter_index, int* identifier_index)
+        : parameter_size_(parameter_index)
+        , parameter_ident_(identifier_index)
+    {
+    }
 
-std::unique_ptr<Queue> make_queue_from_expression_operands(
-    Expression const& item);
+  public:
+    using Item = std::variant<type::Operator, Expression>;
+    using Container = std::deque<Item>;
 
-std::string queue_of_expressions_to_string(Queue const& queue,
+    void shunt_expression_pointer_into_queue(Expression const& pointer,
+        Operator_Stack* operator_stack = nullptr);
+    void shunt_argument_expressions_into_queue(
+        value::Expression::Function const& s);
+
+    inline std::unique_ptr<Container> get()
+    {
+        return std::make_unique<Container>(queue_);
+    }
+
+  private:
+    void balance_operator_precedence(type::Operator op1);
+    void balance_queue();
+    void balance_operator_precedence(Operator_Stack* operator_stack,
+        type::Operator op1);
+    void balance_queue(Operator_Stack* operator_stack);
+
+  private:
+    Container queue_;
+
+  private:
+    Operator_Stack operator_stack_{};
+    int* parameter_size_;
+    int* parameter_ident_;
+};
+
+} // namespace detail;
+
+std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+    Expressions const& items,
+    int* parameter,
+    int* identifier);
+
+std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+    Expression const& item,
+    int* parameter,
+    int* identifier);
+
+std::string queue_of_expressions_to_string(
+    detail::Queue::Container const& queue,
     std::string_view separator = ":");
 
 } // namespace queue
-
-} // namespace credence

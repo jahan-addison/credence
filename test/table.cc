@@ -947,61 +947,61 @@ _L4:
 _L1:
     LEAVE;
 _L3:
-    _p1 = s;
+    _p6_1 = s;
     j = ++j;
-    _p2 = j;
-    PUSH _p2;
-    PUSH _p1;
+    _p7_2 = j;
+    PUSH _p7_2;
+    PUSH _p6_1;
     CALL char;
     POP 16;
-    _t6 = RET;
-    C = _t6;
-    JMP_E C ('45':char:1) _L8;
-    JMP_E C ('39':char:1) _L15;
-    JMP_E C ('48':char:1) _L17;
-    JMP_E C ('44':char:1) _L19;
+    _t8 = RET;
+    C = _t8;
+    JMP_E C ('45':char:1) _L10;
+    JMP_E C ('39':char:1) _L17;
+    JMP_E C ('48':char:1) _L19;
+    JMP_E C ('44':char:1) _L21;
+_L20:
 _L18:
 _L16:
-_L14:
-_L7:
-_L24:
-    _t27 = c <= ('57':char:1);
-    _t28 = c && _t27;
-    _t29 = ('48':char:1) <= _t28;
-    IF _t29 GOTO _L26;
-_L25:
-    GOTO _L4;
-_L8:
 _L9:
-    _t12 = CMP sign;
-    IF _t12 GOTO _L11;
+_L26:
+    _t29 = c <= ('57':char:1);
+    _t30 = c && _t29;
+    _t31 = ('48':char:1) <= _t30;
+    IF _t31 GOTO _L28;
+_L27:
+    GOTO _L4;
 _L10:
-    s = (1:int:4);
-    GOTO _L7;
 _L11:
+    _t14 = CMP sign;
+    IF _t14 GOTO _L13;
+_L12:
+    s = (1:int:4);
+    GOTO _L9;
+_L13:
     loop = (0:int:4);
     CALL error;
-    _t13 = RET;
-    GOTO _L10;
-_L15:
-    GOTO _L4;
+    _t15 = RET;
+    GOTO _L12;
 _L17:
     GOTO _L4;
 _L19:
-_L20:
-    _t23 = c == ('48':char:1);
-    IF _t23 GOTO _L22;
+    GOTO _L4;
 _L21:
-    GOTO _L18;
 _L22:
+    _t25 = c == ('48':char:1);
+    IF _t25 GOTO _L24;
+_L23:
+    GOTO _L20;
+_L24:
     RET i ;
-    GOTO _L21;
-_L26:
-    _t30 = c - ('48':char:1);
-    _t31 = m + _t30;
-    _t32 = (10:int:4) * _t31;
-    m = _t32;
-    GOTO _L25;
+    GOTO _L23;
+_L28:
+    _t32 = c - ('48':char:1);
+    _t33 = m + _t32;
+    _t34 = (10:int:4) * _t33;
+    m = _t34;
+    GOTO _L27;
  EndFunc ;
 
 
@@ -1014,13 +1014,13 @@ _L1:
 
 __error():
  BeginFunc ;
-    _p1 = ("bad syntax*n":string:12);
-    PUSH _p1;
+    _p2_3 = ("bad syntax*n":string:12);
+    PUSH _p2_3;
     CALL printf;
     POP 8;
-    _t2 = RET;
-    _t3 = - (1:int:4);
-    RET _t3;
+    _t3 = RET;
+    _t4 = - (1:int:4);
+    RET _t4;
 _L1:
     LEAVE;
  EndFunc ;
@@ -1034,7 +1034,8 @@ _L1:
  EndFunc ;
 
 )ita";
-    auto expected_2 = R"ita(__main():
+
+    std::string expected_2 = R"ita(__main():
  BeginFunc ;
     LOCL x;
     LOCL *y;
@@ -1055,11 +1056,11 @@ __snide(errno):
     u = unit;
     unit = (1:int:4);
     t = mess[errno];
-    _p1 = ("error number %d, %s*n'*,errno,mess[errno]":string:41);
-    PUSH _p1;
+    _p2_1 = ("error number %d, %s*n'*,errno,mess[errno]":string:41);
+    PUSH _p2_1;
     CALL printf;
     POP 8;
-    _t2 = RET;
+    _t3 = RET;
     unit = u;
 _L1:
     LEAVE;
@@ -1094,7 +1095,7 @@ _L1:
     out_to.str("");
     credence::ir::detail::emit_to(
         out_to, instructions[table->functions.at("main")->address_location[1]]);
-    REQUIRE(out_to.str() == "GOTO _L25;\n");
+    REQUIRE(out_to.str() == "GOTO _L27;\n");
     out_to.str("");
     credence::ir::emit(out_to, VECTOR_SYMBOLS, vector_2);
     REQUIRE(out_to.str() == expected_2);
@@ -1689,21 +1690,21 @@ TEST_CASE_FIXTURE(Table_Fixture, "floats and doubles")
 {
     std::string expected = R"ita(__main():
  BeginFunc ;
-    _p1 = ("%s %d %f %d %c":string:14);
-    _p2 = ("hello":string:5);
-    _p3 = (5:int:4);
-    _p4 = (5.55:float:4);
-    _p5 = (5.55556:double:8);
-    _p6 = ('120':char:1);
-    PUSH _p6;
-    PUSH _p5;
-    PUSH _p4;
-    PUSH _p3;
-    PUSH _p2;
-    PUSH _p1;
+    _p2_1 = ("%s %d %f %d %c":string:14);
+    _p3_2 = ("hello":string:5);
+    _p4_3 = (5:int:4);
+    _p5_4 = (5.55:float:4);
+    _p6_5 = (5.55556:double:8);
+    _p7_6 = ('120':char:1);
+    PUSH _p7_6;
+    PUSH _p6_5;
+    PUSH _p5_4;
+    PUSH _p4_3;
+    PUSH _p3_2;
+    PUSH _p2_1;
     CALL printf;
     POP 48;
-    _t2 = RET;
+    _t8 = RET;
 _L1:
     LEAVE;
  EndFunc ;

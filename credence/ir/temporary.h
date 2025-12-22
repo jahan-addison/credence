@@ -57,7 +57,8 @@ namespace credence {
 
 namespace ir {
 
-using Expression_Instructions = std::pair<ir::Instructions, queue::Queue>;
+using Expression_Instructions =
+    std::pair<ir::Instructions, queue::detail::Queue::Container>;
 using Temporary_Instructions = std::pair<std::string, ir::Instructions>;
 
 namespace detail {
@@ -158,14 +159,16 @@ constexpr bool is_in_place_unary_operator(type::Operator op)
 
 } // namespace detail
 
-Instructions expression_queue_to_temporary_instructions(queue::Queue& queue,
-    int* index);
+Instructions expression_queue_to_temporary_instructions(
+    queue::detail::Queue::Container const& queue,
+    int* temporary_index);
 
 Expression_Instructions expression_node_to_temporary_instructions(
     Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
-    int* temporary_index);
+    int* temporary_index,
+    int* identifier_index);
 
 } // namespace ir
 

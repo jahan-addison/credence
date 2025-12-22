@@ -28,6 +28,7 @@ The compiler works in 3 stages:
 * VSCode extension provided in `ext/`
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
+* `argc` and `argv` are type-safe if provided to `main`
 * Constant literals must be exactly 1 byte
 
 Note: currently, windows is not supported.
@@ -44,8 +45,8 @@ Usage:
   Credence [OPTION...] positional parameters
 
   -a, --ast-loader arg   AST Loader [json, python] (default: python)
-  -t, --target arg       Target [ir, syntax, ast, arm64, x86_64, z80]
-                         (default: ir)
+  -t, --target arg       Target [ir, syntax, ast, arm64, x86_64] (default:
+                         ir)
   -d, --debug            Dump symbol table
   -o, --output arg       Output file (default: stdout)
   -h, --help             Print usage
@@ -56,21 +57,36 @@ A complete assembler and linking tool is installed via the installation script.
 
 ## Targets
 
-#### x86-64:
+### x86-64:
+
+#### Linux, BSD (Darwin)
+
+### Done ✅
+
+[Implementation details here](/credence/target/x86_64/readme.md).
+
+#### Features
+
   * Compliance with the Application Binary Interface (ABI) for System V
   * SIMD memory alignment requirements
-  * In progress - [Details here](/credence/target//x86_64/readme.md)
 
-#### ARM64:
-  * Soon
+---
+
+### ARM64:
+
+#### Linux, BSD (Darwin)
+
+Soon. ™️
+
+---
 
 ## Standard Library
 
 #### [The Standard Library](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/runtime.h#L44)
 
-* The standard library object file is pre-compiled in `stdlib/` for each platform. **None of the standard library functions depend on the C runtime library**.
+* The standard library object file is pre-compiled in `stdlib/` for each platform. **None of the standard library depends on libc or libc++**.
 
-In addition, a syscall table map for functions such as `write(3)` is available for each platform, with compile-time invocation checks.
+In addition, a function map for kernel syscall tables such as `write(3)` is available for each platform, with compile-time type safety.
 
 * **Linux** x86_64
   * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L58)
@@ -80,24 +96,26 @@ In addition, a syscall table map for functions such as `write(3)` is available f
 ## Example
 
 ```C
-main() {
+main(argc, argv) {
   auto *x;
   extrn strings;
-  x = "hello, how are you";
-  // using the provided stdlib print function in stdlib/
-  print(identity(identity(identity(x))));
-
-  print(strings[0]);
+  x = "hello, how are you %s\n";
+  // using the provided standard library printf function in stdlib/
+  if (argc > 2) {
+    printf(identity(identity(identity(x))), argv[2]);
+    // stdlib print in stdlib/
+    print(strings[0]);
+  }
 }
 
 identity(*y) {
   return(y);
 }
 
-strings [3] "these are strings", "in an array", "for the readme";
+strings [3] "good afternoon", "good morning", "good evening";
 ```
 
-#### Linux x86-64:
+#### Result (x86-64, Linux):
 
 ```asm
 

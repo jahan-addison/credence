@@ -47,26 +47,21 @@ namespace credence {
 
 namespace queue {
 
-void expression_pointer_to_queue_in_place(Expression const& pointer,
-    Queue& queue,
-    Operator_Stack& operator_stack,
-    int* parameter_size);
+namespace detail {
 
 /**
  * @brief Operator precedence check of the queue and operator stack
  */
-void associativity_operator_precedence(type::Operator op1,
-    Queue& queue,
-    Operator_Stack& operator_stack)
+void Queue::balance_operator_precedence(type::Operator op1)
 {
-    while (!operator_stack.empty()) {
-        auto op2 = operator_stack.top();
+    while (!operator_stack_.empty()) {
+        auto op2 = operator_stack_.top();
         if ((is_left_associative(op1) &&
                 get_precedence(op2) <= get_precedence(op2)) ||
             (!is_left_associative(op1) &&
                 get_precedence(op1) < get_precedence(op2))) {
-            queue.emplace_back(operator_stack.top());
-            operator_stack.pop();
+            queue_.emplace_back(operator_stack_.top());
+            operator_stack_.pop();
         } else {
             break;
         }
@@ -76,45 +71,110 @@ void associativity_operator_precedence(type::Operator op1,
 /**
  * @brief Re-balance the queue if the stack is empty
  */
-inline void balance_queue(Queue& queue, Operator_Stack& operator_stack)
+void Queue::balance_queue()
 {
-    if (operator_stack.size() == 1) {
-        queue.emplace_back(operator_stack.top());
-        operator_stack.pop();
+    if (operator_stack_.size() == 1) {
+        queue_.emplace_back(operator_stack_.top());
+        operator_stack_.pop();
     }
 }
 
 /**
- * @brief Queue construction via operators and expressions ordered by
- * precedence
+ * @brief Operator precedence check of the queue and operator stack
  */
-void expression_pointer_to_queue_in_place(Expression const& pointer,
-    Queue& queue,
-    Operator_Stack& operator_stack,
-    int* parameter_size)
+void Queue::balance_operator_precedence(Operator_Stack* operator_stack,
+    type::Operator op1)
 {
+    while (!operator_stack->empty()) {
+        auto op2 = operator_stack->top();
+        if ((is_left_associative(op1) &&
+                get_precedence(op2) <= get_precedence(op2)) ||
+            (!is_left_associative(op1) &&
+                get_precedence(op1) < get_precedence(op2))) {
+            queue_.emplace_back(operator_stack->top());
+            operator_stack->pop();
+        } else {
+            break;
+        }
+    }
+}
+
+/**
+ * @brief Re-balance the queue if the stack is empty
+ */
+void Queue::balance_queue(Operator_Stack* operator_stack)
+{
+    if (operator_stack->size() == 1) {
+        queue_.emplace_back(operator_stack->top());
+        operator_stack->pop();
+    }
+}
+
+/**
+ * @brief Shunt arguments that are PUSH'd into function calls
+ */
+void Queue::shunt_argument_expressions_into_queue(
+    value::Expression::Function const& s)
+{
+    Operator_Stack operator_stack{};
+    auto op1 = type::Operator::U_CALL;
+    auto lhs = value::make_value_type_pointer(s.first);
+
+    queue_.emplace_back(lhs);
+
+    std::deque<Expression> parameters{};
+
+    for (auto const& parameter : s.second) {
+        auto param = value::make_value_type_pointer(parameter->value);
+        auto name = value::make_lvalue(fmt::format(
+            "_p{}_{}", ++(*parameter_size_), ++(*parameter_ident_)));
+        auto lvalue = value::make_value_type_pointer(name);
+        parameters.emplace_back(lvalue);
+        shunt_expression_pointer_into_queue(lvalue, &operator_stack);
+        shunt_expression_pointer_into_queue(param, &operator_stack);
+        operator_stack.emplace(type::Operator::B_ASSIGN);
+        balance_queue(&operator_stack);
+        balance_operator_precedence(&operator_stack, type::Operator::B_ASSIGN);
+    }
+
+    operator_stack.emplace(op1);
+
+    for (auto const& param_lvalue : parameters) {
+        operator_stack.emplace(type::Operator::U_PUSH);
+        shunt_expression_pointer_into_queue(param_lvalue);
+    }
+    balance_queue(&operator_stack);
+    balance_operator_precedence(&operator_stack, op1);
+}
+
+/**
+ * @brief Shunt the operator stack into an ordered expression queue
+ */
+void Queue::shunt_expression_pointer_into_queue(Expression const& pointer,
+    Operator_Stack* operator_stack)
+{
+    Operator_Stack& operator_stack_ref =
+        operator_stack != nullptr ? *operator_stack : operator_stack_;
     std::visit(
         util::overload{
 
             [&](std::monostate) {},
-            [&](value::Array const&) { queue.emplace_back(pointer); },
-            [&](value::Literal const&) { queue.emplace_back(pointer); },
+            [&](value::Array const&) { queue_.emplace_back(pointer); },
+            [&](value::Literal const&) { queue_.emplace_back(pointer); },
             [&](value::Expression::Pointer const& s) {
                 auto value = value::make_value_type_pointer(s->value);
-                expression_pointer_to_queue_in_place(
-                    value, queue, operator_stack, parameter_size);
+                shunt_expression_pointer_into_queue(value);
             },
             [&](value::Expression::Unary const& s) {
                 auto op1 = s.first;
                 auto rhs = value::make_value_type_pointer(s.second->value);
-                expression_pointer_to_queue_in_place(
-                    rhs, queue, operator_stack, parameter_size);
-                operator_stack.emplace(op1);
-                balance_queue(queue, operator_stack);
-                associativity_operator_precedence(op1, queue, operator_stack);
+                shunt_expression_pointer_into_queue(rhs);
+                operator_stack_ref.emplace(op1);
+                balance_queue();
+                balance_operator_precedence(op1);
             },
             [&](value::Expression::LValue const&) {
-                queue.emplace_back(pointer);
+                queue_.emplace_back(pointer);
             },
             [&](value::Expression::Relation const& s) {
                 auto op1 = s.first;
@@ -123,121 +183,83 @@ void expression_pointer_to_queue_in_place(Expression const& pointer,
                         value::make_value_type_pointer(s.second.at(0)->value);
                     auto rhs =
                         value::make_value_type_pointer(s.second.at(1)->value);
-                    expression_pointer_to_queue_in_place(
-                        lhs, queue, operator_stack, parameter_size);
-                    operator_stack.emplace(op1);
-                    expression_pointer_to_queue_in_place(
-                        rhs, queue, operator_stack, parameter_size);
+                    shunt_expression_pointer_into_queue(lhs);
+                    operator_stack_ref.emplace(op1);
+                    shunt_expression_pointer_into_queue(rhs);
                 } else if (s.second.size() == 4) {
                     // ternary
-                    operator_stack.emplace(type::Operator::B_TERNARY);
-                    operator_stack.emplace(type::Operator::U_PUSH);
+                    operator_stack_ref.emplace(type::Operator::B_TERNARY);
+                    operator_stack_ref.emplace(type::Operator::U_PUSH);
                     auto ternary_lhs =
                         value::make_value_type_pointer(s.second.at(2)->value);
                     auto ternary_rhs =
                         value::make_value_type_pointer(s.second.at(3)->value);
-                    expression_pointer_to_queue_in_place(
-                        ternary_lhs, queue, operator_stack, parameter_size);
-                    expression_pointer_to_queue_in_place(
-                        ternary_rhs, queue, operator_stack, parameter_size);
+                    shunt_expression_pointer_into_queue(ternary_lhs);
+                    shunt_expression_pointer_into_queue(ternary_rhs);
                     auto ternary_truthy =
                         value::make_value_type_pointer(s.second.at(0)->value);
-                    operator_stack.emplace(op1);
+                    operator_stack_ref.emplace(op1);
                     auto ternary_falsey =
                         value::make_value_type_pointer(s.second.at(1)->value);
-                    expression_pointer_to_queue_in_place(
-                        ternary_truthy, queue, operator_stack, parameter_size);
-                    expression_pointer_to_queue_in_place(
-                        ternary_falsey, queue, operator_stack, parameter_size);
+                    shunt_expression_pointer_into_queue(ternary_truthy);
+                    shunt_expression_pointer_into_queue(ternary_falsey);
                 }
-                balance_queue(queue, operator_stack);
-                associativity_operator_precedence(op1, queue, operator_stack);
+                balance_queue();
+                balance_operator_precedence(op1);
             },
             [&](value::Expression::Function const& s) {
-                auto op1 = type::Operator::U_CALL;
-                Operator_Stack operator_stack{};
-                auto lhs = value::make_value_type_pointer(s.first);
-
-                queue.emplace_back(lhs);
-                std::deque<Expression> parameters{};
-
-                for (auto const& parameter : s.second) {
-                    auto param =
-                        value::make_value_type_pointer(parameter->value);
-                    auto name = value::make_lvalue(
-                        fmt::format("_p{}", ++(*parameter_size)));
-                    auto lvalue = value::make_value_type_pointer(name);
-                    parameters.emplace_back(lvalue);
-                    expression_pointer_to_queue_in_place(
-                        lvalue, queue, operator_stack, parameter_size);
-                    expression_pointer_to_queue_in_place(
-                        param, queue, operator_stack, parameter_size);
-                    operator_stack.emplace(type::Operator::B_ASSIGN);
-                    balance_queue(queue, operator_stack);
-                    associativity_operator_precedence(
-                        type::Operator::B_ASSIGN, queue, operator_stack);
-                }
-                operator_stack.emplace(op1);
-                for (auto const& param_lvalue : parameters) {
-                    operator_stack.emplace(type::Operator::U_PUSH);
-                    expression_pointer_to_queue_in_place(
-                        param_lvalue, queue, operator_stack, parameter_size);
-                }
-                balance_queue(queue, operator_stack);
-                associativity_operator_precedence(op1, queue, operator_stack);
+                shunt_argument_expressions_into_queue(s);
             },
             [&](value::Expression::Symbol const& s) {
                 auto op1 = type::Operator::B_ASSIGN;
                 auto lhs = value::make_value_type_pointer(s.first);
                 auto rhs = value::make_value_type_pointer(s.second->value);
-                expression_pointer_to_queue_in_place(
-                    lhs, queue, operator_stack, parameter_size);
-                expression_pointer_to_queue_in_place(
-                    rhs, queue, operator_stack, parameter_size);
-                operator_stack.emplace(op1);
-
-                balance_queue(queue, operator_stack);
-                associativity_operator_precedence(op1, queue, operator_stack);
+                shunt_expression_pointer_into_queue(lhs);
+                shunt_expression_pointer_into_queue(rhs);
+                operator_stack_ref.emplace(op1);
+                balance_queue();
+                balance_operator_precedence(op1);
             } },
         *pointer);
 }
 
+} // namespace detail
+
 /**
  * @brief List of expressions to queue of operators and operands
  */
-std::unique_ptr<Queue> make_queue_from_expression_operands(
-    Expressions const& items)
+std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+    Expressions const& items,
+    int* parameter,
+    int* identifier)
 {
-    int parameter_size = 0;
-    Queue queue = Queue{};
-    Operator_Stack operator_stack{};
-    for (Expression const& item : items) {
-        expression_pointer_to_queue_in_place(
-            item, queue, operator_stack, &parameter_size);
-    }
-    return std::make_unique<Queue>(queue);
+    detail::Queue queue{ parameter, identifier };
+    for (Expression const& item : items)
+        queue.shunt_expression_pointer_into_queue(item);
+
+    return queue.get();
 }
 
 /**
  * @brief Single expression to queue of operators and operands
  */
-std::unique_ptr<Queue> make_queue_from_expression_operands(
-    Expression const& item)
+std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+    Expression const& item,
+    int* parameter,
+    int* identifier)
 {
-    int parameter_size = 0;
-    Queue queue = Queue{};
-    Operator_Stack operator_stack{};
-    expression_pointer_to_queue_in_place(
-        item, queue, operator_stack, &parameter_size);
+    detail::Queue queue{ parameter, identifier };
+    queue.shunt_expression_pointer_into_queue(item);
 
-    return std::make_unique<Queue>(queue);
+    return queue.get();
 }
 
 /**
  * @brief Queue to string of operators and operands in reverse-polish
  * notation
  */
-std::string queue_of_expressions_to_string(Queue const& queue,
+std::string queue_of_expressions_to_string(
+    detail::Queue::Container const& queue,
     std::string_view separator)
 {
     auto oss = std::ostringstream();

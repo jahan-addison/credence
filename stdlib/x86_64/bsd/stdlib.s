@@ -25,14 +25,15 @@
 
 .text
 
-    .global    printf
-    .global    print
-    .global    putchar
-    .global    getchar
+    .global printf
+    .global print
+    .global putchar
+    .global getchar
 
 ####################################################################
 ## @brief printf(9)
 ## The first argument in %rdi is the format string
+## Float and double arguments are in xmm0-xmm7
 ##   Format Specifiers:
 ## "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
 ####################################################################
@@ -267,8 +268,8 @@ printf:
     ret
 
 ####################################################
-## @brief print
-## Arguments are handled by credence
+## @brief print(1)
+## Buffer size is handled by credence
 ## %rdi should hold the buffer address
 ## mov    rdi, qword ptr [rbp - 8],
 ## %rsx should hold the buffer length
@@ -288,7 +289,7 @@ print:
     ret
 
 ####################################################
-## @brief putchar
+## @brief putchar(1)
 ## %rdi should hold the character immediate
 ####################################################
 putchar:

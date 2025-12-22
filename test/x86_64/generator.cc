@@ -1095,6 +1095,120 @@ _start:
         "stdlib/putchar_1", expected, false);
 }
 
+TEST_CASE("target/x86_64: fixture: relational/if_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "done!"
+
+._L_str2__:
+    .asciz "equal to %d\n"
+
+._L_str3__:
+    .asciz "greater than %d\n"
+
+._L_str4__:
+    .asciz "greater than or equal to %d\n"
+
+._L_str5__:
+    .asciz "less than %d\n"
+
+._L_str6__:
+    .asciz "less than or equal to %d\n"
+
+._L_str7__:
+    .asciz "not equal to %d\n"
+
+.text
+    .global _start
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov dword ptr [rbp - 4], 10
+._L2__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 5
+    jle ._L4__main
+._L3__main:
+._L9__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 10
+    je ._L11__main
+._L10__main:
+._L16__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 5
+    jge ._L18__main
+._L17__main:
+._L23__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 5
+    jne ._L25__main
+._L24__main:
+._L30__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 8
+    jg ._L32__main
+._L31__main:
+._L37__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 20
+    jl ._L39__main
+._L38__main:
+    lea rdi, [rip + ._L_str1__]
+    mov rsi, 5
+    call print
+    mov al, 1
+    mov byte ptr [rbp - 4], al
+    jmp ._L1__main
+._L4__main:
+    mov dword ptr [rbp - 4], 1
+    lea rdi, [rip + ._L_str6__]
+    mov rsi, 5
+    call printf
+    jmp ._L3__main
+._L11__main:
+    lea rdi, [rip + ._L_str2__]
+    mov rsi, 10
+    call printf
+    jmp ._L10__main
+._L18__main:
+    lea rdi, [rip + ._L_str4__]
+    mov rsi, 5
+    call printf
+    jmp ._L17__main
+._L25__main:
+    lea rdi, [rip + ._L_str7__]
+    mov rsi, 5
+    call printf
+    jmp ._L24__main
+._L32__main:
+    lea rdi, [rip + ._L_str3__]
+    mov rsi, 8
+    call printf
+    jmp ._L31__main
+._L39__main:
+    lea rdi, [rip + ._L_str5__]
+    mov rsi, 20
+    call printf
+    jmp ._L38__main
+._L1__main:
+    add rsp, 16
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/if_1", expected, false);
+}
+
 TEST_CASE("target/x86_64: fixture: relational/if_2.b")
 {
     std::string expected = R"x86(
@@ -1124,7 +1238,7 @@ _start:
 ._L2__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 5
-    jl ._L4__main
+    jg ._L4__main
     jmp ._L6__main
 ._L3__main:
     mov rdi, qword ptr [rbp - 16]
@@ -1180,16 +1294,16 @@ _start:
 ._L2__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 5
-    jl ._L4__main
-    jmp ._L7__main
+    jg ._L4__main
+    jmp ._L8__main
 ._L3__main:
     jmp ._L1__main
 ._L4__main:
-    lea rdi, [rip + ._L_str1__]
-    mov rsi, 11
+    lea rdi, [rip + ._L_str2__]
+    mov rsi, 14
     call print
     jmp ._L3__main
-._L7__main:
+._L8__main:
     lea rdi, [rip + ._L_str1__]
     lea rsi, [rip + ._L_str3__]
     mov rdx, 5

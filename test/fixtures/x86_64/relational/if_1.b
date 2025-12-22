@@ -3,22 +3,26 @@ main() {
   x = 10;
   if (x <= 5) {
     x = 1;
-    print("less than or equal to 5\n");
+    printf("less than or equal to %d\n", 5);
   }
   if (x == 10) {
-    print("equal to 10\n");
+    printf("equal to %d\n", 10);
   }
   if (x >= 5) {
-    print("greater than or equal to 5\n");
+    printf("greater than or equal to %d\n", 5);
   }
   if (x != 5) {
-    print("not equal to 5\n");
+    printf("not equal to %d\n", 5);
   }
   if (x > 8) {
-    print("greater than 8\n");
+    printf("greater than %d\n", 8);
   }
   if (x < 20) {
-    print("less than 20\n");
+    printf("less than %d\n", 20);
   }
+
+  print("done!");
+
   x = 5 || 2;
+
 }

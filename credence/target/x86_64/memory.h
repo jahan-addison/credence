@@ -367,7 +367,6 @@ class Buffer_Accessor
     {
         double_cache_.insert_or_assign(key, doublez_address);
     }
-
     RValue get_string_address_offset(RValue const& string)
     {
         return string_cache_.at(string);

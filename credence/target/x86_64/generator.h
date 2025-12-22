@@ -414,7 +414,7 @@ class Assembly_Emitter
  * each intermediate instruction is a quadruple defined in ita.h.
  *
  * Macros and helpers to compose mnemonics, registers, and immediate
- * values instructions are defined in instructions.h.
+ * values instructions are defined in assembly.h.
  *
  */
 

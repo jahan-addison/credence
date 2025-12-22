@@ -91,7 +91,7 @@ class Stack
     /**
      * @brief Allocate space on the stack from a word size
      *
-     * See instructions.h for details
+     * See assembly.h for details
      */
     constexpr Offset allocate(assembly::Operand_Size operand)
     {
@@ -103,7 +103,7 @@ class Stack
     /**
      * @brief Get the word size of an offset address
      *
-     * See instructions.h for details
+     * See assembly.h for details
      */
     constexpr assembly::Operand_Size get_operand_size_from_offset(
         Offset offset) const

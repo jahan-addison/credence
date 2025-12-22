@@ -114,7 +114,7 @@ void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
 }
 
 /**
- * @brief A compiletime allocation check on a buffer in a storage device
+ * @brief A compiletime check on a buffer allocation in a storage device
  */
 bool is_address_device_pointer_to_buffer(Address& address,
     ir::object::Object_PTR& objects,
@@ -146,17 +146,12 @@ bool is_address_device_pointer_to_buffer(Address& address,
 }
 
 /**
- * @brief Create the instructions for a standard library call
+ * @brief Check the argument size by the standard library table in runtime.h
  */
-void make_library_call(Instructions& instructions,
-    std::string_view library_function,
+void library_call_argument_check(std::string_view library_function,
     library_arguments_t const& arguments,
-    memory::Stack_Frame::IR_Stack& argument_stack,
-    memory::detail::Address_Accessor& address_space,
-    assembly::Register* address_of)
+    std::size_t arg_size)
 {
-    credence_assert(library_list.contains(library_function));
-    auto [arg_size] = library_list.at(library_function);
 
     if (is_variadic_library_function(library_function)) {
         if (arguments.size() > arg_size)
@@ -179,6 +174,85 @@ void make_library_call(Instructions& instructions,
                 __source__,
                 "function invocation");
     }
+}
+
+using library_register = std::deque<assembly::Register>;
+
+/**
+ * @brief Get registers for argument storage
+ */
+assembly::Register get_available_standard_library_register(
+    memory::detail::Address_Accessor& accessor,
+    library_register& argument_registers,
+    library_register& float_registers,
+    memory::Stack_Frame::IR_Stack& argument_stack,
+    std::size_t index)
+{
+    Register storage = Register::eax;
+    try {
+        if (accessor.is_lvalue_storage_type(
+                argument_stack.at(index), "float") or
+            accessor.is_lvalue_storage_type(
+                argument_stack.at(index), "double")) {
+            storage = float_registers.back();
+            float_registers.pop_back();
+        } else {
+            storage = argument_registers.back();
+            argument_registers.pop_back();
+        }
+    } catch ([[maybe_unused]] std::out_of_range const& e) {
+        storage = argument_registers.back();
+        argument_registers.pop_back();
+    }
+    return storage;
+}
+
+/**
+ * @brief Prepare registers for argument operand storage
+ */
+void insert_argument_instructions_standard_library_function(
+    Instructions& instructions,
+    Register storage,
+    std::string_view arg_type,
+    Address const& argument,
+    Register* signal_register)
+{
+    if (arg_type == "string") {
+        instructions.emplace_back(assembly::Instruction{
+            assembly::Mnemonic::lea, storage, argument });
+    } else if (arg_type == "float") {
+        instructions.emplace_back(assembly::Instruction{
+            assembly::Mnemonic::movsd, storage, argument });
+    } else if (arg_type == "double") {
+        instructions.emplace_back(assembly::Instruction{
+            assembly::Mnemonic::movsd, storage, argument });
+    } else {
+        if (storage == assembly::Register::rdi and
+            *signal_register == assembly::Register::rcx) {
+            *signal_register = assembly::Register::eax;
+            instructions.emplace_back(assembly::Instruction{
+                assembly::Mnemonic::movq_, storage, assembly::Register::rcx });
+            return;
+        }
+        instructions.emplace_back(assembly::Instruction{
+            assembly::Mnemonic::movq_, storage, argument });
+    }
+}
+
+/**
+ * @brief Create the instructions for a standard library call
+ */
+void make_library_call(Instructions& instructions,
+    std::string_view library_function,
+    library_arguments_t const& arguments,
+    memory::Stack_Frame::IR_Stack& argument_stack,
+    memory::detail::Address_Accessor& address_space,
+    assembly::Register* address_of)
+{
+    credence_assert(library_list.contains(library_function));
+    auto [arg_size] = library_list.at(library_function);
+
+    library_call_argument_check(library_function, arguments, arg_size);
 
     std::deque<assembly::Register> argument_storage = { assembly::Register::r9,
         assembly::Register::r8,
@@ -191,50 +265,19 @@ void make_library_call(Instructions& instructions,
 
     for (std::size_t i = 0; i < arguments.size(); i++) {
         auto arg = arguments.at(i);
+
         std::string arg_type =
             argument_stack.size() > i
                 ? type::get_type_from_rvalue_data_type(argument_stack.at(i))
                 : "";
-        Register storage = Register::eax;
-        try {
-            if (address_space.is_lvalue_storage_type(
-                    argument_stack.at(i), "float") or
-                address_space.is_lvalue_storage_type(
-                    argument_stack.at(i), "double")) {
-                storage = float_storage.back();
-                float_storage.pop_back();
-            } else {
-                storage = argument_storage.back();
-                argument_storage.pop_back();
-            }
-        } catch ([[maybe_unused]] std::out_of_range const& e) {
-            storage = argument_storage.back();
-            argument_storage.pop_back();
-        }
 
-        if (arg_type == "string") {
-            instructions.emplace_back(
-                assembly::Instruction{ assembly::Mnemonic::lea, storage, arg });
-        } else if (arg_type == "float") {
-            instructions.emplace_back(assembly::Instruction{
-                assembly::Mnemonic::movsd, storage, arg });
-        } else if (arg_type == "double") {
-            instructions.emplace_back(assembly::Instruction{
-                assembly::Mnemonic::movsd, storage, arg });
-        } else {
-            if (storage == assembly::Register::rdi and
-                *address_of == assembly::Register::rcx) {
-                *address_of = assembly::Register::eax;
-                instructions.emplace_back(
-                    assembly::Instruction{ assembly::Mnemonic::movq_,
-                        storage,
-                        assembly::Register::rcx });
-                continue;
-            }
-            instructions.emplace_back(assembly::Instruction{
-                assembly::Mnemonic::movq_, storage, arg });
-        }
+        auto storage = get_available_standard_library_register(
+            address_space, argument_storage, float_storage, argument_stack, i);
+
+        insert_argument_instructions_standard_library_function(
+            instructions, storage, arg_type, arg, address_of);
     }
+
     auto call_immediate = assembly::make_array_immediate(library_function);
     instructions.emplace_back(assembly::Instruction{
         assembly::Mnemonic::call, call_immediate, assembly::O_NUL });

@@ -226,7 +226,7 @@ class Object
 
   public:
     Instruction_PTR ir_instructions{};
-    ITA::Node hoisted_symbols;
+    util::AST_Node hoisted_symbols;
     Symbol_Table<> globals{};
     Function::Address_Table address_table{};
     std::string stack_frame_symbol{};

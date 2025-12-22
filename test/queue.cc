@@ -359,97 +359,121 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     parser.symbols_.table_.emplace("y", null);
 
     std::string complex_expected =
-        "(5:int:4) (5:int:4) exp _p1 (2:int:4) = _p2 (5:int:4) = _p1 _p2 "
-        "PUSH "
-        "PUSH CALL (4:int:4) (2:int:4) ^ ~ / + * ";
+        "(5:int:4) (5:int:4) exp _p1_1 (2:int:4) = _p2_2 (5:int:4) = _p1_1 "
+        "_p2_2 PUSH PUSH CALL (4:int:4) (2:int:4) ^ ~ / + * ";
     std::string unary_expected = "(5:int:4) ~ ";
     std::string equal_expected = "x (5:int:4) (5:int:4) + = ";
     std::string unary_relation_expected = "(5:int:4) ~ (2:int:4) ^ ";
     std::string ternary_expected =
         "x (10:int:4) (1:int:4) (5:int:4) (4:int:4) < PUSH ?: = ";
-    std::string function_expected = "puts _p1 (1:int:4) = _p2 (2:int:4) = "
-                                    "_p3 (3:int:4) = _p1 _p2 _p3 PUSH "
-                                    "PUSH PUSH CALL ";
+    std::string function_expected =
+        "puts _p1_1 (1:int:4) = _p2_2 (2:int:4) = _p3_3 (3:int:4) = _p1_1 "
+        "_p2_2 _p3_3 PUSH PUSH PUSH CALL ";
     std::string evaluated_expected =
         "x (5:int:4) (5:int:4) * (6:int:4) (6:int:4) * + = ";
     std::string evaluated_expected_2 =
         "x (5:int:4) (6:int:4) + (5:int:4) (6:int:4) + * = ";
     std::string functions_expected =
-        "x exp _p1 exp _p2 (1:int:4) = _p3 (2:int:4) = _p2 _p3 PUSH PUSH "
-        "CALL "
-        "= _p4 sub _p5 (1:int:4) = _p6 (2:int:4) = _p5 _p6 PUSH PUSH CALL "
-        "= "
-        "_p1 _p4 PUSH PUSH CALL = ";
+        "x exp _p1_1 exp _p2_2 (1:int:4) = _p3_3 (2:int:4) = _p2_2 _p3_3 PUSH "
+        "PUSH CALL = _p4_4 sub _p5_5 (1:int:4) = _p6_6 (2:int:4) = _p5_5 _p6_6 "
+        "PUSH PUSH CALL = _p1_1 _p4_4 PUSH PUSH CALL = ";
 
     std::vector<value::Array> rvalues{};
     auto expressions = queue::Expressions{};
-    std::unique_ptr<queue::Queue> queue{};
+    int parameter = 0;
+    int identifier = 0;
+    std::unique_ptr<queue::detail::Queue::Container> queue{};
     std::string test{};
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["complex"]).value));
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == complex_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["unary"]).value));
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["equal"]).value));
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == equal_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["unary_relation"]).value));
 
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_relation_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["ternary"]).value));
 
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == ternary_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["function"]).value));
 
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == function_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["evaluated"]).value));
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["evaluated_2"]).value));
 
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected_2);
     expressions.clear();
+    parameter = 0;
+    identifier = 0;
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["functions"]).value));
 
-    queue = queue::make_queue_from_expression_operands(expressions);
+    queue = queue::make_queue_from_expression_operands(
+        expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == functions_expected);
     expressions.clear();

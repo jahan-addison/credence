@@ -384,7 +384,7 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
     std::string temp_lvalue{};
     auto rvalue = Expression_Parser::parse(block, internal_symbols_, symbols_);
     auto comparator_instructions = expression_node_to_temporary_instructions(
-        symbols_, block, internal_symbols_, &temporary)
+        symbols_, block, internal_symbols_, &temporary, &identifier)
                                        .first;
 
     m::match(value::get_expression_type(rvalue.value))(
@@ -636,7 +636,7 @@ Instructions ITA::build_from_return_statement(Node const& node)
     Instructions instructions{};
     auto return_statement = node["left"];
     auto return_instructions = expression_node_to_temporary_instructions(
-        symbols_, return_statement, internal_symbols_, &temporary);
+        symbols_, return_statement, internal_symbols_, &temporary, &identifier);
     ir::insert(instructions, return_instructions.first);
     if (!return_instructions.second.empty() and instructions.empty()) {
         auto last_rvalue = std::get<value::Expression::Type_Pointer>(
@@ -749,7 +749,7 @@ Instructions ITA::build_from_rvalue_statement(Node const& node)
     credence_assert(node.has_key("left"));
     auto statement = node["left"];
     return expression_node_to_temporary_instructions(
-        symbols_, statement, internal_symbols_, &temporary)
+        symbols_, statement, internal_symbols_, &temporary, &identifier)
         .first;
 }
 

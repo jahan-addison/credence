@@ -52,9 +52,9 @@ std::vector<std::string> get_library_symbols();
  *
  * printf(9):
  *
- *  A `printf' routine that takes a format string and up to 8 arguments
- *  %rdi is the variable size of arguments, up to 8
- *  %rsi is the format string
+ *  A `printf' routine that takes a format string and up to 8 variadic arguments
+ *  %rdi is the format string
+ *  Float and double arguments are in xmm0-xmm7
  *   Formatting:
  *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
  *   Warning:

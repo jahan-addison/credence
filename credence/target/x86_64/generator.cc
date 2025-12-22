@@ -471,7 +471,7 @@ void Text_Emitter::emit_text_instruction(std::ostream& os,
 }
 
 /**
- * @brief Emit the the function epilogue at the end if this frame has branches
+ * @brief Emit the the function epilogue at the end if a frame has branches
  */
 void Text_Emitter::emit_function_epilogue(std::ostream& os)
 {
@@ -490,7 +490,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
 }
 
 /**
- * @brief Emit the text section x64 instructions of a B language source
+ * @brief Emit the text section instructions
  */
 void Text_Emitter::emit_text_section(std::ostream& os)
 {
@@ -1874,12 +1874,12 @@ Relational_Operator_Inserter::from_relational_expression_operands(
             },
         m::pattern | std::string{ "<" } =
             [&] {
-                return assembly::r_gt(
+                return assembly::r_lt(
                     operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ ">" } =
             [&] {
-                return assembly::r_lt(
+                return assembly::r_gt(
                     operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ "<=" } =

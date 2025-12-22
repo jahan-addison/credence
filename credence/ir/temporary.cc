@@ -589,14 +589,15 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
  * @brief
  * Construct a set of ITA instructions from an expression queue.
  */
-Instructions expression_queue_to_temporary_instructions(queue::Queue& queue,
-    int* index)
+Instructions expression_queue_to_temporary_instructions(
+    queue::detail::Queue::Container& queue,
+    int* temporary_index)
 {
     using namespace credence::type;
     if (queue.empty()) {
         return Instructions{};
     }
-    auto temporary = detail::Temporary{ index };
+    auto temporary = detail::Temporary{ temporary_index };
     for (auto& item : queue) {
         std::visit(
             util::overload{
@@ -686,7 +687,8 @@ Expression_Instructions expression_node_to_temporary_instructions(
     Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
-    int* temporary_index)
+    int* temporary_index,
+    int* identifier_index)
 {
     detail::Temporary::Operands operands{};
 
@@ -705,7 +707,8 @@ Expression_Instructions expression_node_to_temporary_instructions(
                         .value));
             }
         }
-        auto queue = queue::make_queue_from_expression_operands(operands);
+        auto queue = queue::make_queue_from_expression_operands(
+            operands, temporary_index, identifier_index);
         auto instructions =
             expression_queue_to_temporary_instructions(*queue, temporary_index);
         return std::make_pair(instructions, *queue);
@@ -713,7 +716,8 @@ Expression_Instructions expression_node_to_temporary_instructions(
     } else {
         auto type_pointer = value::make_value_type_pointer(
             Expression_Parser::parse(node, details, symbols).value);
-        auto queue = queue::make_queue_from_expression_operands(type_pointer);
+        auto queue = queue::make_queue_from_expression_operands(
+            type_pointer, temporary_index, identifier_index);
         auto instructions =
             expression_queue_to_temporary_instructions(*queue, temporary_index);
         return std::make_pair(instructions, *queue);

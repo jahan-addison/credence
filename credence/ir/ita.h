@@ -448,6 +448,7 @@ class ITA
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     int temporary{ 0 };
+    int identifier{ 0 };
     // clang-format on
 
   private:

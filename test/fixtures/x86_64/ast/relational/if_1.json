@@ -1,0 +1,469 @@
+[
+  {
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "print": {
+      "column": 3,
+      "end_column": 8,
+      "end_pos": 400,
+      "line": 24,
+      "start_pos": 395,
+      "type": "lvalue"
+    },
+    "printf": {
+      "column": 5,
+      "end_column": 11,
+      "end_pos": 66,
+      "line": 6,
+      "start_pos": 60,
+      "type": "lvalue"
+    },
+    "x": {
+      "column": 8,
+      "end_column": 9,
+      "end_pos": 17,
+      "line": 2,
+      "start_pos": 16,
+      "type": "lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "x"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "integer_literal",
+                      "root": 10
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 5
+                },
+                "root": [
+                  "<="
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "x"
+                            },
+                            "node": "assignment_expression",
+                            "right": {
+                              "node": "integer_literal",
+                              "root": 1
+                            },
+                            "root": [
+                              "="
+                            ]
+                          }
+                        ],
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "printf"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "node": "string_literal",
+                                "root": "\"less than or equal to %d\\n\""
+                              },
+                              {
+                                "node": "integer_literal",
+                                "root": 5
+                              }
+                            ],
+                            "root": "printf"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
+              ],
+              "root": "if"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 10
+                },
+                "root": [
+                  "=="
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "printf"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "node": "string_literal",
+                                "root": "\"equal to %d\\n\""
+                              },
+                              {
+                                "node": "integer_literal",
+                                "root": 10
+                              }
+                            ],
+                            "root": "printf"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
+              ],
+              "root": "if"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 5
+                },
+                "root": [
+                  ">="
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "printf"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "node": "string_literal",
+                                "root": "\"greater than or equal to %d\\n\""
+                              },
+                              {
+                                "node": "integer_literal",
+                                "root": 5
+                              }
+                            ],
+                            "root": "printf"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
+              ],
+              "root": "if"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 5
+                },
+                "root": [
+                  "!="
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "printf"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "node": "string_literal",
+                                "root": "\"not equal to %d\\n\""
+                              },
+                              {
+                                "node": "integer_literal",
+                                "root": 5
+                              }
+                            ],
+                            "root": "printf"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
+              ],
+              "root": "if"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 8
+                },
+                "root": [
+                  ">"
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "printf"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "node": "string_literal",
+                                "root": "\"greater than %d\\n\""
+                              },
+                              {
+                                "node": "integer_literal",
+                                "root": 8
+                              }
+                            ],
+                            "root": "printf"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
+              ],
+              "root": "if"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "x"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 20
+                },
+                "root": [
+                  "<"
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "printf"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "node": "string_literal",
+                                "root": "\"less than %d\\n\""
+                              },
+                              {
+                                "node": "integer_literal",
+                                "root": 20
+                              }
+                            ],
+                            "root": "printf"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
+              ],
+              "root": "if"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "string_literal",
+                        "root": "\"done!\""
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "integer_literal",
+                        "root": 5
+                      },
+                      "node": "relation_expression",
+                      "right": {
+                        "node": "integer_literal",
+                        "root": 2
+                      },
+                      "root": [
+                        "||"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

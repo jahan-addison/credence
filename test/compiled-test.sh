@@ -27,6 +27,11 @@ fi
 if [[ "$1" == "call_test_2" ]]; then
   printf -v expected_output '%s' "hello world"
 fi
+if [[ "$1" == "if_1" ]]; then
+  printf -v expected_output '%s' "equal to 10\ngreater than or equal to 5\nnot equal to 5\ngreater than 8\nless than 20\ndone!"
+fi
+
+
 if [[ "$1" == "stdlib_putchar_test" ]]; then
   printf -v expected_output '%s' "lol"
 fi
