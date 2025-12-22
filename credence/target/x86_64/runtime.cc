@@ -151,11 +151,34 @@ bool is_address_device_pointer_to_buffer(Address& address,
 void make_library_call(Instructions& instructions,
     std::string_view library_function,
     library_arguments_t const& arguments,
+    memory::Stack_Frame::IR_Stack& argument_stack,
+    memory::detail::Address_Accessor& address_space,
     assembly::Register* address_of)
 {
     credence_assert(library_list.contains(library_function));
     auto [arg_size] = library_list.at(library_function);
-    credence_assert_equal(arg_size, arguments.size());
+
+    if (is_variadic_library_function(library_function)) {
+        if (arguments.size() > arg_size)
+            throw_compiletime_error(
+                fmt::format("too many arguments '{}' passed to varadic, "
+                            "expected '{}' arguments",
+                    arg_size,
+                    arguments.size()),
+                library_function,
+                __source__,
+                "function invocation");
+    } else {
+        if (arguments.size() != arg_size)
+            throw_compiletime_error(
+                fmt::format("invaloud argument size '{}' passed to function"
+                            "expected '{}' arguments",
+                    arg_size,
+                    arguments.size()),
+                library_function,
+                __source__,
+                "function invocation");
+    }
 
     std::deque<assembly::Register> argument_storage = { assembly::Register::r9,
         assembly::Register::r8,
@@ -164,9 +187,27 @@ void make_library_call(Instructions& instructions,
         assembly::Register::rsi,
         assembly::Register::rdi };
 
-    for (auto const& arg : arguments) {
-        auto storage = argument_storage.back();
-        argument_storage.pop_back();
+    std::deque<assembly::Register> float_storage = assembly::FLOAT_REGISTER;
+
+    for (std::size_t i = 0; i < arguments.size(); i++) {
+        auto arg = arguments.at(i);
+        Register storage = Register::eax;
+        try {
+            if (address_space.is_lvalue_storage_type(
+                    argument_stack.at(i), "float") or
+                address_space.is_lvalue_storage_type(
+                    argument_stack.at(i), "double")) {
+                storage = float_storage.back();
+                float_storage.pop_back();
+            } else {
+                storage = argument_storage.back();
+                argument_storage.pop_back();
+            }
+        } catch ([[maybe_unused]] std::out_of_range const& e) {
+            storage = argument_storage.back();
+            argument_storage.pop_back();
+        }
+
         if (is_immediate_rip_address_offset(arg)) {
             instructions.emplace_back(
                 assembly::Instruction{ assembly::Mnemonic::lea, storage, arg });

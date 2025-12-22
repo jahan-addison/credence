@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <concepts>          // for integral
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <credence/values.h> // for Expression
@@ -58,6 +59,8 @@ using RValue_Reference = std::string_view;
 using Stack = std::deque<semantic::RValue>;
 using Labels = std::set<semantic::Label>;
 using Strings = std::set<semantic::RValue>;
+using Floats = std::set<float>;
+using Doubles = std::set<double>;
 using Globals = value::Array;
 using Binary_Expression =
     std::tuple<semantic::RValue, std::string, semantic::RValue>;
@@ -109,7 +112,7 @@ inline double integral_from_type_double(std::string const& t)
     return std::stod(t);
 }
 
-template<typename T>
+template<util::Numeric T>
 T integral_from_type(std::string const& t)
 {
     if constexpr (std::is_same_v<T, int>) {

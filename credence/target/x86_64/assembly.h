@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>        // for __find, find
+#include <concepts>         // for integral
 #include <credence/types.h> // for integral_from_type, Type, Data_...
 #include <credence/util.h>  // for contains, is_variant
 #include <cstddef>          // for size_t
@@ -49,6 +50,10 @@
     x86_64::assembly::Instruction_Pair name(                \
         x86_64::assembly::Storage const& dest,              \
         x86_64::assembly::Storage const& src)
+#define DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                           \
+    x86_64::assembly::Instructions name(x86_64::assembly::Storage const& dest, \
+        x86_64::assembly::Storage const& src,                                  \
+        x86_64::assembly::Label const& to)
 #define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
     x86_64::assembly::Instruction_Pair name(                \
         x86_64::assembly::Storage const& dest,              \
@@ -197,6 +202,10 @@
 #define MNEMONIC_OSTREAM(mnem)                               \
     case mn(mnem): {                                         \
         auto mnem_str = std::string_view{ STRINGIFY(mnem) }; \
+        if (mnem_str == "goto_") {                           \
+            os << "jmp";                                     \
+            break;                                           \
+        }                                                    \
         if (mnem_str.ends_with("q_"))                        \
             mnem_str.remove_suffix(2);                       \
         if (util::contains(mnem_str, "_"))                   \
@@ -239,8 +248,8 @@ enum class Register
     r12,
     r13,
     r14,
+
     ebp,
-    di,
     esp,
     eax,
     ebx,
@@ -249,7 +258,6 @@ enum class Register
     esi,
     edi,
     r8d,
-    ax,
     r9d,
     r10d,
     r11d,
@@ -257,8 +265,20 @@ enum class Register
     r13d,
     r14d,
     r15d,
+
+    di,
+    ax,
     al,
     dil,
+
+    xmm7,
+    xmm6,
+    xmm5,
+    xmm4,
+    xmm3,
+    xmm2,
+    xmm1,
+    xmm0
 };
 
 constexpr const auto QWORD_REGISTER = { Register::rdi,
@@ -276,6 +296,16 @@ constexpr const auto DWORD_REGISTER = { Register::edi,
     Register::ecx,
     Register::eax };
 
+constexpr const auto FLOAT_REGISTER = { Register::xmm7,
+    Register::xmm6,
+    Register::xmm5,
+    Register::xmm4,
+    Register::xmm3,
+    Register::xmm2,
+    Register::xmm1,
+    Register::xmm1,
+    Register::xmm0 };
+
 enum class Mnemonic
 {
     imul,
@@ -288,6 +318,8 @@ enum class Mnemonic
     jne,
     jle,
     jl,
+    jg,
+    jge,
     idiv,
     inc,
     dec,
@@ -300,12 +332,14 @@ enum class Mnemonic
     cmp,
     sete,
     setne,
+    goto_,
     setl,
     setg,
     setle,
     setge,
     mov,
     movq_,
+    movzx,
     mov_,
     and_,
     or_,
@@ -339,7 +373,7 @@ enum class Directive
  * expression
  */
 
-template<typename T>
+template<util::Numeric T>
 T trivial_arithmetic_from_numeric_table_type(std::string const& lhs,
     std::string const& op,
     std::string const& rhs)
@@ -365,8 +399,7 @@ T trivial_arithmetic_from_numeric_table_type(std::string const& lhs,
  *  Template function to compute type-safe trivial bitwise binary
  * expression
  */
-
-template<typename T>
+template<util::Numeric T>
 T trivial_bitwise_from_numeric_table_type(std::string const& lhs,
     std::string const& op,
     std::string const& rhs)
@@ -414,13 +447,11 @@ const std::map<Operand_Size, std::string> suffix = {
 
 constexpr bool is_qword_register(Register r)
 {
-    return std::ranges::find(QWORD_REGISTER.begin(), QWORD_REGISTER.end(), r) !=
-           QWORD_REGISTER.end();
+    return util::range_contains(r, QWORD_REGISTER);
 }
 constexpr bool is_dword_register(Register r)
 {
-    return std::ranges::find(DWORD_REGISTER.begin(), DWORD_REGISTER.end(), r) !=
-           DWORD_REGISTER.end();
+    return util::range_contains(r, DWORD_REGISTER);
 }
 
 constexpr Operand_Size get_operand_size_from_register(Register acc)
@@ -535,6 +566,14 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         REGISTER_OSTREAM(dil);
         REGISTER_OSTREAM(al);
         REGISTER_OSTREAM(ax);
+        REGISTER_OSTREAM(xmm7);
+        REGISTER_OSTREAM(xmm6);
+        REGISTER_OSTREAM(xmm5);
+        REGISTER_OSTREAM(xmm4);
+        REGISTER_OSTREAM(xmm3);
+        REGISTER_OSTREAM(xmm2);
+        REGISTER_OSTREAM(xmm1);
+        REGISTER_OSTREAM(xmm0);
     }
     return os;
 }
@@ -580,6 +619,14 @@ constexpr std::string register_as_string(Register reg)
         REGISTER_STRING(dil);
         REGISTER_STRING(al);
         REGISTER_STRING(ax);
+        REGISTER_STRING(xmm7);
+        REGISTER_STRING(xmm6);
+        REGISTER_STRING(xmm5);
+        REGISTER_STRING(xmm4);
+        REGISTER_STRING(xmm3);
+        REGISTER_STRING(xmm2);
+        REGISTER_STRING(xmm1);
+        REGISTER_STRING(xmm0);
     }
     return "rax";
 }
@@ -587,6 +634,7 @@ constexpr std::string register_as_string(Register reg)
 /**
  * @brief operator<< function for emission of mnemonics
  */
+// cppcheck-suppress all
 constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 {
     switch (mnemonic) {
@@ -600,6 +648,8 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         MNEMONIC_OSTREAM(jne);
         MNEMONIC_OSTREAM(jle);
         MNEMONIC_OSTREAM(jl);
+        MNEMONIC_OSTREAM(jg);
+        MNEMONIC_OSTREAM(jge);
         MNEMONIC_OSTREAM(idiv);
         MNEMONIC_OSTREAM(inc);
         MNEMONIC_OSTREAM(dec);
@@ -607,6 +657,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         MNEMONIC_OSTREAM(cdq);
         MNEMONIC_OSTREAM(leave);
         MNEMONIC_OSTREAM(mov);
+        MNEMONIC_OSTREAM(movzx);
         MNEMONIC_OSTREAM(movq_);
         MNEMONIC_OSTREAM(mov_);
         MNEMONIC_OSTREAM(push);
@@ -614,6 +665,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         MNEMONIC_OSTREAM(call);
         MNEMONIC_OSTREAM(cmp);
         MNEMONIC_OSTREAM(sete);
+        MNEMONIC_OSTREAM(goto_);
         MNEMONIC_OSTREAM(setne);
         MNEMONIC_OSTREAM(setl);
         MNEMONIC_OSTREAM(setg);
@@ -636,13 +688,13 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
  */
 
 using Immediate = type::Data_Type;
+using Label = type::semantic::Label;
 using Stack_Offset = std::size_t;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
 using Data_Pair = std::pair<Directive, type::semantic::RValue>;
-using Directives = std::deque<std::variant<type::semantic::Label, Data_Pair>>;
-using Instructions =
-    std::deque<std::variant<type::semantic::Label, Instruction>>;
+using Directives = std::deque<std::variant<Label, Data_Pair>>;
+using Instructions = std::deque<std::variant<Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, Instructions>;
 using Directive_Pair = std::pair<std::string, Directives>;
 
@@ -777,7 +829,7 @@ constexpr bool is_immediate_rip_address_offset(Storage const& immediate)
 /**
  * @brief Type-safe numeric type::Data_Type immediate constructor
  */
-template<typename T = int>
+template<util::Numeric T>
 constexpr Immediate make_numeric_immediate(T imm,
     std::string const& type = "int")
 {
@@ -819,15 +871,14 @@ DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(add);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mod);
 // r (relational)
 DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(u_not);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_eq);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_neq);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_lt);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_gt);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_le);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_ge);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_or);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_and);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(r_lt);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_eq);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_neq);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_lt);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_gt);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_le);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_ge);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_or);
+DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_and);
 // b (bitwise)
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
 DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);

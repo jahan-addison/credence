@@ -18,6 +18,7 @@
 #include "assembly.h"          // for Instructions, Storage
 #include "credence/ir/table.h" // for Table
 #include "credence/types.h"    // for Label
+#include "memory.h"            // for Address_Accessor
 #include "stack.h"             // for Stack
 #include <array>               // for array
 #include <credence/util.h>     // for AST_Node
@@ -49,6 +50,14 @@ std::vector<std::string> get_library_symbols();
  *
  * ------------------------------------------------------------------------
  *
+ * printf(9):
+ *
+ *  A `printf' routine that takes a format string and up to 8 arguments
+ *   Formatting:
+ *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
+ *   Registers:
+ *      rdi, rsi, xmm0, xmm1, rdx, rcx, r8, r9, [stack]
+ *
  * print(1):
  *
  *  A `print' routine that is type safe for buffer addresses and strings
@@ -66,7 +75,11 @@ std::vector<std::string> get_library_symbols();
  *
  * ------------------------------------------------------------------------
  */
+
+const auto variadic_library_list = { "printf" };
+
 const library_list_t library_list = {
+    { "printf",  { 9 } },
     { "print",   { 2 } },
     { "putchar", { 1 } },
     { "getchar", { 0 } }
@@ -75,6 +88,14 @@ const library_list_t library_list = {
 bool is_syscall_function(type::semantic::Label const& label);
 bool is_library_function(type::semantic::Label const& label);
 bool is_stdlib_function(type::semantic::Label const& label);
+
+/**
+ * @brief Check if a label is available as a variadic library function
+ */
+constexpr bool is_variadic_library_function(std::string_view const& label)
+{
+    return util::range_contains(label, variadic_library_list);
+}
 
 namespace detail {
 
@@ -92,6 +113,8 @@ bool is_address_device_pointer_to_buffer(Address& address,
 void make_library_call(Instructions& instructions,
     std::string_view libary_function,
     library_arguments_t const& arguments,
+    memory::Stack_Frame::IR_Stack& argument_stack,
+    memory::detail::Address_Accessor& address_space,
     assembly::Register* address_of);
 
 void add_stdlib_functions_to_symbols(util::AST_Node& symbols,

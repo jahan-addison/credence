@@ -31,7 +31,6 @@ Immediate get_result_from_trivial_relational_expression(Immediate const& lhs,
     Immediate const& rhs)
 {
     int result{ 0 };
-    // note: operand type checking is done in the table
     auto type = type::get_type_from_rvalue_data_type(lhs);
     auto lhs_imm = type::get_value_from_rvalue_data_type(lhs);
     auto rhs_imm = type::get_value_from_rvalue_data_type(rhs);
@@ -263,70 +262,58 @@ Instruction_Pair neg(Storage const& dest)
     return add_1ary_inst(mn(neg), dest);
 }
 
-Instruction_Pair r_eq(Storage const& dest, Storage const& src)
+Instructions r_eq(Storage const& dest, Storage const& src, Label const& to)
 {
     auto inst = make_empty();
     asm__dest_rs(inst, mov, eax, dest);
     asm__dest_rs(inst, cmp, eax, src);
-    asm__dest_s(inst, sete, al);
-    add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
-    return { rr(eax), inst };
+    add_asm__as(inst, je, make_direct_immediate(to), O_NUL);
+    return inst;
 }
 
-Instruction_Pair r_neq(Storage const& dest, Storage const& src)
+Instructions r_neq(Storage const& dest, Storage const& src, Label const& to)
 {
     auto inst = make_empty();
     asm__dest_rs(inst, mov, eax, dest);
     asm__dest_rs(inst, cmp, eax, src);
-    asm__dest_s(inst, setne, al);
-    add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
-    return { rr(eax), inst };
+    add_asm__as(inst, jne, make_direct_immediate(to), O_NUL);
+    return inst;
 }
 
-Instruction_Pair r_lt(Storage const& dest, Storage const& src)
+Instructions r_lt(Storage const& dest, Storage const& src, Label const& to)
 {
     auto inst = make_empty();
     asm__dest_rs(inst, mov, eax, dest);
     asm__dest_rs(inst, cmp, eax, src);
-    asm__dest_s(inst, setl, al);
-    add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
-    return { rr(eax), inst };
+    add_asm__as(inst, jl, make_direct_immediate(to), O_NUL);
+    return inst;
 }
 
-Instruction_Pair r_gt(Storage const& dest, Storage const& src)
+Instructions r_gt(Storage const& dest, Storage const& src, Label const& to)
 {
     auto inst = make_empty();
     asm__dest_rs(inst, mov, eax, dest);
     asm__dest_rs(inst, cmp, eax, src);
-    asm__dest_s(inst, setg, al);
-    add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
-    return { rr(eax), inst };
+    add_asm__as(inst, jg, make_direct_immediate(to), O_NUL);
+    return inst;
 }
 
-Instruction_Pair r_le(Storage const& dest, Storage const& src)
+Instructions r_le(Storage const& dest, Storage const& src, Label const& to)
 {
     auto inst = make_empty();
     asm__dest_rs(inst, mov, eax, dest);
     asm__dest_rs(inst, cmp, eax, src);
-    asm__dest_s(inst, setle, al);
-    add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
-    return { rr(eax), inst };
+    add_asm__as(inst, jle, make_direct_immediate(to), O_NUL);
+    return inst;
 }
 
-Instruction_Pair r_ge(Storage const& dest, Storage const& src)
+Instructions r_ge(Storage const& dest, Storage const& src, Label const& to)
 {
     auto inst = make_empty();
     asm__dest_rs(inst, mov, eax, dest);
     asm__dest_rs(inst, cmp, eax, src);
-    asm__dest_s(inst, setge, al);
-    add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
-    return { rr(eax), inst };
+    add_asm__as(inst, jge, make_direct_immediate(to), O_NUL);
+    return inst;
 }
 
 Instruction_Pair rshift(Storage const& dest, Storage const& src)
@@ -367,7 +354,7 @@ Instruction_Pair u_not(Storage const& dest)
     asm__dest_s(inst, setne, al);
     add_asm__as(inst, xor_, rr(al), make_numeric_immediate(-1));
     add_asm__as(inst, and_, rr(al), make_numeric_immediate(1));
-    asm__short(inst, mov, eax, al);
+    asm__short(inst, movzx, eax, al);
     return { rr(eax), inst };
 }
 

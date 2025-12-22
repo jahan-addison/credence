@@ -65,7 +65,7 @@ class Storage_Emitter
         std::size_t index,
         Storage& source_storage)
         : accessor_(accessor)
-        , instrunction_index_(index)
+        , instruction_index_(index)
         , source_storage_(source_storage)
     {
     }
@@ -87,7 +87,7 @@ class Storage_Emitter
 
   private:
     memory::Memory_Access accessor_;
-    std::size_t instrunction_index_;
+    std::size_t instruction_index_;
 
   private:
     Operand_Size address_size = Operand_Size::Empty;
@@ -111,6 +111,20 @@ class Text_Emitter
     void emit_text_directives(std::ostream& os);
     void emit_text_section(std::ostream& os);
 
+  private:
+    void emit_assembly_instruction(std::ostream& os,
+        std::size_t index,
+        assembly::Instruction const& s);
+    void emit_assembly_label(std::ostream& os,
+        Label const& s,
+        bool set_label = true);
+    void emit_text_instruction(std::ostream& os,
+        std::variant<Label, assembly::Instruction> const& instruction,
+        std::size_t index,
+        bool set_label = true);
+    void emit_function_epilogue(std::ostream& os);
+    void emit_epilogue_jump(std::ostream& os);
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     bool test_no_stdlib{ false };
@@ -121,6 +135,10 @@ class Text_Emitter
 
   private:
     memory::Instruction_Pointer instructions_;
+    assembly::Instructions return_instructions_;
+    std::size_t label_size_{ 0 };
+    Label frame_{};
+    Label branch_{};
 };
 
 /**
@@ -142,6 +160,8 @@ class Data_Emitter
   private:
     void set_data_globals();
     void set_data_strings();
+    void set_data_floats();
+    void set_data_doubles();
 
   private:
     assembly::Directives get_instructions_from_directive_type(
@@ -166,22 +186,6 @@ class Instruction_Inserter
     {
     }
     void insert(ir::Instructions const& ir_instructions);
-
-  private:
-    memory::Memory_Access accessor_;
-};
-
-/**
- * @brief Branch Inserter used to map IR branches to x64 assembly
- */
-class Branch_Inserter
-{
-  public:
-    explicit Branch_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-    {
-    }
-    void insert(assembly::Instructions& instructions);
 
   private:
     memory::Memory_Access accessor_;
@@ -287,9 +291,10 @@ struct Relational_Operator_Inserter
         : accessor_(accessor)
     {
     }
-    Instruction_Pair from_relational_expression_operands(
+    assembly::Instructions from_relational_expression_operands(
         Storage_Operands const& operands,
-        std::string const& binary_op);
+        std::string const& binary_op,
+        Label const& jump_label);
 
   private:
     memory::Memory_Access accessor_;
@@ -351,6 +356,9 @@ struct Invocation_Inserter
     void insert_type_check_stdlib_print_arguments(
         memory::Stack_Frame::IR_Stack const& argument_stack,
         syscall_ns::syscall_arguments_t& operands);
+    void insert_type_check_stdlib_printf_arguments(
+        memory::Stack_Frame::IR_Stack const& argument_stack,
+        syscall_ns::syscall_arguments_t& operands);
 
   private:
     memory::Memory_Access accessor_;
@@ -409,7 +417,6 @@ class IR_Instruction_Visitor final
     }
 
     using Instructions = x86_64::assembly::Instructions;
-
     void set_stack_frame_from_table(Label const& function_name);
 
   public:

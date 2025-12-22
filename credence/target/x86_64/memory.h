@@ -308,6 +308,11 @@ struct Instruction_Accessor
 
     Instructions& get_instructions() { return instructions_; }
 
+    auto push(assembly::Instruction& instruction)
+    {
+        instructions_.emplace_back(instruction);
+    }
+
     auto begin() { return instructions_.begin(); }
     auto end() { return instructions_.end(); }
     auto begin() const { return instructions_.begin(); }
@@ -516,7 +521,7 @@ struct Register_Accessor
     /**
      * @brief Get a second accumulator register from an Operand Size
      */
-    constexpr Register get_second_register_from_size(Operand_Size size)
+    static constexpr Register get_second_register_from_size(Operand_Size size)
     {
         namespace m = matchit;
         return m::match(size)(

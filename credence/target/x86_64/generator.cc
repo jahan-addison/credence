@@ -259,7 +259,7 @@ std::string Storage_Emitter::get_storage_device_as_string(
     if (address_size != Operand_Size::Empty)
         size = address_size;
     auto flags = accessor_->flag_accessor.get_instruction_flags_at_index(
-        instrunction_index_);
+        instruction_index_);
     return m::match(storage)(
         m::pattern | m::as<assembly::Stack::Offset>(s) =
             [&] { return emit_stack_storage(*s, size, flags); },
@@ -282,7 +282,7 @@ void Storage_Emitter::emit(std::ostream& os,
     auto& stack = accessor_->stack;
     auto& flag_accessor = accessor_->flag_accessor;
     auto flags =
-        flag_accessor.get_instruction_flags_at_index(instrunction_index_);
+        flag_accessor.get_instruction_flags_at_index(instruction_index_);
     auto size =
         get_operand_size_from_storage(source_storage_, accessor_->stack);
     if (is_variant(std::monostate, storage))
@@ -290,34 +290,149 @@ void Storage_Emitter::emit(std::ostream& os,
     switch (type_) {
         case memory::Operand_Type::Destination: {
             if (flag_accessor.index_contains_flag(
-                    instrunction_index_, flag::QWord_Dest))
+                    instruction_index_, flag::QWord_Dest))
                 set_address_size(Operand_Size::Qword);
             if (flag_accessor.index_contains_flag(
-                    instrunction_index_, flag::Address))
+                    instruction_index_, flag::Address))
                 set_address_size(
                     get_operand_size_from_storage(storage, accessor_->stack));
             os << " " << get_storage_device_as_string(storage, size);
             if (flags & flag::Indirect and
                 is_variant(Register, source_storage_))
                 flag_accessor.unset_instruction_flag(
-                    flag::Indirect, instrunction_index_);
+                    flag::Indirect, instruction_index_);
         } break;
         case memory::Operand_Type::Source: {
             auto source = storage;
             if (mnemonic == mn(movq_))
                 flag_accessor.set_instruction_flag(
-                    flag::Argument, instrunction_index_);
+                    flag::Argument, instruction_index_);
             if (mnemonic == mn(sub) or mnemonic == mn(add))
                 if (flags & flag::Align)
                     source = assembly::make_u32_int_immediate(
                         stack->get_stack_frame_allocation_size());
             if (flags & flag::Indirect_Source)
                 flag_accessor.set_instruction_flag(
-                    flag::Indirect, instrunction_index_);
+                    flag::Indirect, instruction_index_);
             os << ", " << get_storage_device_as_string(source, size);
             flag_accessor.unset_instruction_flag(
-                flag::Indirect, instrunction_index_);
+                flag::Indirect, instruction_index_);
             reset_address_size();
+        }
+    }
+}
+
+void Text_Emitter::emit_epilogue_jump(std::ostream& os)
+{
+    os << assembly::tabwidth(4) << assembly::Mnemonic::goto_ << " ";
+    os << assembly::make_label("_L1", frame_);
+    assembly::newline(os, 1);
+}
+
+/**
+ * @brief Emit a local or stack frame label in the text section
+ */
+void Text_Emitter::emit_assembly_label(std::ostream& os,
+    Label const& s,
+    bool set_label)
+{
+    auto& table = accessor_->table_accessor.table_;
+    // function labels
+    if (table->hoisted_symbols.has_key(s) and
+        table->hoisted_symbols[s]["type"].to_string() ==
+            "function_definition") {
+        // this is a new frame, emit the last frame function epilogue
+        if (frame_ != s)
+            emit_function_epilogue(os);
+        frame_ = s;
+        if (set_label)
+            label_size_ = accessor_->table_accessor.table_->functions.at(s)
+                              ->labels.size();
+        if (s != "main")
+            assembly::newline(os, 2);
+        os << assembly::make_label(s) << ":";
+        assembly::newline(os, 1);
+        return;
+    }
+    // branch labels
+    if (set_label and label_size_ > 1) {
+        branch_ = s;
+        auto label = util::get_numbers_from_string(s);
+        auto label_before_reserved =
+            table->functions.at(frame_)->label_before_reserved;
+        if (set_label and s == "_L1") {
+            // In the IR, labels are linear until _L1 and then branching starts.
+            // So as soon as _L1 would be emitted, add a jump to _L1 instead
+            emit_epilogue_jump(os);
+            return;
+        }
+        os << assembly::make_label(s, frame_) << ":";
+        assembly::newline(os, 1);
+    }
+}
+
+/**
+ * @brief Emit a mnemonic and its possible operands in the text section
+ */
+void Text_Emitter::emit_assembly_instruction(std::ostream& os,
+    std::size_t index,
+    assembly::Instruction const& s)
+{
+    auto flags = accessor_->flag_accessor.get_instruction_flags_at_index(index);
+    auto [mnemonic, dest, src] = s;
+    auto storage_emitter = Storage_Emitter{ accessor_, index, src };
+    // The IR does not keep the epilogue at the end, we move it ourselves
+    if (branch_ == "_L1" and label_size_ > 0) {
+        return_instructions_.emplace_back(s);
+        return;
+    }
+
+    if (flags & flag::Load and not is_variant(Register, src))
+        mnemonic = assembly::Mnemonic::lea;
+
+    os << assembly::tabwidth(4) << mnemonic;
+
+    storage_emitter.emit(os, dest, mnemonic, memory::Operand_Type::Destination);
+    storage_emitter.emit(os, src, mnemonic, memory::Operand_Type::Source);
+
+    assembly::newline(os, 1);
+}
+
+/**
+ * @brief Emit the text instruction for either a label or mnemonic
+ */
+void Text_Emitter::emit_text_instruction(std::ostream& os,
+    std::variant<Label, assembly::Instruction> const& instruction,
+    std::size_t index,
+    bool set_label)
+{
+    // clang-format off
+    std::visit(util::overload{
+        [&](assembly::Instruction const& s) {
+            emit_assembly_instruction(os, index, s);
+        },
+        [&](Label const& s) {
+            emit_assembly_label(os, s, set_label);
+        }
+    }, instruction);
+    // clang-format on
+}
+
+/**
+ * @brief Emit the the function epilogue at the end if this frame has branches
+ */
+void Text_Emitter::emit_function_epilogue(std::ostream& os)
+{
+    if (!return_instructions_.empty()) {
+        if (label_size_ > 1) {
+            // the _L1 label is reserved in the frame for the epilogue
+            os << assembly::make_label("_L1", frame_) << ":";
+            assembly::newline(os, 1);
+        }
+        for (std::size_t index = 0; index < return_instructions_.size();
+            index++) {
+            emit_text_instruction(
+                os, return_instructions_[index], index, false);
         }
     }
 }
@@ -327,57 +442,12 @@ void Storage_Emitter::emit(std::ostream& os,
  */
 void Text_Emitter::emit_text_section(std::ostream& os)
 {
-    auto& table = accessor_->table_accessor.table_;
     auto instructions_accessor = accessor_->instruction_accessor;
     auto& instructions = instructions_accessor->get_instructions();
     emit_text_directives(os);
-    Label label_stack_frame{ "main" };
-    Size label_size = 1UL;
-    for (std::size_t index = 0; index < instructions_accessor->size();
-        index++) {
-        auto flags =
-            accessor_->flag_accessor.get_instruction_flags_at_index(index);
-        auto inst = instructions[index];
-        // clang-format off
-        std::visit(
-            util::overload{
-            [&](assembly::Instruction const& s) {
-                auto [mnemonic, dest, src] = s;
-                auto storage_emitter =
-                    Storage_Emitter{ accessor_, index, src };
-                if (flags & flag::Load and not is_variant(Register, src))
-                    mnemonic = assembly::Mnemonic::lea;
-                os << assembly::tabwidth(4) << mnemonic;
-                storage_emitter.emit(
-                    os, dest, mnemonic, memory::Operand_Type::Destination);
-                storage_emitter.emit(
-                    os, src, mnemonic, memory::Operand_Type::Source);
-                assembly::newline(os, 1);
-            },
-            [&](Label const& s) {
-                // function labels
-                if (table->hoisted_symbols.has_key(s) and
-                    table->hoisted_symbols[s]["type"].to_string() ==
-                        "function_definition") {
-                    label_stack_frame = s;
-                    label_size =
-                        accessor_->table_accessor.table_->functions.at(s)
-                            ->labels.size();
-                    if (s != "main")
-                        assembly::newline(os, 2);
-                    os << assembly::make_label(s) << ":";
-                    assembly::newline(os, 1);
-                    return;
-                }
-                // branch labels
-                if (label_size > 1) {
-                    os << assembly::make_label(s, label_stack_frame) << ":";
-                    assembly::newline(os, 1);
-                }
-            } },
-        inst);
-        // clang-format on
-    }
+    for (std::size_t index = 0; index < instructions_accessor->size(); index++)
+        emit_text_instruction(os, instructions[index], index);
+    emit_function_epilogue(os);
 }
 
 /**
@@ -437,6 +507,8 @@ void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
                 ir::Instruction::CALL = [&] { ir_visitor.from_call_ita(inst); },
             m::pattern |
                 ir::Instruction::LOCL = [&] { ir_visitor.from_locl_ita(inst); },
+            m::pattern |
+                ir::Instruction::GOTO = [&] { ir_visitor.from_goto_ita(inst); },
             m::pattern |
                 ir::Instruction::RETURN = [&] { ir_visitor.from_return_ita(); },
             m::pattern |
@@ -785,6 +857,7 @@ void Invocation_Inserter::insert_from_standard_library_function(
 {
     auto operands = get_operands_storage_from_argument_stack();
     auto& argument_stack = stack_frame_.argument_stack;
+    // clang-format off
     m::match(routine)(
         m::pattern | sv("putchar") = [&] {},
         m::pattern | sv("getchar") = [&] {},
@@ -792,15 +865,21 @@ void Invocation_Inserter::insert_from_standard_library_function(
             [&] {
                 insert_type_check_stdlib_print_arguments(
                     argument_stack, operands);
+            },
+        m::pattern | sv("printf") =
+            [&] {
+                insert_type_check_stdlib_printf_arguments(
+                    argument_stack, operands);
             });
-    runtime::make_library_call(instructions,
-        routine,
-        operands,
+    runtime::make_library_call(instructions, routine,
+        operands, argument_stack, accessor_->address_accessor,
         accessor_->register_accessor.signal_register);
+    // clang-format on
 }
 
 /**
- * @brief Insert and type check the argument instructions for the print function
+ * @brief Insert and type check the argument instructions for the print
+ * function
  */
 void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     memory::Stack_Frame::IR_Stack const& argument_stack,
@@ -831,6 +910,27 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
 }
 
 /**
+ * @brief Insert and type check the argument instructions for the printf
+ * function
+ */
+void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
+    memory::Stack_Frame::IR_Stack const& argument_stack,
+    syscall_ns::syscall_arguments_t& operands)
+{
+    auto& table = accessor_->table_accessor.table_;
+    auto& address_storage = accessor_->address_accessor;
+    if (!address_storage.is_lvalue_storage_type(
+            argument_stack.front(), "string") and
+        not runtime::is_address_device_pointer_to_buffer(
+            operands.front(), table, accessor_->stack))
+        throw_compiletime_error(
+            fmt::format("invalid format string '{}'", argument_stack.front()),
+            "printf",
+            __source__,
+            "function invocation");
+}
+
+/**
  * @brief IR Instruction Instruction::MOV
  */
 void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
@@ -850,7 +950,8 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
     };
 
     m::match(lhs, rhs)(
-        // Parameters are prepared in the table, so skip parameter lvalues
+        // Parameters are prepared in the table, so skip parameter
+        // lvalues
         m::pattern | m::ds(m::app(is_parameter, true), m::_) = [] {},
         // Translate an rvalue from a mutual-recursive temporary lvalue
         m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
@@ -892,9 +993,13 @@ void IR_Instruction_Visitor::from_jmp_e_ita(
     [[maybe_unused]] ir::Quadruple const& inst)
 {
 }
-void IR_Instruction_Visitor::from_goto_ita(
-    [[maybe_unused]] ir::Quadruple const& inst)
+void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
 {
+    auto label = assembly::make_direct_immediate(
+        assembly::make_label(std::get<1>(inst), stack_frame_.symbol));
+    auto instruction_accessor = accessor_->instruction_accessor;
+    auto& instructions = instruction_accessor->get_instructions();
+    asm__dest(instructions, goto_, label);
 }
 
 /**
@@ -938,7 +1043,8 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 } else
                     add_asm__as(instructions, mov, lhs_storage, imm);
             },
-        // the expanded temporary rvalue is in a accumulator register, use it
+        // the expanded temporary rvalue is in a accumulator register,
+        // use it
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_storage.address_ir_assignment) {
@@ -1102,7 +1208,6 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
     auto is_address = [&](RValue const& rvalue) {
         return accessor_->stack->is_allocated(rvalue);
     };
-
     m::match(lhs, rhs)(
         m::pattern |
             m::ds(m::app(is_immediate, true), m::app(is_immediate, true)) =
@@ -1177,9 +1282,10 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                             instructions, mov, storage, stack->get(lhs).first);
                         lhs_s = storage;
                     } else {
-                        lhs_s =
-                            accumulator.get_accumulator_register_from_storage(
-                                lhs_s, stack);
+                        if (!type::is_relation_binary_operator(op))
+                            lhs_s = accumulator
+                                        .get_accumulator_register_from_storage(
+                                            lhs_s, stack);
                     }
                 }
             },
@@ -1238,9 +1344,19 @@ void Operand_Inserter::insert_from_operands(Storage_Operands& operands,
                 .second);
     } else if (type::is_relation_binary_operator(op)) {
         auto relational = Relational_Operator_Inserter{ accessor_ };
-        assembly::inserter(instructions,
-            relational.from_relational_expression_operands(operands, op)
-                .second);
+        auto& ir_instructions =
+            accessor_->table_accessor.table_->ir_instructions;
+        auto ir_index = accessor_->table_accessor.index;
+        if (ir_instructions->size() > ir_index and
+            std::get<0>(ir_instructions->at(ir_index + 1)) ==
+                ir::Instruction::IF) {
+            auto label = assembly::make_label(
+                std::get<3>(ir_instructions->at(ir_index + 1)),
+                stack_frame_.symbol);
+            assembly::inserter(instructions,
+                relational.from_relational_expression_operands(
+                    operands, op, label));
+        }
     } else if (type::is_bitwise_binary_operator(op)) {
         auto bitwise = Bitwise_Operator_Inserter{ accessor_ };
         assembly::inserter(instructions,
@@ -1493,7 +1609,6 @@ void IR_Instruction_Visitor::from_leave_ita()
     if (stack_frame_.symbol == "main") {
         syscall_ns::common::exit_syscall(instructions, 0);
     } else {
-        // function epilogue
         asm__dest(instructions, pop, Register::rbp);
         asm__zero_o(instructions, ret);
     }
@@ -1591,39 +1706,44 @@ Instruction_Pair Bitwise_Operator_Inserter::from_bitwise_expression_operands(
 /**
  * @brief Inserter of relational expressions and their storage device
  */
-Instruction_Pair
+assembly::Instructions
 Relational_Operator_Inserter::from_relational_expression_operands(
     Storage_Operands const& operands,
-    std::string const& binary_op)
+    std::string const& binary_op,
+    Label const& jump_label)
 {
-    Instruction_Pair instructions{ Register::eax, {} };
-    m::match(binary_op)(
+    return m::match(binary_op)(
         m::pattern | std::string{ "==" } =
             [&] {
-                instructions = assembly::r_eq(operands.first, operands.second);
+                return assembly::r_eq(
+                    operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ "!=" } =
             [&] {
-                instructions = assembly::r_neq(operands.first, operands.second);
+                return assembly::r_neq(
+                    operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ "<" } =
             [&] {
-                instructions = assembly::r_gt(operands.first, operands.second);
+                return assembly::r_gt(
+                    operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ ">" } =
             [&] {
-                instructions = assembly::r_lt(operands.first, operands.second);
+                return assembly::r_lt(
+                    operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ "<=" } =
             [&] {
-                instructions = assembly::r_le(operands.first, operands.second);
+                return assembly::r_le(
+                    operands.first, operands.second, jump_label);
             },
         m::pattern | std::string{ ">=" } =
             [&] {
-                instructions = assembly::r_ge(operands.first, operands.second);
-            });
-
-    return instructions;
+                return assembly::r_ge(
+                    operands.first, operands.second, jump_label);
+            },
+        m::pattern | m::_ = [&] { return assembly::Instructions{}; });
 }
 
 /**

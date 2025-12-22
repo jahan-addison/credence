@@ -10,8 +10,8 @@ repos:
     hooks:
       - id: clang-format
         args: [--style=file]
-      # - id: clang-tidy
-      #   args: [-p=./build,--header-filter=.*]
+      - id: clang-tidy
+        args: [-p=./build,--header-filter=.*]
 
 
   - repo: local
@@ -19,6 +19,6 @@ repos:
     - id: cppcheck
       name: cppcheck
       entry: cppcheck
-      args: [--enable=all, --inline-suppr, --error-exitcode=1, --cppcheck-build-dir=./build, --language=c++, -I., --suppressions-list=./cppcheck.suppress]
+      args: ["--enable=warning,performance,portability,style", --inline-suppr, --error-exitcode=1, --cppcheck-build-dir=./build, --language=c++, -I., --suppressions-list=./cppcheck.suppress]
       language: system
       types: [c++, c]

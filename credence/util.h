@@ -19,6 +19,7 @@
 #include <algorithm>        // for all_of
 #include <cctype>           // for isdigit, toupper
 #include <charconv>         // for from_char
+#include <concepts>         // for integral, floating_point
 #include <cstddef>          // for size_t
 #include <cstdint>          // for uint_least32_t, uint32_t
 #include <filesystem>       // for filesystem
@@ -291,6 +292,9 @@ constexpr std::string tuple_to_string(std::tuple<Args...> const& t,
 // Numeric helpers
 ///////////////////
 
+template<typename T>
+concept Numeric = std::integral<T> || std::floating_point<T>;
+
 constexpr unsigned int align_up_to_16(unsigned int n)
 {
     const unsigned int ALIGNMENT = 16;
@@ -327,8 +331,8 @@ constexpr bool range_contains(Value const& needle, Range const& haystack)
     return it != std::ranges::end(haystack);
 }
 
-template<typename RangeT, typename ValueT>
-constexpr std::ptrdiff_t find_index(const RangeT& range, const ValueT& value)
+template<typename Range, typename Value>
+constexpr std::ptrdiff_t find_index(const Range& range, const Value& value)
 {
     auto it = std::ranges::find(range, value);
     if (it != std::ranges::end(range)) {
