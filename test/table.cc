@@ -30,6 +30,20 @@ namespace fs = std::filesystem;
 #define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
+#define SETUP_TABLE_FIXTURE_AND_TEST_FROM_AST(ast_path, expected)            \
+    do {                                                                     \
+        using namespace credence::ir;                                        \
+        auto test = std::ostringstream{};                                    \
+        auto fixture_path = fs::path(ROOT_PATH);                             \
+        fixture_path.append("test/fixtures/ast");                            \
+        auto file_path =                                                     \
+            fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
+        auto fixture_content =                                               \
+            easyjson::JSON::load_file(file_path.string()).to_deque();        \
+        credence::ir::emit(test, fixture_content[0], fixture_content[1]);    \
+        REQUIRE(test.str() == expected);                                     \
+    } while (0)
+
 struct Table_Fixture
 {
     using NULL_symbols = std::deque<std::string>;
@@ -1669,6 +1683,33 @@ TEST_CASE_FIXTURE(Table_Fixture, "get_unary_rvalue_reference")
     REQUIRE(test4 == "z_1");
     REQUIRE(test5 == "100");
     REQUIRE(test6 == "u");
+}
+
+TEST_CASE_FIXTURE(Table_Fixture, "floats and doubles")
+{
+    std::string expected = R"ita(__main():
+ BeginFunc ;
+    _p1 = ("%s %d %f %d %c":string:14);
+    _p2 = ("hello":string:5);
+    _p3 = (5:int:4);
+    _p4 = (5.55:float:4);
+    _p5 = (5.55556:double:8);
+    _p6 = ('120':char:1);
+    PUSH _p6;
+    PUSH _p5;
+    PUSH _p4;
+    PUSH _p3;
+    PUSH _p2;
+    PUSH _p1;
+    CALL printf;
+    POP 48;
+    _t2 = RET;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita";
+    SETUP_TABLE_FIXTURE_AND_TEST_FROM_AST("floats", expected);
 }
 
 TEST_CASE("get_rvalue_datatype_from_string")

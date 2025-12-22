@@ -12,9 +12,16 @@
 ##  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ##  See the License for the specific language governing permissions and
 ##  limitations under the License.
-##
+#######################################################################################
 
 .intel_syntax noprefix
+
+.data
+    .align 16
+.L_mask:
+    .quad 0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
+.L_ten_mil:
+    .double 1000000.0
 
 .text
 
@@ -36,7 +43,7 @@ printf:
     push    r13
     push    r14
     push    r15
-    sub     rsp, 1200
+    sub     rsp, 1208
 
     mov     [rbp - 48], rsi
     mov     [rbp - 56], rdx
@@ -64,7 +71,7 @@ printf:
     jz      .flush
     cmp     al, '%'
     je      .handle_specifier
-    lea     rbx, [rbp - 1200]
+    lea     rbx, [rbp - 1208]
     mov     [rbx + r13], al
     inc     r13
     inc     r12
@@ -96,9 +103,9 @@ printf:
     mov     rax, [rbp + 16 + rax * 8]
     jmp     .dispatch_gp
 .gp_from_reg:
-    neg     r14
-    mov     rax, [rbp - 48 + r14 * 8]
-    neg     r14
+    mov     rax, r14
+    neg     rax
+    mov     rax, [rbp - 48 + rax * 8]
 .dispatch_gp:
     inc     r14
     mov     bl, [r12 - 1]
@@ -122,7 +129,49 @@ printf:
     shl     rax, 4
     neg     rax
     movups  xmm0, [rbp - 112 + rax]
+
 .do_float:
+    sub     rsp, 16
+    movsd   [rsp], xmm0
+
+    cvttsd2si rbx, xmm0
+    cvtsi2sd  xmm1, rbx
+    subsd     xmm0, xmm1
+    andpd     xmm0, [rip + .L_mask]
+    mulsd     xmm0, [rip + .L_ten_mil]
+    cvttsd2si r10, xmm0
+
+    mov     rax, rbx
+    call    .itoa
+
+    lea     rbx, [rbp - 1208]
+    mov     byte ptr [rbx + r13], '.'
+    inc     r13
+
+    mov     rax, r10
+    mov     rdi, 6
+    mov     rbx, 10
+    sub     rsp, 16
+    mov     rcx, 6
+.frac_extract_loop:
+    xor     rdx, rdx
+    div     rbx
+    add     dl, '0'
+    mov     [rsp + rcx - 1], dl
+    loop    .frac_extract_loop
+
+    mov     rcx, 6
+    xor     rdi, rdi
+.frac_copy_loop:
+    mov     al, [rsp + rdi]
+    lea     rdx, [rbp - 1208]
+    mov     [rdx + r13], al
+    inc     r13
+    inc     rdi
+    loop    .frac_copy_loop
+
+    add     rsp, 16
+    add     rsp, 16
     inc     r15
     jmp     .loop
 
@@ -136,14 +185,14 @@ printf:
     mov     al, [rsi]
     test    al, al
     jz      .loop
-    lea     rbx, [rbp - 1200]
+    lea     rbx, [rbp - 1208]
     mov     [rbx + r13], al
     inc     r13
     inc     rsi
     jmp     .s_copy
 
 .do_char:
-    lea     rbx, [rbp - 1200]
+    lea     rbx, [rbp - 1208]
     mov     [rbx + r13], al
     inc     r13
     jmp     .loop
@@ -152,7 +201,7 @@ printf:
     test    rax, rax
     setnz   al
     add     al, '0'
-    lea     rbx, [rbp - 1200]
+    lea     rbx, [rbp - 1208]
     mov     [rbx + r13], al
     inc     r13
     jmp     .loop
@@ -160,11 +209,10 @@ printf:
 .flush:
     mov     rax, 0x2000004
     mov     rdi, 1
-    lea     rsi, [rbp - 1200]
+    lea     rsi, [rbp - 1208]
     mov     rdx, r13
     syscall
-
-    add     rsp, 1200
+    add     rsp, 1208
     pop     r15
     pop     r14
     pop     r13
@@ -177,11 +225,10 @@ printf:
     push    rcx
     push    rdx
     push    rdi
-
     test    rax, rax
     jns     .pos
     neg     rax
-    lea     rdi, [rbp - 1200]
+    lea     rdi, [rbp - 1208]
     mov     byte ptr [rdi + r13], '-'
     inc     r13
 .pos:
@@ -189,13 +236,12 @@ printf:
     mov     rdi, rsp
     sub     rsp, 32
     xor     rcx, rcx
-
     test    rax, rax
     jnz     .div_loop
-    mov     byte ptr [rbp - 1200 + r13], '0'
+    lea     rdx, [rbp - 1208]
+    mov     byte ptr [rdx + r13], '0'
     inc     r13
     jmp     .done_itoa
-
 .div_loop:
     xor     rdx, rdx
     div     rbx
@@ -204,16 +250,14 @@ printf:
     inc     rcx
     test    rax, rax
     jnz     .div_loop
-
 .rev_loop:
     dec     rcx
     mov     al, [rsp + rcx]
-    lea     rdx, [rbp - 1200]
+    lea     rdx, [rbp - 1208]
     mov     [rdx + r13], al
     inc     r13
     test    rcx, rcx
     jnz     .rev_loop
-
 .done_itoa:
     add     rsp, 32
     pop     rdi
@@ -221,7 +265,6 @@ printf:
     pop     rcx
     pop     rbx
     ret
-
 
 ####################################################
 ## @brief print

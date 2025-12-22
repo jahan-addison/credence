@@ -299,11 +299,9 @@ void Table::insert_address_storage_rvalue(RValue const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
-        objects_->floats.insert(type::integral_from_type<float>(
-            type::get_value_from_rvalue_data_type(rvalue)));
+        objects_->floats.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "double")
-        objects_->doubles.insert(type::integral_from_type<double>(
-            type::get_value_from_rvalue_data_type(rvalue)));
+        objects_->doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "string")
         objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }
@@ -312,11 +310,9 @@ void Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
-        objects_->floats.insert(type::integral_from_type<float>(
-            type::get_value_from_rvalue_data_type(rvalue)));
+        objects_->floats.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "double")
-        objects_->doubles.insert(type::integral_from_type<double>(
-            type::get_value_from_rvalue_data_type(rvalue)));
+        objects_->doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "string")
         objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }

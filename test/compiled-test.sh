@@ -30,6 +30,10 @@ fi
 if [[ "$1" == "stdlib_putchar_test" ]]; then
   printf -v expected_output '%s' "lol"
 fi
+if [[ "$1" == "stdlib_printf_test" ]]; then
+  printf -v expected_output '%s' "hello 5 5.200000 x"
+fi
+
 
 program_name=$1
 

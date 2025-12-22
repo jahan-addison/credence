@@ -755,6 +755,7 @@ _start:
     lea rsi, [rip + ._L_str2__]
     mov rdx, 21
     syscall
+    add rsp, 16
     mov rax, 60
     mov rdi, 0
     syscall
@@ -817,6 +818,7 @@ _start:
     lea rsi, [rip + ._L_str3__]
     mov rdx, 21
     syscall
+    add rsp, 16
     mov rax, 60
     mov rdi, 0
     syscall
@@ -854,6 +856,7 @@ _start:
     mov rdi, qword ptr [rbp - 8]
     mov rsi, 18
     call print
+    add rsp, 16
     mov rax, 60
     mov rdi, 0
     syscall
@@ -896,6 +899,7 @@ _start:
     mov rdi, rax
     mov rsi, 11
     call print
+    add rsp, 16
     mov rax, 60
     mov rdi, 0
     syscall
@@ -960,6 +964,7 @@ _start:
     mov rdi, qword ptr [rip + strings]
     mov rsi, 17
     call print
+    add rsp, 16
     mov rax, 60
     mov rdi, 0
     syscall
@@ -1016,6 +1021,7 @@ _start:
     mov rdi, qword ptr [rbp - 16]
     mov rsi, 3
     call print
+    add rsp, 24
     mov rax, 60
     mov rdi, 0
     syscall
@@ -1048,6 +1054,7 @@ _start:
     mov rdi, qword ptr [rbp - 8]
     mov rsi, 11
     call print
+    add rsp, 24
     mov rax, 60
     mov rdi, 0
     syscall
@@ -1078,6 +1085,7 @@ _start:
     call putchar
     mov rdi, 108
     call putchar
+    add rsp, 16
     mov rax, 60
     mov rdi, 0
     syscall
@@ -1085,4 +1093,117 @@ _start:
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "stdlib/putchar_1", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: relational/if_2.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "no"
+
+._L_str2__:
+    .asciz "yes"
+
+._L_str3__:
+    .asciz "yes!!!"
+
+.text
+    .global _start
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    lea rcx, [rip + ._L_str1__]
+    mov qword ptr [rbp - 16], rcx
+    mov dword ptr [rbp - 4], 5
+._L2__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 5
+    jl ._L4__main
+    jmp ._L6__main
+._L3__main:
+    mov rdi, qword ptr [rbp - 16]
+    mov rsi, 6
+    call print
+    jmp ._L1__main
+._L4__main:
+    lea rcx, [rip + ._L_str2__]
+    mov qword ptr [rbp - 16], rcx
+    jmp ._L3__main
+._L6__main:
+    lea rcx, [rip + ._L_str3__]
+    mov qword ptr [rbp - 16], rcx
+    jmp ._L3__main
+._L1__main:
+    add rsp, 16
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/if_2", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: stdlib/printf_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "%s %d %g %c"
+
+._L_str2__:
+    .asciz "greater than 5"
+
+._L_str3__:
+    .asciz "hello"
+
+._L_double4__:
+    .double 5.2
+
+.text
+    .global _start
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov dword ptr [rbp - 4], 5
+._L2__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 5
+    jl ._L4__main
+    jmp ._L7__main
+._L3__main:
+    jmp ._L1__main
+._L4__main:
+    lea rdi, [rip + ._L_str1__]
+    mov rsi, 11
+    call print
+    jmp ._L3__main
+._L7__main:
+    lea rdi, [rip + ._L_str1__]
+    lea rsi, [rip + ._L_str3__]
+    mov rdx, 5
+    movsd xmm0, [rip + ._L_double4__]
+    mov rcx, 120
+    call printf
+    jmp ._L3__main
+._L1__main:
+    add rsp, 16
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "stdlib/printf_1", expected, false);
 }

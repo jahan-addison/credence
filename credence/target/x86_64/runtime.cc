@@ -182,7 +182,7 @@ void make_library_call(Instructions& instructions,
 
     std::deque<assembly::Register> argument_storage = { assembly::Register::r9,
         assembly::Register::r8,
-        assembly::Register::r10,
+        assembly::Register::rcx,
         assembly::Register::rdx,
         assembly::Register::rsi,
         assembly::Register::rdi };
@@ -191,6 +191,10 @@ void make_library_call(Instructions& instructions,
 
     for (std::size_t i = 0; i < arguments.size(); i++) {
         auto arg = arguments.at(i);
+        std::string arg_type =
+            argument_stack.size() > i
+                ? type::get_type_from_rvalue_data_type(argument_stack.at(i))
+                : "";
         Register storage = Register::eax;
         try {
             if (address_space.is_lvalue_storage_type(
@@ -208,9 +212,15 @@ void make_library_call(Instructions& instructions,
             argument_storage.pop_back();
         }
 
-        if (is_immediate_rip_address_offset(arg)) {
+        if (arg_type == "string") {
             instructions.emplace_back(
                 assembly::Instruction{ assembly::Mnemonic::lea, storage, arg });
+        } else if (arg_type == "float") {
+            instructions.emplace_back(assembly::Instruction{
+                assembly::Mnemonic::movsd, storage, arg });
+        } else if (arg_type == "double") {
+            instructions.emplace_back(assembly::Instruction{
+                assembly::Mnemonic::movsd, storage, arg });
         } else {
             if (storage == assembly::Register::rdi and
                 *address_of == assembly::Register::rcx) {

@@ -1,0 +1,81 @@
+[
+  {
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "printf": {
+      "column": 3,
+      "end_column": 9,
+      "end_pos": 17,
+      "line": 2,
+      "start_pos": 11,
+      "type": "function_definition"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "printf"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "string_literal",
+                        "root": "\"%s %d %f %d %c\""
+                      },
+                      {
+                        "node": "string_literal",
+                        "root": "\"hello\""
+                      },
+                      {
+                        "node": "integer_literal",
+                        "root": 5
+                      },
+                      {
+                        "node": "float_literal",
+                        "root": 5.550000
+                      },
+                      {
+                        "node": "double_literal",
+                        "root": 5.555555
+                      },
+                      {
+                        "node": "constant_literal",
+                        "root": "x"
+                      }
+                    ],
+                    "root": "printf"
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

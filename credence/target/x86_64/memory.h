@@ -355,17 +355,43 @@ class Buffer_Accessor
     friend class Address_Accessor;
 
   public:
-    void insert(RValue const& string_key, Label const& asciz_address)
+    void insert_string_literal(RValue const& key, Label const& asciz_address)
     {
-        string_cache_.insert_or_assign(string_key, asciz_address);
+        string_cache_.insert_or_assign(key, asciz_address);
     }
+    void insert_float_literal(RValue const& key, Label const& floatz_address)
+    {
+        float_cache_.insert_or_assign(key, floatz_address);
+    }
+    void insert_double_literal(RValue const& key, Label const& doublez_address)
+    {
+        double_cache_.insert_or_assign(key, doublez_address);
+    }
+
     RValue get_string_address_offset(RValue const& string)
     {
         return string_cache_.at(string);
     }
-    inline bool is_allocated_string(RValue const& rvalue)
+
+    RValue get_float_address_offset(RValue const& string)
+    {
+        return float_cache_.at(string);
+    }
+    RValue get_double_address_offset(RValue const& string)
+    {
+        return double_cache_.at(string);
+    }
+    bool is_allocated_string(RValue const& rvalue)
     {
         return string_cache_.contains(rvalue);
+    }
+    bool is_allocated_float(RValue const& rvalue)
+    {
+        return float_cache_.contains(rvalue);
+    }
+    bool is_allocated_double(RValue const& rvalue)
+    {
+        return double_cache_.contains(rvalue);
     }
 
   private:
@@ -376,6 +402,8 @@ class Buffer_Accessor
 
   private:
     std::map<std::string, RValue> string_cache_{};
+    std::map<std::string, RValue> float_cache_{};
+    std::map<std::string, RValue> double_cache_{};
     std::size_t read_bytes_cache_{ 0 };
 };
 

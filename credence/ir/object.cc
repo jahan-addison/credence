@@ -64,6 +64,23 @@ type::Locals& Object::get_stack_frame_symbols()
     return get_stack_frame()->locals;
 }
 
+/**
+ * @brief Labels are linear until branching, get the address of the label
+ * before _L1 and branching starts
+ */
+std::size_t Function::get_index_of_label_before_reserved()
+{
+    auto reserved_label_address = label_address.get_pointer_by_name("_L1");
+    if (labels.size() > 1) {
+        do {
+            reserved_label_address -= 1;
+            if (label_address.is_pointer_address(reserved_label_address))
+                break;
+        } while (reserved_label_address > 0);
+    }
+    return reserved_label_address;
+}
+
 namespace detail {
 
 /**

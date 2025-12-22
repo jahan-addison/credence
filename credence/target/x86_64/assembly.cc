@@ -169,6 +169,26 @@ Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
     return { label, directives };
 }
 
+Directive_Pair floatz(std::size_t* index, type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    auto label =
+        type::semantic::Label{ fmt::format("._L_float{}__", ++(*index)) };
+    directives.emplace_back(label);
+    directives.emplace_back(Data_Pair{ Directive::float_, rvalue });
+    return { label, directives };
+}
+
+Directive_Pair doublez(std::size_t* index, type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    auto label =
+        type::semantic::Label{ fmt::format("._L_double{}__", ++(*index)) };
+    directives.emplace_back(label);
+    directives.emplace_back(Data_Pair{ Directive::double_, rvalue });
+    return { label, directives };
+}
+
 Directives quad(type::semantic::RValue const& rvalue)
 {
     auto directives = make_directives();

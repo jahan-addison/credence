@@ -4,6 +4,8 @@ main() {
   x = 5;
   if (x > 5) {
     y = "yes";
+  } else {
+    y = "yes!!!";
   }
   print(y);
 }

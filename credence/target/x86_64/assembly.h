@@ -67,6 +67,10 @@
     x86_64::assembly::Directive_Pair name(                     \
         std::size_t* index, type::semantic::RValue const& rvalue)
 
+#define DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(name, type) \
+    x86_64::assembly::Directive_Pair name(                                   \
+        std::size_t* index, type const& rvalue)
+
 #define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name) \
     x86_64::assembly::Directives name(type::semantic::RValue const& rvalue)
 
@@ -340,6 +344,9 @@ enum class Mnemonic
     mov,
     movq_,
     movzx,
+    movss,
+    movups,
+    movsd,
     mov_,
     and_,
     or_,
@@ -658,6 +665,9 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         MNEMONIC_OSTREAM(leave);
         MNEMONIC_OSTREAM(mov);
         MNEMONIC_OSTREAM(movzx);
+        MNEMONIC_OSTREAM(movss);
+        MNEMONIC_OSTREAM(movups);
+        MNEMONIC_OSTREAM(movsd);
         MNEMONIC_OSTREAM(movq_);
         MNEMONIC_OSTREAM(mov_);
         MNEMONIC_OSTREAM(push);
@@ -692,7 +702,8 @@ using Label = type::semantic::Label;
 using Stack_Offset = std::size_t;
 using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
 using Instruction = std::tuple<Mnemonic, Storage, Storage>;
-using Data_Pair = std::pair<Directive, type::semantic::RValue>;
+using Literal_Type = std::variant<type::semantic::RValue, float, double>;
+using Data_Pair = std::pair<Directive, Literal_Type>;
 using Directives = std::deque<std::variant<Label, Data_Pair>>;
 using Instructions = std::deque<std::variant<Label, Instruction>>;
 using Instruction_Pair = std::pair<Storage, Instructions>;
@@ -724,6 +735,16 @@ constexpr std::string tabwidth(unsigned int t)
     for (; t > 0; t--)
         tab += " ";
     return tab;
+}
+
+constexpr std::string literal_type_to_string(Literal_Type const& literal)
+{
+    std::string as_str{};
+    std::visit(util::overload{ [&](std::string const& i) { as_str = i; },
+                   [&](float i) { as_str = std::to_string(i); },
+                   [&](double i) { as_str = std::to_string(i); } },
+        literal);
+    return as_str;
 }
 
 constexpr std::string make_label(type::semantic::Label const& label)
@@ -853,7 +874,12 @@ constexpr Immediate make_u32_int_immediate(unsigned int imm)
  */
 
 // directives
-DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(asciz);
+DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(asciz,
+    type::semantic::RValue);
+DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(doublez,
+    type::semantic::RValue);
+DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(floatz,
+    type::semantic::RValue);
 DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(quad);
 DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(long_);
 DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(float_);

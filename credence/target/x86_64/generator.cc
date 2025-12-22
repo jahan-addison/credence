@@ -162,9 +162,22 @@ Directives Data_Emitter::get_instructions_from_directive_type(
         m::pattern |
             Directive::long_ = [&] { instructions = assembly::long_(rvalue); },
         m::pattern | Directive::float_ =
-            [&] { instructions = assembly::float_(rvalue); },
+            [&] {
+                credence_assert(
+                    address_storage.buffer_accessor.is_allocated_float(rvalue));
+                instructions = assembly::float_(
+                    address_storage.buffer_accessor.get_float_address_offset(
+                        rvalue));
+            },
         m::pattern | Directive::double_ =
-            [&] { instructions = assembly::double_(rvalue); },
+            [&] {
+                credence_assert(
+                    address_storage.buffer_accessor.is_allocated_double(
+                        rvalue));
+                instructions = assembly::double_(
+                    address_storage.buffer_accessor.get_double_address_offset(
+                        rvalue));
+            },
         m::pattern |
             Directive::byte_ = [&] { instructions = assembly::byte_(rvalue); }
 
@@ -173,7 +186,7 @@ Directives Data_Emitter::get_instructions_from_directive_type(
 }
 
 /**
- * @brief Set string in the data section awith .asciz directive
+ * @brief Set string in the data section with .asciz directive
  */
 void Data_Emitter::set_data_strings()
 {
@@ -182,8 +195,40 @@ void Data_Emitter::set_data_strings()
         auto data_instruction = assembly::asciz(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             string);
-        accessor_->address_accessor.buffer_accessor.insert(
+        accessor_->address_accessor.buffer_accessor.insert_string_literal(
             string, data_instruction.first);
+        assembly::inserter(instructions_, data_instruction.second);
+    }
+}
+
+/**
+ * @brief Set floats in the data section with .float directive
+ */
+void Data_Emitter::set_data_floats()
+{
+    auto& table = accessor_->table_accessor.table_;
+    for (auto const& floatz : table->floats) {
+        auto data_instruction = assembly::floatz(
+            &accessor_->address_accessor.buffer_accessor.constant_size_index,
+            floatz);
+        accessor_->address_accessor.buffer_accessor.insert_float_literal(
+            floatz, data_instruction.first);
+        assembly::inserter(instructions_, data_instruction.second);
+    }
+}
+
+/**
+ * @brief Set double in the data section with .double directive
+ */
+void Data_Emitter::set_data_doubles()
+{
+    auto& table = accessor_->table_accessor.table_;
+    for (auto const& doublez : table->doubles) {
+        auto data_instruction = assembly::doublez(
+            &accessor_->address_accessor.buffer_accessor.constant_size_index,
+            doublez);
+        accessor_->address_accessor.buffer_accessor.insert_double_literal(
+            doublez, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
     }
 }
@@ -221,29 +266,36 @@ void Data_Emitter::set_data_globals()
 void Data_Emitter::emit_data_section(std::ostream& os)
 {
     os << assembly::Directive::data;
+
     set_data_strings();
+    set_data_floats();
+    set_data_doubles();
     set_data_globals();
+
     assembly::newline(os, 2);
+
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
             auto data_item = instructions_[index];
-            // clang-format off
-            std::visit(util::overload{
-                [&](Label const& s) { os << s << ":" << std::endl; },
-                [&](assembly::Data_Pair const& s) {
-                    os << assembly::tabwidth(4) << s.first;
-                    if (s.first == Directive::asciz)
-                        os << " " << "\"" << s.second << "\"";
-                    else
-                        os << " " << s.second;
-                    assembly::newline(os);
-                    if (index < instructions_.size() - 1)
+            std::visit(
+                util::overload{
+                    [&](Label const& s) { os << s << ":" << std::endl; },
+                    [&](assembly::Data_Pair const& s) {
+                        os << assembly::tabwidth(4) << s.first;
+                        if (s.first == Directive::asciz)
+                            os << " " << "\""
+                               << assembly::literal_type_to_string(s.second)
+                               << "\"";
+                        else
+                            os << " "
+                               << assembly::literal_type_to_string(s.second);
                         assembly::newline(os);
+                        if (index < instructions_.size() - 1)
+                            assembly::newline(os);
+                    },
                 },
-            },
-            data_item);
+                data_item);
         }
-    // clang-format on
 }
 
 /**
@@ -558,12 +610,8 @@ void IR_Instruction_Visitor::from_func_end_ita()
             ir::Instruction::CALL,
             *accessor_->table_accessor.table_->ir_instructions)) {
         auto imm = assembly::make_u32_int_immediate(0);
-        if (frame->symbol != "main") {
-            accessor_->flag_accessor.set_instruction_flag(
-                flag::Align, instruction_accessor->size());
-            asm__dest_rs(
-                instruction_accessor->get_instructions(), add, rsp, imm);
-        }
+        accessor_->flag_accessor.set_instruction_flag(
+            flag::Align, instruction_accessor->size());
     }
     accessor_->register_accessor.reset_available_registers();
 }
@@ -757,16 +805,27 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
 
     if (type::is_rvalue_data_type(rvalue)) {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
-        if (type::is_rvalue_data_type_string(immediate)) {
+        auto type = type::get_type_from_rvalue_data_type(immediate);
+        if (type == "string") {
             storage = assembly::make_asciz_immediate(accessor_->address_accessor
                     .buffer_accessor.get_string_address_offset(
                         type::get_value_from_rvalue_data_type(immediate)));
             return storage;
-
-        } else {
-            storage = type::get_rvalue_datatype_from_string(rvalue);
+        }
+        if (type == "float") {
+            storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                    .buffer_accessor.get_float_address_offset(
+                        type::get_value_from_rvalue_data_type(immediate)));
             return storage;
         }
+        if (type == "double") {
+            storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                    .buffer_accessor.get_double_address_offset(
+                        type::get_value_from_rvalue_data_type(immediate)));
+            return storage;
+        }
+        storage = type::get_rvalue_datatype_from_string(rvalue);
+        return storage;
     }
 
     auto [operand, operand_inst] =
@@ -1002,6 +1061,54 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
     asm__dest(instructions, goto_, label);
 }
 
+void Operand_Inserter::insert_from_string_address_operand(LValue const& lhs,
+    Storage const& storage,
+    RValue const& rhs)
+{
+    auto instruction_accessor = accessor_->instruction_accessor;
+    auto& instructions = instruction_accessor->get_instructions();
+    auto expression_inserter = Expression_Inserter{ accessor_, stack_frame_ };
+    auto imm = type::get_rvalue_datatype_from_string(rhs);
+    expression_inserter.insert_from_string(
+        type::get_value_from_rvalue_data_type(imm));
+    accessor_->flag_accessor.set_instruction_flag(
+        flag::QWord_Dest, instruction_accessor->size());
+    accessor_->stack->set_address_from_accumulator(lhs, Register::rcx);
+    add_asm__as(instructions, mov, storage, Register::rcx);
+}
+
+void Operand_Inserter::insert_from_float_address_operand(LValue const& lhs,
+    Storage const& storage,
+    RValue const& rhs)
+{
+    auto instruction_accessor = accessor_->instruction_accessor;
+    auto& instructions = instruction_accessor->get_instructions();
+    auto expression_inserter = Expression_Inserter{ accessor_, stack_frame_ };
+    auto imm = type::get_rvalue_datatype_from_string(rhs);
+    expression_inserter.insert_from_float(
+        type::get_value_from_rvalue_data_type(imm));
+    accessor_->flag_accessor.set_instruction_flag(
+        flag::QWord_Dest, instruction_accessor->size());
+    accessor_->stack->set_address_from_accumulator(lhs, Register::xmm7);
+    add_asm__as(instructions, movsd, storage, Register::xmm7);
+}
+
+void Operand_Inserter::insert_from_double_address_operand(LValue const& lhs,
+    Storage const& storage,
+    RValue const& rhs)
+{
+    auto instruction_accessor = accessor_->instruction_accessor;
+    auto& instructions = instruction_accessor->get_instructions();
+    auto expression_inserter = Expression_Inserter{ accessor_, stack_frame_ };
+    auto imm = type::get_rvalue_datatype_from_string(rhs);
+    expression_inserter.insert_from_double(
+        type::get_value_from_rvalue_data_type(imm));
+    accessor_->flag_accessor.set_instruction_flag(
+        flag::QWord_Dest, instruction_accessor->size());
+    accessor_->stack->set_address_from_accumulator(lhs, Register::xmm7);
+    add_asm__as(instructions, movsd, storage, Register::xmm7);
+}
+
 /**
  * @brief Mnemonic operand default inserter via pattern matching
  */
@@ -1031,16 +1138,13 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     address_storage.get_lvalue_address_and_instructions(
                         lhs, instruction_accessor->size());
                 assembly::inserter(instructions, storage_inst);
-                if (type::get_type_from_rvalue_data_type(imm) == "string") {
-                    // strings decay into QWord pointers
-                    expression_inserter.insert_from_string(
-                        type::get_value_from_rvalue_data_type(imm));
-                    accessor_->flag_accessor.set_instruction_flag(
-                        flag::QWord_Dest, instruction_accessor->size());
-                    accessor_->stack->set_address_from_accumulator(
-                        lhs, Register::rcx);
-                    add_asm__as(instructions, mov, lhs_storage, Register::rcx);
-                } else
+                if (type::get_type_from_rvalue_data_type(imm) == "string")
+                    insert_from_string_address_operand(lhs, lhs_storage, rhs);
+                else if (type::get_type_from_rvalue_data_type(imm) == "float")
+                    insert_from_float_address_operand(lhs, lhs_storage, rhs);
+                else if (type::get_type_from_rvalue_data_type(imm) == "double")
+                    insert_from_double_address_operand(lhs, lhs_storage, rhs);
+                else
                     add_asm__as(instructions, mov, lhs_storage, imm);
             },
         // the expanded temporary rvalue is in a accumulator register,
@@ -1183,6 +1287,38 @@ void Expression_Inserter::insert_from_string(RValue const& str)
         accessor_->address_accessor.buffer_accessor.get_string_address_offset(
             str));
     asm__dest_rs(instructions, lea, rcx, location);
+}
+
+/**
+ * @brief Expression inserter from float rvalue to a .float directive
+ *
+ * The buffer_accessor holds the %rip offset in the data section
+ */
+void Expression_Inserter::insert_from_float(RValue const& str)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    credence_assert(
+        accessor_->address_accessor.buffer_accessor.is_allocated_float(str));
+    auto location = assembly::make_asciz_immediate(
+        accessor_->address_accessor.buffer_accessor.get_float_address_offset(
+            str));
+    asm__dest_rs(instructions, movsd, xmm7, location);
+}
+
+/**
+ * @brief Expression inserter from double rvalue to a .double directive
+ *
+ * The buffer_accessor holds the %rip offset in the data section
+ */
+void Expression_Inserter::insert_from_double(RValue const& str)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    credence_assert(
+        accessor_->address_accessor.buffer_accessor.is_allocated_double(str));
+    auto location = assembly::make_asciz_immediate(
+        accessor_->address_accessor.buffer_accessor.get_double_address_offset(
+            str));
+    asm__dest_rs(instructions, movsd, xmm7, location);
 }
 
 /**
@@ -1461,7 +1597,8 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
                                .get_accumulator_register_from_storage(
                                    immediate, accessor_->stack);
                 add_asm__as(instructions, mov, acc, immediate);
-                if (type::get_type_from_rvalue_data_type(rvalue) == "string")
+                auto type = type::get_type_from_rvalue_data_type(rvalue);
+                if (type == "string")
                     accessor_->flag_accessor.set_instruction_flag(
                         flag::Address, instruction_accessor->size());
             },
@@ -1606,7 +1743,19 @@ void IR_Instruction_Visitor::from_return_ita()
 void IR_Instruction_Visitor::from_leave_ita()
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
+    // care must be taken in the main function during function epilogue
     if (stack_frame_.symbol == "main") {
+        if (accessor_->table_accessor.table_
+                ->stack_frame_contains_ir_instruction(stack_frame_.symbol,
+                    ir::Instruction::CALL,
+                    *accessor_->table_accessor.table_->ir_instructions)) {
+            auto size = assembly::make_u32_int_immediate(
+                accessor_->stack->get_stack_frame_allocation_size());
+            asm__dest_rs(accessor_->instruction_accessor->get_instructions(),
+                add,
+                rsp,
+                size);
+        }
         syscall_ns::common::exit_syscall(instructions, 0);
     } else {
         asm__dest(instructions, pop, Register::rbp);

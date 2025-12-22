@@ -144,22 +144,7 @@ struct Function
         }
         return -1;
     }
-    /**
-     * @brief Labels are linear until branching, get the address of the label
-     * before _L1 and branching starts
-     */
-    constexpr std::size_t get_index_of_label_before_reserved()
-    {
-        auto reserved_label_address = label_address.get_pointer_by_name("_L1");
-        if (labels.size() > 1) {
-            do {
-                reserved_label_address -= 1;
-                if (label_address.is_pointer_address(reserved_label_address))
-                    break;
-            } while (reserved_label_address > 0);
-        }
-        return reserved_label_address;
-    }
+    std::size_t get_index_of_label_before_reserved();
 
     Return_RValue ret{};
     Label label_before_reserved{};
@@ -248,9 +233,9 @@ class Object
     Stack stack{};
     Functions functions{};
     Vectors vectors{};
-    type::Strings strings{};
-    type::Floats floats{};
-    type::Doubles doubles{};
+    type::RValues strings{};
+    type::RValues floats{};
+    type::RValues doubles{};
     type::Labels labels{};
 };
 

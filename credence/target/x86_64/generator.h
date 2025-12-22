@@ -212,6 +212,17 @@ class Operand_Inserter
     void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
 
   private:
+    void insert_from_string_address_operand(LValue const& lhs,
+        Storage const& storage,
+        RValue const& rhs);
+    void insert_from_float_address_operand(LValue const& lhs,
+        Storage const& storage,
+        RValue const& rhs);
+    void insert_from_double_address_operand(LValue const& lhs,
+        Storage const& storage,
+        RValue const& rhs);
+
+  private:
     memory::Memory_Access accessor_;
     memory::Stack_Frame& stack_frame_;
 };
@@ -228,6 +239,8 @@ struct Expression_Inserter
     {
     }
     void insert_from_string(RValue const& str);
+    void insert_from_float(RValue const& str);
+    void insert_from_double(RValue const& str);
     Instruction_Pair insert_from_expression(RValue const& expr);
     void insert_from_global_vector_assignment(LValue const& lhs,
         LValue const& rhs);

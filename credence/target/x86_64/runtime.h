@@ -53,10 +53,12 @@ std::vector<std::string> get_library_symbols();
  * printf(9):
  *
  *  A `printf' routine that takes a format string and up to 8 arguments
+ *  %rdi is the variable size of arguments, up to 8
+ *  %rsi is the format string
  *   Formatting:
  *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
- *   Registers:
- *      rdi, rsi, xmm0, xmm1, rdx, rcx, r8, r9, [stack]
+ *   Warning:
+ *      Double and float specifiers "work" but not perfectly
  *
  * print(1):
  *
@@ -79,10 +81,10 @@ std::vector<std::string> get_library_symbols();
 const auto variadic_library_list = { "printf" };
 
 const library_list_t library_list = {
-    { "printf",  { 9 } },
-    { "print",   { 2 } },
-    { "putchar", { 1 } },
-    { "getchar", { 0 } }
+    { "printf",  { 10 } },
+    { "print",   { 2 }  },
+    { "putchar", { 1 }  },
+    { "getchar", { 0 }  }
 };
 
 bool is_syscall_function(type::semantic::Label const& label);

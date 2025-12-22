@@ -59,6 +59,7 @@ using RValue_Reference = std::string_view;
 using Stack = std::deque<semantic::RValue>;
 using Labels = std::set<semantic::Label>;
 using Strings = std::set<semantic::RValue>;
+using RValues = Strings;
 using Floats = std::set<float>;
 using Doubles = std::set<double>;
 using Globals = value::Array;
