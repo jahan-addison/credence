@@ -282,56 +282,74 @@ Instruction_Pair neg(Storage const& dest)
     return add_1ary_inst(mn(neg), dest);
 }
 
-Instructions r_eq(Storage const& dest, Storage const& src, Label const& to)
+Instructions r_eq(Storage const& dest,
+    Storage const& src,
+    Label const& to,
+    x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    asm__dest_rs(inst, mov, eax, dest);
-    asm__dest_rs(inst, cmp, eax, src);
+    add_asm__as(inst, mov, with, dest);
+    add_asm__as(inst, cmp, with, src);
     add_asm__as(inst, je, make_direct_immediate(to), O_NUL);
     return inst;
 }
 
-Instructions r_neq(Storage const& dest, Storage const& src, Label const& to)
+Instructions r_neq(Storage const& dest,
+    Storage const& src,
+    Label const& to,
+    x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    asm__dest_rs(inst, mov, eax, dest);
-    asm__dest_rs(inst, cmp, eax, src);
+    add_asm__as(inst, mov, with, dest);
+    add_asm__as(inst, cmp, with, src);
     add_asm__as(inst, jne, make_direct_immediate(to), O_NUL);
     return inst;
 }
 
-Instructions r_lt(Storage const& dest, Storage const& src, Label const& to)
+Instructions r_lt(Storage const& dest,
+    Storage const& src,
+    Label const& to,
+    x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    asm__dest_rs(inst, mov, eax, dest);
-    asm__dest_rs(inst, cmp, eax, src);
+    add_asm__as(inst, mov, with, dest);
+    add_asm__as(inst, cmp, with, src);
     add_asm__as(inst, jl, make_direct_immediate(to), O_NUL);
     return inst;
 }
 
-Instructions r_gt(Storage const& dest, Storage const& src, Label const& to)
+Instructions r_gt(Storage const& dest,
+    Storage const& src,
+    Label const& to,
+    x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    asm__dest_rs(inst, mov, eax, dest);
-    asm__dest_rs(inst, cmp, eax, src);
+    add_asm__as(inst, mov, with, dest);
+    add_asm__as(inst, cmp, with, src);
     add_asm__as(inst, jg, make_direct_immediate(to), O_NUL);
     return inst;
 }
 
-Instructions r_le(Storage const& dest, Storage const& src, Label const& to)
+Instructions r_le(Storage const& dest,
+    Storage const& src,
+    Label const& to,
+    x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    asm__dest_rs(inst, mov, eax, dest);
-    asm__dest_rs(inst, cmp, eax, src);
+    add_asm__as(inst, mov, with, dest);
+    add_asm__as(inst, cmp, with, src);
     add_asm__as(inst, jle, make_direct_immediate(to), O_NUL);
     return inst;
 }
 
-Instructions r_ge(Storage const& dest, Storage const& src, Label const& to)
+Instructions r_ge(Storage const& dest,
+    Storage const& src,
+    Label const& to,
+    x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    asm__dest_rs(inst, mov, eax, dest);
-    asm__dest_rs(inst, cmp, eax, src);
+    add_asm__as(inst, mov, with, dest);
+    add_asm__as(inst, cmp, with, src);
     add_asm__as(inst, jge, make_direct_immediate(to), O_NUL);
     return inst;
 }

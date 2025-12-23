@@ -147,13 +147,29 @@ assembly::Storage Register_Accessor::get_register_for_binary_operator(
     RValue const& rvalue,
     Stack_Pointer& stack)
 {
+    // argc and argc storage resolution
+    if (rvalue == "argc")
+        return assembly::make_direct_immediate("[r15]");
+    if (type::from_lvalue_offset(rvalue) == "argv") {
+        auto offset = type::from_decay_offset(rvalue);
+        if (!util::is_numeric(offset) and
+            not address_accessor.is_lvalue_storage_type(offset, "int"))
+            throw_compiletime_error(
+                fmt::format(
+                    "invalid argv access, argv has malformed offset '{}'",
+                    offset),
+                rvalue);
+        auto offset_integer = type::integral_from_type_ulint(offset) + 1;
+        return assembly::make_direct_immediate(
+            fmt::format("[r15 + 8 * {}]", offset_integer));
+    }
     if (type::is_rvalue_data_type(rvalue))
         return type::get_rvalue_datatype_from_string(rvalue);
 
     if (stack->contains(rvalue))
         return stack->get(rvalue).first;
 
-    return assembly::Register::eax;
+    return assembly::Register::rax;
 }
 
 /**
@@ -388,6 +404,31 @@ bool Address_Accessor::is_lvalue_storage_type(LValue const& lvalue,
     } catch (...) {
         return false;
     }
+}
+
+/**
+ * @brief Check if the storage device is a QWord size in address space
+ */
+bool Address_Accessor::is_qword_storage_size(assembly::Storage const& storage)
+{
+    auto result{ false };
+    std::visit(
+        util::overload{
+            [&](std::monostate) {},
+            [&](assembly::Stack_Offset const& s) {
+                result = stack_->get_operand_size_from_offset(s) ==
+                         Operand_Size::Qword;
+            },
+            [&](Register const& s) { result = assembly::is_qword_register(s); },
+            [&](Immediate const& s) {
+                result = type::is_rvalue_data_type_string(s) or
+                         assembly::is_immediate_r15_address_offset(s) or
+                         assembly::is_immediate_rip_address_offset(s);
+            },
+        },
+        storage);
+
+    return result;
 }
 
 /**

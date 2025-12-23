@@ -93,6 +93,7 @@ jobs:
         ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/x86_64/relational/if_1.b
         ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/x86_64/call_2.b
         ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/x86_64/stdlib/printf_1.b
+        ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/x86_64/argc_argv.b
         ./test/compiled-test.sh syscall_test
         ./test/compiled-test.sh stdlib_test
         ./test/compiled-test.sh call_test_1
@@ -100,6 +101,7 @@ jobs:
         ./test/compiled-test.sh call_test_2
         ./test/compiled-test.sh stdlib_putchar_test
         ./test/compiled-test.sh stdin stdlib_getchar_test
+        ./test/compiled-test.sh argc argc_argv
         ./test/compiled-test.sh stdlib_printf_test
 
 

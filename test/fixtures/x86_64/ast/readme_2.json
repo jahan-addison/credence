@@ -1,11 +1,28 @@
 [
   {
+    "argc": {
+      "column": 6,
+      "end_column": 10,
+      "end_pos": 9,
+      "line": 1,
+      "start_pos": 5,
+      "type": "lvalue"
+    },
+    "argv": {
+      "column": 12,
+      "end_column": 16,
+      "end_pos": 15,
+      "line": 1,
+      "size": 1,
+      "start_pos": 11,
+      "type": "vector_lvalue"
+    },
     "identity": {
       "column": 1,
       "end_column": 9,
-      "end_pos": 139,
-      "line": 9,
-      "start_pos": 131,
+      "end_pos": 289,
+      "line": 13,
+      "start_pos": 281,
       "type": "function_definition"
     },
     "main": {
@@ -17,36 +34,44 @@
       "type": "function_definition"
     },
     "print": {
-      "column": 3,
-      "end_column": 8,
-      "end_pos": 72,
-      "line": 5,
-      "start_pos": 67,
+      "column": 5,
+      "end_column": 10,
+      "end_pos": 260,
+      "line": 9,
+      "start_pos": 255,
+      "type": "lvalue"
+    },
+    "printf": {
+      "column": 5,
+      "end_column": 11,
+      "end_pos": 176,
+      "line": 7,
+      "start_pos": 170,
       "type": "lvalue"
     },
     "strings": {
       "column": 1,
       "end_column": 8,
-      "end_pos": 169,
-      "line": 13,
+      "end_pos": 319,
+      "line": 17,
       "size": 3,
-      "start_pos": 162,
+      "start_pos": 312,
       "type": "vector_definition"
     },
     "x": {
       "column": 9,
       "end_column": 10,
-      "end_pos": 18,
+      "end_pos": 28,
       "line": 2,
-      "start_pos": 17,
+      "start_pos": 27,
       "type": "indirect_lvalue"
     },
     "y": {
       "column": 11,
       "end_column": 12,
-      "end_pos": 142,
-      "line": 9,
-      "start_pos": 141,
+      "end_pos": 292,
+      "line": 13,
+      "start_pos": 291,
       "type": "indirect_lvalue"
     }
   },
@@ -54,7 +79,14 @@
     "left": [
       {
         "left": [
-          null
+          {
+            "node": "lvalue",
+            "root": "argc"
+          },
+          {
+            "node": "lvalue",
+            "root": "argv"
+          }
         ],
         "node": "function_definition",
         "right": {
@@ -96,32 +128,43 @@
                     "node": "assignment_expression",
                     "right": {
                       "node": "string_literal",
-                      "root": "\"hello, how are you\""
+                      "root": "\"hello, how are you %s\\n\""
                     },
                     "root": [
                       "="
                     ]
                   }
-                ],
-                [
-                  {
-                    "left": {
-                      "node": "lvalue",
-                      "root": "print"
-                    },
-                    "node": "function_expression",
-                    "right": [
-                      {
-                        "left": {
-                          "node": "lvalue",
-                          "root": "identity"
-                        },
-                        "node": "function_expression",
-                        "right": [
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            },
+            {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "argc"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 1
+                },
+                "root": [
+                  ">"
+                ]
+              },
+              "node": "statement",
+              "right": [
+                {
+                  "left": [
+                    {
+                      "left": [
+                        [
                           {
                             "left": {
                               "node": "lvalue",
-                              "root": "identity"
+                              "root": "printf"
                             },
                             "node": "function_expression",
                             "right": [
@@ -133,45 +176,75 @@
                                 "node": "function_expression",
                                 "right": [
                                   {
-                                    "node": "lvalue",
-                                    "root": "x"
+                                    "left": {
+                                      "node": "lvalue",
+                                      "root": "identity"
+                                    },
+                                    "node": "function_expression",
+                                    "right": [
+                                      {
+                                        "left": {
+                                          "node": "lvalue",
+                                          "root": "identity"
+                                        },
+                                        "node": "function_expression",
+                                        "right": [
+                                          {
+                                            "node": "lvalue",
+                                            "root": "x"
+                                          }
+                                        ],
+                                        "root": "identity"
+                                      }
+                                    ],
+                                    "root": "identity"
                                   }
                                 ],
                                 "root": "identity"
+                              },
+                              {
+                                "left": {
+                                  "node": "integer_literal",
+                                  "root": 1
+                                },
+                                "node": "vector_lvalue",
+                                "root": "argv"
                               }
                             ],
-                            "root": "identity"
+                            "root": "printf"
                           }
                         ],
-                        "root": "identity"
-                      }
-                    ],
-                    "root": "print"
-                  }
-                ],
-                [
-                  {
-                    "left": {
-                      "node": "lvalue",
-                      "root": "print"
-                    },
-                    "node": "function_expression",
-                    "right": [
-                      {
-                        "left": {
-                          "node": "integer_literal",
-                          "root": 0
-                        },
-                        "node": "vector_lvalue",
-                        "root": "strings"
-                      }
-                    ],
-                    "root": "print"
-                  }
-                ]
+                        [
+                          {
+                            "left": {
+                              "node": "lvalue",
+                              "root": "print"
+                            },
+                            "node": "function_expression",
+                            "right": [
+                              {
+                                "left": {
+                                  "node": "integer_literal",
+                                  "root": 0
+                                },
+                                "node": "vector_lvalue",
+                                "root": "strings"
+                              }
+                            ],
+                            "root": "print"
+                          }
+                        ]
+                      ],
+                      "node": "statement",
+                      "root": "rvalue"
+                    }
+                  ],
+                  "node": "statement",
+                  "root": "block"
+                },
+                null
               ],
-              "node": "statement",
-              "root": "rvalue"
+              "root": "if"
             }
           ],
           "node": "statement",
@@ -220,15 +293,15 @@
         "right": [
           {
             "node": "string_literal",
-            "root": "\"these are strings\""
+            "root": "\"good afternoon\""
           },
           {
             "node": "string_literal",
-            "root": "\"in an array\""
+            "root": "\"good morning\""
           },
           {
             "node": "string_literal",
-            "root": "\"for the readme\""
+            "root": "\"good evening\""
           }
         ],
         "root": "strings"

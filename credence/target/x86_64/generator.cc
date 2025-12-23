@@ -486,6 +486,8 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }
+        return_instructions_.clear();
+        label_size_ = 0;
     }
 }
 
@@ -499,7 +501,8 @@ void Text_Emitter::emit_text_section(std::ostream& os)
     emit_text_directives(os);
     for (std::size_t index = 0; index < instructions_accessor->size(); index++)
         emit_text_instruction(os, instructions[index], index);
-    emit_function_epilogue(os);
+    if (!return_instructions_.empty() and frame_ == "main")
+        emit_function_epilogue(os);
 }
 
 /**
@@ -528,6 +531,33 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 }
 
 /**
+ * @brief Setup the stack frame for a function during instruction insertion
+ *
+ *  Note: %r15 is reserved for the argc address and argv offsets in memory
+ */
+void Instruction_Inserter::setup_stack_frame_in_function(
+    ir::Instructions const& ir_instructions,
+    IR_Instruction_Visitor& visitor,
+    int index)
+{
+    auto stack_frame = memory::Stack_Frame{ accessor_ };
+    auto symbol = std::get<1>(ir_instructions.at(index - 1));
+    auto name = type::get_label_as_human_readable(symbol);
+    stack_frame.set_stack_frame(name);
+    if (name == "main") {
+        // setup argc, argv
+        auto argc_argv = runtime::argc_argv_kernel_runtime_access(stack_frame);
+        if (argc_argv.first) {
+            auto& instructions =
+                accessor_->instruction_accessor->get_instructions();
+            auto argc_address = assembly::make_direct_immediate("[rsp]");
+            asm__dest_rs(instructions, lea, r15, argc_address);
+        }
+    }
+    visitor.from_func_start_ita(name);
+}
+
+/**
  * @brief IR instruction visitor to map x64 instructions in memory
  */
 void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
@@ -542,10 +572,8 @@ void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
         m::match(ita_inst)(
             m::pattern | ir::Instruction::FUNC_START =
                 [&] {
-                    auto symbol = std::get<1>(ir_instructions.at(index - 1));
-                    auto name = type::get_label_as_human_readable(symbol);
-                    stack_frame.set_stack_frame(name);
-                    ir_visitor.from_func_start_ita(name);
+                    setup_stack_frame_in_function(
+                        ir_instructions, ir_visitor, index);
                 },
             m::pattern | ir::Instruction::FUNC_END =
                 [&] { ir_visitor.from_func_end_ita(); },
@@ -703,13 +731,18 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
 {
     Operand_Inserter operands{ accessor_, stack_frame_ };
     syscall_ns::syscall_arguments_t arguments{};
+    auto caller_frame = stack_frame_.get_stack_frame();
     auto& table = accessor_->table_accessor.table_;
     for (auto const& rvalue : stack_frame_.argument_stack) {
         if (rvalue == "RET") {
             credence_assert(table->functions.contains(stack_frame_.tail));
             auto tail_frame = table->functions.at(stack_frame_.tail);
-            arguments.emplace_back(operands.get_operand_storage_from_rvalue(
-                tail_frame->ret->first));
+            if (accessor_->address_accessor.is_lvalue_storage_type(
+                    tail_frame->ret->first, "string") or
+                caller_frame->is_pointer_in_stack_frame(tail_frame->ret->first))
+                arguments.emplace_back(Register::rax);
+            else
+                arguments.emplace_back(Register::eax);
         } else {
             arguments.emplace_back(
                 operands.get_operand_storage_from_rvalue(rvalue));
@@ -764,69 +797,121 @@ void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
 }
 
 /**
+ * @brief Get the storage device of an parameter rvalue in the stack frame
+ */
+Storage Operand_Inserter::get_operand_storage_from_parameter(
+    RValue const& rvalue)
+{
+    auto frame = stack_frame_.get_stack_frame();
+    auto index_of = frame->get_index_of_parameter(rvalue);
+    credence_assert_nequal(index_of, -1);
+    // the argc and argv special cases
+    if (frame->symbol == "main") {
+        if (index_of == 0)
+            return assembly::make_direct_immediate("[r15]");
+        if (index_of == 1) {
+            if (!is_vector_offset(rvalue))
+                runtime::throw_runtime_error(
+                    "invalid argv access, argv is a vector to strings", rvalue);
+            auto offset = type::from_decay_offset(rvalue);
+            if (!util::is_numeric(offset) and
+                not accessor_->address_accessor.is_lvalue_storage_type(
+                    offset, "int"))
+                runtime::throw_runtime_error(
+                    fmt::format(
+                        "invalid argv access, argv has malformed offset '{}'",
+                        offset),
+                    rvalue);
+            auto offset_integer = type::integral_from_type_ulint(offset) + 1;
+            return assembly::make_direct_immediate(
+                fmt::format("[r15 + 8 * {}]", offset_integer));
+        }
+    }
+    if (frame->is_pointer_parameter(rvalue))
+        return memory::registers::available_qword_register.at(index_of);
+    else
+        return memory::registers::available_dword_register.at(index_of);
+}
+
+/**
+ * @brief Get the storage device of a stack operand
+ */
+inline Storage Operand_Inserter::get_operand_storage_from_stack(
+    RValue const& rvalue)
+{
+    auto [operand, operand_inst] =
+        accessor_->address_accessor.get_lvalue_address_and_instructions(
+            rvalue, accessor_->instruction_accessor->size());
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    assembly::inserter(instructions, operand_inst);
+    return operand;
+}
+
+/**
+ * @brief Get the storage device of a return rvalue in the stack frame
+ */
+inline Storage Operand_Inserter::get_operand_storage_from_return()
+{
+    auto& tail_call =
+        accessor_->table_accessor.table_->functions[stack_frame_.tail];
+    if (tail_call->locals.is_pointer(tail_call->ret->first) or
+        type::is_rvalue_data_type_string(tail_call->ret->first))
+        return Register::rax;
+    else
+        return Register::eax;
+}
+
+/**
+ * @brief Get the storage device of an immediate operand
+ */
+Storage Operand_Inserter::get_operand_storage_from_immediate(
+    RValue const& rvalue)
+{
+    assembly::Storage storage{};
+    auto immediate = type::get_rvalue_datatype_from_string(rvalue);
+    auto type = type::get_type_from_rvalue_data_type(immediate);
+    if (type == "string") {
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_string_address_offset(
+                    type::get_value_from_rvalue_data_type(immediate)));
+        return storage;
+    }
+    if (type == "float") {
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_float_address_offset(
+                    type::get_value_from_rvalue_data_type(immediate)));
+        return storage;
+    }
+    if (type == "double") {
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_double_address_offset(
+                    type::get_value_from_rvalue_data_type(immediate)));
+        return storage;
+    }
+    storage = type::get_rvalue_datatype_from_string(rvalue);
+    return storage;
+}
+
+/**
  * @brief Get the storage device of an rvalue operand
  */
 Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
 {
-    assembly::Storage storage{};
     auto& stack = accessor_->stack;
-    auto& table = accessor_->table_accessor.table_;
     auto frame = stack_frame_.get_stack_frame();
 
-    if (frame->is_parameter(rvalue)) {
-        auto index_of = frame->get_index_of_parameter(rvalue);
-        credence_assert_nequal(index_of, -1);
-        if (frame->is_pointer_parameter(rvalue))
-            return memory::registers::available_qword_register.at(index_of);
-        else
-            return memory::registers::available_dword_register.at(index_of);
-    }
+    if (frame->is_parameter(rvalue))
+        return get_operand_storage_from_parameter(rvalue);
 
-    if (stack->is_allocated(rvalue)) {
-        auto [operand, operand_inst] =
-            accessor_->address_accessor.get_lvalue_address_and_instructions(
-                rvalue, accessor_->instruction_accessor->size());
-        auto& instructions =
-            accessor_->instruction_accessor->get_instructions();
-        assembly::inserter(instructions, operand_inst);
-        return operand;
-    }
+    if (stack->is_allocated(rvalue))
+        return get_operand_storage_from_stack(rvalue);
 
     if (!stack_frame_.tail.empty() and
-        not runtime::is_stdlib_function(stack_frame_.tail)) {
+        not runtime::is_stdlib_function(stack_frame_.tail))
+        return get_operand_storage_from_return();
 
-        auto& tail_call = table->functions[stack_frame_.tail];
-        if (tail_call->locals.is_pointer(tail_call->ret->first) or
-            type::is_rvalue_data_type_string(tail_call->ret->first))
-            return Register::rax;
-        else
-            return Register::eax;
-    }
-
-    if (type::is_rvalue_data_type(rvalue)) {
-        auto immediate = type::get_rvalue_datatype_from_string(rvalue);
-        auto type = type::get_type_from_rvalue_data_type(immediate);
-        if (type == "string") {
-            storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                    .buffer_accessor.get_string_address_offset(
-                        type::get_value_from_rvalue_data_type(immediate)));
-            return storage;
-        }
-        if (type == "float") {
-            storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                    .buffer_accessor.get_float_address_offset(
-                        type::get_value_from_rvalue_data_type(immediate)));
-            return storage;
-        }
-        if (type == "double") {
-            storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                    .buffer_accessor.get_double_address_offset(
-                        type::get_value_from_rvalue_data_type(immediate)));
-            return storage;
-        }
-        storage = type::get_rvalue_datatype_from_string(rvalue);
-        return storage;
-    }
+    if (type::is_rvalue_data_type(rvalue))
+        return get_operand_storage_from_immediate(rvalue);
 
     auto [operand, operand_inst] =
         accessor_->address_accessor.get_lvalue_address_and_instructions(
@@ -946,7 +1031,8 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
 {
     auto& table = accessor_->table_accessor.table_;
     auto& address_storage = accessor_->address_accessor;
-    if (!argument_stack.front().starts_with("&"))
+    if (argument_stack.front() != "RET" and
+        not argument_stack.front().starts_with("&"))
         if (!address_storage.is_lvalue_storage_type(
                 argument_stack.front(), "string") and
             not runtime::is_address_device_pointer_to_buffer(
@@ -978,6 +1064,10 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
 {
     auto& table = accessor_->table_accessor.table_;
     auto& address_storage = accessor_->address_accessor;
+
+    if (argument_stack.front() == "RET" or
+        type::is_rvalue_data_type_string(argument_stack.front()))
+        return;
     if (!address_storage.is_lvalue_storage_type(
             argument_stack.front(), "string") and
         not runtime::is_address_device_pointer_to_buffer(
@@ -1471,7 +1561,9 @@ void Operand_Inserter::insert_from_operands(Storage_Operands& operands,
     std::string const& op)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    if (is_variant(Immediate, operands.first))
+    if (is_variant(Immediate, operands.first) and
+        not assembly::is_immediate_r15_address_offset(operands.first) and
+        not assembly::is_immediate_rip_address_offset(operands.first))
         std::swap(operands.first, operands.second);
     if (type::is_binary_arithmetic_operator(op)) {
         auto arithmetic = Arithemtic_Operator_Inserter{ accessor_ };
@@ -1861,36 +1953,54 @@ Relational_Operator_Inserter::from_relational_expression_operands(
     std::string const& binary_op,
     Label const& jump_label)
 {
+    auto register_storage = Register::eax;
+    if (accessor_->address_accessor.is_qword_storage_size(operands.first) or
+        accessor_->address_accessor.is_qword_storage_size(operands.second)) {
+        register_storage = Register::rax;
+    }
+
     return m::match(binary_op)(
         m::pattern | std::string{ "==" } =
             [&] {
-                return assembly::r_eq(
-                    operands.first, operands.second, jump_label);
+                return assembly::r_eq(operands.first,
+                    operands.second,
+                    jump_label,
+                    register_storage);
             },
         m::pattern | std::string{ "!=" } =
             [&] {
-                return assembly::r_neq(
-                    operands.first, operands.second, jump_label);
+                return assembly::r_neq(operands.first,
+                    operands.second,
+                    jump_label,
+                    register_storage);
             },
         m::pattern | std::string{ "<" } =
             [&] {
-                return assembly::r_lt(
-                    operands.first, operands.second, jump_label);
+                return assembly::r_lt(operands.first,
+                    operands.second,
+                    jump_label,
+                    register_storage);
             },
         m::pattern | std::string{ ">" } =
             [&] {
-                return assembly::r_gt(
-                    operands.first, operands.second, jump_label);
+                return assembly::r_gt(operands.first,
+                    operands.second,
+                    jump_label,
+                    register_storage);
             },
         m::pattern | std::string{ "<=" } =
             [&] {
-                return assembly::r_le(
-                    operands.first, operands.second, jump_label);
+                return assembly::r_le(operands.first,
+                    operands.second,
+                    jump_label,
+                    register_storage);
             },
         m::pattern | std::string{ ">=" } =
             [&] {
-                return assembly::r_ge(
-                    operands.first, operands.second, jump_label);
+                return assembly::r_ge(operands.first,
+                    operands.second,
+                    jump_label,
+                    register_storage);
             },
         m::pattern | m::_ = [&] { return assembly::Instructions{}; });
 }

@@ -106,7 +106,7 @@ void make_syscall(Instructions& instructions,
 }
 /**
  * @brief Create instructions for a linux x86_64 platform syscall
- *    In additional, this overload checks allocated pointers in a frame
+ *    In addition, this overload checks allocated pointers in a frame
  */
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
@@ -119,6 +119,7 @@ void make_syscall(Instructions& instructions,
     auto [number, arg_size] = syscall_list.at(syscall);
     credence_assert_equal(arg_size, arguments.size());
 
+    // note for syscall r10 is used instead of rcx
     std::deque<Register> argument_storage = { Register::r9,
         Register::r8,
         Register::r10,
@@ -168,12 +169,15 @@ void make_syscall(Instructions& instructions,
     credence_assert(arguments.size() <= 6);
     auto [number, arg_size] = syscall_list.at(syscall);
     credence_assert_equal(arg_size, arguments.size());
-    // clang-format off
-    std::deque<Register> argument_storage = {
-        Register::r9, Register::r8, Register::r10,
-        Register::rdx, Register::rsi, Register::rdi
-    };
-    // clang-format on
+
+    // note for syscall r10 is used instead of rcx
+    std::deque<Register> argument_storage = { Register::r9,
+        Register::r8,
+        Register::r10,
+        Register::rdx,
+        Register::rsi,
+        Register::rdi };
+
     auto frame = stack_frame.get_stack_frame();
     assembly::Storage syscall_number =
         assembly::make_numeric_immediate(SYSCALL_CLASS_UNIX + number);

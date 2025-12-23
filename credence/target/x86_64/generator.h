@@ -54,6 +54,7 @@ assembly::Operand_Size get_operand_size_from_storage(
     memory::Stack_Pointer& stack);
 
 class Assembly_Emitter;
+class IR_Instruction_Visitor;
 
 /**
  * @brief Storage Emitter for destination and source storage devices
@@ -186,6 +187,9 @@ class Instruction_Inserter
     {
     }
     void insert(ir::Instructions const& ir_instructions);
+    void setup_stack_frame_in_function(ir::Instructions const& ir_instructions,
+        IR_Instruction_Visitor& visitor,
+        int index);
 
   private:
     memory::Memory_Access accessor_;
@@ -203,13 +207,23 @@ class Operand_Inserter
         , stack_frame_(stack_frame)
     {
     }
+
+  public:
     Storage get_operand_storage_from_rvalue(RValue const& rvalue);
+
+  public:
     void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs);
     void insert_from_operands(Storage_Operands& operands,
         std::string const& op);
     void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
+
+  private:
+    Storage get_operand_storage_from_parameter(RValue const& rvalue);
+    Storage get_operand_storage_from_stack(RValue const& rvalue);
+    Storage get_operand_storage_from_return();
+    Storage get_operand_storage_from_immediate(RValue const& rvalue);
 
   private:
     void insert_from_string_address_operand(LValue const& lhs,

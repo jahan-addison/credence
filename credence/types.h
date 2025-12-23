@@ -208,7 +208,7 @@ constexpr bool is_relation_binary_operator(RValue_Reference rvalue)
 
 constexpr bool is_rvalue_data_type(semantic::RValue const& rvalue)
 {
-    return util::substring_count_of(rvalue, ":") == 2 and
+    return util::substring_count_of(rvalue, ":") >= 2 and
            rvalue.starts_with("(") and rvalue.ends_with(")");
 }
 

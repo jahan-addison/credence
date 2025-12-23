@@ -22,13 +22,14 @@ The compiler works in 3 stages:
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
 * Boolean coercion for all data types in conditional structures
 * `GOTO` and labels are not supported, use control structures
+* Float and double literal types (e.g. `5.55f`)
 * Support for C++ style comments
 * Logical and bitwise operators behave more like C
 * Operator precedence resembles C
+* `argc` and `argv` behave like C
 * VSCode extension provided in `ext/`
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
-* `argc` and `argv` are type-safe if provided to `main`
 * Constant literals must be exactly 1 byte
 
 Note: currently, windows is not supported.
@@ -93,16 +94,19 @@ In addition, a function map for kernel syscall tables such as `write(3)` is avai
 * **BSD** (Darwin) x86_64
   * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L453)
 
+
+---
+
 ## Example
 
 ```C
 main(argc, argv) {
   auto *x;
   extrn strings;
-  x = "hello, how are you %s\n";
+  x = "Hello, how are you, %s!\n";
   // using the provided standard library printf function in stdlib/
-  if (argc > 2) {
-    printf(identity(identity(identity(x))), argv[2]);
+  if (argc > 1) {
+    printf(identity(identity(identity(x))), argv[1]);
     // stdlib print in stdlib/
     print(strings[0]);
   }
@@ -112,10 +116,12 @@ identity(*y) {
   return(y);
 }
 
-strings [3] "good afternoon", "good morning", "good evening";
+strings [3] "Good afternoon", "Good morning", "Good evening";
 ```
-
 #### Result (x86-64, Linux):
+
+<img src="docs/images/credence-example-2.png" width="700px" alt="example"> </img>
+
 
 ```asm
 
@@ -124,47 +130,58 @@ strings [3] "good afternoon", "good morning", "good evening";
 .data
 
 ._L_str1__:
-    .asciz "for the readme"
+    .asciz "good afternoon"
 
 ._L_str2__:
-    .asciz "hello, how are you"
+    .asciz "good evening"
 
 ._L_str3__:
-    .asciz "in an array"
+    .asciz "good morning"
 
 ._L_str4__:
-    .asciz "these are strings"
+    .asciz "hello, how are you, %s\n"
 
 strings:
-    .quad ._L_str4__
+    .quad ._L_str1__
 
     .quad ._L_str3__
 
-    .quad ._L_str1__
+    .quad ._L_str2__
 
 .text
     .global _start
     .extern print
-    .extern putchar
+    .extern printf
 
 _start:
+    lea r15, [rsp]
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    lea rcx, [rip + ._L_str2__]
+    lea rcx, [rip + ._L_str4__]
     mov qword ptr [rbp - 8], rcx
+._L2__main:
+    mov rax, [r15]
+    cmp rax, 1
+    jg ._L4__main
+._L3__main:
+    jmp ._L1__main
+._L4__main:
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     call identity
-    mov rdi, qword ptr [rbp - 8]
-    mov rsi, 18
-    call print
+    mov rdi, rax
+    mov rsi, [r15 + 8 * 2]
+    call printf
     mov rdi, qword ptr [rip + strings]
-    mov rsi, 17
+    mov rsi, 14
     call print
+    jmp ._L3__main
+._L1__main:
+    add rsp, 16
     mov rax, 33554433
     mov rdi, 0
     syscall
@@ -183,7 +200,7 @@ identity:
 
 An example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
 
-<img src="docs/images/credence-out-of-range-2.png" width="600px" alt="error"> </img>
+<img src="docs/images/credence-out-of-range-2.png" width="700px" alt="error"> </img>
 
 
 

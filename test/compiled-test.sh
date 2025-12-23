@@ -28,8 +28,9 @@ if [[ "$1" == "call_test_2" ]]; then
   printf -v expected_output '%s' "hello world"
 fi
 if [[ "$1" == "if_1" ]]; then
-  printf -v expected_output '%s' "equal to 10\ngreater than or equal to 5\nnot equal to 5\ngreater than 8\nless than 20\ndone!"
+  printf -v expected_output '%s\n%s\n%s\n%s\n%s\n%s' "equal to 10" "greater than or equal to 5" "not equal to 5" "greater than 8" "less than 20" "done!"
 fi
+
 
 
 if [[ "$1" == "stdlib_putchar_test" ]]; then
@@ -49,9 +50,17 @@ if [[ "$1" == "stdin" ]]; then
     # shellcheck disable=SC2217
     program_output=$(echo -n "h" < ./stdlib_getchar_test)
   fi
+elif [[ "$1" == "argc" ]]; then
+  if [[ "$2" == "argc_argv" ]]; then
+    printf -v expected_output '%s\n%s\n%s\n%s' "argc count: 6" "argv 1: test" "argv 2: 5" "argv 3: test"
+    program_name="argc_argv"
+    program_output=$(./argc_argv test 5 test hello world)
+  fi
 else
   program_output=$(./"$1")
 fi
+
+
 
 
 if [[ "$program_output" == "$expected_output" ]]; then

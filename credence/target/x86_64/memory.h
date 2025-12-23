@@ -424,6 +424,7 @@ class Address_Accessor
     }
 
     Storage get_lvalue_address_from_stack(LValue const& lvalue);
+    bool is_qword_storage_size(Storage const& storage);
     assembly::Instruction_Pair get_lvalue_address_and_instructions(
         LValue const& lvalue,
         std::size_t instruction_index,
@@ -529,8 +530,10 @@ struct Table_Accessor
 struct Register_Accessor
 {
 
-    explicit Register_Accessor(Register* signal_register)
+    explicit Register_Accessor(Register* signal_register,
+        Address_Accessor& address_accessor)
         : signal_register(signal_register)
+        , address_accessor(address_accessor)
     {
     }
     registers::general_purpose available_qword_register =
@@ -559,6 +562,7 @@ struct Register_Accessor
     }
 
     Register* signal_register;
+    Address_Accessor& address_accessor;
 };
 
 } // namespace detail
@@ -577,8 +581,8 @@ class Memory_Accessor
         , table_accessor(table_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
-        , register_accessor{ &signal_register }
         , address_accessor{ table_, stack, flag_accessor }
+        , register_accessor{ &signal_register, address_accessor }
     {
         instruction_accessor = std::make_shared<detail::Instruction_Accessor>();
     }
@@ -601,8 +605,9 @@ class Memory_Accessor
     detail::Table_Accessor table_accessor{ table_ };
     detail::Accumulator_Accessor accumulator_accessor{ &signal_register };
     detail::Vector_Accessor vector_accessor{ table_ };
-    detail::Register_Accessor register_accessor{ &signal_register };
     detail::Address_Accessor address_accessor{ table_, stack, flag_accessor };
+    detail::Register_Accessor register_accessor{ &signal_register,
+        address_accessor };
     Instruction_Pointer instruction_accessor{};
 };
 

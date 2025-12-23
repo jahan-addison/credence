@@ -121,6 +121,11 @@ struct Function
         }
     }
 
+    constexpr bool is_pointer_in_stack_frame(RValue const& rvalue)
+    {
+        return locals.is_pointer(rvalue) or is_pointer_parameter(rvalue);
+    }
+
     constexpr bool is_pointer_parameter(RValue const& parameter)
     {
         using namespace fmt::literals;
@@ -129,7 +134,8 @@ struct Function
     }
     constexpr bool is_scaler_parameter(RValue const& parameter)
     {
-        return util::range_contains(parameter, parameters);
+        return util::range_contains(
+            type::from_lvalue_offset(parameter), parameters);
     }
     constexpr bool is_parameter(RValue const& parameter)
     {
@@ -139,7 +145,8 @@ struct Function
     constexpr int get_index_of_parameter(RValue const& parameter)
     {
         for (std::size_t i = 0; i < parameters.size(); i++) {
-            if (type::get_unary_rvalue_reference(parameters[i]) == parameter)
+            if (type::get_unary_rvalue_reference(parameters[i]) ==
+                type::from_lvalue_offset(parameter))
                 return i;
         }
         return -1;

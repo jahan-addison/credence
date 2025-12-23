@@ -53,7 +53,8 @@
 #define DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                           \
     x86_64::assembly::Instructions name(x86_64::assembly::Storage const& dest, \
         x86_64::assembly::Storage const& src,                                  \
-        x86_64::assembly::Label const& to)
+        x86_64::assembly::Label const& to,                                     \
+        x86_64::assembly::Register const& with)
 #define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
     x86_64::assembly::Instruction_Pair name(                \
         x86_64::assembly::Storage const& dest,              \
@@ -252,6 +253,7 @@ enum class Register
     r12,
     r13,
     r14,
+    r15,
 
     ebp,
     esp,
@@ -285,20 +287,41 @@ enum class Register
     xmm0
 };
 
-constexpr const auto QWORD_REGISTER = { Register::rdi,
+constexpr const auto QWORD_REGISTER = { Register::rbp,
+    Register::rsp,
+    Register::rax,
+    Register::rbx,
+    Register::rcx,
+    Register::rdx,
+    Register::rsi,
+    Register::rdi,
     Register::r8,
     Register::r9,
-    Register::rsi,
-    Register::rdx,
-    Register::rcx,
-    Register::rax };
-constexpr const auto DWORD_REGISTER = { Register::edi,
-    Register::r8d,
-    Register::r9d,
-    Register::esi,
+    Register::r10,
+    Register::r11,
+    Register::r12,
+    Register::r13,
+    Register::r14,
+    Register::r15 };
+
+constexpr const auto DWORD_REGISTER = {
+    Register::ebp,
+    Register::esp,
+    Register::eax,
+    Register::ebx,
     Register::edx,
     Register::ecx,
-    Register::eax };
+    Register::esi,
+    Register::edi,
+    Register::r8d,
+    Register::r9d,
+    Register::r10d,
+    Register::r11d,
+    Register::r12d,
+    Register::r13d,
+    Register::r14d,
+    Register::r15d,
+};
 
 constexpr const auto FLOAT_REGISTER = { Register::xmm7,
     Register::xmm6,
@@ -553,6 +576,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         REGISTER_OSTREAM(r12);
         REGISTER_OSTREAM(r13);
         REGISTER_OSTREAM(r14);
+        REGISTER_OSTREAM(r15);
         REGISTER_OSTREAM(ebp);
         REGISTER_OSTREAM(esp);
         REGISTER_OSTREAM(eax);
@@ -606,6 +630,7 @@ constexpr std::string register_as_string(Register reg)
         REGISTER_STRING(r12);
         REGISTER_STRING(r13);
         REGISTER_STRING(r14);
+        REGISTER_STRING(r15);
         REGISTER_STRING(ebp);
         REGISTER_STRING(esp);
         REGISTER_STRING(eax);
@@ -843,6 +868,18 @@ constexpr bool is_immediate_rip_address_offset(Storage const& immediate)
     if (is_variant(Immediate, immediate))
         return util::contains(
             std::get<0>(std::get<Immediate>(immediate)), "rip + ._L");
+    else
+        return false;
+}
+
+/**
+ * @brief Check if r15 (argc, argv) address offset
+ */
+constexpr bool is_immediate_r15_address_offset(Storage const& immediate)
+{
+    if (is_variant(Immediate, immediate))
+        return util::contains(
+            std::get<0>(std::get<Immediate>(immediate)), "[r15");
     else
         return false;
 }

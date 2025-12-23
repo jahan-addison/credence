@@ -114,6 +114,27 @@ void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
 }
 
 /**
+ * @brief Compile-time check and stack frame argc argv existence flags
+ */
+std::pair<bool, bool> argc_argv_kernel_runtime_access(
+    memory::Stack_Frame& stack_frame)
+{
+    credence_assert_equal(stack_frame.symbol, "main");
+    auto entry_point = stack_frame.get_stack_frame("main");
+    if (entry_point->parameters.size() > 2)
+        throw_runtime_error("invalid argument count, expected at most two for "
+                            "'argc' and 'argv'",
+            "main",
+            __source__,
+            "program invocation");
+
+    auto main_argc = entry_point->parameters.size() >= 1;
+    auto main_argv = entry_point->parameters.size() == 2;
+
+    return { main_argc, main_argv };
+}
+
+/**
  * @brief A compiletime check on a buffer allocation in a storage device
  */
 bool is_address_device_pointer_to_buffer(Address& address,
@@ -122,6 +143,7 @@ bool is_address_device_pointer_to_buffer(Address& address,
 {
     auto stack_frame = objects->get_stack_frame();
     bool is_buffer{ false };
+
     std::visit(
         util::overload{ [&](std::monostate) {},
             [&](assembly::Stack_Offset const& offset) {
@@ -135,6 +157,12 @@ bool is_address_device_pointer_to_buffer(Address& address,
                 is_buffer = assembly::is_qword_register(device);
             },
             [&](assembly::Immediate& immediate) {
+                if (util::contains(
+                        assembly::get_storage_as_string(immediate), "[rsp]"))
+                    is_buffer = true;
+                if (util::contains(
+                        assembly::get_storage_as_string(immediate), "rsp +"))
+                    is_buffer = true;
                 if (util::contains(
                         assembly::get_storage_as_string(immediate), "rip +"))
                     is_buffer = true;
@@ -234,8 +262,16 @@ void insert_argument_instructions_standard_library_function(
                 assembly::Mnemonic::movq_, storage, assembly::Register::rcx });
             return;
         }
-        instructions.emplace_back(assembly::Instruction{
-            assembly::Mnemonic::movq_, storage, argument });
+        if (is_variant(Register, argument) and
+            assembly::is_dword_register(std::get<Register>(argument))) {
+            auto storage_as_string = assembly::get_storage_as_string(storage);
+            auto storage_dword_offset = assembly::make_direct_immediate(
+                fmt::format("dword ptr [{}]", storage_as_string));
+            instructions.emplace_back(assembly::Instruction{
+                assembly::Mnemonic::movq_, storage_dword_offset, argument });
+        } else
+            instructions.emplace_back(assembly::Instruction{
+                assembly::Mnemonic::movq_, storage, argument });
     }
 }
 

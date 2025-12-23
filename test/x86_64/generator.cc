@@ -849,11 +849,11 @@ _start:
     mov qword ptr [rbp - 8], rcx
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     mov rsi, 18
     call print
     add rsp, 16
@@ -925,45 +925,55 @@ TEST_CASE("target/x86_64: fixture: readme_2.b")
 .data
 
 ._L_str1__:
-    .asciz "for the readme"
+    .asciz "good afternoon"
 
 ._L_str2__:
-    .asciz "hello, how are you"
+    .asciz "good evening"
 
 ._L_str3__:
-    .asciz "in an array"
+    .asciz "good morning"
 
 ._L_str4__:
-    .asciz "these are strings"
+    .asciz "hello, how are you %s\n"
 
 strings:
-    .quad ._L_str4__
+    .quad ._L_str1__
 
     .quad ._L_str3__
 
-    .quad ._L_str1__
+    .quad ._L_str2__
 
 .text
     .global _start
 
 _start:
+    lea r15, [rsp]
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    lea rcx, [rip + ._L_str2__]
+    lea rcx, [rip + ._L_str4__]
     mov qword ptr [rbp - 8], rcx
+._L2__main:
+    mov rax, [r15]
+    cmp rax, 1
+    jg ._L4__main
+._L3__main:
+    jmp ._L1__main
+._L4__main:
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     call identity
-    mov rdi, qword ptr [rbp - 8]
+    mov rdi, rax
     call identity
-    mov rdi, qword ptr [rbp - 8]
-    mov rsi, 18
-    call print
+    mov rdi, rax
+    mov rsi, [r15 + 8 * 2]
+    call printf
     mov rdi, qword ptr [rip + strings]
-    mov rsi, 17
+    mov rsi, 14
     call print
+    jmp ._L3__main
+._L1__main:
     add rsp, 16
     mov rax, 60
     mov rdi, 0
@@ -1320,4 +1330,53 @@ _start:
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "stdlib/printf_1", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: argc_argv.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "argc count: %d\n"
+
+._L_str2__:
+    .asciz "argv 1: %s\n"
+
+._L_str3__:
+    .asciz "argv 2: %s\n"
+
+._L_str4__:
+    .asciz "argv 3: %s\n"
+
+.text
+    .global _start
+
+_start:
+    lea r15, [rsp]
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    lea rdi, [rip + ._L_str1__]
+    mov rsi, [r15]
+    call printf
+    lea rdi, [rip + ._L_str2__]
+    mov rsi, [r15 + 8 * 2]
+    call printf
+    lea rdi, [rip + ._L_str3__]
+    mov rsi, [r15 + 8 * 3]
+    call printf
+    lea rdi, [rip + ._L_str4__]
+    mov rsi, [r15 + 8 * 4]
+    call printf
+    add rsp, 16
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "argc_argv", expected, false);
 }

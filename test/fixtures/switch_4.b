@@ -29,15 +29,12 @@ convert(s,v) {
 }
 
 char(a,b) {
+   return(a);
 }
 
 error() {
-   auto m;
-   printf("bad syntax*n");
+   print("bad syntax*n");
    return(-1);
 }
 
-printf(s) {
-   return(s);
-}
 

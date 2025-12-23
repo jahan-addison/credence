@@ -21,6 +21,7 @@
 #include "memory.h"            // for Address_Accessor
 #include "stack.h"             // for Stack
 #include <array>               // for array
+#include <credence/error.h>    // for compile_error_impl
 #include <credence/util.h>     // for AST_Node
 #include <cstddef>             // for size_t
 #include <deque>               // for deque
@@ -99,6 +100,20 @@ constexpr bool is_variadic_library_function(std::string_view const& label)
     return util::range_contains(label, variadic_library_list);
 }
 
+inline void throw_runtime_error(std::string_view message,
+    std::string_view symbol,
+    std::source_location const& location = std::source_location::current(),
+    std::string_view type_ = "symbol",
+    std::string_view scope = "main",
+    util::AST_Node const& symbols = util::AST::object())
+{
+    credence::detail::compile_error_impl(location,
+        fmt::format("{} in function '{}' runtime-error", message, scope),
+        symbol,
+        symbols,
+        type_);
+}
+
 namespace detail {
 
 void add_stdlib_function_to_table_symbols(std::string const& stdlib_function,
@@ -107,6 +122,9 @@ void add_stdlib_function_to_table_symbols(std::string const& stdlib_function,
 void add_syscall_functions_to_symbols(util::AST_Node& symbols);
 
 } // namespace detail
+
+std::pair<bool, bool> argc_argv_kernel_runtime_access(
+    memory::Stack_Frame& stack_frame);
 
 bool is_address_device_pointer_to_buffer(Address& address,
     ir::object::Object_PTR& table,
