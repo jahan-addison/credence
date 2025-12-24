@@ -9,6 +9,7 @@ useInitializationList
 
 // Causes false positives
 unusedStructMember
+functionStatic
 derefInvalidIteratorRedundantCheck
 unmatchedSuppression
 

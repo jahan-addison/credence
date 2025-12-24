@@ -1,8 +1,9 @@
 main () {
-  auto x[50],*y,z;
-  extrn char;
-  x[0] = 0;
-  printf("%s %d", char, x[0]);
+  auto x[50], *y;
+  extrn str, unit;
+  y = str;
+  x[unit] = 0;
+  printf("%s %d", y, x[unit]);
 }
 
 snide(errno) {
@@ -12,16 +13,12 @@ snide(errno) {
    u = unit;
    unit = 1;
    t = mess[errno];
-   printf("error number %d, %s*n'*,errno,mess[errno]");
+   printf("error number %d, %s\n", errno, t);
 
    unit = u;
 }
 
-printf(s) {
-  return(s);
-}
-
-char "puts";
+str "puts";
 
 unit 10;
 

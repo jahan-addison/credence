@@ -45,7 +45,29 @@ include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 doctest_discover_tests(Test_Suite)
 
 if(ENABLE_TEST_COVERAGE)
-  target_compile_options(Test_Suite PUBLIC -O0 -g -fprofile-arcs
-                                           -ftest-coverage)
-  target_link_options(Test_Suite PUBLIC -fprofile-arcs -ftest-coverage)
+    message(STATUS "Clang coverage enabled: adding -fprofile-instr-generate")
+    target_compile_options(Test_Suite PUBLIC -fprofile-instr-generate -fcoverage-mapping)
+    target_link_options(Test_Suite PUBLIC -fprofile-instr-generate -fcoverage-mapping)
+
+    find_program(LLVM_PROFDATA llvm-profdata)
+    find_program(LLVM_COV llvm-cov)
+
+    if(LLVM_PROFDATA AND LLVM_COV)
+
+        add_custom_target(coverage
+            # Step 1: Run the test (generates default.profraw)
+            COMMAND ./Test_Suite
+            # Step 2: Merge the raw profile data
+            COMMAND ${LLVM_PROFDATA} merge -sparse default.profraw -o coverage.profdata
+            # Step 3: Generate HTML report
+            COMMAND ${LLVM_COV} show ./Test_Suite -instr-profile=coverage.profdata
+                        -show-line-counts-or-regions
+                        -show-region-summary=false
+                        -show-branch-summary=false
+                        -output-dir=coverage_report -format=html
+                        ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Generating Clang native coverage report..."
+        )
+    endif()
 endif()

@@ -1,15 +1,15 @@
 name: CI
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
       - master
-      - main
-      - ci/*
   pull_request:
     branches:
       - master
-      - main
 
 jobs:
   build:
@@ -56,7 +56,7 @@ jobs:
       if: startsWith(matrix.os, 'macos')
       run: |
         brew update
-        brew install include-what-you-use llvm@20 clang-format cppcheck coreutils poetry
+        brew install include-what-you-use llvm@20 lcov clang-format cppcheck coreutils poetry
 
     - name: python
       if: startsWith(matrix.os, 'macos')
@@ -104,6 +104,28 @@ jobs:
         ./test/compiled-test.sh argc argc_argv
         ./test/compiled-test.sh stdlib_printf_test
 
+    - name: build coverage
+      if: |
+        github.ref == 'refs/heads/master' &&
+        startsWith(matrix.os, 'macos') &&
+        matrix.compiler == 'clang++'
+      run: |
+        export PATH=/opt/homebrew/bin:$PATH:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:
+        cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
+        cmake --build build
+        cmake --build build --target coverage
+
+    - name: deploy
+      uses: peaceiris/actions-gh-pages@v4
+      if: |
+        github.ref == 'refs/heads/master' &&
+        startsWith(matrix.os, 'macos') &&
+        matrix.compiler == 'clang++'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build/coverage_report
+        publish_branch: gh-pages
+        force_orphan: true
 
     - name: memcheck
       if: startsWith(matrix.os, 'ubuntu')

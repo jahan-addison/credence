@@ -33,7 +33,7 @@ char(a,b) {
 }
 
 error() {
-   print("bad syntax*n");
+   print("bad syntax\n");
    return(-1);
 }
 

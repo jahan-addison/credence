@@ -2,6 +2,12 @@
   <img src="docs/images/credence-compiler-logo.png" width="800px" alt="credence"> </img>
 </div>
 
+<br>
+
+> This project is dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
+
+---
+
 * B Language grammar - [here](https://github.com/jahan-addison/chakram/blob/master/chakram/grammar.lark)
 * Language reference - [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
@@ -16,7 +22,9 @@ The compiler works in 3 stages:
 
 ## Features
 
-* **Strongly typed** with type inference, unlike the original B language
+These features are not in the original B language specification.
+
+* **Strongly typed** with type inference
   * Vectors (arrays) may be non-homogeneous, but their types are determined at compile time from their initial values, similarly to tuples
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
@@ -56,6 +64,8 @@ Usage:
 
 A complete assembler and linking tool is installed via the installation script.
 
+---
+
 ## Targets
 
 ### x86-64:
@@ -71,13 +81,27 @@ A complete assembler and linking tool is installed via the installation script.
   * Compliance with the Application Binary Interface (ABI) for System V
   * SIMD memory alignment requirements
 
----
-
 ### ARM64:
 
 #### Linux, BSD (Darwin)
 
 Soon. ™️
+
+---
+
+## Test Suite
+
+Credence has [80% line and function code coverage](https://jahan-addison.github.io/credence/) with exhaustive type checking, ast, and code generation test suites.
+
+To build the test suite and coverage yourself (with `llvm-cov`):
+
+```bash
+
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
+cmake --build build
+cmake --build build --target coverage
+
+```
 
 ---
 
@@ -322,13 +346,6 @@ _L1:
     LEAVE;
  EndFunc ;
 
-
-```
-
-## Test Suite
-
-```bash
-make test
 ```
 
 ## Dependencies
@@ -342,6 +359,8 @@ make test
 * `fmt` - fast constexpr string formatting
 * `pybind11`
 
-# License
+## Licensing
 
-Apache 2 License.
+This project is dual-licensed under the **Apache License, Version 2.0** and the **GNU General Public License, Version 3.0 (or later)**.
+
+You are free to choose the license that best fits your specific use case. For the full text of each license, please see [LICENSE.Apache-v2](LICENSE.Apache-v2) and [LICENSE-GPL-v3](LICENSE.GPL-v3).
