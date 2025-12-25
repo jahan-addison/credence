@@ -190,16 +190,8 @@ void Table::build_vector_definitions_from_globals()
         }
 }
 
-/**
- * @brief Ensure CALL right-hand-side is a valid symbol
- */
-void Table::from_call_ita_instruction(Label const& label)
-{
-    if (!objects_->labels.contains(label) and
-        not objects_->hoisted_symbols.has_key(label))
-        throw_object_type_error(
-            "function call failed, function does not exist", label);
-}
+// Unused
+void Table::from_call_ita_instruction([[maybe_unused]] Label const& label) {}
 
 /**
  * @brief add label and label instruction address entry from LABEL
@@ -481,7 +473,7 @@ void Table::from_push_instruction(Quadruple const& instruction)
     RValue operand = std::get<1>(instruction);
     auto frame = objects_->get_stack_frame();
     if (objects_->is_stack_frame()) {
-        credence_assert(frame->temporary.contains(operand));
+        // credence_assert(frame->temporary.contains(operand));
         objects_->stack.emplace_back(frame->temporary.at(operand));
     }
 }

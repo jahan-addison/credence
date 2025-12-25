@@ -28,14 +28,13 @@ namespace common {
 // cppcheck-suppress constParameterReference
 void exit_syscall(Instructions& instructions, int exit_status)
 {
-    Register E_ADDRESS = Register::eax;
     auto immediate = assembly::make_numeric_immediate(exit_status);
 #if defined(CREDENCE_TEST) || defined(__linux__)
     syscall_ns::linux_ns::make_syscall(
-        instructions, "exit", { immediate }, &E_ADDRESS);
+        instructions, "exit", { immediate }, nullptr, nullptr);
 #elif defined(__APPLE__) || defined(__bsdi__)
     syscall_ns::bsd_ns::make_syscall(
-        instructions, "exit", { immediate }, &E_ADDRESS);
+        instructions, "exit", { immediate }, nullptr, nullptr);
 #else
     credence_error("Operating system not supported");
 #endif
@@ -58,6 +57,97 @@ std::vector<std::string> get_platform_syscall_symbols()
 
 } // namespace common
 
+/**
+ * @brief General purpsoe register stack in ABI system V order
+ */
+std::pair<memory::registers::general_purpose,
+    memory::registers::general_purpose>
+get_argument_general_purpose_registers()
+{
+    std::deque<Register> qword = { Register::r9,
+        Register::r8,
+        Register::r10,
+        Register::rdx,
+        Register::rsi,
+        Register::rdi };
+
+    std::deque<assembly::Register> dword = { Register::r9d,
+        Register::r8d,
+        Register::r10d,
+        Register::edx,
+        Register::esi,
+        Register::edi };
+
+    return std::make_pair(qword, dword);
+}
+
+/**
+ * @brief NULL-check the memory access, then grab a register
+ */
+assembly::Register get_storage_register_from_safe_address(
+    assembly::Storage argument,
+    std::deque<assembly::Register>& qword_registers,
+    std::deque<assembly::Register>& dword_registers,
+    memory::Stack_Frame* stack_frame,
+    memory::Memory_Access* accessor)
+{
+    Register storage = Register::rdi;
+    if (accessor != nullptr) {
+        auto accessor_ = *accessor;
+        if (accessor_->address_accessor.is_qword_storage_size(
+                argument, *stack_frame)) {
+            storage = qword_registers.back();
+        } else {
+            storage = dword_registers.back();
+        }
+    }
+    return storage;
+}
+
+/**
+ * @brief NULL-check the memory access, then set the signal register
+ */
+bool set_signal_register_from_safe_address(Instructions& instructions,
+    assembly::Register storage,
+    memory::Memory_Access* accessor)
+{
+    if (accessor != nullptr) {
+        auto accessor_ = *accessor;
+        auto* address_of = accessor_->register_accessor.signal_register;
+        if (storage == rr(rsi) and *address_of == Register::rcx) {
+            accessor_->set_signal_register(Register::eax);
+            asm__src_rs(instructions, movq_, storage, rcx);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief Prepare the operands for the syscall
+ */
+void syscall_operands_to_instructions(Instructions& instructions,
+    syscall_arguments_t const& arguments,
+    std::deque<assembly::Register>& qword_registers,
+    std::deque<assembly::Register>& dword_registers,
+    memory::Stack_Frame* stack_frame,
+    memory::Memory_Access* accessor)
+{
+    for (std::size_t i = 0; i < arguments.size(); i++) {
+        auto arg = arguments[i];
+        Register storage = get_storage_register_from_safe_address(
+            arg, qword_registers, dword_registers, stack_frame, accessor);
+
+        qword_registers.pop_back();
+        dword_registers.pop_back();
+        if (is_immediate_rip_address_offset(arg))
+            add_asm__as(instructions, lea, storage, arg);
+        else if (set_signal_register_from_safe_address(
+                     instructions, storage, accessor))
+            add_asm__as(instructions, movq_, storage, arg);
+    }
+}
+
 namespace linux_ns {
 
 /**
@@ -67,85 +157,30 @@ namespace linux_ns {
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    Register* address_of)
+    memory::Stack_Frame* stack_frame,
+    memory::Memory_Access* accessor)
 {
     credence_assert(syscall_list.contains(syscall));
     credence_assert(arguments.size() <= 6);
     auto [number, arg_size] = syscall_list.at(syscall);
+
     credence_assert_equal(arg_size, arguments.size());
 
-    std::deque<Register> argument_storage = { Register::r9,
-        Register::r8,
-        Register::r10,
-        Register::rdx,
-        Register::rsi,
-        Register::rdi };
+    auto [argument_storage_qword, argument_storage_dword] =
+        get_argument_general_purpose_registers();
 
     assembly::Storage syscall_number = assembly::make_numeric_immediate(number);
+
     asm__dest_rs(instructions, mov, rax, syscall_number);
 
-    for (auto const& arg : arguments) {
-        auto storage = argument_storage.back();
-        argument_storage.pop_back();
-        if (is_immediate_rip_address_offset(arg))
-            add_asm__as(instructions, lea, storage, arg);
-        else {
-            if (storage == rr(rsi) and *address_of == Register::rcx) {
-                *address_of = Register::eax;
-                asm__src_rs(instructions, movq_, storage, rcx);
-                continue;
-            }
-            add_asm__as(instructions, movq_, storage, arg);
-        }
-    }
+    syscall_operands_to_instructions(instructions,
+        arguments,
+        argument_storage_qword,
+        argument_storage_dword,
+        stack_frame,
+        accessor);
 
     asm__zero_o(instructions, syscall);
-}
-/**
- * @brief Create instructions for a linux x86_64 platform syscall
- *    In addition, this overload checks allocated pointers in a frame
- */
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    memory::Stack_Frame& stack_frame,
-    Register* address_of)
-{
-    credence_assert(syscall_list.contains(syscall));
-    credence_assert(arguments.size() <= 6);
-    auto [number, arg_size] = syscall_list.at(syscall);
-    credence_assert_equal(arg_size, arguments.size());
-
-    // note for syscall r10 is used instead of rcx
-    std::deque<Register> argument_storage = { Register::r9,
-        Register::r8,
-        Register::r10,
-        Register::rdx,
-        Register::rsi,
-        Register::rdi };
-
-    assembly::Storage syscall_number = assembly::make_numeric_immediate(number);
-    asm__dest_rs(instructions, mov, rax, syscall_number);
-    auto frame = stack_frame.get_stack_frame();
-    for (std::size_t i = 0; i < arguments.size(); i++) {
-        auto arg = arguments[i];
-        auto argument_rvalue =
-            type::get_unary_rvalue_reference(stack_frame.argument_stack.at(i));
-        auto storage = argument_storage.back();
-        argument_storage.pop_back();
-        if (is_immediate_rip_address_offset(arg) or
-            frame->locals.is_pointer(argument_rvalue) or
-            frame->is_pointer_parameter(argument_rvalue))
-            add_asm__as(instructions, lea, storage, arg);
-        else {
-            if (storage == rr(rsi) and *address_of == Register::rcx) {
-                *address_of = Register::eax;
-                asm__src_rs(instructions, movq_, storage, rcx);
-                continue;
-            }
-            add_asm__as(instructions, movq_, storage, arg);
-        }
-    }
 }
 
 } // namespace linux
@@ -154,90 +189,34 @@ namespace bsd_ns {
 
 /**
  * @brief Create instructions for a BSD (Darwin) x86_64 platform syscall
- *    In additional, this overload checks allocated pointers in a frame
- */
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    memory::Stack_Frame& stack_frame,
-    Register* address_of)
-{
-    credence_assert(syscall_list.contains(syscall));
-    credence_assert(arguments.size() <= 6);
-    auto [number, arg_size] = syscall_list.at(syscall);
-    credence_assert_equal(arg_size, arguments.size());
-
-    // note for syscall r10 is used instead of rcx
-    std::deque<Register> argument_storage = { Register::r9,
-        Register::r8,
-        Register::r10,
-        Register::rdx,
-        Register::rsi,
-        Register::rdi };
-
-    auto frame = stack_frame.get_stack_frame();
-    assembly::Storage syscall_number =
-        assembly::make_numeric_immediate(SYSCALL_CLASS_UNIX + number);
-    asm__dest_rs(instructions, mov, rax, syscall_number);
-    for (std::size_t i = 0; i < arguments.size(); i++) {
-        auto arg = arguments[i];
-        auto argument_rvalue =
-            type::get_unary_rvalue_reference(stack_frame.argument_stack.at(i));
-        auto storage = argument_storage.back();
-        argument_storage.pop_back();
-        if (is_immediate_rip_address_offset(arg) or
-            frame->locals.is_pointer(argument_rvalue) or
-            frame->is_pointer_parameter(argument_rvalue))
-            add_asm__as(instructions, lea, storage, arg);
-        else {
-            if (storage == rr(rsi) and *address_of == Register::rcx) {
-                *address_of = Register::eax;
-                asm__src_rs(instructions, mov, storage, rcx);
-                continue;
-            }
-            add_asm__as(instructions, mov, storage, arg);
-        }
-    }
-    asm__zero_o(instructions, syscall);
-}
-
-/**
- * @brief Create instructions for a BSD (Darwin) x86_64 platform syscall
  *    See syscall.h for details
  */
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    Register* address_of)
+    memory::Stack_Frame* stack_frame,
+    memory::Memory_Access* accessor)
 {
     credence_assert(syscall_list.contains(syscall));
     credence_assert(arguments.size() <= 6);
     auto [number, arg_size] = syscall_list.at(syscall);
     credence_assert_equal(arg_size, arguments.size());
-    // clang-format off
-    std::deque<Register> argument_storage = {
-        Register::r9, Register::r8, Register::r10,
-        Register::rdx, Register::rsi, Register::rdi
-    };
-    // clang-format on
+
+    auto [argument_storage_qword, argument_storage_dword] =
+        get_argument_general_purpose_registers();
+
     assembly::Storage syscall_number =
         assembly::make_numeric_immediate(SYSCALL_CLASS_UNIX + number);
+
     asm__dest_rs(instructions, mov, rax, syscall_number);
-    for (std::size_t i = 0; i < arguments.size(); i++) {
-        auto arg = arguments[i];
-        auto storage = argument_storage.back();
-        argument_storage.pop_back();
-        if (is_immediate_rip_address_offset(arg))
-            add_asm__as(instructions, lea, storage, arg);
-        else {
-            if (storage == rr(rsi) and *address_of == Register::rcx) {
-                *address_of = Register::eax;
-                asm__src_rs(instructions, mov, storage, rcx);
-                continue;
-            }
-            add_asm__as(instructions, mov, storage, arg);
-        }
-    }
+
+    syscall_operands_to_instructions(instructions,
+        arguments,
+        argument_storage_qword,
+        argument_storage_dword,
+        stack_frame,
+        accessor);
+
     asm__zero_o(instructions, syscall);
 }
 
@@ -253,33 +232,15 @@ void make_syscall(
     Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    Register* address_of)
+    memory::Stack_Frame* stack_frame,
+    memory::Memory_Access* accessor)
 {
 #if defined(CREDENCE_TEST) || defined(__linux__)
     syscall_ns::linux_ns::make_syscall(
-        instructions, syscall, arguments, address_of);
+        instructions, syscall, arguments, stack_frame, accessor);
 #elif defined(__APPLE__) || defined(__bsdi__)
     syscall_ns::bsd_ns::make_syscall(
-        instructions, syscall, arguments, address_of);
-#else
-    credence_error("Operating system not supported");
-#endif
-}
-
-void make_syscall(
-    // cppcheck-suppress constParameterReference
-    Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    memory::Stack_Frame& stack_frame,
-    Register* address_of)
-{
-#if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall_ns::linux_ns::make_syscall(
-        instructions, syscall, arguments, stack_frame, address_of);
-#elif defined(__APPLE__) || defined(__bsdi__)
-    syscall_ns::bsd_ns::make_syscall(
-        instructions, syscall, arguments, stack_frame, address_of);
+        instructions, syscall, arguments, stack_frame, accessor);
 #else
     credence_error("Operating system not supported");
 #endif

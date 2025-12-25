@@ -8,13 +8,29 @@
       "start_pos": 0,
       "type": "function_definition"
     },
+    "print": {
+      "column": 1,
+      "end_column": 6,
+      "end_pos": 115,
+      "line": 11,
+      "start_pos": 110,
+      "type": "function_definition"
+    },
     "printf": {
-      "column": 3,
+      "column": 1,
+      "end_column": 7,
+      "end_pos": 101,
+      "line": 7,
+      "start_pos": 95,
+      "type": "function_definition"
+    },
+    "x": {
+      "column": 8,
       "end_column": 9,
       "end_pos": 17,
       "line": 2,
-      "start_pos": 11,
-      "type": "function_definition"
+      "start_pos": 16,
+      "type": "lvalue"
     }
   },
   {
@@ -28,6 +44,16 @@
           "left": [
             {
               "left": [
+                {
+                  "node": "lvalue",
+                  "root": "x"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
                 [
                   {
                     "left": {
@@ -38,23 +64,27 @@
                     "right": [
                       {
                         "node": "string_literal",
-                        "root": "\"%s %d %f %d %c\""
+                        "root": "\"%s %f %d %g %b %c\""
                       },
                       {
                         "node": "string_literal",
                         "root": "\"hello\""
                       },
                       {
-                        "node": "integer_literal",
-                        "root": 5
-                      },
-                      {
                         "node": "float_literal",
                         "root": 5.550000
                       },
                       {
+                        "node": "integer_literal",
+                        "root": 10
+                      },
+                      {
                         "node": "double_literal",
-                        "root": 5.555555
+                        "root": 3.141549
+                      },
+                      {
+                        "node": "bool_literal",
+                        "root": "true"
                       },
                       {
                         "node": "constant_literal",
@@ -73,6 +103,30 @@
           "root": "block"
         },
         "root": "main"
+      },
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "printf"
+      },
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "print"
       }
     ],
     "node": "program",

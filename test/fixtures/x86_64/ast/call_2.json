@@ -22,7 +22,8 @@
       "end_pos": 72,
       "line": 7,
       "start_pos": 68,
-      "type": "function_definition"
+      "type": "function_definition",
+      "void": false
     },
     "x": {
       "column": 9,

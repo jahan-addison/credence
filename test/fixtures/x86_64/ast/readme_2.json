@@ -20,10 +20,11 @@
     "identity": {
       "column": 1,
       "end_column": 9,
-      "end_pos": 289,
+      "end_pos": 290,
       "line": 13,
-      "start_pos": 281,
-      "type": "function_definition"
+      "start_pos": 282,
+      "type": "function_definition",
+      "void": false
     },
     "main": {
       "column": 1,
@@ -36,26 +37,26 @@
     "print": {
       "column": 5,
       "end_column": 10,
-      "end_pos": 260,
+      "end_pos": 261,
       "line": 9,
-      "start_pos": 255,
+      "start_pos": 256,
       "type": "lvalue"
     },
     "printf": {
       "column": 5,
       "end_column": 11,
-      "end_pos": 176,
+      "end_pos": 177,
       "line": 7,
-      "start_pos": 170,
+      "start_pos": 171,
       "type": "lvalue"
     },
     "strings": {
       "column": 1,
       "end_column": 8,
-      "end_pos": 319,
+      "end_pos": 320,
       "line": 17,
       "size": 3,
-      "start_pos": 312,
+      "start_pos": 313,
       "type": "vector_definition"
     },
     "x": {
@@ -69,9 +70,9 @@
     "y": {
       "column": 11,
       "end_column": 12,
-      "end_pos": 292,
+      "end_pos": 293,
       "line": 13,
-      "start_pos": 291,
+      "start_pos": 292,
       "type": "indirect_lvalue"
     }
   },
@@ -128,7 +129,7 @@
                     "node": "assignment_expression",
                     "right": {
                       "node": "string_literal",
-                      "root": "\"hello, how are you %s\\n\""
+                      "root": "\"hello, how are you, %s\\n\""
                     },
                     "root": [
                       "="

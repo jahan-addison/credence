@@ -16,7 +16,8 @@
 .data
     .align 16
 .L_mask:
-    .quad 0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
+    .quad 0x7FFFFFFFFFFFFFFF
+    .quad 0x7FFFFFFFFFFFFFFF
 .L_ten_mil:
     .double 1000000.0
 
@@ -41,7 +42,8 @@ printf:
     push    r13
     push    r14
     push    r15
-    sub     rsp, 1208
+    push    rbx
+    sub     rsp, 1232
 
     mov     [rbp - 48], rsi
     mov     [rbp - 56], rdx
@@ -49,6 +51,7 @@ printf:
     mov     [rbp - 72], r8
     mov     [rbp - 80], r9
 
+    # Save Float Args
     movups  [rbp - 112], xmm0
     movups  [rbp - 128], xmm1
     movups  [rbp - 144], xmm2
@@ -69,7 +72,7 @@ printf:
     jz      .flush
     cmp     al, '%'
     je      .handle_specifier
-    lea     rbx, [rbp - 1208]
+    lea     rbx, [rbp - 1232]
     mov     [rbx + r13], al
     inc     r13
     inc     r12
@@ -106,6 +109,7 @@ printf:
     mov     rax, [rbp - 48 + rax * 8]
 .dispatch_gp:
     inc     r14
+    mov     r11, rax
     mov     bl, [r12 - 1]
     cmp     bl, 'd'
     je      .do_int
@@ -129,9 +133,6 @@ printf:
     movups  xmm0, [rbp - 112 + rax]
 
 .do_float:
-    sub     rsp, 16
-    movsd   [rsp], xmm0
-
     cvttsd2si rbx, xmm0
     cvtsi2sd  xmm1, rbx
     subsd     xmm0, xmm1
@@ -140,14 +141,15 @@ printf:
     cvttsd2si r10, xmm0
 
     mov     rax, rbx
+    push    r10
     call    .itoa
+    pop     r10
 
-    lea     rbx, [rbp - 1208]
+    lea     rbx, [rbp - 1232]
     mov     byte ptr [rbx + r13], '.'
     inc     r13
 
     mov     rax, r10
-    mov     rdi, 6
     mov     rbx, 10
     sub     rsp, 16
     mov     rcx, 6
@@ -162,44 +164,45 @@ printf:
     xor     rdi, rdi
 .frac_copy_loop:
     mov     al, [rsp + rdi]
-    lea     rdx, [rbp - 1208]
+    lea     rdx, [rbp - 1232]
     mov     [rdx + r13], al
     inc     r13
     inc     rdi
     loop    .frac_copy_loop
 
     add     rsp, 16
-    add     rsp, 16
     inc     r15
     jmp     .loop
 
 .do_int:
+    mov     rax, r11
     call    .itoa
     jmp     .loop
 
 .do_str:
-    mov     rsi, rax
+    mov     rsi, r11
 .s_copy:
     mov     al, [rsi]
     test    al, al
     jz      .loop
-    lea     rbx, [rbp - 1208]
+    lea     rbx, [rbp - 1232]
     mov     [rbx + r13], al
     inc     r13
     inc     rsi
     jmp     .s_copy
 
 .do_char:
-    lea     rbx, [rbp - 1208]
+    lea     rbx, [rbp - 1232]
+    mov     al, r11b
     mov     [rbx + r13], al
     inc     r13
     jmp     .loop
 
 .do_bool:
-    test    rax, rax
+    test    r11, r11
     setnz   al
     add     al, '0'
-    lea     rbx, [rbp - 1208]
+    lea     rbx, [rbp - 1232]
     mov     [rbx + r13], al
     inc     r13
     jmp     .loop
@@ -207,10 +210,12 @@ printf:
 .flush:
     mov     rax, 0x2000004
     mov     rdi, 1
-    lea     rsi, [rbp - 1208]
+    lea     rsi, [rbp - 1232]
     mov     rdx, r13
     syscall
-    add     rsp, 1208
+
+    add     rsp, 1232
+    pop     rbx
     pop     r15
     pop     r14
     pop     r13
@@ -226,17 +231,16 @@ printf:
     test    rax, rax
     jns     .pos
     neg     rax
-    lea     rdi, [rbp - 1208]
+    lea     rdi, [rbp - 1232]
     mov     byte ptr [rdi + r13], '-'
     inc     r13
 .pos:
     mov     rbx, 10
-    mov     rdi, rsp
     sub     rsp, 32
     xor     rcx, rcx
     test    rax, rax
     jnz     .div_loop
-    lea     rdx, [rbp - 1208]
+    lea     rdx, [rbp - 1232]
     mov     byte ptr [rdx + r13], '0'
     inc     r13
     jmp     .done_itoa
@@ -251,7 +255,7 @@ printf:
 .rev_loop:
     dec     rcx
     mov     al, [rsp + rcx]
-    lea     rdx, [rbp - 1208]
+    lea     rdx, [rbp - 1232]
     mov     [rdx + r13], al
     inc     r13
     test    rcx, rcx
@@ -267,10 +271,8 @@ printf:
 ####################################################
 ## @brief print(1)
 ## Buffer size is handled by credence
-## %rdi should hold the buffer address
-## mov    rdi, qword ptr [rbp - 8],
-## %rsx should hold the buffer length
-## mov    rsi, qword ptr [rbp - 12]
+## The first argument should hold the buffer address
+## The second argument should hold the buffer length
 ####################################################
 print:
     push    rbp
@@ -287,7 +289,6 @@ print:
 
 ####################################################
 ## @brief putchar(1)
-## %rdi should hold the character immediate
 ####################################################
 putchar:
     push    rbp
@@ -305,7 +306,6 @@ putchar:
 
 ####################################################
 ## @brief getchar
-## The character from stdin is into a byte in %rax
 ####################################################
 getchar:
     push    rbp

@@ -225,7 +225,7 @@ void Queue::shunt_expression_pointer_into_queue(Expression const& pointer,
 /**
  * @brief List of expressions to queue of operators and operands
  */
-std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+std::unique_ptr<detail::Queue::Container> queue_from_expression_operands(
     Expressions const& items,
     int* parameter,
     int* identifier)
@@ -240,7 +240,7 @@ std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
 /**
  * @brief Single expression to queue of operators and operands
  */
-std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+std::unique_ptr<detail::Queue::Container> queue_from_expression_operands(
     Expression const& item,
     int* parameter,
     int* identifier)

@@ -91,6 +91,8 @@ jobs:
         ./bin/credence -t x86_64 -o stdlib_getchar_test $(pwd)/test/fixtures/x86_64/stdlib/getchar_1.b
         ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/x86_64/call_1.b
         ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/x86_64/relational/if_1.b
+        ./bin/credence -t x86_64 -o while_1 $(pwd)/test/fixtures/x86_64/relational/while_1.b
+        ./bin/credence -t x86_64 -o switch_1 $(pwd)/test/fixtures/x86_64/relational/switch_1.b
         ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/x86_64/call_2.b
         ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/x86_64/stdlib/printf_1.b
         ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/x86_64/argc_argv.b
@@ -98,6 +100,8 @@ jobs:
         ./test/compiled-test.sh stdlib_test
         ./test/compiled-test.sh call_test_1
         ./test/compiled-test.sh if_1
+        ./test/compiled-test.sh while_1
+        ./test/compiled-test.sh switch_1
         ./test/compiled-test.sh call_test_2
         ./test/compiled-test.sh stdlib_putchar_test
         ./test/compiled-test.sh stdin stdlib_getchar_test

@@ -92,12 +92,12 @@ class Queue
 
 } // namespace detail;
 
-std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+std::unique_ptr<detail::Queue::Container> queue_from_expression_operands(
     Expressions const& items,
     int* parameter,
     int* identifier);
 
-std::unique_ptr<detail::Queue::Container> make_queue_from_expression_operands(
+std::unique_ptr<detail::Queue::Container> queue_from_expression_operands(
     Expression const& item,
     int* parameter,
     int* identifier);

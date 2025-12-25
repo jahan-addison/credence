@@ -406,9 +406,11 @@ bool Address_Accessor::is_lvalue_storage_type(LValue const& lvalue,
 /**
  * @brief Check if the storage device is a QWord size in address space
  */
-bool Address_Accessor::is_qword_storage_size(assembly::Storage const& storage)
+bool Address_Accessor::is_qword_storage_size(assembly::Storage const& storage,
+    Stack_Frame& stack_frame)
 {
     auto result{ false };
+    auto frame = stack_frame.get_stack_frame();
     std::visit(
         util::overload{
             [&](std::monostate) {},

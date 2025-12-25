@@ -129,7 +129,8 @@ class Temporary
     void binary_operands_unbalanced_temporary_stack(type::Operator op);
 
   public:
-    void from_call_operands_to_temporary_instructions();
+    void from_call_operands_to_temporary_instructions(
+        util::AST_Node const& details);
     void from_push_operands_to_temporary_instructions();
 
     Temporary_Instructions instruction_temporary_from_expression_operand(
@@ -156,12 +157,12 @@ constexpr bool is_in_place_unary_operator(type::Operator op)
 
 } // namespace detail
 
-Instructions expression_queue_to_temporary_instructions(
+Instructions queue_to_ita_instructions(
     queue::detail::Queue::Container const& queue,
+    util::AST_Node const& details,
     int* temporary_index);
 
-Expression_Instructions expression_node_to_temporary_instructions(
-    Symbol_Table<> const& symbols,
+Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
     int* temporary_index,

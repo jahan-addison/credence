@@ -16,7 +16,7 @@
 #include <credence/expression.h> // for Expression_Parser
 #include <credence/ir/ita.h>     // for make_temporary, insert, make_quadruple
 #include <credence/operators.h>  // for Operator, operator_to_string
-#include <credence/queue.h>      // for make_queue_from_expression_operands
+#include <credence/queue.h>      // for queue_from_expression_operands
 #include <credence/symbol.h>     // for Symbol_Table
 #include <credence/types.h>      // for is_temporary
 #include <credence/util.h>       // for AST_Node, overload
@@ -320,11 +320,14 @@ void Temporary::from_push_operands_to_temporary_instructions()
 /**
  * @brief Construct temporary lvalues from function call
  */
-void Temporary::from_call_operands_to_temporary_instructions()
+void Temporary::from_call_operands_to_temporary_instructions(
+    util::AST_Node const& details)
 {
     auto op = type::Operator::U_CALL;
+    std::string symbol{};
     if (temporary_stack.size() > 1) {
         auto rhs = temporary_stack.top();
+        symbol = rhs;
         temporary_stack.pop();
         auto temp_rhs = ir::make_temporary(temporary_index, rhs);
         instructions.emplace_back(temp_rhs);
@@ -340,16 +343,19 @@ void Temporary::from_call_operands_to_temporary_instructions()
             instructions.emplace_back(temp_rhs);
             temporary_stack.emplace(
                 make_unary_temporary_string(op, std::get<1>(temp_rhs)));
+            symbol = rhs;
             instructions.emplace_back(make_quadruple(Instruction::CALL, rhs));
             temporary_stack.emplace(rhs);
         }
-        if (operand_stack.size() < 1)
-            return;
-        auto operand = operand_stack.top();
-        operand_stack.pop();
-        auto rhs = instruction_temporary_from_expression_operand(operand);
-        ir::insert(instructions, rhs.second);
-        instructions.emplace_back(make_quadruple(Instruction::CALL, rhs.first));
+        if (operand_stack.size() >= 1) {
+            auto operand = operand_stack.top();
+            operand_stack.pop();
+            auto rhs = instruction_temporary_from_expression_operand(operand);
+            ir::insert(instructions, rhs.second);
+            symbol = rhs.first;
+            instructions.emplace_back(
+                make_quadruple(Instruction::CALL, rhs.first));
+        }
     }
     if (parameters_size > 0)
         instructions.emplace_back(make_quadruple(Instruction::POP,
@@ -357,10 +363,15 @@ void Temporary::from_call_operands_to_temporary_instructions()
                 parameters_size * value::TYPE_LITERAL.at("word").second),
             "",
             ""));
-    auto call_return = ir::make_temporary(temporary_index, "RET");
-    instructions.emplace_back(call_return);
-    if (operand_stack.size() >= 1) {
-        temporary_stack.emplace(std::get<1>(call_return));
+    // does this function have a return value?
+    if (symbol != "getchar" and details.has_key(symbol) and
+        not details[symbol]["void"].is_null() and
+        details[symbol]["void"].to_bool() == false) {
+        auto call_return = ir::make_temporary(temporary_index, "RET");
+        instructions.emplace_back(call_return);
+        if (operand_stack.size() >= 1) {
+            temporary_stack.emplace(std::get<1>(call_return));
+        }
     }
     parameters_size = 0;
 }
@@ -584,10 +595,10 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
 
 /**
  * @brief
- * Construct a set of ITA instructions from an expression queue.
+ * Construct a set of ita instructions from an expression queue.
  */
-Instructions expression_queue_to_temporary_instructions(
-    queue::detail::Queue::Container& queue,
+Instructions queue_to_ita_instructions(queue::detail::Queue::Container& queue,
+    util::AST_Node const& details,
     int* temporary_index)
 {
     using namespace credence::type;
@@ -648,7 +659,8 @@ Instructions expression_queue_to_temporary_instructions(
                         // assignment and address operators
                         case Operator::U_CALL:
                             temporary
-                                .from_call_operands_to_temporary_instructions();
+                                .from_call_operands_to_temporary_instructions(
+                                    details);
                             break;
                         case Operator::U_PUSH:
                             temporary
@@ -678,10 +690,9 @@ Instructions expression_queue_to_temporary_instructions(
 }
 
 /**
- * @brief Expression node to list of ITA instructions
+ * @brief Expression node to set of ita instructions
  */
-Expression_Instructions expression_node_to_temporary_instructions(
-    Symbol_Table<> const& symbols,
+Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
     int* temporary_index,
@@ -704,19 +715,19 @@ Expression_Instructions expression_node_to_temporary_instructions(
                         .value));
             }
         }
-        auto queue = queue::make_queue_from_expression_operands(
+        auto queue = queue::queue_from_expression_operands(
             operands, temporary_index, identifier_index);
         auto instructions =
-            expression_queue_to_temporary_instructions(*queue, temporary_index);
+            queue_to_ita_instructions(*queue, details, temporary_index);
         return std::make_pair(instructions, *queue);
 
     } else {
         auto type_pointer = value::make_value_type_pointer(
             Expression_Parser::parse(node, details, symbols).value);
-        auto queue = queue::make_queue_from_expression_operands(
+        auto queue = queue::queue_from_expression_operands(
             type_pointer, temporary_index, identifier_index);
         auto instructions =
-            expression_queue_to_temporary_instructions(*queue, temporary_index);
+            queue_to_ita_instructions(*queue, details, temporary_index);
         return std::make_pair(instructions, *queue);
     }
 }

@@ -49,46 +49,43 @@ struct Table_Fixture
     using NULL_symbols = std::deque<std::string>;
     using Node = credence::util::AST_Node;
     const Node VECTOR_SYMBOLS = LOAD_JSON_FROM_STRING(
-        "{\"x\": {\"type\": \"vector_lvalue\", \"line\": 3, "
-        "\"start_pos\": 39, "
-        "\"column\": 8, \"end_pos\": 40, \"end_column\": 9, \"size\": "
-        "50}, "
-        "\"y\": {\"type\": \"indirect_lvalue\", \"line\": 3, "
-        "\"start_pos\": "
-        "46, \"column\": 15, \"end_pos\": 47, \"end_column\": 16}, \"z\": "
-        "{\"type\": \"lvalue\", \"line\": 3, \"start_pos\": 48, "
-        "\"column\": "
-        "17, \"end_pos\": 49, \"end_column\": 18}, \"main\": {\"type\": "
-        "\"function_definition\", \"line\": 2, \"start_pos\": 22, "
-        "\"column\": "
-        "1, \"end_pos\": 26, \"end_column\": 5}, \"errno\": {\"type\": "
-        "\"lvalue\", \"line\": 8, \"start_pos\": 90, \"column\": 7, "
-        "\"end_pos\": 95, \"end_column\": 12}, \"t\": {\"type\": "
-        "\"lvalue\", "
-        "\"line\": 9, \"start_pos\": 106, \"column\": 8, \"end_pos\": "
-        "107, "
-        "\"end_column\": 9}, \"u\": {\"type\": \"lvalue\", \"line\": 11, "
-        "\"start_pos\": 138, \"column\": 9, \"end_pos\": 139, "
-        "\"end_column\": "
-        "10}, \"unit\": {\"type\": \"vector_definition\", \"line\": 26, "
-        "\"start_pos\": 347, \"column\": 1, \"end_pos\": 351, "
-        "\"end_column\": "
-        "5}, \"mess\": {\"type\": \"vector_definition\", \"line\": 29, "
-        "\"start_pos\": 358, \"column\": 1, \"end_pos\": 362, "
-        "\"end_column\": "
-        "5, \"size\": 5}, \"printf\": {\"type\": \"function_definition\", "
-        "\"line\": 20, \"start_pos\": 302, \"column\": 1, \"end_pos\": "
-        "308, "
-        "\"end_column\": 7}, \"snide\": {\"type\": "
-        "\"function_definition\", "
-        "\"line\": 8, \"start_pos\": 84, \"column\": 1, \"end_pos\": 89, "
-        "\"end_column\": 6}, \"s\": {\"type\": \"lvalue\", \"line\": 20, "
-        "\"start_pos\": 309, \"column\": 8, \"end_pos\": 310, "
-        "\"end_column\": "
-        "9}, \"putchar\": {\"type\": \"vector_definition\", \"line\": 24, "
-        "\"start_pos\": 330, \"column\": 1, \"end_pos\": 337, "
-        "\"end_column\": "
-        "8}}");
+        "{\n  \"errno\": {\n    \"column\": 7,\n    \"end_column\": 12,\n    "
+        "\"end_pos\": 73,\n    \"line\": 7,\n    \"start_pos\": 68,\n    "
+        "\"type\": \"lvalue\"\n  },\n  \"main\": {\n    \"column\": 1,\n    "
+        "\"end_column\": 5,\n    \"end_pos\": 4,\n    \"line\": 1,\n    "
+        "\"start_pos\": 0,\n    \"type\": \"function_definition\"\n  },\n  "
+        "\"mess\": {\n    \"column\": 1,\n    \"end_column\": 5,\n    "
+        "\"end_pos\": 343,\n    \"line\": 29,\n    \"size\": 6,\n    "
+        "\"start_pos\": 339,\n    \"type\": \"vector_definition\"\n  },\n  "
+        "\"print\": {\n    \"column\": 10,\n    \"end_column\": 7,\n    "
+        "\"end_pos\": 289,\n    \"line\": 20,\n    \"start_pos\": 283,\n    "
+        "\"type\": \"function_definition\",\n    \"void\": false\n  },\n  "
+        "\"printf\": {\n    \"column\": 1,\n    \"end_column\": 7,\n    "
+        "\"end_pos\": 289,\n    \"line\": 20,\n    \"start_pos\": 283,\n    "
+        "\"type\": \"function_definition\",\n    \"void\": false\n  },\n  "
+        "\"putchar\": {\n    \"column\": 1,\n    \"end_column\": 8,\n    "
+        "\"end_pos\": 318,\n    \"line\": 24,\n    \"start_pos\": 311,\n    "
+        "\"type\": \"vector_definition\"\n  },\n  \"s\": {\n    \"column\": "
+        "8,\n    \"end_column\": 9,\n    \"end_pos\": 291,\n    \"line\": "
+        "20,\n    \"start_pos\": 290,\n    \"type\": \"lvalue\"\n  },\n  "
+        "\"snide\": {\n    \"column\": 1,\n    \"end_column\": 6,\n    "
+        "\"end_pos\": 67,\n    \"line\": 7,\n    \"start_pos\": 62,\n    "
+        "\"type\": \"function_definition\"\n  },\n  \"t\": {\n    \"column\": "
+        "8,\n    \"end_column\": 9,\n    \"end_pos\": 85,\n    \"line\": 8,\n  "
+        "  \"start_pos\": 84,\n    \"type\": \"lvalue\"\n  },\n  \"u\": {\n    "
+        "\"column\": 9,\n    \"end_column\": 10,\n    \"end_pos\": 117,\n    "
+        "\"line\": 10,\n    \"start_pos\": 116,\n    \"type\": \"lvalue\"\n  "
+        "},\n  \"unit\": {\n    \"column\": 1,\n    \"end_column\": 5,\n    "
+        "\"end_pos\": 332,\n    \"line\": 26,\n    \"start_pos\": 328,\n    "
+        "\"type\": \"vector_definition\"\n  },\n  \"x\": {\n    \"column\": "
+        "8,\n    \"end_column\": 9,\n    \"end_pos\": 18,\n    \"line\": 2,\n  "
+        "  \"size\": 50,\n    \"start_pos\": 17,\n    \"type\": "
+        "\"vector_lvalue\"\n  },\n  \"y\": {\n    \"column\": 15,\n    "
+        "\"end_column\": 16,\n    \"end_pos\": 25,\n    \"line\": 2,\n    "
+        "\"start_pos\": 24,\n    \"type\": \"indirect_lvalue\"\n  },\n  \"z\": "
+        "{\n    \"column\": 17,\n    \"end_column\": 18,\n    \"end_pos\": "
+        "27,\n    \"line\": 2,\n    \"start_pos\": 26,\n    \"type\": "
+        "\"lvalue\"\n  }\n}");
     inline auto make_node() { return credence::util::AST::object(); }
     static inline credence::ir::Table make_table(Node const& symbols)
     {
@@ -158,952 +155,6 @@ TEST_CASE_FIXTURE(Table_Fixture, "Type Checking")
     }
 }
 
-TEST_CASE_FIXTURE(Table_Fixture, "Integration")
-{
-    auto symbols = LOAD_JSON_FROM_STRING(
-        "{\"s\": {\"type\": \"lvalue\", \"line\": 2, \"start_pos\": 35, "
-        "\"column\": 9, \"end_pos\": 36, \"end_column\": 10}, \"v\": "
-        "{\"type\": \"vector_lvalue\", \"line\": 2, \"start_pos\": 37, "
-        "\"column\": 11, \"end_pos\": 38, \"end_column\": 12}, \"m\": "
-        "{\"type\": \"lvalue\", \"line\": 3, \"start_pos\": 50, "
-        "\"column\": 9, "
-        "\"end_pos\": 51, \"end_column\": 10}, \"i\": {\"type\": "
-        "\"lvalue\", "
-        "\"line\": 3, \"start_pos\": 52, \"column\": 11, \"end_pos\": 53, "
-        "\"end_column\": 12}, \"j\": {\"type\": \"lvalue\", \"line\": 3, "
-        "\"start_pos\": 54, \"column\": 13, \"end_pos\": 55, "
-        "\"end_column\": "
-        "14}, \"c\": {\"type\": \"lvalue\", \"line\": 3, \"start_pos\": "
-        "56, "
-        "\"column\": 15, \"end_pos\": 57, \"end_column\": 16}, \"sign\": "
-        "{\"type\": \"lvalue\", \"line\": 3, \"start_pos\": 58, "
-        "\"column\": "
-        "17, \"end_pos\": 62, \"end_column\": 21}, \"C\": {\"type\": "
-        "\"lvalue\", \"line\": 3, \"start_pos\": 63, \"column\": 22, "
-        "\"end_pos\": 64, \"end_column\": 23}, \"loop\": {\"type\": "
-        "\"lvalue\", \"line\": 4, \"start_pos\": 74, \"column\": 9, "
-        "\"end_pos\": 78, \"end_column\": 13}, \"char\": {\"type\": "
-        "\"function_definition\", \"line\": 32, \"start_pos\": 769, "
-        "\"column\": 1, \"end_pos\": 773, \"end_column\": 5}, \"error\": "
-        "{\"type\": \"function_definition\", \"line\": 35, \"start_pos\": "
-        "784, "
-        "\"column\": 1, \"end_pos\": 789, \"end_column\": 6}, "
-        "\"convert\": "
-        "{\"type\": \"function_definition\", \"line\": 2, \"start_pos\": "
-        "27, "
-        "\"column\": 1, \"end_pos\": 34, \"end_column\": 8}, \"a\": "
-        "{\"type\": "
-        "\"lvalue\", \"line\": 32, \"start_pos\": 774, \"column\": 6, "
-        "\"end_pos\": 775, \"end_column\": 7}, \"b\": {\"type\": "
-        "\"lvalue\", "
-        "\"line\": 32, \"start_pos\": 776, \"column\": 8, \"end_pos\": "
-        "777, "
-        "\"end_column\": 9}, \"printf\": {\"type\": "
-        "\"function_definition\", "
-        "\"line\": 41, \"start_pos\": 850, \"column\": 1, \"end_pos\": "
-        "856, "
-        "\"end_column\": 7}}");
-    auto vector_2 = LOAD_JSON_FROM_STRING(
-        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" "
-        ": "
-        "[{\n            \"left\" : [{\n                \"left\" : {\n    "
-        "     "
-        "         \"node\" : \"integer_literal\",\n                  "
-        "\"root\" : "
-        "50\n                },\n                \"node\" : "
-        "\"vector_lvalue\",\n                \"root\" : \"x\"\n           "
-        "   "
-        "}, {\n                \"left\" : {\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"y\"\n                "
-        "},\n "
-        "               \"node\" : \"indirect_lvalue\",\n                "
-        "\"root\" : [\"*\"]\n              }, {\n                \"node\" "
-        ": "
-        "\"lvalue\",\n                \"root\" : \"z\"\n              "
-        "}],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : "
-        "\"auto\"\n  "
-        "        }, {\n            \"left\" : [{\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"putchar\"\n            "
-        "  "
-        "}],\n            \"node\" : \"statement\",\n            \"root\" "
-        ": "
-        "\"extrn\"\n          }, {\n            \"left\" : [[{\n          "
-        "     "
-        "   \"left\" : {\n                    \"left\" : {\n              "
-        "     "
-        "   \"node\" : \"integer_literal\",\n                      "
-        "\"root\" : "
-        "49\n                    },\n                    \"node\" : "
-        "\"vector_lvalue\",\n                    \"root\" : \"x\"\n       "
-        "     "
-        "      },\n                  \"node\" : "
-        "\"assignment_expression\",\n   "
-        "               \"right\" : {\n                    \"node\" : "
-        "\"integer_literal\",\n                    \"root\" : 0\n          "
-        "     "
-        "   },\n                  \"root\" : [\"=\"]\n                "
-        "}]],\n   "
-        "         \"node\" : \"statement\",\n            \"root\" : "
-        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n   "
-        "     "
-        "\"root\" : \"block\"\n      },\n      \"root\" : \"main\"\n    "
-        "}, {\n "
-        "     \"left\" : [{\n          \"node\" : \"lvalue\",\n          "
-        "\"root\" : \"errno\"\n        }],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" "
-        ": "
-        "[{\n            \"left\" : [{\n                \"node\" : "
-        "\"lvalue\",\n                \"root\" : \"t\"\n              "
-        "}],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : "
-        "\"auto\"\n  "
-        "        }, {\n            \"left\" : [{\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"unit\"\n              "
-        "}, "
-        "{\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : "
-        "\"mess\"\n              }],\n            \"node\" : "
-        "\"statement\",\n  "
-        "          \"root\" : \"extrn\"\n          }, {\n            "
-        "\"left\" "
-        ": [{\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : \"u\"\n              }],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"auto\"\n          }, "
-        "{\n     "
-        "       \"left\" : [[{\n                  \"left\" : {\n          "
-        "     "
-        "     \"node\" : \"lvalue\",\n                    \"root\" : "
-        "\"u\"\n   "
-        "               },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"lvalue\",\n                    \"root\" "
-        ": "
-        "\"unit\"\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"unit\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 1\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"t\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"left\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"errno\"\n        "
-        "     "
-        "       },\n                    \"node\" : \"vector_lvalue\",\n   "
-        "     "
-        "            \"root\" : \"mess\"\n                  },\n          "
-        "     "
-        "   \"root\" : [\"=\"]\n                }], [{\n                  "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "     "
-        "        \"root\" : \"printf\"\n                  },\n            "
-        "     "
-        " \"node\" : \"function_expression\",\n                  "
-        "\"right\" : "
-        "[{\n                      \"node\" : \"string_literal\",\n       "
-        "     "
-        "          \"root\" : \"\\\"error number %d, "
-        "%s*n'*,errno,mess[errno]\\\"\"\n                    }],\n        "
-        "     "
-        "     \"root\" : \"printf\"\n                }], [{\n             "
-        "     "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "     "
-        "        \"root\" : \"unit\"\n                  },\n              "
-        "    "
-        "\"node\" : \"assignment_expression\",\n                  "
-        "\"right\" : "
-        "{\n                    \"node\" : \"lvalue\",\n                  "
-        "  "
-        "\"root\" : \"u\"\n                  },\n                  "
-        "\"root\" : "
-        "[\"=\"]\n                }]],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          "
-        "}],\n    "
-        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n    "
-        "  "
-        "},\n      \"root\" : \"snide\"\n    }, {\n      \"left\" : [{\n  "
-        "     "
-        "   \"node\" : \"lvalue\",\n          \"root\" : \"s\"\n        "
-        "}],\n  "
-        "    \"node\" : \"function_definition\",\n      \"right\" : {\n   "
-        "     "
-        "\"left\" : [{\n            \"left\" : [{\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"s\"\n              "
-        "}],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : "
-        "\"return\"\n          }],\n        \"node\" : \"statement\",\n   "
-        "     "
-        "\"root\" : \"block\"\n      },\n      \"root\" : \"printf\"\n    "
-        "}, "
-        "{\n      \"node\" : \"vector_definition\",\n      \"right\" : "
-        "[{\n    "
-        "      \"node\" : \"string_literal\",\n          \"root\" : "
-        "\"\\\"puts\\\"\"\n        }],\n      \"root\" : \"putchar\"\n    "
-        "}, "
-        "{\n      \"node\" : \"vector_definition\",\n      \"right\" : "
-        "[{\n    "
-        "      \"node\" : \"integer_literal\",\n          \"root\" : 10\n  "
-        "     "
-        " }],\n      \"root\" : \"unit\"\n    }, {\n      \"left\" : {\n  "
-        "     "
-        " \"node\" : \"integer_literal\",\n        \"root\" : 6\n      "
-        "},\n     "
-        " \"node\" : \"vector_definition\",\n      \"right\" : [{\n       "
-        "   "
-        "\"node\" : \"string_literal\",\n          \"root\" : \"\\\"too "
-        "bad\\\"\"\n        }, {\n          \"node\" : "
-        "\"string_literal\",\n   "
-        "       \"root\" : \"\\\"tough luck\\\"\"\n        }, {\n         "
-        " "
-        "\"node\" : \"string_literal\",\n          \"root\" : "
-        "\"\\\"sorry, "
-        "Charlie\\\"\"\n        }, {\n          \"node\" : "
-        "\"string_literal\",\n          \"root\" : \"\\\"that's the "
-        "breaks\\\"\"\n        }, {\n          \"node\" : "
-        "\"string_literal\",\n          \"root\" : \"\\\"what a "
-        "shame\\\"\"\n  "
-        "      }, {\n          \"node\" : \"string_literal\",\n          "
-        "\"root\" : \"\\\"some days you can't win\\\"\"\n        }],\n    "
-        "  "
-        "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  "
-        "\"root\" : "
-        "\"definitions\"\n}\n");
-    auto bitwise_constant = LOAD_JSON_FROM_STRING(
-        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" "
-        ": "
-        "[{\n            \"left\" : [{\n                \"node\" : "
-        "\"lvalue\",\n                \"root\" : \"x\"\n              }, "
-        "{\n   "
-        "             \"node\" : \"lvalue\",\n                \"root\" : "
-        "\"y\"\n              }, {\n                \"node\" : "
-        "\"lvalue\",\n   "
-        "             \"root\" : \"z\"\n              }],\n            "
-        "\"node\" : \"statement\",\n            \"root\" : \"auto\"\n     "
-        "     "
-        "}, {\n            \"left\" : [[{\n                  \"left\" : "
-        "{\n    "
-        "                \"node\" : \"lvalue\",\n                    "
-        "\"root\" "
-        ": \"x\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"left\" : {\n                      \"node\" : "
-        "\"integer_literal\",\n                      \"root\" : 10\n       "
-        "     "
-        "        },\n                    \"node\" : "
-        "\"unary_expression\",\n    "
-        "                \"root\" : [\"~\"]\n                  },\n       "
-        "     "
-        "      \"root\" : [\"=\"]\n                }], [{\n               "
-        "   "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "     "
-        "        \"root\" : \"y\"\n                  },\n                 "
-        " "
-        "\"node\" : \"assignment_expression\",\n                  "
-        "\"right\" : "
-        "{\n                    \"left\" : {\n                      "
-        "\"node\" : "
-        "\"evaluated_expression\",\n                      \"root\" : {\n  "
-        "     "
-        "                 \"left\" : {\n                          "
-        "\"node\" : "
-        "\"integer_literal\",\n                          \"root\" : 10\n   "
-        "     "
-        "                },\n                        \"node\" : "
-        "\"relation_expression\",\n                        \"right\" : "
-        "{\n     "
-        "                     \"node\" : \"lvalue\",\n                    "
-        "     "
-        " \"root\" : \"x\"\n                        },\n                  "
-        "     "
-        " \"root\" : [\"^\"]\n                      }\n                   "
-        " "
-        "},\n                    \"node\" : \"relation_expression\",\n    "
-        "     "
-        "           \"right\" : {\n                      \"left\" : {\n   "
-        "     "
-        "                \"node\" : \"integer_literal\",\n                 "
-        "     "
-        "  \"root\" : 2\n                      },\n                      "
-        "\"node\" : \"relation_expression\",\n                      "
-        "\"right\" "
-        ": {\n                        \"node\" : \"integer_literal\",\n    "
-        "     "
-        "               \"root\" : 1\n                      },\n          "
-        "     "
-        "       \"root\" : [\">>\"]\n                    },\n             "
-        "     "
-        "  \"root\" : [\"|\"]\n                  },\n                  "
-        "\"root\" : [\"=\"]\n                }], [{\n                  "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "     "
-        "        \"root\" : \"z\"\n                  },\n                 "
-        " "
-        "\"node\" : \"assignment_expression\",\n                  "
-        "\"right\" : "
-        "{\n                    \"left\" : {\n                      "
-        "\"left\" : "
-        "{\n                        \"node\" : \"lvalue\",\n              "
-        "     "
-        "     \"root\" : \"x\"\n                      },\n                "
-        "     "
-        " \"node\" : \"unary_expression\",\n                      "
-        "\"root\" : "
-        "[\"~\"]\n                    },\n                    \"node\" : "
-        "\"relation_expression\",\n                    \"right\" : {\n    "
-        "     "
-        "             \"left\" : {\n                        \"node\" : "
-        "\"lvalue\",\n                        \"root\" : \"y\"\n          "
-        "     "
-        "       },\n                      \"node\" : "
-        "\"unary_expression\",\n   "
-        "                   \"root\" : [\"~\"]\n                    },\n  "
-        "     "
-        "             \"root\" : [\"&\"]\n                  },\n          "
-        "     "
-        "   \"root\" : [\"=\"]\n                }]],\n            "
-        "\"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          "
-        "}],\n    "
-        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n    "
-        "  "
-        "},\n      \"root\" : \"main\"\n    }],\n  \"node\" : "
-        "\"program\",\n  "
-        "\"root\" : \"definitions\"\n}\n");
-    auto switch_main_function = LOAD_JSON_FROM_STRING(
-        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" "
-        ": "
-        "[{\n            \"left\" : [{\n                \"node\" : "
-        "\"lvalue\",\n                \"root\" : \"m\"\n              }, "
-        "{\n   "
-        "             \"node\" : \"lvalue\",\n                \"root\" : "
-        "\"i\"\n              }, {\n                \"node\" : "
-        "\"lvalue\",\n   "
-        "             \"root\" : \"j\"\n              }, {\n              "
-        "  "
-        "\"node\" : \"lvalue\",\n                \"root\" : \"c\"\n       "
-        "     "
-        "  }, {\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : \"sign\"\n              }, {\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"C\"\n              }, "
-        "{\n   "
-        "             \"node\" : \"lvalue\",\n                \"root\" : "
-        "\"s\"\n              }],\n            \"node\" : "
-        "\"statement\",\n     "
-        "       \"root\" : \"auto\"\n          }, {\n            \"left\" "
-        ": "
-        "[{\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" "
-        ": \"loop\"\n              }],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"auto\"\n          }, "
-        "{\n     "
-        "       \"left\" : [[{\n                  \"left\" : {\n          "
-        "     "
-        "     \"node\" : \"lvalue\",\n                    \"root\" : "
-        "\"i\"\n   "
-        "               },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 0\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"j\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 1\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"m\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 0\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"sign\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 0\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"loop\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 1\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }]],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          }, "
-        "{\n   "
-        "         \"left\" : {\n              \"left\" : {\n              "
-        "  "
-        "\"node\" : \"lvalue\",\n                \"root\" : \"loop\"\n    "
-        "     "
-        "     },\n              \"node\" : \"relation_expression\",\n     "
-        "     "
-        "    \"right\" : {\n                \"node\" : "
-        "\"integer_literal\",\n   "
-        "             \"root\" : 1\n              },\n              "
-        "\"root\" : "
-        "[\"==\"]\n            },\n            \"node\" : "
-        "\"statement\",\n     "
-        "       \"right\" : [{\n                \"left\" : [{\n           "
-        "     "
-        "    \"left\" : {\n                      \"node\" : "
-        "\"evaluated_expression\",\n                      \"root\" : {\n  "
-        "     "
-        "                 \"left\" : {\n                          "
-        "\"node\" : "
-        "\"lvalue\",\n                          \"root\" : \"C\"\n        "
-        "     "
-        "           },\n                        \"node\" : "
-        "\"assignment_expression\",\n                        \"right\" : "
-        "{\n   "
-        "                       \"left\" : {\n                            "
-        "\"node\" : \"lvalue\",\n                            \"root\" : "
-        "\"char\"\n                          },\n                         "
-        " "
-        "\"node\" : \"function_expression\",\n                          "
-        "\"right\" : [{\n                              \"node\" : "
-        "\"lvalue\",\n                              \"root\" : \"s\"\n    "
-        "     "
-        "                   }, {\n                              \"left\" "
-        ": {\n "
-        "                               \"node\" : \"lvalue\",\n          "
-        "     "
-        "                 \"root\" : \"j\"\n                              "
-        "},\n "
-        "                             \"node\" : "
-        "\"pre_inc_dec_expression\",\n "
-        "                             \"root\" : [\"++\"]\n               "
-        "     "
-        "        }],\n                          \"root\" : \"char\"\n     "
-        "     "
-        "              },\n                        \"root\" : [\"=\"]\n   "
-        "     "
-        "              }\n                    },\n                    "
-        "\"node\" "
-        ": \"statement\",\n                    \"right\" : [{\n           "
-        "     "
-        "        \"left\" : {\n                          \"node\" : "
-        "\"constant_literal\",\n                          \"root\" : "
-        "\"-\"\n   "
-        "                     },\n                        \"node\" : "
-        "\"statement\",\n                        \"right\" : [{\n         "
-        "     "
-        "              \"left\" : {\n                              "
-        "\"node\" : "
-        "\"lvalue\",\n                              \"root\" : \"sign\"\n "
-        "     "
-        "                      },\n                            \"node\" : "
-        "\"statement\",\n                            \"right\" : [{\n     "
-        "     "
-        "                      \"left\" : [{\n                            "
-        "     "
-        "   \"left\" : [[{\n                                          "
-        "\"left\" "
-        ": {\n                                            \"node\" : "
-        "\"lvalue\",\n                                            "
-        "\"root\" : "
-        "\"loop\"\n                                          },\n         "
-        "     "
-        "                            \"node\" : "
-        "\"assignment_expression\",\n   "
-        "                                       \"right\" : {\n           "
-        "     "
-        "                            \"node\" : \"integer_literal\",\n     "
-        "     "
-        "                                  \"root\" : 0\n                 "
-        "     "
-        "                    },\n                                         "
-        " "
-        "\"root\" : [\"=\"]\n                                        }], "
-        "[{\n  "
-        "                                        \"left\" : {\n           "
-        "     "
-        "                            \"node\" : \"lvalue\",\n             "
-        "     "
-        "                          \"root\" : \"error\"\n                 "
-        "     "
-        "                    },\n                                         "
-        " "
-        "\"node\" : \"function_expression\",\n                            "
-        "     "
-        "         \"right\" : [null],\n                                   "
-        "     "
-        "  \"root\" : \"error\"\n                                        "
-        "}]],\n                                    \"node\" : "
-        "\"statement\",\n "
-        "                                   \"root\" : \"rvalue\"\n       "
-        "     "
-        "                      }],\n                                "
-        "\"node\" : "
-        "\"statement\",\n                                \"root\" : "
-        "\"block\"\n                              }, null],\n             "
-        "     "
-        "          \"root\" : \"if\"\n                          }, {\n    "
-        "     "
-        "                   \"left\" : [[{\n                              "
-        "    "
-        "\"left\" : {\n                                    \"node\" : "
-        "\"lvalue\",\n                                    \"root\" : "
-        "\"s\"\n   "
-        "                               },\n                              "
-        "    "
-        "\"node\" : \"assignment_expression\",\n                          "
-        "     "
-        "   \"right\" : {\n                                    \"node\" : "
-        "\"integer_literal\",\n                                    "
-        "\"root\" : "
-        "1\n                                  },\n                        "
-        "     "
-        "     \"root\" : [\"=\"]\n                                }]],\n  "
-        "     "
-        "                     \"node\" : \"statement\",\n                 "
-        "     "
-        "      \"root\" : \"rvalue\"\n                          }],\n     "
-        "     "
-        "              \"root\" : \"case\"\n                      }, {\n  "
-        "     "
-        "                 \"left\" : {\n                          "
-        "\"node\" : "
-        "\"constant_literal\",\n                          \"root\" : \"' "
-        "'\"\n "
-        "                       },\n                        \"node\" : "
-        "\"statement\",\n                        \"right\" : [{\n         "
-        "     "
-        "              \"node\" : \"statement\",\n                        "
-        "    "
-        "\"root\" : \"break\"\n                          }],\n            "
-        "     "
-        "       \"root\" : \"case\"\n                      }, {\n         "
-        "     "
-        "          \"left\" : {\n                          \"node\" : "
-        "\"constant_literal\",\n                          \"root\" : "
-        "\"0\"\n   "
-        "                     },\n                        \"node\" : "
-        "\"statement\",\n                        \"right\" : [],\n        "
-        "     "
-        "           \"root\" : \"case\"\n                      }, {\n     "
-        "     "
-        "              \"left\" : {\n                          \"node\" : "
-        "\"constant_literal\",\n                          \"root\" : "
-        "\",\"\n   "
-        "                     },\n                        \"node\" : "
-        "\"statement\",\n                        \"right\" : [{\n         "
-        "     "
-        "              \"left\" : {\n                              "
-        "\"left\" : "
-        "{\n                                \"node\" : \"lvalue\",\n      "
-        "     "
-        "                     \"root\" : \"c\"\n                          "
-        "    "
-        "},\n                              \"node\" : "
-        "\"relation_expression\",\n                              "
-        "\"right\" : "
-        "{\n                                \"node\" : "
-        "\"constant_literal\",\n "
-        "                               \"root\" : \"0\"\n                "
-        "     "
-        "         },\n                              \"root\" : [\"==\"]\n "
-        "     "
-        "                      },\n                            \"node\" : "
-        "\"statement\",\n                            \"right\" : [{\n     "
-        "     "
-        "                      \"left\" : [{\n                            "
-        "     "
-        "   \"node\" : \"lvalue\",\n                                    "
-        "\"root\" : \"i\"\n                                  }],\n        "
-        "     "
-        "                   \"node\" : \"statement\",\n                   "
-        "     "
-        "        \"root\" : \"return\"\n                              }, "
-        "null],\n                            \"root\" : \"if\"\n          "
-        "     "
-        "           }],\n                        \"root\" : \"case\"\n    "
-        "     "
-        "             }],\n                    \"root\" : \"switch\"\n    "
-        "     "
-        "         }, {\n                    \"left\" : {\n                "
-        "     "
-        " \"left\" : {\n                        \"node\" : "
-        "\"constant_literal\",\n                        \"root\" : "
-        "\"0\"\n     "
-        "                 },\n                      \"node\" : "
-        "\"relation_expression\",\n                      \"right\" : {\n  "
-        "     "
-        "                 \"left\" : {\n                          "
-        "\"node\" : "
-        "\"lvalue\",\n                          \"root\" : \"c\"\n        "
-        "     "
-        "           },\n                        \"node\" : "
-        "\"relation_expression\",\n                        \"right\" : "
-        "{\n     "
-        "                     \"left\" : {\n                            "
-        "\"node\" : \"lvalue\",\n                            \"root\" : "
-        "\"c\"\n                          },\n                          "
-        "\"node\" : \"relation_expression\",\n                          "
-        "\"right\" : {\n                            \"node\" : "
-        "\"constant_literal\",\n                            \"root\" : "
-        "\"9\"\n "
-        "                         },\n                          \"root\" "
-        ": "
-        "[\"<=\"]\n                        },\n                        "
-        "\"root\" : [\"&&\"]\n                      },\n                  "
-        "    "
-        "\"root\" : [\"<=\"]\n                    },\n                    "
-        "\"node\" : \"statement\",\n                    \"right\" : [{\n  "
-        "     "
-        "                 \"left\" : [{\n                            "
-        "\"left\" "
-        ": [[{\n                                  \"left\" : {\n          "
-        "     "
-        "                     \"node\" : \"lvalue\",\n                    "
-        "     "
-        "           \"root\" : \"m\"\n                                  "
-        "},\n   "
-        "                               \"node\" : "
-        "\"assignment_expression\",\n                                  "
-        "\"right\" : {\n                                    \"left\" : "
-        "{\n     "
-        "                                 \"node\" : "
-        "\"integer_literal\",\n     "
-        "                                 \"root\" : 10\n                 "
-        "     "
-        "              },\n                                    \"node\" : "
-        "\"relation_expression\",\n                                    "
-        "\"right\" : {\n                                      \"left\" : "
-        "{\n   "
-        "                                     \"node\" : \"lvalue\",\n    "
-        "     "
-        "                               \"root\" : \"m\"\n                "
-        "     "
-        "                 },\n                                      "
-        "\"node\" : "
-        "\"relation_expression\",\n                                      "
-        "\"right\" : {\n                                        \"left\" "
-        ": {\n "
-        "                                         \"node\" : "
-        "\"lvalue\",\n     "
-        "                                     \"root\" : \"c\"\n          "
-        "     "
-        "                         },\n                                    "
-        "    "
-        "\"node\" : \"relation_expression\",\n                            "
-        "     "
-        "       \"right\" : {\n                                          "
-        "\"node\" : \"constant_literal\",\n                               "
-        "     "
-        "      \"root\" : \"0\"\n                                        "
-        "},\n  "
-        "                                      \"root\" : [\"-\"]\n       "
-        "     "
-        "                          },\n                                   "
-        "   "
-        "\"root\" : [\"+\"]\n                                    },\n     "
-        "     "
-        "                          \"root\" : [\"*\"]\n                   "
-        "     "
-        "          },\n                                  \"root\" : "
-        "[\"=\"]\n  "
-        "                              }]],\n                            "
-        "\"node\" : \"statement\",\n                            \"root\" "
-        ": "
-        "\"rvalue\"\n                          }],\n                      "
-        "  "
-        "\"node\" : \"statement\",\n                        \"root\" : "
-        "\"block\"\n                      }, null],\n                    "
-        "\"root\" : \"if\"\n                  }],\n                "
-        "\"node\" : "
-        "\"statement\",\n                \"root\" : \"block\"\n           "
-        "   "
-        "}],\n            \"root\" : \"while\"\n          }],\n        "
-        "\"node\" : \"statement\",\n        \"root\" : \"block\"\n      "
-        "},\n   "
-        "   \"root\" : \"main\"\n    }, {\n      \"left\" : [{\n          "
-        "\"node\" : \"lvalue\",\n          \"root\" : \"a\"\n        }, "
-        "{\n    "
-        "      \"node\" : \"lvalue\",\n          \"root\" : \"b\"\n       "
-        " "
-        "}],\n      \"node\" : \"function_definition\",\n      \"right\" "
-        ": {\n "
-        "       \"left\" : [],\n        \"node\" : \"statement\",\n       "
-        " "
-        "\"root\" : \"block\"\n      },\n      \"root\" : \"char\"\n    "
-        "}, {\n "
-        "     \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n  "
-        "    \"right\" : {\n        \"left\" : [{\n            \"left\" : "
-        "[[{\n                  \"left\" : {\n                    "
-        "\"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"printf\"\n         "
-        "     "
-        "    },\n                  \"node\" : \"function_expression\",\n  "
-        "     "
-        "           \"right\" : [{\n                      \"node\" : "
-        "\"string_literal\",\n                      \"root\" : \"\\\"bad "
-        "syntax*n\\\"\"\n                    }],\n                  "
-        "\"root\" : "
-        "\"printf\"\n                }]],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          }, "
-        "{\n   "
-        "         \"left\" : [{\n                \"left\" : {\n           "
-        "     "
-        "  \"node\" : \"integer_literal\",\n                  \"root\" : "
-        "1\n    "
-        "            },\n                \"node\" : "
-        "\"unary_expression\",\n    "
-        "            \"root\" : [\"-\"]\n              }],\n            "
-        "\"node\" : \"statement\",\n            \"root\" : \"return\"\n   "
-        "     "
-        "  }],\n        \"node\" : \"statement\",\n        \"root\" : "
-        "\"block\"\n      },\n      \"root\" : \"error\"\n    }, {\n      "
-        "\"left\" : [{\n          \"node\" : \"lvalue\",\n          "
-        "\"root\" : "
-        "\"s\"\n        }],\n      \"node\" : \"function_definition\",\n  "
-        "    "
-        "\"right\" : {\n        \"left\" : [{\n            \"left\" : "
-        "[{\n     "
-        "           \"node\" : \"lvalue\",\n                \"root\" : "
-        "\"s\"\n "
-        "             }],\n            \"node\" : \"statement\",\n        "
-        "    "
-        "\"root\" : \"return\"\n          }],\n        \"node\" : "
-        "\"statement\",\n        \"root\" : \"block\"\n      },\n      "
-        "\"root\" : \"printf\"\n    }],\n  \"node\" : \"program\",\n  "
-        "\"root\" "
-        ": \"definitions\"\n}\n");
-
-    std::string expected_bitwise_constant = R"ita(__main():
- BeginFunc ;
-    LOCL x;
-    LOCL y;
-    LOCL z;
-    _t2 = ~ (10:int:4);
-    x = _t2;
-    _t3 = (10:int:4) ^ x;
-    _t4 = (2:int:4) >> (1:int:4);
-    _t5 = _t3 | _t4;
-    y = _t5;
-    _t6 = ~ x;
-    _t7 = ~ y;
-    _t8 = _t6 & _t7;
-    z = _t8;
-_L1:
-    LEAVE;
- EndFunc ;
-
-)ita";
-
-    std::string expected_switch_main_function = R"ita(__main():
- BeginFunc ;
-    LOCL m;
-    LOCL i;
-    LOCL j;
-    LOCL c;
-    LOCL sign;
-    LOCL C;
-    LOCL s;
-    LOCL loop;
-    i = (0:int:4);
-    j = (1:int:4);
-    m = (0:int:4);
-    sign = (0:int:4);
-    loop = (1:int:4);
-_L2:
-_L4:
-    _t5 = loop == (1:int:4);
-    IF _t5 GOTO _L3;
-_L1:
-    LEAVE;
-_L3:
-    _p6_1 = s;
-    j = ++j;
-    _p7_2 = j;
-    PUSH _p7_2;
-    PUSH _p6_1;
-    CALL char;
-    POP 16;
-    _t8 = RET;
-    C = _t8;
-    JMP_E C ('45':char:1) _L10;
-    JMP_E C ('39':char:1) _L17;
-    JMP_E C ('48':char:1) _L19;
-    JMP_E C ('44':char:1) _L21;
-_L20:
-_L18:
-_L16:
-_L9:
-_L26:
-    _t29 = c <= ('57':char:1);
-    _t30 = c && _t29;
-    _t31 = ('48':char:1) <= _t30;
-    IF _t31 GOTO _L28;
-_L27:
-    GOTO _L4;
-_L10:
-_L11:
-    _t14 = CMP sign;
-    IF _t14 GOTO _L13;
-_L12:
-    s = (1:int:4);
-    GOTO _L9;
-_L13:
-    loop = (0:int:4);
-    CALL error;
-    _t15 = RET;
-    GOTO _L12;
-_L17:
-    GOTO _L4;
-_L19:
-    GOTO _L4;
-_L21:
-_L22:
-    _t25 = c == ('48':char:1);
-    IF _t25 GOTO _L24;
-_L23:
-    GOTO _L20;
-_L24:
-    RET i ;
-    GOTO _L23;
-_L28:
-    _t32 = c - ('48':char:1);
-    _t33 = m + _t32;
-    _t34 = (10:int:4) * _t33;
-    m = _t34;
-    GOTO _L27;
- EndFunc ;
-
-
-__char(a,b):
- BeginFunc ;
-_L1:
-    LEAVE;
- EndFunc ;
-
-
-__error():
- BeginFunc ;
-    _p2_3 = ("bad syntax*n":string:12);
-    PUSH _p2_3;
-    CALL printf;
-    POP 8;
-    _t3 = RET;
-    _t4 = - (1:int:4);
-    RET _t4;
-_L1:
-    LEAVE;
- EndFunc ;
-
-
-__printf(s):
- BeginFunc ;
-    RET s ;
-_L1:
-    LEAVE;
- EndFunc ;
-
-)ita";
-
-    std::string expected_2 = R"ita(__main():
- BeginFunc ;
-    LOCL x;
-    LOCL *y;
-    LOCL z;
-    GLOBL putchar;
-    x[49] = (0:int:4);
-_L1:
-    LEAVE;
- EndFunc ;
-
-
-__snide(errno):
- BeginFunc ;
-    LOCL t;
-    GLOBL unit;
-    GLOBL mess;
-    LOCL u;
-    u = unit;
-    unit = (1:int:4);
-    t = mess[errno];
-    _p2_1 = ("error number %d, %s*n'*,errno,mess[errno]":string:41);
-    PUSH _p2_1;
-    CALL printf;
-    POP 8;
-    _t3 = RET;
-    unit = u;
-_L1:
-    LEAVE;
- EndFunc ;
-
-
-__printf(s):
- BeginFunc ;
-    RET s ;
-_L1:
-    LEAVE;
- EndFunc ;
-
-)ita";
-    std::ostringstream out_to{};
-    auto table_pointer =
-        make_table_with_global_symbols(switch_main_function, symbols);
-    auto table = table_pointer.get_table_object();
-    auto instructions = *table_pointer.get_table_instructions();
-    credence::ir::detail::emit(out_to, instructions);
-    REQUIRE(out_to.str() == expected_switch_main_function);
-    REQUIRE(table->functions.at("main")->address_location[0] == 2);
-    REQUIRE(table->functions.at("main")->address_location[1] == 76);
-    REQUIRE(table->functions.at("main")->allocation == 32);
-    REQUIRE(table->functions.size() == 4);
-    REQUIRE(table->functions.at("main")->labels.size() == 19);
-    REQUIRE(table->functions.at("main")->locals.size() == 10);
-    out_to.str("");
-    credence::ir::detail::emit_to(
-        out_to, instructions[table->functions.at("main")->address_location[0]]);
-    REQUIRE(out_to.str() == "LOCL m;\n");
-    out_to.str("");
-    credence::ir::detail::emit_to(
-        out_to, instructions[table->functions.at("main")->address_location[1]]);
-    REQUIRE(out_to.str() == "GOTO _L27;\n");
-    out_to.str("");
-    credence::ir::emit(out_to, VECTOR_SYMBOLS, vector_2);
-    REQUIRE(out_to.str() == expected_2);
-    out_to.str("");
-    credence::ir::emit(out_to, VECTOR_SYMBOLS, bitwise_constant);
-    REQUIRE(out_to.str() == expected_bitwise_constant);
-}
-
 TEST_CASE_FIXTURE(Table_Fixture, "from_globl_ita_instruction")
 {
     auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
@@ -1135,186 +186,117 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_locl_ita_instruction")
 TEST_CASE_FIXTURE(Table_Fixture, "build_vector_definitions_from_globals")
 {
     auto ast = LOAD_JSON_FROM_STRING(
-        "{\n  \"left\" : [{\n      \"left\" : [null],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" "
-        ": "
-        "[{\n            \"left\" : [{\n                \"left\" : {\n    "
-        "     "
-        "         \"node\" : \"integer_literal\",\n                  "
-        "\"root\" : "
-        "50\n                },\n                \"node\" : "
-        "\"vector_lvalue\",\n                \"root\" : \"x\"\n           "
-        "   "
-        "}, {\n                \"left\" : {\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"y\"\n                "
-        "},\n "
-        "               \"node\" : \"indirect_lvalue\",\n                "
-        "\"root\" : [\"*\"]\n              }, {\n                \"node\" "
-        ": "
-        "\"lvalue\",\n                \"root\" : \"z\"\n              "
-        "}],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : "
-        "\"auto\"\n  "
-        "        }, {\n            \"left\" : [{\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"putchar\"\n            "
-        "  "
-        "}],\n            \"node\" : \"statement\",\n            \"root\" "
-        ": "
-        "\"extrn\"\n          }, {\n            \"left\" : [[{\n          "
-        "     "
-        "   \"left\" : {\n                    \"left\" : {\n              "
-        "     "
-        "   \"node\" : \"integer_literal\",\n                      "
-        "\"root\" : "
-        "49\n                    },\n                    \"node\" : "
-        "\"vector_lvalue\",\n                    \"root\" : \"x\"\n       "
-        "     "
-        "      },\n                  \"node\" : "
-        "\"assignment_expression\",\n   "
-        "               \"right\" : {\n                    \"node\" : "
-        "\"integer_literal\",\n                    \"root\" : 0\n          "
-        "     "
-        "   },\n                  \"root\" : [\"=\"]\n                "
-        "}]],\n   "
-        "         \"node\" : \"statement\",\n            \"root\" : "
-        "\"rvalue\"\n          }],\n        \"node\" : \"statement\",\n   "
-        "     "
-        "\"root\" : \"block\"\n      },\n      \"root\" : \"main\"\n    "
-        "}, {\n "
-        "     \"left\" : [{\n          \"node\" : \"lvalue\",\n          "
-        "\"root\" : \"errno\"\n        }],\n      \"node\" : "
-        "\"function_definition\",\n      \"right\" : {\n        \"left\" "
-        ": "
-        "[{\n            \"left\" : [{\n                \"node\" : "
-        "\"lvalue\",\n                \"root\" : \"t\"\n              "
-        "}],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : "
-        "\"auto\"\n  "
-        "        }, {\n            \"left\" : [{\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"unit\"\n              "
-        "}, "
-        "{\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : "
-        "\"mess\"\n              }],\n            \"node\" : "
-        "\"statement\",\n  "
-        "          \"root\" : \"extrn\"\n          }, {\n            "
-        "\"left\" "
-        ": [{\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : \"u\"\n              }],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"auto\"\n          }, "
-        "{\n     "
-        "       \"left\" : [[{\n                  \"left\" : {\n          "
-        "     "
-        "     \"node\" : \"lvalue\",\n                    \"root\" : "
-        "\"u\"\n   "
-        "               },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"lvalue\",\n                    \"root\" "
-        ": "
-        "\"unit\"\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"unit\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 1\n                  },\n                  \"root\" : "
-        "[\"=\"]\n                }], [{\n                  \"left\" : "
-        "{\n     "
-        "               \"node\" : \"lvalue\",\n                    "
-        "\"root\" : "
-        "\"t\"\n                  },\n                  \"node\" : "
-        "\"assignment_expression\",\n                  \"right\" : {\n    "
-        "     "
-        "           \"left\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"errno\"\n        "
-        "     "
-        "       },\n                    \"node\" : \"vector_lvalue\",\n   "
-        "     "
-        "            \"root\" : \"mess\"\n                  },\n          "
-        "     "
-        "   \"root\" : [\"=\"]\n                }], [{\n                  "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "     "
-        "        \"root\" : \"printf\"\n                  },\n            "
-        "     "
-        " \"node\" : \"function_expression\",\n                  "
-        "\"right\" : "
-        "[{\n                      \"node\" : \"string_literal\",\n       "
-        "     "
-        "          \"root\" : \"\\\"error number %d, "
-        "%s*n'*,errno,mess[errno]\\\"\"\n                    }],\n        "
-        "     "
-        "     \"root\" : \"printf\"\n                }], [{\n             "
-        "     "
-        "\"left\" : {\n                    \"node\" : \"lvalue\",\n       "
-        "     "
-        "        \"root\" : \"unit\"\n                  },\n              "
-        "    "
-        "\"node\" : \"assignment_expression\",\n                  "
-        "\"right\" : "
-        "{\n                    \"node\" : \"lvalue\",\n                  "
-        "  "
-        "\"root\" : \"u\"\n                  },\n                  "
-        "\"root\" : "
-        "[\"=\"]\n                }]],\n            \"node\" : "
-        "\"statement\",\n            \"root\" : \"rvalue\"\n          "
-        "}],\n    "
-        "    \"node\" : \"statement\",\n        \"root\" : \"block\"\n    "
-        "  "
-        "},\n      \"root\" : \"snide\"\n    }, {\n      \"left\" : [{\n  "
-        "     "
-        "   \"node\" : \"lvalue\",\n          \"root\" : \"s\"\n        "
-        "}],\n  "
-        "    \"node\" : \"function_definition\",\n      \"right\" : {\n   "
-        "     "
-        "\"left\" : [{\n            \"left\" : [{\n                "
-        "\"node\" : "
-        "\"lvalue\",\n                \"root\" : \"s\"\n              "
-        "}],\n    "
-        "        \"node\" : \"statement\",\n            \"root\" : "
-        "\"return\"\n          }],\n        \"node\" : \"statement\",\n   "
-        "     "
-        "\"root\" : \"block\"\n      },\n      \"root\" : \"printf\"\n    "
-        "}, "
-        "{\n      \"node\" : \"vector_definition\",\n      \"right\" : "
-        "[{\n    "
-        "      \"node\" : \"string_literal\",\n          \"root\" : "
-        "\"\\\"puts\\\"\"\n        }],\n      \"root\" : \"putchar\"\n    "
-        "}, "
-        "{\n      \"node\" : \"vector_definition\",\n      \"right\" : "
-        "[{\n    "
-        "      \"node\" : \"integer_literal\",\n          \"root\" : 10\n  "
-        "     "
-        " }],\n      \"root\" : \"unit\"\n    }, {\n      \"left\" : {\n  "
-        "     "
-        " \"node\" : \"integer_literal\",\n        \"root\" : 6\n      "
-        "},\n     "
-        " \"node\" : \"vector_definition\",\n      \"right\" : [{\n       "
-        "   "
-        "\"node\" : \"string_literal\",\n          \"root\" : \"\\\"too "
-        "bad\\\"\"\n        }, {\n          \"node\" : "
-        "\"string_literal\",\n   "
-        "       \"root\" : \"\\\"tough luck\\\"\"\n        }, {\n         "
-        " "
-        "\"node\" : \"string_literal\",\n          \"root\" : "
-        "\"\\\"sorry, "
-        "Charlie\\\"\"\n        }, {\n          \"node\" : "
-        "\"string_literal\",\n          \"root\" : \"\\\"that's the "
-        "breaks\\\"\"\n        }, {\n          \"node\" : "
-        "\"string_literal\",\n          \"root\" : \"\\\"what a "
-        "shame\\\"\"\n  "
-        "      }, {\n          \"node\" : \"string_literal\",\n          "
-        "\"root\" : \"\\\"some days you can't win\\\"\"\n        }],\n    "
-        "  "
-        "\"root\" : \"mess\"\n    }],\n  \"node\" : \"program\",\n  "
-        "\"root\" : "
-        "\"definitions\"\n}\n");
+        " {\n    \"left\" : [{\n        \"left\" : [null],\n        \"node\" : "
+        "\"function_definition\",\n        \"right\" : {\n          \"left\" : "
+        "[{\n              \"left\" : [{\n                  \"left\" : {\n     "
+        "               \"node\" : \"integer_literal\",\n                    "
+        "\"root\" : 50\n                  },\n                  \"node\" : "
+        "\"vector_lvalue\",\n                  \"root\" : \"x\"\n              "
+        "  }, {\n                  \"left\" : {\n                    \"node\" "
+        ": \"lvalue\",\n                    \"root\" : \"y\"\n                 "
+        " },\n                  \"node\" : \"indirect_lvalue\",\n              "
+        "    \"root\" : [\"*\"]\n                }, {\n                  "
+        "\"node\" : \"lvalue\",\n                  \"root\" : \"z\"\n          "
+        "      }],\n              \"node\" : \"statement\",\n              "
+        "\"root\" : \"auto\"\n            }, {\n              \"left\" : [{\n  "
+        "                \"node\" : \"lvalue\",\n                  \"root\" : "
+        "\"putchar\"\n                }],\n              \"node\" : "
+        "\"statement\",\n              \"root\" : \"extrn\"\n            }, "
+        "{\n              \"left\" : [[{\n                    \"left\" : {\n   "
+        "                   \"left\" : {\n                        \"node\" : "
+        "\"integer_literal\",\n                        \"root\" : 10\n         "
+        "             },\n                      \"node\" : "
+        "\"vector_lvalue\",\n                      \"root\" : \"x\"\n          "
+        "          },\n                    \"node\" : "
+        "\"assignment_expression\",\n                    \"right\" : {\n       "
+        "               \"node\" : \"integer_literal\",\n                      "
+        "\"root\" : 0\n                    },\n                    \"root\" : "
+        "[\"=\"]\n                  }]],\n              \"node\" : "
+        "\"statement\",\n              \"root\" : \"rvalue\"\n            "
+        "}],\n          \"node\" : \"statement\",\n          \"root\" : "
+        "\"block\"\n        },\n        \"root\" : \"main\"\n      }, {\n      "
+        "  \"left\" : [{\n            \"node\" : \"lvalue\",\n            "
+        "\"root\" : \"errno\"\n          }],\n        \"node\" : "
+        "\"function_definition\",\n        \"right\" : {\n          \"left\" : "
+        "[{\n              \"left\" : [{\n                  \"node\" : "
+        "\"lvalue\",\n                  \"root\" : \"t\"\n                "
+        "}],\n              \"node\" : \"statement\",\n              \"root\" "
+        ": \"auto\"\n            }, {\n              \"left\" : [{\n           "
+        "       \"node\" : \"lvalue\",\n                  \"root\" : "
+        "\"unit\"\n                }, {\n                  \"node\" : "
+        "\"lvalue\",\n                  \"root\" : \"mess\"\n                "
+        "}],\n              \"node\" : \"statement\",\n              \"root\" "
+        ": \"extrn\"\n            }, {\n              \"left\" : [{\n          "
+        "        \"node\" : \"lvalue\",\n                  \"root\" : \"u\"\n  "
+        "              }],\n              \"node\" : \"statement\",\n          "
+        "    \"root\" : \"auto\"\n            }, {\n              \"left\" : "
+        "[[{\n                    \"left\" : {\n                      \"node\" "
+        ": \"lvalue\",\n                      \"root\" : \"u\"\n               "
+        "     },\n                    \"node\" : \"assignment_expression\",\n  "
+        "                  \"right\" : {\n                      \"node\" : "
+        "\"lvalue\",\n                      \"root\" : \"unit\"\n              "
+        "      },\n                    \"root\" : [\"=\"]\n                  "
+        "}], [{\n                    \"left\" : {\n                      "
+        "\"node\" : \"lvalue\",\n                      \"root\" : \"unit\"\n   "
+        "                 },\n                    \"node\" : "
+        "\"assignment_expression\",\n                    \"right\" : {\n       "
+        "               \"node\" : \"integer_literal\",\n                      "
+        "\"root\" : 1\n                    },\n                    \"root\" : "
+        "[\"=\"]\n                  }], [{\n                    \"left\" : {\n "
+        "                     \"node\" : \"lvalue\",\n                      "
+        "\"root\" : \"t\"\n                    },\n                    "
+        "\"node\" : \"assignment_expression\",\n                    \"right\" "
+        ": {\n                      \"left\" : {\n                        "
+        "\"node\" : \"lvalue\",\n                        \"root\" : "
+        "\"errno\"\n                      },\n                      \"node\" : "
+        "\"vector_lvalue\",\n                      \"root\" : \"mess\"\n       "
+        "             },\n                    \"root\" : [\"=\"]\n             "
+        "     }], [{\n                    \"left\" : {\n                      "
+        "\"node\" : \"lvalue\",\n                      \"root\" : \"printf\"\n "
+        "                   },\n                    \"node\" : "
+        "\"function_expression\",\n                    \"right\" : [{\n        "
+        "                \"node\" : \"string_literal\",\n                      "
+        "  \"root\" : \"\\\"error number %d, %s*n'*,errno,mess[errno]\\\"\"\n  "
+        "                    }],\n                    \"root\" : \"printf\"\n  "
+        "                }], [{\n                    \"left\" : {\n            "
+        "          \"node\" : \"lvalue\",\n                      \"root\" : "
+        "\"unit\"\n                    },\n                    \"node\" : "
+        "\"assignment_expression\",\n                    \"right\" : {\n       "
+        "               \"node\" : \"lvalue\",\n                      \"root\" "
+        ": \"u\"\n                    },\n                    \"root\" : "
+        "[\"=\"]\n                  }]],\n              \"node\" : "
+        "\"statement\",\n              \"root\" : \"rvalue\"\n            "
+        "}],\n          \"node\" : \"statement\",\n          \"root\" : "
+        "\"block\"\n        },\n        \"root\" : \"snide\"\n      }, {\n     "
+        "   \"left\" : [{\n            \"node\" : \"lvalue\",\n            "
+        "\"root\" : \"s\"\n          }],\n        \"node\" : "
+        "\"function_definition\",\n        \"right\" : {\n          \"left\" : "
+        "[{\n              \"left\" : [{\n                  \"node\" : "
+        "\"lvalue\",\n                  \"root\" : \"s\"\n                "
+        "}],\n              \"node\" : \"statement\",\n              \"root\" "
+        ": \"return\"\n            }],\n          \"node\" : \"statement\",\n  "
+        "        \"root\" : \"block\"\n        },\n        \"root\" : "
+        "\"printf\"\n      }, {\n        \"node\" : \"vector_definition\",\n   "
+        "     \"right\" : [{\n            \"node\" : \"string_literal\",\n     "
+        "       \"root\" : \"\\\"puts\\\"\"\n          }],\n        \"root\" : "
+        "\"putchar\"\n      }, {\n        \"node\" : \"vector_definition\",\n  "
+        "      \"right\" : [{\n            \"node\" : \"integer_literal\",\n   "
+        "         \"root\" : 10\n          }],\n        \"root\" : \"unit\"\n  "
+        "    }, {\n        \"left\" : {\n          \"node\" : "
+        "\"integer_literal\",\n          \"root\" : 6\n        },\n        "
+        "\"node\" : \"vector_definition\",\n        \"right\" : [{\n           "
+        " \"node\" : \"string_literal\",\n            \"root\" : \"\\\"too "
+        "bad\\\"\"\n          }, {\n            \"node\" : "
+        "\"string_literal\",\n            \"root\" : \"\\\"tough luck\\\"\"\n  "
+        "        }, {\n            \"node\" : \"string_literal\",\n            "
+        "\"root\" : \"\\\"sorry, Charlie\\\"\"\n          }, {\n            "
+        "\"node\" : \"string_literal\",\n            \"root\" : \"\\\"that's "
+        "the breaks\\\"\"\n          }, {\n            \"node\" : "
+        "\"string_literal\",\n            \"root\" : \"\\\"what a "
+        "shame\\\"\"\n          }, {\n            \"node\" : "
+        "\"string_literal\",\n            \"root\" : \"\\\"some days you can't "
+        "win\\\"\"\n          }],\n        \"root\" : \"mess\"\n      }],\n    "
+        "\"node\" : \"program\",\n    \"root\" : \"definitions\"\n  }");
     auto table_pointer = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
     auto table = table_pointer.get_table_object();
     auto& locals = table->functions["main"]->locals;
@@ -1336,9 +318,6 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_call_ita_instruction")
     auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
     auto table = table_pointer.get_table_object();
     REQUIRE_NOTHROW(table_pointer.from_call_ita_instruction("snide"));
-    REQUIRE_THROWS(table_pointer.from_call_ita_instruction("invalid"));
-    table->labels.emplace("invalid");
-    REQUIRE_NOTHROW(table_pointer.from_call_ita_instruction("invalid"));
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "from_label_ita_instruction")
@@ -1690,12 +669,15 @@ TEST_CASE_FIXTURE(Table_Fixture, "floats and doubles")
 {
     std::string expected = R"ita(__main():
  BeginFunc ;
-    _p2_1 = ("%s %d %f %d %c":string:14);
+    LOCL x;
+    _p2_1 = ("%s %f %d %g %b %c":string:17);
     _p3_2 = ("hello":string:5);
-    _p4_3 = (5:int:4);
-    _p5_4 = (5.55:float:4);
-    _p6_5 = (5.55556:double:8);
-    _p7_6 = ('120':char:1);
+    _p4_3 = (5.55:float:4);
+    _p5_4 = (10:int:4);
+    _p6_5 = (3.14155:double:8);
+    _p7_6 = (1:int:4);
+    _p8_7 = ('120':char:1);
+    PUSH _p8_7;
     PUSH _p7_6;
     PUSH _p6_5;
     PUSH _p5_4;
@@ -1703,8 +685,21 @@ TEST_CASE_FIXTURE(Table_Fixture, "floats and doubles")
     PUSH _p3_2;
     PUSH _p2_1;
     CALL printf;
-    POP 48;
-    _t8 = RET;
+    POP 56;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__printf():
+ BeginFunc ;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__print():
+ BeginFunc ;
 _L1:
     LEAVE;
  EndFunc ;

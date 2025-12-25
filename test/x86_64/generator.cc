@@ -741,19 +741,19 @@ _start:
     mov rax, qword ptr [rip + mess]
     mov qword ptr [rbp - 12], rax
     mov rax, 1
-    mov rdi, 1
+    mov edi, 1
     mov rsi, qword ptr [rbp - 12]
-    mov rdx, 6
+    mov edx, 6
     syscall
     mov rax, 1
-    mov rdi, 1
+    mov edi, 1
     mov rsi, qword ptr [rip + mess+8]
-    mov rdx, 6
+    mov edx, 6
     syscall
     mov rax, 1
-    mov rdi, 1
+    mov edi, 1
     lea rsi, [rip + ._L_str2__]
-    mov rdx, 21
+    mov edx, 21
     syscall
     add rsp, 16
     mov rax, 60
@@ -805,18 +805,18 @@ _start:
     mov rax, qword ptr [rip + mess]
     mov qword ptr [rbp - 12], rax
     lea rdi, [rip + ._L_str2__]
-    mov rsi, 13
+    mov esi, 13
     call print
     mov rdi, qword ptr [rbp - 12]
-    mov rsi, 6
+    mov esi, 6
     call print
     mov rdi, qword ptr [rip + mess+8]
-    mov rsi, 7
+    mov esi, 7
     call print
     mov rax, 1
-    mov rdi, 1
+    mov edi, 1
     lea rsi, [rip + ._L_str3__]
-    mov rdx, 21
+    mov edx, 21
     syscall
     add rsp, 16
     mov rax, 60
@@ -854,7 +854,7 @@ _start:
     mov rdi, rax
     call identity
     mov rdi, rax
-    mov rsi, 18
+    mov esi, 18
     call print
     add rsp, 16
     mov rax, 60
@@ -897,7 +897,7 @@ _start:
     mov rdi, qword ptr [rbp - 8]
     call test
     mov rdi, rax
-    mov rsi, 11
+    mov esi, 11
     call print
     add rsp, 16
     mov rax, 60
@@ -934,7 +934,7 @@ TEST_CASE("target/x86_64: fixture: readme_2.b")
     .asciz "good morning"
 
 ._L_str4__:
-    .asciz "hello, how are you %s\n"
+    .asciz "hello, how are you, %s\n"
 
 strings:
     .quad ._L_str1__
@@ -970,7 +970,7 @@ _start:
     mov rsi, [r15 + 8 * 2]
     call printf
     mov rdi, qword ptr [rip + strings]
-    mov rsi, 14
+    mov esi, 14
     call print
     jmp ._L3__main
 ._L1__main:
@@ -1029,7 +1029,7 @@ _start:
     mov rcx, qword ptr [rip + strings+8]
     mov qword ptr [rbp - 16], rcx
     mov rdi, qword ptr [rbp - 16]
-    mov rsi, 3
+    mov esi, 3
     call print
     add rsp, 24
     mov rax, 60
@@ -1062,7 +1062,7 @@ _start:
     lea rcx, [rip + ._L_str1__]
     mov qword ptr [rbp - 8], rcx
     mov rdi, qword ptr [rbp - 8]
-    mov rsi, 11
+    mov esi, 11
     call print
     add rsp, 24
     mov rax, 60
@@ -1089,11 +1089,11 @@ _start:
     push rbp
     mov rbp, rsp
     sub rsp, 16
-    mov rdi, 108
+    mov edi, 108
     call putchar
-    mov rdi, 111
+    mov edi, 111
     call putchar
-    mov rdi, 108
+    mov edi, 108
     call putchar
     add rsp, 16
     mov rax, 60
@@ -1146,33 +1146,33 @@ _start:
     cmp eax, 5
     jle ._L4__main
 ._L3__main:
-._L9__main:
+._L8__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 10
-    je ._L11__main
-._L10__main:
-._L16__main:
+    je ._L10__main
+._L9__main:
+._L14__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 5
-    jge ._L18__main
-._L17__main:
-._L23__main:
+    jge ._L16__main
+._L15__main:
+._L20__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 5
-    jne ._L25__main
-._L24__main:
-._L30__main:
+    jne ._L22__main
+._L21__main:
+._L26__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 8
-    jg ._L32__main
-._L31__main:
-._L37__main:
+    jg ._L28__main
+._L27__main:
+._L32__main:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 20
-    jl ._L39__main
-._L38__main:
+    jl ._L34__main
+._L33__main:
     lea rdi, [rip + ._L_str1__]
-    mov rsi, 5
+    mov esi, 5
     call print
     mov al, 1
     mov byte ptr [rbp - 4], al
@@ -1180,34 +1180,34 @@ _start:
 ._L4__main:
     mov dword ptr [rbp - 4], 1
     lea rdi, [rip + ._L_str6__]
-    mov rsi, 5
+    mov esi, 5
     call printf
     jmp ._L3__main
-._L11__main:
+._L10__main:
     lea rdi, [rip + ._L_str2__]
-    mov rsi, 10
+    mov esi, 10
     call printf
-    jmp ._L10__main
-._L18__main:
+    jmp ._L9__main
+._L16__main:
     lea rdi, [rip + ._L_str4__]
-    mov rsi, 5
+    mov esi, 5
     call printf
-    jmp ._L17__main
-._L25__main:
+    jmp ._L15__main
+._L22__main:
     lea rdi, [rip + ._L_str7__]
-    mov rsi, 5
+    mov esi, 5
     call printf
-    jmp ._L24__main
-._L32__main:
+    jmp ._L21__main
+._L28__main:
     lea rdi, [rip + ._L_str3__]
-    mov rsi, 8
+    mov esi, 8
     call printf
-    jmp ._L31__main
-._L39__main:
+    jmp ._L27__main
+._L34__main:
     lea rdi, [rip + ._L_str5__]
-    mov rsi, 20
+    mov esi, 20
     call printf
-    jmp ._L38__main
+    jmp ._L33__main
 ._L1__main:
     add rsp, 16
     mov rax, 60
@@ -1217,6 +1217,150 @@ _start:
 )x86";
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "relational/if_1", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: relational/while_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "no\n"
+
+._L_str2__:
+    .asciz "x, y: %d %d\n"
+
+._L_str3__:
+    .asciz "yes!\n"
+
+.text
+    .global _start
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov dword ptr [rbp - 4], 100
+    mov dword ptr [rbp - 8], 4
+._L2__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 50
+    jg ._L4__main
+._L3__main:
+._L11__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 48
+    je ._L13__main
+    jmp ._L16__main
+._L12__main:
+    lea rdi, [rip + ._L_str2__]
+    mov esi, dword ptr [rbp - 4]
+    mov edx, dword ptr [rbp - 8]
+    call printf
+    jmp ._L1__main
+._L4__main:
+._L6__main:
+._L8__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 50
+    jge ._L7__main
+    jmp ._L3__main
+._L7__main:
+    dec dword ptr [rbp - 4]
+    mov eax, dword ptr [rbp - 4]
+    sub eax, 1
+    mov dword ptr [rbp - 8], eax
+    jmp ._L6__main
+._L13__main:
+    lea rdi, [rip + ._L_str1__]
+    mov esi, 4
+    call print
+    jmp ._L12__main
+._L16__main:
+    lea rdi, [rip + ._L_str3__]
+    mov esi, 6
+    call print
+    jmp ._L12__main
+._L1__main:
+    add rsp, 16
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/while_1", expected, false);
+}
+
+TEST_CASE("target/x86_64: fixture: relational/switch_1.b")
+{
+    std::string expected = R"x86(
+.intel_syntax noprefix
+
+.data
+
+._L_str1__:
+    .asciz "should say 1: %d, %b\n"
+
+.text
+    .global _start
+
+_start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov dword ptr [rbp - 4], 10
+._L2__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 5
+    jge ._L4__main
+._L3__main:
+    mov dword ptr [rbp - 8], 10
+    jmp ._L1__main
+._L4__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 10
+    je ._L8__main
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 6
+    je ._L16__main
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 7
+    je ._L18__main
+._L17__main:
+._L15__main:
+._L7__main:
+    jmp ._L3__main
+._L8__main:
+._L9__main:
+._L11__main:
+    mov eax, dword ptr [rbp - 4]
+    cmp eax, 1
+    jg ._L10__main
+    lea rdi, [rip + ._L_str1__]
+    mov esi, dword ptr [rbp - 4]
+    call printf
+    jmp ._L7__main
+._L10__main:
+    dec dword ptr [rbp - 4]
+    jmp ._L9__main
+._L16__main:
+    mov dword ptr [rbp - 8], 2
+    jmp ._L3__main
+._L18__main:
+    mov dword ptr [rbp - 4], 5
+    jmp ._L17__main
+._L1__main:
+    add rsp, 16
+    mov rax, 60
+    mov rdi, 0
+    syscall
+
+)x86";
+    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/switch_1", expected, false);
 }
 
 TEST_CASE("target/x86_64: fixture: relational/if_2.b")
@@ -1252,7 +1396,7 @@ _start:
     jmp ._L6__main
 ._L3__main:
     mov rdi, qword ptr [rbp - 16]
-    mov rsi, 6
+    mov esi, 6
     call print
     jmp ._L1__main
 ._L4__main:
@@ -1282,7 +1426,7 @@ TEST_CASE("target/x86_64: fixture: stdlib/printf_1.b")
 .data
 
 ._L_str1__:
-    .asciz "%s %d %g %c"
+    .asciz "%s %d %g %c %b"
 
 ._L_str2__:
     .asciz "greater than 5"
@@ -1305,20 +1449,21 @@ _start:
     mov eax, dword ptr [rbp - 4]
     cmp eax, 5
     jg ._L4__main
-    jmp ._L8__main
+    jmp ._L7__main
 ._L3__main:
     jmp ._L1__main
 ._L4__main:
     lea rdi, [rip + ._L_str2__]
-    mov rsi, 14
+    mov esi, 14
     call print
     jmp ._L3__main
-._L8__main:
+._L7__main:
     lea rdi, [rip + ._L_str1__]
     lea rsi, [rip + ._L_str3__]
-    mov rdx, 5
+    mov edx, 5
     movsd xmm0, [rip + ._L_double4__]
-    mov rcx, 120
+    mov ecx, 120
+    mov r8d, 1
     call printf
     jmp ._L3__main
 ._L1__main:

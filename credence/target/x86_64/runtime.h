@@ -132,8 +132,8 @@ void make_library_call(Instructions& instructions,
     std::string_view libary_function,
     library_arguments_t const& arguments,
     memory::Stack_Frame::IR_Stack& argument_stack,
-    memory::detail::Address_Accessor& address_space,
-    assembly::Register* address_of);
+    memory::Stack_Frame& stack_frame,
+    memory::Memory_Access& accessor);
 
 void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
     bool with_syscalls = true);

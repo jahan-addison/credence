@@ -86,6 +86,18 @@ class Stack
     }
 
     /**
+     * @brief Dynamically set an operand size for vector indices, which pushes
+     * downward on a chunk
+     */
+    constexpr void set(Offset offset, Operand_Size size)
+    {
+        using namespace fmt::literals;
+        stack_address.insert(
+            fmt::format("__internal_vector_offset_{}"_cf, ++vectors),
+            Entry{ offset, size });
+    }
+
+    /**
      * @brief Allocate space on the stack from a word size
      *
      * See assembly.h for details
@@ -277,6 +289,7 @@ class Stack
     }
 
   private:
+    int vectors{ 0 };
     Offset size{ 0 };
     Local stack_address{};
 };

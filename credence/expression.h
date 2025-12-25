@@ -129,6 +129,7 @@ class Expression_Parser
     Literal from_constant_expression_node(Node const& node);
     Literal from_integer_literal_node(Node const& node);
     Literal from_float_literal_node(Node const& node);
+    Literal from_bool_literal_node(Node const& node);
     Literal from_double_literal_node(Node const& node);
     Literal from_string_literal_node(Node const& node);
     Literal from_constant_literal_node(Node const& node);

@@ -864,57 +864,55 @@ PUSH _p7_2;
 PUSH _p6_1;
 CALL char;
 POP 16;
-_t8 = RET;
-C = _t8;
-JMP_E C ('45':char:1) _L10;
-JMP_E C ('39':char:1) _L17;
-JMP_E C ('48':char:1) _L19;
-JMP_E C ('44':char:1) _L21;
-_L20:
+C = 16;
+JMP_E C ('45':char:1) _L9;
+JMP_E C ('39':char:1) _L15;
+JMP_E C ('48':char:1) _L17;
+JMP_E C ('44':char:1) _L19;
 _L18:
 _L16:
-_L9:
-_L26:
-_t29 = c <= ('57':char:1);
-_t30 = c && _t29;
-_t31 = ('48':char:1) <= _t30;
-IF _t31 GOTO _L28;
-_L27:
+_L14:
+_L8:
+_L24:
+_t27 = c <= ('57':char:1);
+_t28 = c && _t27;
+_t29 = ('48':char:1) <= _t28;
+IF _t29 GOTO _L26;
+_L25:
 GOTO _L4;
+_L9:
 _L10:
+_t13 = CMP sign;
+IF _t13 GOTO _L12;
 _L11:
-_t14 = CMP sign;
-IF _t14 GOTO _L13;
-_L12:
 s = (1:int:4);
-GOTO _L9;
-_L13:
+GOTO _L8;
+_L12:
 loop = (0:int:4);
 CALL error;
-_t15 = RET;
-GOTO _L12;
+GOTO _L11;
+GOTO _L4;
+_L15:
+GOTO _L14;
 GOTO _L4;
 _L17:
-GOTO _L16;
 GOTO _L4;
 _L19:
-GOTO _L4;
+_L20:
+_t23 = c == ('48':char:1);
+IF _t23 GOTO _L22;
 _L21:
+GOTO _L18;
 _L22:
-_t25 = c == ('48':char:1);
-IF _t25 GOTO _L24;
-_L23:
-GOTO _L20;
-_L24:
 RET i ;
-GOTO _L23;
+GOTO _L21;
 GOTO _L4;
-_L28:
-_t32 = c - ('48':char:1);
-_t33 = m + _t32;
-_t34 = (10:int:4) * _t33;
-m = _t34;
-GOTO _L27;
+_L26:
+_t30 = c - ('48':char:1);
+_t31 = m + _t30;
+_t32 = (10:int:4) * _t31;
+m = _t32;
+GOTO _L25;
  EndFunc ;
 __char(a,b):
  BeginFunc ;
@@ -927,9 +925,8 @@ _p2_3 = ("bad syntax*n":string:12);
 PUSH _p2_3;
 CALL printf;
 POP 8;
-_t3 = RET;
-_t4 = - (1:int:4);
-RET _t4;
+_t3 = - (1:int:4);
+RET _t3;
 _L1:
 LEAVE;
  EndFunc ;
@@ -955,31 +952,29 @@ PUSH _p5_4;
 PUSH _p4_3;
 CALL sub;
 POP 16;
-_t6 = RET;
-_p3_2 = _t6;
+add = _p3_2;
 PUSH _p3_2;
 PUSH _p2_1;
-CALL add;
+CALL z;
 POP 16;
-_t7 = RET;
-_t8 = _t7;
-z = (2:int:4) - _t8;
-_L9:
-_t12 = x > y;
-IF _t12 GOTO _L11;
-_L10:
+_t6 = add - 16;
+(2:int:4) = _t6;
+_L7:
+_t10 = x > y;
+IF _t10 GOTO _L9;
+_L8:
 x = (0:int:4);
 _L1:
 LEAVE;
+_L9:
 _L11:
 _L13:
-_L15:
-_t16 = z > x;
-IF _t16 GOTO _L14;
-GOTO _L10;
-_L14:
+_t14 = z > x;
+IF _t14 GOTO _L12;
+GOTO _L8;
+_L12:
 z = --z;
-GOTO _L13;
+GOTO _L11;
  EndFunc ;
 )ita";
     TEST_DEFINITIONS_WITH(obj["switch_4"], expected, obj["switch_4-symbols"]);
@@ -1045,7 +1040,6 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_definitions")
     std::string expected = R"ita(__main():
  BeginFunc ;
 CALL number;
-_t2 = RET;
 _L1:
 LEAVE;
  EndFunc ;
@@ -1061,7 +1055,6 @@ _p2_1 = (5:int:4);
 PUSH _p2_1;
 CALL ret;
 POP 8;
-_t3 = RET;
 _L1:
 LEAVE;
  EndFunc ;
@@ -1139,10 +1132,9 @@ PUSH _p3_2;
 PUSH _p2_1;
 CALL exp;
 POP 16;
-_t4 = RET;
-_t5 = _t4;
-_t6 = (5:int:4) + _t5;
-x = (5:int:4) * _t6;
+_t4 = (5:int:4) + (5:int:4);
+_t5 = x * _t4;
+_t5 = _t5;
 _L1:
 LEAVE;
  EndFunc ;
@@ -1257,8 +1249,7 @@ PUSH _p10_2;
 PUSH _p9_1;
 CALL exp;
 POP 16;
-_t13 = RET;
-RET _t13;
+RET 16;
 _L1:
 LEAVE;
 _L4:
@@ -1422,15 +1413,12 @@ PUSH _p4_3;
 PUSH _p3_2;
 CALL exp;
 POP 16;
-_t6 = RET;
-_p2_1 = _t6;
+exp = _p2_1;
 _p5_4 = (2:int:4);
 PUSH _p5_4;
 PUSH _p2_1;
-CALL exp;
+CALL x;
 POP 16;
-_t7 = RET;
-x = _t7;
 )ita";
     TEST_BLOCK_STATEMENT_NODE_WITH(
         global_symbols, definitions[0]["right"], expected, false, false);
@@ -3737,8 +3725,7 @@ PUSH _p3_2;
 PUSH _p2_1;
 CALL char;
 POP 16;
-_t4 = RET;
-C = _t4;
+j = C;
 _L1:
 LEAVE;
 )ita";
@@ -3835,8 +3822,7 @@ PUSH _p3_2;
 PUSH _p2_1;
 CALL add;
 POP 16;
-_t4 = RET;
-x = _t4;
+x = 16;
 y = (10:int:4);
 GOTO __LADD;
 )ita";
@@ -4166,13 +4152,11 @@ PUSH _p2_2;
 PUSH _p1_1;
 CALL exp;
 POP 16;
-_t3 = RET;
-_t4 = _t3;
-_t5 = (2:int:4) ^ _t4;
-_t6 = ~ (4:int:4);
-_t7 = _t5 / _t6;
-_t8 = (5:int:4) + (5:int:4);
-_t9 = _t7 * _t8;
+_t3 = (4:int:4) ^ (2:int:4);
+_t4 = ~ _t3;
+_t5 = _t4;
+_t6 = (5:int:4) / _t5;
+_t7 = (5:int:4) + _t6;
 )ita";
     std::string expected_2 = R"ita(y = (3:int:4);
 _t1 = y == (3:int:4);
@@ -4200,17 +4184,15 @@ _p1_1 = (5:int:4);
 PUSH _p1_1;
 CALL putchar;
 POP 8;
-_t3 = RET;
 _p2_2 = (1:int:4);
 PUSH _p2_2;
 CALL getchar;
 POP 8;
-_t4 = RET;
-_t5 = _t4;
-_t6 = (3:int:4) + _t5;
-_t7 = (3:int:4) || _t6;
-_t8 = (1:int:4) || _t7;
-x = (1:int:4) + _t8;
+_t3 = (3:int:4) + (3:int:4);
+_t4 = (1:int:4) || _t3;
+_t5 = (1:int:4) || _t4;
+_t6 = x + _t5;
+_t6 = _t6;
 )ita";
     TEST_RVALUE_STATEMENT_NODE_WITH(obj, symbols, obj["test"], expected_1);
     TEST_RVALUE_STATEMENT_NODE_WITH(

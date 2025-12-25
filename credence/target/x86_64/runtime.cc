@@ -223,11 +223,9 @@ assembly::Register get_available_standard_library_register(
             float_registers.pop_back();
         } else {
             storage = argument_registers.back();
-            argument_registers.pop_back();
         }
     } catch ([[maybe_unused]] std::out_of_range const& e) {
         storage = argument_registers.back();
-        argument_registers.pop_back();
     }
     return storage;
 }
@@ -273,42 +271,79 @@ void insert_argument_instructions_standard_library_function(
 }
 
 /**
- * @brief Create the instructions for a standard library call
+ * @brief General purpsoe register stack in ABI system V order
  */
-void make_library_call(Instructions& instructions,
-    std::string_view library_function,
-    library_arguments_t const& arguments,
-    memory::Stack_Frame::IR_Stack& argument_stack,
-    memory::detail::Address_Accessor& address_space,
-    assembly::Register* address_of)
+std::pair<memory::registers::general_purpose,
+    memory::registers::general_purpose>
+get_argument_general_purpose_registers()
 {
-    credence_assert(library_list.contains(library_function));
-    auto [arg_size] = library_list.at(library_function);
-
-    library_call_argument_check(library_function, arguments, arg_size);
-
-    std::deque<assembly::Register> argument_storage = { assembly::Register::r9,
+    std::deque<assembly::Register> qword = { assembly::Register::r9,
         assembly::Register::r8,
         assembly::Register::rcx,
         assembly::Register::rdx,
         assembly::Register::rsi,
         assembly::Register::rdi };
 
+    std::deque<assembly::Register> dword = { assembly::Register::r9d,
+        assembly::Register::r8d,
+        assembly::Register::ecx,
+        assembly::Register::edx,
+        assembly::Register::esi,
+        assembly::Register::edi };
+
+    return std::make_pair(qword, dword);
+}
+
+/**
+ * @brief Create the instructions for a standard library call
+ */
+void make_library_call(Instructions& instructions,
+    std::string_view library_function,
+    library_arguments_t const& arguments,
+    memory::Stack_Frame::IR_Stack& argument_stack,
+    memory::Stack_Frame& stack_frame,
+    memory::Memory_Access& accessor)
+{
+    credence_assert(library_list.contains(library_function));
+    auto [arg_size] = library_list.at(library_function);
+
+    auto* address_of = accessor->register_accessor.signal_register;
+    auto address_space = accessor->address_accessor;
+
+    library_call_argument_check(library_function, arguments, arg_size);
+
+    auto [argument_storage_qword, argument_storage_dword] =
+        get_argument_general_purpose_registers();
+
     std::deque<assembly::Register> float_storage = assembly::FLOAT_REGISTER;
 
     for (std::size_t i = 0; i < arguments.size(); i++) {
         auto arg = arguments.at(i);
-
+        Register storage{};
         std::string arg_type =
             argument_stack.size() > i
                 ? type::get_type_from_rvalue_data_type(argument_stack.at(i))
                 : "";
 
-        auto storage = get_available_standard_library_register(
-            address_space, argument_storage, float_storage, argument_stack, i);
-
+        auto float_size = float_storage.size();
+        if (address_space.is_qword_storage_size(arg, stack_frame))
+            storage = get_available_standard_library_register(address_space,
+                argument_storage_qword,
+                float_storage,
+                argument_stack,
+                i);
+        else
+            storage = get_available_standard_library_register(address_space,
+                argument_storage_dword,
+                float_storage,
+                argument_stack,
+                i);
         insert_argument_instructions_standard_library_function(
             instructions, storage, arg_type, arg, address_of);
+        if (float_size == float_storage.size()) {
+            argument_storage_qword.pop_back();
+            argument_storage_dword.pop_back();
+        }
     }
 
     auto call_immediate = assembly::make_array_immediate(library_function);

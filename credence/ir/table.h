@@ -104,11 +104,12 @@ class Table
   private:
     void throw_object_type_error(std::string_view message,
         std::string_view symbol,
-        std::string_view type_ = "symbol")
+        std::string_view type_ = "symbol",
+        std::source_location const& location = __source__)
     {
         throw_compiletime_error(message,
             symbol,
-            __source__,
+            location,
             type_,
             objects_->get_stack_frame()->symbol,
             objects_->hoisted_symbols);

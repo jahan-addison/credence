@@ -4,13 +4,14 @@ main() {
   y = 100;
   if (x == 100) {
     if (x > 5) {
-      while(x >= 0) {
+      while(x >= 50) {
         x--;
-        x = y--;
+        y = x - 1;
       }
     }
   }
   x++;
   y = 5;
-  x = (x + y) * (x + x);
+  printf("%d", x);
+  printf("%d", y);
 }

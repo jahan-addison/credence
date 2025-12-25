@@ -41,13 +41,8 @@ void exit_syscall(Instructions& instructions, int exit_status = 0);
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    Register* address_of);
-
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    memory::Stack_Frame& stack_frame,
-    Register* address_of);
+    memory::Stack_Frame* stack_frame = nullptr,
+    memory::Memory_Access* accessor = nullptr);
 
 } // namespace common
 
@@ -447,13 +442,8 @@ const syscall_list_t syscall_list = {
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    memory::Stack_Frame& stack_frame,
-    Register* address_of);
-
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    Register* address_of);
+    memory::Stack_Frame* stack_frame = nullptr,
+    memory::Memory_Access* accessor = nullptr);
 
 } // namespace linux
 
@@ -550,13 +540,8 @@ const syscall_list_t syscall_list = {
 void make_syscall(Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    memory::Stack_Frame& stack_frame,
-    Register* address_of);
-
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    Register* address_of);
+    memory::Stack_Frame* stack_frame = nullptr,
+    memory::Memory_Access* accessor = nullptr);
 
 } // namespace bsd
 

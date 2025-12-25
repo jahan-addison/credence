@@ -387,7 +387,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["complex"]).value));
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == complex_expected);
@@ -397,7 +397,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["unary"]).value));
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_expected);
@@ -407,7 +407,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["equal"]).value));
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == equal_expected);
@@ -418,7 +418,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["unary_relation"]).value));
 
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_relation_expected);
@@ -429,7 +429,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["ternary"]).value));
 
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == ternary_expected);
@@ -440,7 +440,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["function"]).value));
 
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == function_expected);
@@ -450,7 +450,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
 
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["evaluated"]).value));
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected);
@@ -461,7 +461,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["evaluated_2"]).value));
 
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected_2);
@@ -472,7 +472,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
     expressions.emplace_back(value::make_value_type_pointer(
         parser.parse_from_node(obj["functions"]).value));
 
-    queue = queue::make_queue_from_expression_operands(
+    queue = queue::queue_from_expression_operands(
         expressions, &parameter, &identifier);
     test = queue::queue_of_expressions_to_string(*queue);
     CHECK(test == functions_expected);

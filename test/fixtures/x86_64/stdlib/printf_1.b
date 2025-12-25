@@ -4,7 +4,7 @@ main() {
   if (x > 5) {
     print("greater than 5");
   } else {
-    printf("%s %d %g %c", "hello", 5, 5.2, 'x');
+    printf("%s %d %g %c %b", "hello", 5, 5.2, 'x', true);
   }
 
 }

@@ -311,7 +311,10 @@ std::string Storage_Emitter::get_storage_device_as_string(
         instruction_index_);
     return m::match(storage)(
         m::pattern | m::as<assembly::Stack::Offset>(s) =
-            [&] { return emit_stack_storage(*s, size, flags); },
+            [&] {
+                // size = accessor_->stack->get_operand_size_from_offset(*s);
+                return emit_stack_storage(*s, size, flags);
+            },
         m::pattern | m::as<assembly::Register>(r) =
             [&] { return emit_register_storage(*r, size, flags); },
         m::pattern | m::as<assembly::Immediate>(
@@ -353,9 +356,6 @@ void Storage_Emitter::emit(std::ostream& os,
         } break;
         case memory::Operand_Type::Source: {
             auto source = storage;
-            if (mnemonic == mn(movq_))
-                flag_accessor.set_instruction_flag(
-                    flag::Argument, instruction_index_);
             if (mnemonic == mn(sub) or mnemonic == mn(add))
                 if (flags & flag::Align)
                     source = assembly::make_u32_int_immediate(
@@ -582,6 +582,8 @@ void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
                 ir::Instruction::POP = [&] { ir_visitor.from_pop_ita(); },
             m::pattern |
                 ir::Instruction::CALL = [&] { ir_visitor.from_call_ita(inst); },
+            m::pattern | ir::Instruction::JMP_E =
+                [&] { ir_visitor.from_jmp_e_ita(inst); },
             m::pattern |
                 ir::Instruction::LOCL = [&] { ir_visitor.from_locl_ita(inst); },
             m::pattern |
@@ -957,10 +959,8 @@ void Invocation_Inserter::insert_from_syscall_function(std::string_view routine,
     accessor_->address_accessor.buffer_accessor.set_buffer_size_from_syscall(
         routine, stack_frame_.argument_stack);
     auto operands = get_operands_storage_from_argument_stack();
-    syscall_ns::common::make_syscall(instructions,
-        routine,
-        operands,
-        accessor_->register_accessor.signal_register);
+    syscall_ns::common::make_syscall(
+        instructions, routine, operands, &stack_frame_, &accessor_);
 }
 
 /**
@@ -976,9 +976,11 @@ void Invocation_Inserter::insert_from_user_defined_function(
         auto storage = accessor_->register_accessor.get_available_register(
             size, accessor_->stack);
         if (is_variant(Immediate, operand)) {
-            if (type::is_rvalue_data_type_string(std::get<Immediate>(operand)))
+            if (type::is_rvalue_data_type_string(
+                    std::get<Immediate>(operand))) {
                 accessor_->flag_accessor.set_instruction_flag(
                     flag::Load, accessor_->instruction_accessor->size());
+            }
         }
         if (size == Operand_Size::Qword)
             accessor_->flag_accessor.set_instruction_flag(
@@ -1013,8 +1015,7 @@ void Invocation_Inserter::insert_from_standard_library_function(
                     argument_stack, operands);
             });
     runtime::make_library_call(instructions, routine,
-        operands, argument_stack, accessor_->address_accessor,
-        accessor_->register_accessor.signal_register);
+        operands, argument_stack, stack_frame_, accessor_);
     // clang-format on
 }
 
@@ -1047,8 +1048,6 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
                   argument_stack.back(), stack_frame_)
             : address_storage.buffer_accessor.read_bytes();
     operands.emplace_back(assembly::make_u32_int_immediate(buffer_size));
-    accessor_->flag_accessor.set_instruction_flag(
-        flag::Argument, accessor_->instruction_accessor->size());
 }
 
 /**
@@ -1127,18 +1126,40 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
             [&] { operand_inserter.insert_from_mnemonic_operand(lhs, rhs); });
 }
 
+// Unused, used as rvalues
 void IR_Instruction_Visitor::from_cmp_ita(
     [[maybe_unused]] ir::Quadruple const& inst)
 {
 }
+// Unused, read-ahead during relational jumps
 void IR_Instruction_Visitor::from_if_ita(
     [[maybe_unused]] ir::Quadruple const& inst)
 {
 }
-void IR_Instruction_Visitor::from_jmp_e_ita(
-    [[maybe_unused]] ir::Quadruple const& inst)
+
+/**
+ * @brief IR Instruction Instruction::JNP_E
+ */
+void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
 {
+    auto [_, of, with, jump] = inst;
+    auto frame = stack_frame_.get_stack_frame();
+    auto of_comparator = frame->temporary.at(of).substr(4);
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto of_rvalue_storage = accessor_->address_accessor
+                                 .get_lvalue_address_and_instructions(
+                                     of_comparator, instructions.size())
+                                 .first;
+    auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
+    auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
+    auto comparator_instructions = assembly::r_eq(
+        of_rvalue_storage, with_rvalue_storage, jump_label, Register::eax);
+    assembly::inserter(instructions, comparator_instructions);
 }
+
+/**
+ * @brief IR Instruction Instruction::GOTO
+ */
 void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
 {
     auto label = assembly::make_direct_immediate(
@@ -1148,6 +1169,9 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
     asm__dest(instructions, goto_, label);
 }
 
+/**
+ * @brief Insert into a storage device from the %rip offset address of a string
+ */
 void Operand_Inserter::insert_from_string_address_operand(LValue const& lhs,
     Storage const& storage,
     RValue const& rhs)
@@ -1158,12 +1182,19 @@ void Operand_Inserter::insert_from_string_address_operand(LValue const& lhs,
     auto imm = type::get_rvalue_datatype_from_string(rhs);
     expression_inserter.insert_from_string(
         type::get_value_from_rvalue_data_type(imm));
+    if (is_variant(assembly::Stack::Offset, storage)) {
+        auto offset = std::get<assembly::Stack::Offset>(storage);
+        accessor_->stack->set(offset, Operand_Size::Qword);
+    }
     accessor_->flag_accessor.set_instruction_flag(
         flag::QWord_Dest, instruction_accessor->size());
     accessor_->stack->set_address_from_accumulator(lhs, Register::rcx);
     add_asm__as(instructions, mov, storage, Register::rcx);
 }
 
+/**
+ * @brief Insert into a storage device from the %rip offset address of a float
+ */
 void Operand_Inserter::insert_from_float_address_operand(LValue const& lhs,
     Storage const& storage,
     RValue const& rhs)
@@ -1174,12 +1205,19 @@ void Operand_Inserter::insert_from_float_address_operand(LValue const& lhs,
     auto imm = type::get_rvalue_datatype_from_string(rhs);
     expression_inserter.insert_from_float(
         type::get_value_from_rvalue_data_type(imm));
+    if (is_variant(assembly::Stack::Offset, storage)) {
+        auto offset = std::get<assembly::Stack::Offset>(storage);
+        accessor_->stack->set(offset, Operand_Size::Qword);
+    }
     accessor_->flag_accessor.set_instruction_flag(
         flag::QWord_Dest, instruction_accessor->size());
     accessor_->stack->set_address_from_accumulator(lhs, Register::xmm7);
     add_asm__as(instructions, movsd, storage, Register::xmm7);
 }
 
+/**
+ * @brief Insert into a storage device from the %rip offset address of a double
+ */
 void Operand_Inserter::insert_from_double_address_operand(LValue const& lhs,
     Storage const& storage,
     RValue const& rhs)
@@ -1190,6 +1228,10 @@ void Operand_Inserter::insert_from_double_address_operand(LValue const& lhs,
     auto imm = type::get_rvalue_datatype_from_string(rhs);
     expression_inserter.insert_from_double(
         type::get_value_from_rvalue_data_type(imm));
+    if (is_variant(assembly::Stack::Offset, storage)) {
+        auto offset = std::get<assembly::Stack::Offset>(storage);
+        accessor_->stack->set(offset, Operand_Size::Qword);
+    }
     accessor_->flag_accessor.set_instruction_flag(
         flag::QWord_Dest, instruction_accessor->size());
     accessor_->stack->set_address_from_accumulator(lhs, Register::xmm7);
@@ -1568,7 +1610,8 @@ void Operand_Inserter::insert_from_operands(Storage_Operands& operands,
             arithmetic.from_arithmetic_expression_operands(operands, op)
                 .second);
     } else if (type::is_relation_binary_operator(op)) {
-        auto relational = Relational_Operator_Inserter{ accessor_ };
+        auto relational =
+            Relational_Operator_Inserter{ accessor_, stack_frame_ };
         auto& ir_instructions =
             accessor_->table_accessor.table_->ir_instructions;
         auto ir_index = accessor_->table_accessor.index;
@@ -1671,6 +1714,10 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
     auto unary_inserter = Unary_Operator_Inserter{ accessor_, stack_frame_ };
     auto operand_inserter = Operand_Inserter{ accessor_, stack_frame_ };
 
+    auto is_comparator = [](RValue const& rvalue) {
+        return rvalue.starts_with("CMP");
+    };
+
     m::match(rvalue)(
         m::pattern | m::app(type::is_binary_expression, true) =
             [&] { binary_inserter.from_binary_operator_expression(rvalue); },
@@ -1690,6 +1737,10 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
                 if (type == "string")
                     accessor_->flag_accessor.set_instruction_flag(
                         flag::Address, instruction_accessor->size());
+            },
+        m::pattern | m::app(is_comparator, true) =
+            [&] {
+                // @TODO nice-to-have, but not necessary
             },
         m::pattern | RValue{ "RET" } =
             [&] {
@@ -1951,8 +2002,10 @@ Relational_Operator_Inserter::from_relational_expression_operands(
     Label const& jump_label)
 {
     auto register_storage = Register::eax;
-    if (accessor_->address_accessor.is_qword_storage_size(operands.first) or
-        accessor_->address_accessor.is_qword_storage_size(operands.second)) {
+    if (accessor_->address_accessor.is_qword_storage_size(
+            operands.first, stack_frame_) or
+        accessor_->address_accessor.is_qword_storage_size(
+            operands.second, stack_frame_)) {
         register_storage = Register::rax;
     }
 

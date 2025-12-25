@@ -421,7 +421,8 @@ class Address_Accessor
     }
 
     Storage get_lvalue_address_from_stack(LValue const& lvalue);
-    bool is_qword_storage_size(Storage const& storage);
+    bool is_qword_storage_size(Storage const& storage,
+        Stack_Frame& stack_frame);
     assembly::Instruction_Pair get_lvalue_address_and_instructions(
         LValue const& lvalue,
         std::size_t instruction_index,

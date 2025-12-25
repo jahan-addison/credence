@@ -55,11 +55,8 @@ if(ENABLE_TEST_COVERAGE)
     if(LLVM_PROFDATA AND LLVM_COV)
 
         add_custom_target(coverage
-            # Step 1: Run the test (generates default.profraw)
             COMMAND ./Test_Suite
-            # Step 2: Merge the raw profile data
             COMMAND ${LLVM_PROFDATA} merge -sparse default.profraw -o coverage.profdata
-            # Step 3: Generate HTML report
             COMMAND ${LLVM_COV} show ./Test_Suite -instr-profile=coverage.profdata
                         -show-line-counts-or-regions
                         -show-region-summary=false

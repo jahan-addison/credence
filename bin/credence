@@ -11,7 +11,7 @@
 ## See the LICENSE.Apache-v2 and LICENSE.GPL-v3 files in the project root
 ## for the full text of these licenses.
 ###############################################################################
-
+set -e
 
 #####################################################
 #  @brief cli

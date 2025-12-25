@@ -28,7 +28,6 @@ These features are not in the original B language specification.
   * Vectors (arrays) may be non-homogeneous, but their types are determined at compile time from their initial values, similarly to tuples
   * Uninitialized variables are set to an internal `null` type
 * Compile-time out-of-range boundary checks on vectors and pointer arithmetic
-* Boolean coercion for all data types in conditional structures
 * `GOTO` and labels are not supported, use control structures
 * Float and double literal types (e.g. `5.55f`)
 * Support for C++ style comments
@@ -201,7 +200,7 @@ _start:
     mov rsi, [r15 + 8 * 2]
     call printf
     mov rdi, qword ptr [rip + strings]
-    mov rsi, 14
+    mov esi, 14
     call print
     jmp ._L3__main
 ._L1__main:

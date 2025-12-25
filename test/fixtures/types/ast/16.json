@@ -1,45 +1,45 @@
 [
   {
+    "array": {
+      "column": 1,
+      "end_column": 6,
+      "end_pos": 103,
+      "line": 10,
+      "size": 3,
+      "start_pos": 98,
+      "type": "vector_definition"
+    },
     "k": {
-      "type": "indirect_lvalue",
+      "column": 9,
+      "end_column": 10,
+      "end_pos": 35,
       "line": 3,
       "start_pos": 34,
-      "column": 9,
-      "end_pos": 35,
-      "end_column": 10
+      "type": "indirect_lvalue"
     },
     "m": {
-      "type": "indirect_lvalue",
+      "column": 13,
+      "end_column": 14,
+      "end_pos": 39,
       "line": 3,
       "start_pos": 38,
-      "column": 13,
-      "end_pos": 39,
-      "end_column": 14
-    },
-    "z": {
-      "type": "lvalue",
-      "line": 3,
-      "start_pos": 41,
-      "column": 16,
-      "end_pos": 42,
-      "end_column": 17
-    },
-    "array": {
-      "type": "vector_definition",
-      "line": 10,
-      "start_pos": 98,
-      "column": 1,
-      "end_pos": 103,
-      "end_column": 6,
-      "size": 3
+      "type": "indirect_lvalue"
     },
     "main": {
-      "type": "function_definition",
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
       "line": 1,
       "start_pos": 0,
-      "column": 1,
-      "end_pos": 4,
-      "end_column": 5
+      "type": "function_definition"
+    },
+    "z": {
+      "column": 16,
+      "end_column": 17,
+      "end_pos": 42,
+      "line": 3,
+      "start_pos": 41,
+      "type": "lvalue"
     }
   },
   {

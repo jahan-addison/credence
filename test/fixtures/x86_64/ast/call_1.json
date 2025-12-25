@@ -6,7 +6,8 @@
       "end_pos": 101,
       "line": 7,
       "start_pos": 93,
-      "type": "function_definition"
+      "type": "function_definition",
+      "void": false
     },
     "main": {
       "column": 1,

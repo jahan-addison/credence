@@ -133,7 +133,7 @@
                             "right": [
                               {
                                 "node": "string_literal",
-                                "root": "\"%s %d %g %c\""
+                                "root": "\"%s %d %g %c %b\""
                               },
                               {
                                 "node": "string_literal",
@@ -150,6 +150,10 @@
                               {
                                 "node": "constant_literal",
                                 "root": "x"
+                              },
+                              {
+                                "node": "bool_literal",
+                                "root": "true"
                               }
                             ],
                             "root": "printf"

@@ -311,8 +311,10 @@ struct Unary_Operator_Inserter
  */
 struct Relational_Operator_Inserter
 {
-    explicit Relational_Operator_Inserter(memory::Memory_Access accessor)
+    explicit Relational_Operator_Inserter(memory::Memory_Access accessor,
+        memory::Stack_Frame& stack_frame)
         : accessor_(accessor)
+        , stack_frame_(stack_frame)
     {
     }
     assembly::Instructions from_relational_expression_operands(
@@ -322,6 +324,7 @@ struct Relational_Operator_Inserter
 
   private:
     memory::Memory_Access accessor_;
+    memory::Stack_Frame& stack_frame_;
 };
 
 /**

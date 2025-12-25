@@ -59,6 +59,8 @@ Expression_Parser::Expression Expression_Parser::parse_from_node(
             [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "float_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
+        m::pattern | "bool_literal" =
+            [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "double_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
         m::pattern | "string_literal" =
@@ -318,8 +320,6 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
             name = node["right"]["root"].to_string();
         else
             name = node["root"].to_string();
-        // hoist function definitions from the first pass to the memory
-        // table
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
@@ -383,9 +383,12 @@ Expression_Parser::Literal Expression_Parser::from_constant_expression_node(
             "float_literal" = [&] { return from_float_literal_node(node); },
         m::pattern |
             "double_literal" = [&] { return from_double_literal_node(node); },
-
         m::pattern |
-            "string_literal" = [&] { return from_string_literal_node(node); });
+            "bool_literal" = [&] { return from_bool_literal_node(node); },
+        m::pattern |
+            "string_literal" = [&] { return from_string_literal_node(node); }
+
+    );
 }
 
 /**
@@ -453,6 +456,17 @@ Expression_Parser::Literal Expression_Parser::from_double_literal_node(
     credence_assert_equal(node["node"].to_string(), "double_literal");
     return { static_cast<double>(node["root"].to_float()),
         value::TYPE_LITERAL.at("double") };
+}
+
+/**
+ * @brief Parse bool literal node into symbols
+ */
+Expression_Parser::Literal Expression_Parser::from_bool_literal_node(
+    Node const& node)
+{
+    credence_assert_equal(node["node"].to_string(), "bool_literal");
+    return { node["root"].to_string() == "true" ? 1 : 0,
+        value::TYPE_LITERAL.at("bool") };
 }
 
 /**

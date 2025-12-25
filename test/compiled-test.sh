@@ -25,14 +25,18 @@ fi
 if [[ "$1" == "if_1" ]]; then
   printf -v expected_output '%s\n%s\n%s\n%s\n%s\n%s' "equal to 10" "greater than or equal to 5" "not equal to 5" "greater than 8" "less than 20" "done!"
 fi
-
-
+if [[ "$1" == "while_1" ]]; then
+  printf -v expected_output '%s\n%s' "yes!" "x, y: 49 48"
+fi
+if [[ "$1" == "switch_1" ]]; then
+  printf -v expected_output '%s' "should say 1: 1"
+fi
 
 if [[ "$1" == "stdlib_putchar_test" ]]; then
   printf -v expected_output '%s' "lol"
 fi
 if [[ "$1" == "stdlib_printf_test" ]]; then
-  printf -v expected_output '%s' "hello 5 5.200000 x"
+  printf -v expected_output '%s' "hello 5 5.200000 x 1"
 fi
 
 
