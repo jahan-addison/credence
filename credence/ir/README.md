@@ -75,7 +75,7 @@ See the branch state machine object for details [here](https://github.com/jahan-
 
 ## Table
 
-The `Table` constructs a set of data structures in a [table object](/credence/ir/object.h) with allocations of functions, labels, vectors, and stack frames from the IR. During this stage, it also performs type checking, vector memory management, and out-of-range boundary checks via the [type checker](/credence/ir/types.h). The result provides a base for generating type- and size-safe platform-specific machine code.
+The `Table` constructs a set of data structures in a [table object](/credence/ir/object.h) with allocations of functions, labels, vectors, and stack frames from the IR. During this stage, it also performs type checking, vector memory management, and out-of-range boundary checks via the [type checker](/credence/ir/checker.h). The result provides a base for generating type- and size-safe platform-specific machine code.
 
 
 ## Example:

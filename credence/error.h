@@ -74,7 +74,8 @@ class Credence_Exception : public std::exception
     }
 };
 
-inline void compile_error_impl(std::source_location const& location,
+inline void compile_error_impl(
+    [[maybe_unused]] std::source_location const& location,
     std::string_view message,
     std::string_view symbol_name,
     easyjson::JSON const& symbols,

@@ -1,0 +1,139 @@
+[
+  {
+    "k": {
+      "type": "indirect_lvalue",
+      "line": 2,
+      "start_pos": 17,
+      "column": 9,
+      "end_pos": 18,
+      "end_column": 10
+    },
+    "m": {
+      "type": "lvalue",
+      "line": 2,
+      "start_pos": 20,
+      "column": 12,
+      "end_pos": 21,
+      "end_column": 13
+    },
+    "z": {
+      "type": "lvalue",
+      "line": 2,
+      "start_pos": 23,
+      "column": 15,
+      "end_pos": 24,
+      "end_column": 16
+    },
+    "main": {
+      "type": "function_definition",
+      "line": 1,
+      "start_pos": 0,
+      "column": 1,
+      "end_pos": 4,
+      "end_column": 5
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "k"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
+                },
+                {
+                  "node": "lvalue",
+                  "root": "m"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "z"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "m"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "integer_literal",
+                      "root": 5
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "m"
+                      },
+                      "node": "address_of_expression",
+                      "root": [
+                        "&"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "z"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "integer_literal",
+                      "root": 10
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

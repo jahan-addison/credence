@@ -11,15 +11,17 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include "assembly.h"          // for get_size_from_operand_size, Operand_Size
-#include <algorithm>           // for find_if, __find_if
-#include <credence/ir/table.h> // for Vector
-#include <credence/map.h>      // for Ordered_Map
-#include <credence/types.h>    // for Size, LValue, RValue, Type
-#include <credence/util.h>     // for align_up_to_16, align_up_to_8
-#include <numeric>             // for accumulate
-#include <string>              // for basic_string, string, operator==
-#include <utility>             // for pair
+#include "assembly.h"                     // for get_size_from_operand_size
+#include <algorithm>                      // for find_if, __find_if
+#include <credence/ir/object.h>           // for LValue, Vector, Size, Type
+#include <credence/map.h>                 // for Ordered_Map
+#include <credence/target/common/types.h> // for Stack_Offset, base_stack_p...
+#include <credence/types.h>               // for Size
+#include <credence/util.h>                // for align_up_to_16, align_up_to_8
+#include <fmt/compile.h>                  // for format, operator""_cf
+#include <numeric>                        // for accumulate
+#include <string>                         // for basic_string, string, oper...
+#include <utility>                        // for pair
 
 #pragma once
 
@@ -32,7 +34,7 @@ namespace credence::target::x86_64::assembly {
  * Provides a means to allocate, traverse, and verify offsets
  * that auto-align on the stack by lvalues and vice-versa.
  */
-class Stack
+class Stack : public common::detail::base_stack_pointer
 {
   public:
     explicit Stack() = default;
@@ -40,12 +42,7 @@ class Stack
     Stack& operator=(Stack const&) = delete;
 
   public:
-    using Type = type::semantic::Type;
-    using Size = type::semantic::Size;
-    using Label = type::semantic::Label;
-    using LValue = type::semantic::LValue;
-    using RValue = type::semantic::RValue;
-    using Offset = assembly::Stack_Offset;
+    using Offset = common::Stack_Offset;
     using Entry = std::pair<Offset, assembly::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
     using Local = Ordered_Map<LValue, Entry>;

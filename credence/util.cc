@@ -16,9 +16,10 @@
 
 #include <credence/error.h> // for credence_error
 #include <filesystem>       // for file_size, path
-#include <fmt/format.h>     // for format, format_string
-#include <fstream>          // for basic_ofstream, basic_ifstream, basic...
+#include <fmt/format.h>     // for format
+#include <fstream>          // for basic_ofstream, basic_ifstream
 #include <iostream>         // for cout
+#include <ostream>          // for operator<<, basic_ostream
 #include <sstream>          // for basic_ostringstream
 
 namespace credence {

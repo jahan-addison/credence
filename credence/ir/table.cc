@@ -13,28 +13,28 @@
 
 #include <credence/ir/table.h>
 
-#include <array>                // for array
-#include <credence/error.h>     // for throw_object_type_error, credence_as...
-#include <credence/ir/ita.h>    // for Instruction, Quadruple, emit, get_rv...
-#include <credence/ir/object.h> // for Object, Function, Vector, LValue
-#include <credence/ir/types.h>  // for Type_Checker
-#include <credence/map.h>       // for Ordered_Map
-#include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for get_rvalue_datatype_from_string, get...
-#include <credence/util.h>      // for contains, AST_Node, str_trim_ws
-#include <credence/values.h>    // for expression_type_to_string
-#include <cstddef>              // for size_t
-#include <easyjson.h>           // for JSON
-#include <fmt/format.h>         // for format
-#include <limits>               // for numeric_limits
-#include <map>                  // for operator!=
-#include <matchit.h>            // for pattern, PatternHelper, PatternPipable
-#include <optional>             // for optional
-#include <string>               // for basic_string, char_traits, operator==
-#include <string_view>          // for basic_string_view, string_view
-#include <tuple>                // for get, tuple, operator==
-#include <utility>              // for pair, get
-#include <vector>               // for vector
+#include <array>                 // for array
+#include <credence/error.h>      // for throw_object_type_error, credence_as...
+#include <credence/ir/checker.h> // for Type_Checker
+#include <credence/ir/ita.h>     // for Instruction, Quadruple, emit, get_rv...
+#include <credence/ir/object.h>  // for Object, Function, Vector, LValue
+#include <credence/map.h>        // for Ordered_Map
+#include <credence/symbol.h>     // for Symbol_Table
+#include <credence/types.h>      // for get_rvalue_datatype_from_string, get...
+#include <credence/util.h>       // for contains, AST_Node, str_trim_ws
+#include <credence/values.h>     // for expression_type_to_string
+#include <cstddef>               // for size_t
+#include <easyjson.h>            // for JSON
+#include <fmt/format.h>          // for format
+#include <limits>                // for numeric_limits
+#include <map>                   // for operator!=
+#include <matchit.h>             // for pattern, PatternHelper, PatternPipable
+#include <optional>              // for optional
+#include <string>                // for basic_string, char_traits, operator==
+#include <string_view>           // for basic_string_view, string_view
+#include <tuple>                 // for get, tuple, operator==
+#include <utility>               // for pair, get
+#include <vector>                // for vector
 
 namespace credence {
 

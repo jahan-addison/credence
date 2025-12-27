@@ -11,24 +11,26 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include <credence/error.h>    // for Credence_Exception
-#include <credence/ir/table.h> // emit_complete_ita
-#include <credence/util.h>     // for AST_Node, capitalize,
-#include <cxxopts.hpp>         // for value, ParseResult, OptionAdder, Opti...
-#include <easyjson.h>          // for JSON, operator<<
-#include <filesystem>          // for filesystem_error, operator<<
-#include <iostream>            // for basic_ostream, operator<<, endl, cerr
-#include <matchit.h>           // for pattern, match, PatternHelper, Patter...
-#include <memory>              // for allocator, shared_ptr, __shared_ptr_a...
-#include <pybind11/cast.h>     // for object_api::operator(), object::cast
-#include <pybind11/embed.h>    // for scoped_interpreter
-#include <pybind11/pybind11.h> // for error_already_set::what, module, module_
-#include <pybind11/pytypes.h>  // for object, object_api, error_already_set
-#include <sstream>             // for basic_ostringstream
-#include <string>              // for char_traits, string, basic_string
-#include <string_view>         // for operator<<, string_view
-
-#include <credence/target/x86_64/generator.h> // for x86_64
+#include <credence/error.h>                   // for Credence_Exception
+#include <credence/ir/table.h>                // for emit
+#include <credence/target/arm64/generator.h>  // for emit
+#include <credence/target/common/assembly.h>  // for Arch_Type
+#include <credence/target/common/runtime.h>   // for add_stdlib_functions_t...
+#include <credence/target/x86_64/generator.h> // for emit
+#include <credence/util.h>                    // for AST_Node, sv, AST, cap...
+#include <cxxopts.hpp>                        // for value, Options, ParseR...
+#include <easyjson.h>                         // for JSON, operator<<, array
+#include <filesystem>                         // for filesystem_error, oper...
+#include <iostream>                           // for ostringstream, cerr, cout
+#include <matchit.h>                          // for pattern, Or, PatternHe...
+#include <memory>                             // for shared_ptr
+#include <pybind11/cast.h>                    // for object_api::operator()
+#include <pybind11/embed.h>                   // for scoped_interpreter
+#include <pybind11/pybind11.h>                // for error_already_set::what
+#include <pybind11/pytypes.h>                 // for object, accessor, str_...
+#include <sstream>                            // for basic_ostringstream
+#include <string>                             // for basic_string, char_traits
+#include <string_view>                        // for basic_string_view, str...
 
 int main(int argc, const char* argv[])
 {
@@ -71,7 +73,7 @@ int main(int argc, const char* argv[])
         if (type == "python") {
             py::scoped_interpreter guard{};
             try {
-                py::object python_module = py::module::import("chakram.parser");
+                py::object python_module = py::module::import("augur.parser");
                 py::object symbol_table_call = python_module.attr(
                     "get_source_program_symbol_table_as_json");
                 py::object syntax_symbols = symbol_table_call(source);
@@ -126,20 +128,27 @@ int main(int argc, const char* argv[])
             m::pattern | m::_ = [&] { return "bo"; });
 
         m::match(target)(
+            m::pattern | "arm64" =
+                [&]() {
+                    credence::target::common::runtime::
+                        add_stdlib_functions_to_symbols(symbols,
+                            credence::target::common::assembly::get_os_type(),
+                            credence::target::common::assembly::Arch_Type::
+                                ARM64);
+                    credence::target::arm64::emit(out_to, symbols, ast["root"]);
+                },
             m::pattern | "x86_64" =
                 [&]() {
-                    // clang-format off
-                    credence::target::add_stdlib_functions_to_symbols(symbols,
-                        credence::target::Platform::credence_x86_64_platform);
-                    credence::target::x86_64::emit(out_to, symbols, ast["root"]);
-                    // clang-format on
+                    credence::target::common::runtime::
+                        add_stdlib_functions_to_symbols(symbols,
+                            credence::target::common::assembly::get_os_type(),
+                            credence::target::common::assembly::Arch_Type::
+                                X8664);
+                    credence::target::x86_64::emit(
+                        out_to, symbols, ast["root"]);
                 },
             m::pattern | "ir" =
-                [&]() {
-                    credence::target::add_stdlib_functions_to_symbols(symbols,
-                        credence::target::Platform::credence_x86_64_platform);
-                    credence::ir::emit(out_to, symbols, ast["root"]);
-                },
+                [&]() { credence::ir::emit(out_to, symbols, ast["root"]); },
             m::pattern | "ast" =
                 [&]() {
                     if (result["debug"].count()) {

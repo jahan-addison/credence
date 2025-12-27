@@ -13,19 +13,29 @@
 
 #pragma once
 
-#include "assembly.h"               // for Instructions, Operand_Size, Storage
-#include "credence/ir/object.h"     // for Function, Object
-#include "memory.h"                 // for Memory_Access, RValue, LValue
-#include "stack.h"                  // for Stack
-#include "syscall.h"                // for syscall_arguments_t
-#include <credence/ir/ita.h>        // for Quadruple, Instructions
-#include <credence/target/target.h> // for IR_Visitor
-#include <credence/util.h>          // for AST_Node, CREDENCE_PRIVATE_UNLES...
-#include <cstddef>                  // for size_t
-#include <ostream>                  // for ostream
-#include <string>                   // for basic_string, string
-#include <string_view>              // for string_view
-#include <utility>                  // for move
+#include "assembly.h"                           // for Instructions, Binary...
+#include "memory.h"                             // for Memory_Access, Stack...
+#include "stack.h"                              // for Stack
+#include "syscall.h"                            // for syscall_arguments_t
+#include <credence/ir/ita.h>                    // for Quadruple, Instructions
+#include <credence/ir/object.h>                 // for RValue, LValue, Label
+#include <credence/target/common/flags.h>       // for flags
+#include <credence/target/common/stack_frame.h> // for Locals
+#include <credence/target/common/visitor.h>     // for IR_Visitor
+#include <credence/util.h>                      // for AST_Node, CREDENCE_P...
+#include <cstddef>                              // for size_t
+#include <ostream>                              // for ostream
+#include <string>                               // for basic_string, string
+#include <string_view>                          // for string_view
+#include <utility>                              // for move
+#include <variant>                              // for variant
+namespace credence {
+namespace target {
+namespace x86_64 {
+class Visitor;
+}
+}
+} // lines 55-55
 
 namespace credence::target::x86_64 {
 
@@ -38,11 +48,11 @@ constexpr std::string emit_immediate_storage(
 
 constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
     assembly::Operand_Size size,
-    flag::flags flags);
+    common::flag::flags flags);
 
 constexpr std::string emit_register_storage(assembly::Register device,
     assembly::Operand_Size size,
-    flag::flags flags);
+    common::flag::flags flags);
 
 void emit_x86_64_assembly_intel_prologue(std::ostream& os);
 
@@ -51,7 +61,7 @@ assembly::Operand_Size get_operand_size_from_storage(
     memory::Stack_Pointer& stack);
 
 class Assembly_Emitter;
-class IR_Instruction_Visitor;
+class Visitor;
 
 /**
  * @brief Storage Emitter for destination and source storage devices
@@ -185,7 +195,7 @@ class Instruction_Inserter
     }
     void insert(ir::Instructions const& ir_instructions);
     void setup_stack_frame_in_function(ir::Instructions const& ir_instructions,
-        IR_Instruction_Visitor& visitor,
+        Visitor& visitor,
         int index);
 
   private:
@@ -212,7 +222,7 @@ class Operand_Inserter
     void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs);
-    void insert_from_operands(Storage_Operands& operands,
+    void insert_from_operands(assembly::Binary_Operands& operands,
         std::string const& op);
     void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
 
@@ -318,7 +328,7 @@ struct Relational_Operator_Inserter
     {
     }
     assembly::Instructions from_relational_expression_operands(
-        Storage_Operands const& operands,
+        assembly::Binary_Operands const& operands,
         std::string const& binary_op,
         Label const& jump_label);
 
@@ -337,7 +347,7 @@ struct Arithemtic_Operator_Inserter
     {
     }
     Instruction_Pair from_arithmetic_expression_operands(
-        Storage_Operands const& operands,
+        assembly::Binary_Operands const& operands,
         std::string const& binary_op);
 
   private:
@@ -354,7 +364,7 @@ struct Bitwise_Operator_Inserter
     {
     }
     Instruction_Pair from_bitwise_expression_operands(
-        Storage_Operands const& operands,
+        assembly::Binary_Operands const& operands,
         std::string const& binary_op);
     void from_bitwise_operator_expression(RValue const& expr);
 
@@ -381,10 +391,10 @@ struct Invocation_Inserter
     void insert_from_syscall_function(std::string_view routine,
         assembly::Instructions& instructions);
     void insert_type_check_stdlib_print_arguments(
-        memory::Stack_Frame::IR_Stack const& argument_stack,
+        common::memory::Locals const& argument_stack,
         syscall_ns::syscall_arguments_t& operands);
     void insert_type_check_stdlib_printf_arguments(
-        memory::Stack_Frame::IR_Stack const& argument_stack,
+        common::memory::Locals const& argument_stack,
         syscall_ns::syscall_arguments_t& operands);
 
   private:
@@ -421,22 +431,12 @@ class Assembly_Emitter
     // clang-format on
 };
 
-/**
- * @brief IR Visitor for the x86-64 architecture and ISA
- *
- * The Storage_Container is defined in assembly.h, and
- * each intermediate instruction is a quadruple defined in ita.h.
- *
- * Macros and helpers to compose mnemonics, registers, and immediate
- * values instructions are defined in assembly.h.
- *
- */
-
-class IR_Instruction_Visitor final
-    : public target::IR_Visitor<ir::Quadruple, x86_64::assembly::Instructions>
+class Visitor final
+    : public target::common::IR_Visitor<ir::Quadruple,
+          x86_64::assembly::Instructions>
 {
   public:
-    explicit IR_Instruction_Visitor(memory::Memory_Access& accessor,
+    explicit Visitor(memory::Memory_Access& accessor,
         memory::Stack_Frame stack_frame)
         : accessor_(accessor)
         , stack_frame_(std::move(stack_frame))

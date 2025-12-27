@@ -1,27 +1,27 @@
 #include <doctest/doctest.h> // for ResultBuilder, REQUIRE, TestCase
 
-#include <array>                // for array
-#include <credence/ir/ita.h>    // for Instruction, Quadruple, emit_to, emit
-#include <credence/ir/object.h> // for Object, Function, Vector
-#include <credence/ir/table.h>  // for Table, emit
-#include <credence/ir/types.h>  // for Type_Checker
-#include <credence/map.h>       // for Ordered_Map
-#include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for is_unary_expression, get_unary_operator
-#include <credence/util.h>      // for AST_Node, STRINGIFY, AST
-#include <cstddef>              // for size_t
-#include <deque>                // for deque
-#include <easyjson.h>           // for JSON, object
-#include <filesystem>           // for path
-#include <format>               // for format
-#include <initializer_list>     // for initializer_list
-#include <map>                  // for map
-#include <memory>               // for allocator, shared_ptr, make_shared
-#include <sstream>              // for basic_ostringstream, ostringstream
-#include <string>               // for basic_string, char_traits, string
-#include <string_view>          // for basic_string_view
-#include <tuple>                // for get, tuple
-#include <utility>              // for get
+#include <array>                 // for array
+#include <credence/ir/checker.h> // for Type_Checker
+#include <credence/ir/ita.h>     // for Instruction, Quadruple, emit_to, emit
+#include <credence/ir/object.h>  // for Object, Function, Vector
+#include <credence/ir/table.h>   // for Table, emit
+#include <credence/map.h>        // for Ordered_Map
+#include <credence/symbol.h>     // for Symbol_Table
+#include <credence/types.h>      // for is_unary_expression, get_unary_operator
+#include <credence/util.h>       // for AST_Node, STRINGIFY, AST
+#include <cstddef>               // for size_t
+#include <deque>                 // for deque
+#include <easyjson.h>            // for JSON, object
+#include <filesystem>            // for path
+#include <format>                // for format
+#include <initializer_list>      // for initializer_list
+#include <map>                   // for map
+#include <memory>                // for allocator, shared_ptr, make_shared
+#include <sstream>               // for basic_ostringstream, ostringstream
+#include <string>                // for basic_string, char_traits, string
+#include <string_view>           // for basic_string_view
+#include <tuple>                 // for get, tuple
+#include <utility>               // for get
 
 namespace fs = std::filesystem;
 

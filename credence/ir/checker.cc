@@ -11,7 +11,7 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include <credence/ir/types.h>
+#include <credence/ir/checker.h>
 
 #include <credence/error.h>     // for throw_type_check_error, credence_as...
 #include <credence/ir/object.h> // for RValue, Vector, LValue, Object, get_...

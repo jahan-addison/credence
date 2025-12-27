@@ -1,3 +1,3 @@
-[submodule "python/chakram"]
-	path = python/chakram
-	url = https://github.com/jahan-addison/chakram.git
+[submodule "python/augur"]
+	path = python/augur
+	url = https://github.com/jahan-addison/augur.git

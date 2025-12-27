@@ -103,7 +103,7 @@ cpmaddpackage(
   NAME
   easyjson
   VERSION
-  1.2.0
+  1.2.1
   GITHUB_REPOSITORY
   jahan-addison/easyjson
   OPTIONS

@@ -12,50 +12,17 @@
  ****************************************************************************/
 
 #include "syscall.h"
-#include "assembly.h"       // for Register, make_numeric_immediate, add_in...
-#include <credence/error.h> // for assert_equal_impl, credence_assert, cred...
-#include <deque>            // for deque
-#include <string>           // for basic_string, string
-#include <variant>          // for variant
+#include "assembly.h"                        // for Register, Storage, is_i...
+#include <credence/error.h>                  // for assert_equal_impl, cred...
+#include <credence/target/common/assembly.h> // for make_numeric_immediate
+#include <credence/target/common/syscall.h>  // for syscall_list, SYSCALL_C...
+#include <credence/target/x86_64/memory.h>   // for Memory_Access, Stack_Frame
+#include <deque>                             // for deque
+#include <string>                            // for basic_string
+#include <utility>                           // for get, make_pair, pair
+#include <variant>                           // for variant
 
 namespace credence::target::x86_64::syscall_ns {
-
-namespace common {
-
-/**
- * @brief Create instructions for a platform-independent exit syscall
- */
-// cppcheck-suppress constParameterReference
-void exit_syscall(Instructions& instructions, int exit_status)
-{
-    auto immediate = assembly::make_numeric_immediate(exit_status);
-#if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall_ns::linux_ns::make_syscall(
-        instructions, "exit", { immediate }, nullptr, nullptr);
-#elif defined(__APPLE__) || defined(__bsdi__)
-    syscall_ns::bsd_ns::make_syscall(
-        instructions, "exit", { immediate }, nullptr, nullptr);
-#else
-    credence_error("Operating system not supported");
-#endif
-}
-
-/**
- * @brief Get the list of avalable syscalls on the current platform
- */
-std::vector<std::string> get_platform_syscall_symbols()
-{
-    std::vector<std::string> symbols{};
-    auto syscall_list = common::get_syscall_list();
-    // cppcheck-suppress[useStlAlgorithm,knownEmptyContainer]
-    for (auto const& syscall : syscall_list) {
-        // cppcheck-suppress[useStlAlgorithm,knownEmptyContainer]
-        symbols.emplace_back(syscall.first.data());
-    }
-    return symbols;
-}
-
-} // namespace common
 
 /**
  * @brief General purpsoe register stack in ABI system V order
@@ -114,9 +81,9 @@ bool set_signal_register_from_safe_address(Instructions& instructions,
     if (accessor != nullptr) {
         auto accessor_ = *accessor;
         auto* address_of = accessor_->register_accessor.signal_register;
-        if (storage == rr(rsi) and *address_of == Register::rcx) {
+        if (storage == x64_rr(rsi) and *address_of == Register::rcx) {
             accessor_->set_signal_register(Register::eax);
-            asm__src_rs(instructions, movq_, storage, rcx);
+            x64_asm__src_rs(instructions, movq_, storage, rcx);
             return false;
         }
     }
@@ -141,88 +108,25 @@ void syscall_operands_to_instructions(Instructions& instructions,
         qword_registers.pop_back();
         dword_registers.pop_back();
         if (is_immediate_rip_address_offset(arg))
-            add_asm__as(instructions, lea, storage, arg);
+            x64_add_asm__as(instructions, lea, storage, arg);
         else if (set_signal_register_from_safe_address(
                      instructions, storage, accessor))
-            add_asm__as(instructions, movq_, storage, arg);
+            x64_add_asm__as(instructions, movq_, storage, arg);
     }
 }
 
-namespace linux_ns {
-
-/**
- * @brief Create instructions for a linux x86_64 platform syscall
- *    See syscall.h for details
- */
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    memory::Stack_Frame* stack_frame,
-    memory::Memory_Access* accessor)
-{
-    credence_assert(syscall_list.contains(syscall));
-    credence_assert(arguments.size() <= 6);
-    auto [number, arg_size] = syscall_list.at(syscall);
-
-    credence_assert_equal(arg_size, arguments.size());
-
-    auto [argument_storage_qword, argument_storage_dword] =
-        get_argument_general_purpose_registers();
-
-    assembly::Storage syscall_number = assembly::make_numeric_immediate(number);
-
-    asm__dest_rs(instructions, mov, rax, syscall_number);
-
-    syscall_operands_to_instructions(instructions,
-        arguments,
-        argument_storage_qword,
-        argument_storage_dword,
-        stack_frame,
-        accessor);
-
-    asm__zero_o(instructions, syscall);
-}
-
-} // namespace linux
-
-namespace bsd_ns {
-
-/**
- * @brief Create instructions for a BSD (Darwin) x86_64 platform syscall
- *    See syscall.h for details
- */
-void make_syscall(Instructions& instructions,
-    std::string_view syscall,
-    syscall_arguments_t const& arguments,
-    memory::Stack_Frame* stack_frame,
-    memory::Memory_Access* accessor)
-{
-    credence_assert(syscall_list.contains(syscall));
-    credence_assert(arguments.size() <= 6);
-    auto [number, arg_size] = syscall_list.at(syscall);
-    credence_assert_equal(arg_size, arguments.size());
-
-    auto [argument_storage_qword, argument_storage_dword] =
-        get_argument_general_purpose_registers();
-
-    assembly::Storage syscall_number =
-        assembly::make_numeric_immediate(SYSCALL_CLASS_UNIX + number);
-
-    asm__dest_rs(instructions, mov, rax, syscall_number);
-
-    syscall_operands_to_instructions(instructions,
-        arguments,
-        argument_storage_qword,
-        argument_storage_dword,
-        stack_frame,
-        accessor);
-
-    asm__zero_o(instructions, syscall);
-}
-
-} // namespace bsd
-
 namespace common {
+
+/**
+ * @brief Create instructions for a platform-independent exit syscall
+ */
+// cppcheck-suppress constParameterReference
+void exit_syscall(Instructions& instructions, int exit_status)
+{
+    auto immediate =
+        target::common::assembly::make_numeric_immediate(exit_status);
+    make_syscall(instructions, "exit", { immediate }, nullptr, nullptr);
+}
 
 /**
  * @brief Create instructions for a platform-independent syscall
@@ -235,16 +139,49 @@ void make_syscall(
     memory::Stack_Frame* stack_frame,
     memory::Memory_Access* accessor)
 {
+
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    syscall_ns::linux_ns::make_syscall(
-        instructions, syscall, arguments, stack_frame, accessor);
+    auto syscall_list = target::common::syscall_ns::get_syscall_list(
+        target::common::assembly::OS_Type::Linux,
+        target::common::assembly::Arch_Type::X8664);
 #elif defined(__APPLE__) || defined(__bsdi__)
-    syscall_ns::bsd_ns::make_syscall(
-        instructions, syscall, arguments, stack_frame, accessor);
-#else
-    credence_error("Operating system not supported");
+    auto syscall_list = target::common::syscall_ns::get_syscall_list(
+        target::common::assembly::OS_Type::BSD,
+        target::common::assembly::Arch_Type::X8664);
 #endif
+
+    credence_assert(syscall_list.contains(syscall));
+
+    credence_assert(arguments.size() <= 6);
+    target::common::syscall_ns::syscall_t syscall_entry{ 0, 0 };
+
+    syscall_entry = syscall_list.at(syscall);
+
+    credence_assert_equal(syscall_entry[1], arguments.size());
+
+    auto [argument_storage_qword, argument_storage_dword] =
+        get_argument_general_purpose_registers();
+
+#if defined(CREDENCE_TEST) || defined(__linux__)
+    auto syscall_number =
+        target::common::assembly::make_numeric_immediate(syscall_entry[0]);
+#elif defined(__APPLE__) || defined(__bsdi__)
+    auto syscall_number = target::common::assembly::make_numeric_immediate(
+        target::common::syscall_ns::x86_64::bsd_ns::SYSCALL_CLASS_UNIX +
+        syscall_entry[0]);
+#endif
+
+    x64_asm__dest_rs(instructions, mov, rax, syscall_number);
+
+    syscall_operands_to_instructions(instructions,
+        arguments,
+        argument_storage_qword,
+        argument_storage_dword,
+        stack_frame,
+        accessor);
+
+    x64_asm__zero_o(instructions, syscall);
+}
 }
 
 } // namespace common
-}

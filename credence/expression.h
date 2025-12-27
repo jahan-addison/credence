@@ -29,7 +29,7 @@ namespace credence {
 /**
  * @brief
  * LL(1) top-down Parser of expression ast nodes to
- * Expression algebraic data structures.
+ * algebraic data structures.
  *
  * See types.h for details.
  */

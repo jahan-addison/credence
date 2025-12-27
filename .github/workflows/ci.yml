@@ -76,7 +76,7 @@ jobs:
         # Make with -fsanitize
         cmake --build build
         git submodule update --init --recursive
-        cd python/chakram
+        cd python/augur
         poetry install
         make install
         cd ../../
@@ -139,7 +139,7 @@ jobs:
         cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=ON
         cmake --build build
         git submodule update --init --recursive
-        cd python/chakram
+        cd python/augur
         poetry install
         make install
         cd ../../

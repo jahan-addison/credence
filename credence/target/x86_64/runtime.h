@@ -13,129 +13,93 @@
 
 #pragma once
 
-#include "assembly.h"          // for Instructions, Storage
-#include "credence/ir/table.h" // for Table
-#include "credence/types.h"    // for Label
-#include "memory.h"            // for Address_Accessor
-#include "stack.h"             // for Stack
-#include <array>               // for array
-#include <credence/error.h>    // for compile_error_impl
-#include <credence/util.h>     // for AST_Node
-#include <cstddef>             // for size_t
-#include <deque>               // for deque
-#include <map>                 // for map
-#include <source_location>     // for source_location
-#include <string>              // for string
-#include <string_view>         // for basic_string_view, string_view
-#include <vector>              // for vector
+#include "assembly.h"                           // for Register, Instructions
+#include "memory.h"                             // for Memory_Access, Stack...
+#include "stack.h"                              // for Stack
+#include <credence/ir/object.h>                 // for Object_PTR
+#include <credence/target/common/runtime.h>     // for address_t, library_a...
+#include <credence/target/common/stack_frame.h> // for Locals
+#include <cstddef>                              // for size_t
+#include <fmt/format.h>                         // for format
+#include <string>                               // for basic_string
+#include <string_view>                          // for string_view
+#include <utility>                              // for pair
 
 namespace credence::target::x86_64::runtime {
 
 using Instructions = x86_64::assembly::Instructions;
 
-using library_t = std::array<std::size_t, 1>;
-using Address = x86_64::assembly::Storage;
-using library_list_t = std::map<std::string_view, library_t>;
-using library_arguments_t = std::deque<Address>;
+using library_t = common::runtime::library_t;
+using address_t = common::runtime::address_t<assembly::Register>;
+using library_list_t = common::runtime::library_list_t;
+using library_register_t = memory::registers::general_purpose;
+using library_arguments_t =
+    common::runtime::library_arguments_t<assembly::Register>;
 
-std::vector<std::string> get_library_symbols();
+using X8664_Library_Call_Inserter =
+    common::runtime::Library_Call_Inserter<assembly::Register,
+        assembly::Stack,
+        assembly::Instructions>;
 
-/**
- * @brief
- *
- *  The Standard library
- *
- *  The object file may be found in <root>/stdlib/<platform>/<os>/stdlib.o
- *
- * ------------------------------------------------------------------------
- *
- * printf(9):
- *
- *  A `printf' routine that takes a format string and up to 8 variadic arguments
- *  %rdi is the format string
- *  Float and double arguments are in xmm0-xmm7
- *   Formatting:
- *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
- *   Warning:
- *      Double and float specifiers "work" but not perfectly
- *
- * print(1):
- *
- *  A `print' routine that is type safe for buffer addresses and strings
- *
- *  The length of the buffer is resolved at compiletime
- *
- * putchar(1):
- *
- *  A `putchar' routine that writes to stdout for single byte characters
- *
- * getchar(1):
- *
- *  A `getchar' routine that reads from stdin for single byte characters
+std::pair<library_register_t, library_register_t>
+get_argument_general_purpose_registers();
 
- *
- * ------------------------------------------------------------------------
- */
+struct Library_Call_Inserter : public X8664_Library_Call_Inserter
+{
+    explicit Library_Call_Inserter(memory::Memory_Access& accessor,
+        memory::Stack_Frame& stack_frame)
+        : accessor_(accessor)
+        , stack_frame_(stack_frame)
+    {
+        dword_registers_ = { assembly::Register::r9d,
+            assembly::Register::r8d,
+            assembly::Register::ecx,
+            assembly::Register::edx,
+            assembly::Register::esi,
+            assembly::Register::edi };
+        qword_registers_ = { assembly::Register::r9,
+            assembly::Register::r8,
+            assembly::Register::rcx,
+            assembly::Register::rdx,
+            assembly::Register::rsi,
+            assembly::Register::rdi };
 
-const auto variadic_library_list = { "printf" };
+        xmm_registers_ = { assembly::Register::xmm7,
+            assembly::Register::xmm6,
+            assembly::Register::xmm5,
+            assembly::Register::xmm4,
+            assembly::Register::xmm3,
+            assembly::Register::xmm2,
+            assembly::Register::xmm1,
+            assembly::Register::xmm0 };
+    }
 
-const library_list_t library_list = {
-    { "printf",  { 10 } },
-    { "print",   { 2 }  },
-    { "putchar", { 1 }  },
-    { "getchar", { 0 }  }
+    assembly::Register get_available_standard_library_register(
+        std::deque<assembly::Register>& available_registers,
+        common::memory::Locals& argument_stack,
+        std::size_t index) override;
+
+    void make_library_call(Instructions& instructions,
+        std::string_view syscall_function,
+        common::memory::Locals& locals,
+        library_arguments_t const& arguments) override;
+
+    bool is_address_device_pointer_to_buffer(address_t& address,
+        ir::object::Object_PTR& table,
+        std::shared_ptr<assembly::Stack>& stack) override;
+
+    void insert_argument_instructions_standard_library_function(
+        Register storage,
+        Instructions& instructions,
+        std::string_view arg_type,
+        address_t const& argument);
+
+  private:
+    memory::Memory_Access accessor_;
+    memory::Stack_Frame stack_frame_;
+    library_register_t dword_registers_;
+    library_register_t qword_registers_;
+    library_register_t xmm_registers_;
 };
 
-bool is_syscall_function(type::semantic::Label const& label);
-bool is_library_function(type::semantic::Label const& label);
-bool is_stdlib_function(type::semantic::Label const& label);
-
-/**
- * @brief Check if a label is available as a variadic library function
- */
-constexpr bool is_variadic_library_function(std::string_view const& label)
-{
-    return util::range_contains(label, variadic_library_list);
-}
-
-inline void throw_runtime_error(std::string_view message,
-    std::string_view symbol,
-    std::source_location const& location = std::source_location::current(),
-    std::string_view type_ = "symbol",
-    std::string_view scope = "main",
-    util::AST_Node const& symbols = util::AST::object())
-{
-    credence::detail::compile_error_impl(location,
-        fmt::format("{} in function '{}' runtime-error", message, scope),
-        symbol,
-        symbols,
-        type_);
-}
-
-namespace detail {
-
-void add_stdlib_function_to_table_symbols(std::string const& stdlib_function,
-    util::AST_Node& symbols);
-
-void add_syscall_functions_to_symbols(util::AST_Node& symbols);
-
-} // namespace detail
-
-std::pair<bool, bool> argc_argv_kernel_runtime_access(
-    memory::Stack_Frame& stack_frame);
-
-bool is_address_device_pointer_to_buffer(Address& address,
-    ir::object::Object_PTR& table,
-    std::shared_ptr<assembly::Stack>& stack);
-
-void make_library_call(Instructions& instructions,
-    std::string_view libary_function,
-    library_arguments_t const& arguments,
-    memory::Stack_Frame::IR_Stack& argument_stack,
-    memory::Stack_Frame& stack_frame,
-    memory::Memory_Access& accessor);
-
-void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
-    bool with_syscalls = true);
-
-} // namespace library
+} // namespace credence::target::x86_64::runtime

@@ -1,0 +1,220 @@
+[
+  {
+    "k": {
+      "column": 16,
+      "end_column": 17,
+      "end_pos": 25,
+      "line": 2,
+      "start_pos": 24,
+      "type": "lvalue"
+    },
+    "main": {
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
+      "line": 1,
+      "start_pos": 0,
+      "type": "function_definition"
+    },
+    "print": {
+      "column": 3,
+      "end_column": 8,
+      "end_pos": 89,
+      "line": 7,
+      "start_pos": 84,
+      "type": "lvalue"
+    },
+    "strings": {
+      "column": 1,
+      "end_column": 8,
+      "end_pos": 105,
+      "line": 11,
+      "size": 3,
+      "start_pos": 98,
+      "type": "vector_definition"
+    },
+    "x": {
+      "column": 9,
+      "end_column": 10,
+      "end_pos": 18,
+      "line": 2,
+      "start_pos": 17,
+      "type": "indirect_lvalue"
+    },
+    "z": {
+      "column": 13,
+      "end_column": 14,
+      "end_pos": 22,
+      "line": 2,
+      "start_pos": 21,
+      "type": "indirect_lvalue"
+    }
+  },
+  {
+    "left": [
+      {
+        "left": [
+          null
+        ],
+        "node": "function_definition",
+        "right": {
+          "left": [
+            {
+              "left": [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "x"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
+                },
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "z"
+                  },
+                  "node": "indirect_lvalue",
+                  "root": [
+                    "*"
+                  ]
+                },
+                {
+                  "node": "lvalue",
+                  "root": "k"
+                }
+              ],
+              "node": "statement",
+              "root": "auto"
+            },
+            {
+              "left": [
+                {
+                  "node": "lvalue",
+                  "root": "strings"
+                }
+              ],
+              "node": "statement",
+              "root": "extrn"
+            },
+            {
+              "left": [
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "integer_literal",
+                      "root": 5
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "k"
+                      },
+                      "node": "address_of_expression",
+                      "root": [
+                        "&"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "z"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "left": {
+                        "left": {
+                          "node": "integer_literal",
+                          "root": 1
+                        },
+                        "node": "vector_lvalue",
+                        "root": "strings"
+                      },
+                      "node": "address_of_expression",
+                      "root": [
+                        "&"
+                      ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "print"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "node": "lvalue",
+                        "root": "z"
+                      }
+                    ],
+                    "root": "print"
+                  }
+                ]
+              ],
+              "node": "statement",
+              "root": "rvalue"
+            }
+          ],
+          "node": "statement",
+          "root": "block"
+        },
+        "root": "main"
+      },
+      {
+        "left": {
+          "node": "integer_literal",
+          "root": 3
+        },
+        "node": "vector_definition",
+        "right": [
+          {
+            "node": "string_literal",
+            "root": "\"one\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"two\""
+          },
+          {
+            "node": "string_literal",
+            "root": "\"three\""
+          }
+        ],
+        "root": "strings"
+      }
+    ],
+    "node": "program",
+    "root": "definitions"
+  }
+]

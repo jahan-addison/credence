@@ -13,21 +13,26 @@
 
 #pragma once
 
-#include <algorithm>        // for all_of
+#include <algorithm>        // for all_of, find, any_of
 #include <cctype>           // for isdigit, toupper
-#include <charconv>         // for from_char
-#include <concepts>         // for integral, floating_point
-#include <cstddef>          // for size_t
-#include <cstdint>          // for uint_least32_t, uint32_t
+#include <charconv>         // for from_chars, from_chars_result
+#include <concepts>         // for floating_point, integral
+#include <cstddef>          // for size_t, ptrdiff_t
+#include <cstdint>          // for uint32_t, uint_least32_t
 #include <filesystem>       // for filesystem
 #include <fstream>          // for ostringstream
-#include <initializer_list> // for initializer_list
-#include <optional>         // for optional
-#include <source_location>  // for source_location
+#include <initializer_list> // for begin, end
+#include <iterator>         // for distance
+#include <optional>         // for optional, nullopt, nullopt_t
+#include <ranges>           // for end, begin
 #include <string>           // for basic_string, string, to_string
 #include <string_view>      // for basic_string_view, string_view
+#include <system_error>     // for errc
 #include <tuple>            // for apply, tuple
 #include <type_traits>      // for is_same_v, is_convertible_v
+namespace easyjson {
+class JSON;
+} // lines 41-41
 
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
@@ -320,6 +325,14 @@ std::string read_file_from_path(std::string_view path);
 //////////
 // Other
 //////////
+
+template<typename T, typename C>
+constexpr bool is_one_of(const T& value, const C& container)
+{
+    return std::any_of(std::begin(container),
+        std::end(container),
+        [&](auto const& item) { return item == value; });
+}
 
 template<typename Range, typename Value>
 constexpr bool range_contains(Value const& needle, Range const& haystack)

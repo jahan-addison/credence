@@ -13,24 +13,52 @@
 
 #pragma once
 
-#include <algorithm>        // for __find, find
-#include <concepts>         // for integral
-#include <credence/types.h> // for integral_from_type, Type, Data_...
-#include <credence/util.h>  // for contains, is_variant
-#include <cstddef>          // for size_t
-#include <deque>            // for deque
-#include <fmt/format.h>     // for format
-#include <initializer_list> // for initializer_list
-#include <map>              // for map
-#include <matchit.h>        // for pattern, PatternHelper, Pattern...
-#include <ostream>          // for basic_ostream, operator<<
-#include <sstream>          // for basic_ostringstream, ostream
-#include <string>           // for basic_string, char_traits, string
-#include <string_view>      // for basic_string_view, string_view
-#include <tuple>            // for tuple
-#include <type_traits>      // for underlying_type_t
-#include <utility>          // for pair
-#include <variant>          // for variant, monostate
+#include <credence/ir/object.h>              // for Label
+#include <credence/target/common/assembly.h> // for COMMON_REGISTER_OSTREAM
+#include <credence/target/common/types.h>    // for Label, Binary_Operands_T
+#include <credence/types.h>                  // for RValue, Type, get_type_...
+#include <credence/util.h>                   // for contains, STRINGIFY
+#include <cstddef>                           // for size_t
+#include <deque>                             // for deque
+#include <fmt/format.h>                      // for format
+#include <initializer_list>                  // for initializer_list
+#include <map>                               // for map
+#include <matchit.h>                         // for pattern, Or, PatternHelper
+#include <ostream>                           // for basic_ostream, operator<<
+#include <sstream>                           // for ostream
+#include <string>                            // for basic_string, char_traits
+#include <string_view>                       // for basic_string_view, oper...
+#include <tuple>                             // for get
+#include <type_traits>                       // for underlying_type_t
+#include <utility>                           // for pair
+#include <variant>                           // for variant, monostate, get
+namespace credence {
+namespace target {
+namespace x86_64 {
+namespace assembly {
+enum class Directive;
+}
+}
+}
+}
+namespace credence {
+namespace target {
+namespace x86_64 {
+namespace assembly {
+enum class Mnemonic;
+}
+}
+}
+}
+namespace credence {
+namespace target {
+namespace x86_64 {
+namespace assembly {
+enum class Register;
+}
+}
+}
+}
 
 /**
  * @brief
@@ -39,37 +67,38 @@
  *
  */
 
-#define mn(n) x86_64::assembly::Mnemonic::n
-#define rr(n) x86_64::assembly::Register::n
-#define dd(n) x86_64::assembly::Directive::n
+#define x64_mn(n) x86_64::assembly::Mnemonic::n
+#define x64_rr(n) x86_64::assembly::Register::n
+#define x64_dd(n) x86_64::assembly::Directive::n
 
-#define DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    x86_64::assembly::Instruction_Pair name(                \
-        x86_64::assembly::Storage const& dest,              \
+#define X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
+    x86_64::assembly::Instruction_Pair name(                    \
+        x86_64::assembly::Storage const& dest,                  \
         x86_64::assembly::Storage const& src)
-#define DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                           \
+#define X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                       \
     x86_64::assembly::Instructions name(x86_64::assembly::Storage const& dest, \
         x86_64::assembly::Storage const& src,                                  \
-        x86_64::assembly::Label const& to,                                     \
+        target::common::Label const& to,                                       \
         x86_64::assembly::Register const& with)
-#define DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    x86_64::assembly::Instruction_Pair name(                \
-        x86_64::assembly::Storage const& dest,              \
-        x86_64::assembly::Storage const& s1,                \
+#define X64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
+    x86_64::assembly::Instruction_Pair name(                    \
+        x86_64::assembly::Storage const& dest,                  \
+        x86_64::assembly::Storage const& s1,                    \
         x86_64::assembly::Storage const& s2)
-#define DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    x86_64::assembly::Instruction_Pair name(                \
+#define X64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
+    x86_64::assembly::Instruction_Pair name(                    \
         x86_64::assembly::Storage const& src)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name) \
-    x86_64::assembly::Directive_Pair name(                     \
+#define X64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name) \
+    x86_64::assembly::Directive_Pair name(                         \
         std::size_t* index, type::semantic::RValue const& rvalue)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(name, type) \
-    x86_64::assembly::Directive_Pair name(                                   \
+#define X64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE( \
+    name, type)                                                       \
+    x86_64::assembly::Directive_Pair name(                            \
         std::size_t* index, type const& rvalue)
 
-#define DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name) \
+#define X64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(name) \
     x86_64::assembly::Directives name(type::semantic::RValue const& rvalue)
 
 /**
@@ -78,23 +107,23 @@
  *  Instrction insertion helpers
  *
  */
-#define add_asm__(inst, op, lhs, rhs) \
+#define x64_add_asm__(inst, op, lhs, rhs) \
     inst.emplace_back(x86_64::assembly::Instruction{ op, lhs, rhs })
 
 // Add an instruction with a mnemonic shorthand
-#define add_asm__as(inst, op, lhs, rhs)              \
+#define x64_add_asm__as(inst, op, lhs, rhs)          \
     inst.emplace_back(x86_64::assembly::Instruction{ \
         x86_64::assembly::Mnemonic::op, lhs, rhs })
 
 // Add an instruction with a mnemonic and destination shorthand
-#define asm__dest_rs(inst, op, lhs, rhs)                               \
+#define x64_asm__dest_rs(inst, op, lhs, rhs)                           \
     inst.emplace_back(                                                 \
         x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
             x86_64::assembly::Register::lhs,                           \
             rhs })
 
 // Add an instruction with a mnemonic and source operand shorthand
-#define asm__src_rs(inst, op, lhs, rhs)                                \
+#define x64_asm__src_rs(inst, op, lhs, rhs)                            \
     inst.emplace_back(                                                 \
         x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
             lhs,                                                       \
@@ -102,35 +131,47 @@
 
 // Add an instruction with a mnemonic, destination, and source operand
 // shorthand
-#define asm__short(inst, op, lhs, rhs)                                 \
+#define x64_asm__short(inst, op, lhs, rhs)                             \
     inst.emplace_back(                                                 \
         x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
             x86_64::assembly::Register::lhs,                           \
             x86_64::assembly::Register::rhs })
 
 // Add an instruction with a mnemonic shorthand, no operands (.e.g 'ret')
-#define asm__zero_o(inst, op)                                          \
-    inst.emplace_back(                                                 \
-        x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
-            x86_64::assembly::O_NUL,                                   \
-            x86_64::assembly::O_NUL })
+#define x64_asm__zero_o(inst, op)                      \
+    COMMON_ASM_ZERO_O_2(x86_64::assembly::Instruction, \
+        x86_64::assembly::Mnemonic,                    \
+        x86_64::assembly::O_NUL,                       \
+        inst,                                          \
+        op)
 
 // Add an instruction with a mnemonic with no operand (e.g. idiv)
-#define asm__dest(inst, op, dest)                    \
-    inst.emplace_back(x86_64::assembly::Instruction{ \
-        Mnemonic::op, dest, x86_64::assembly::O_NUL })
+#define x64_asm__dest(inst, op, dest)                \
+    COMMON_ASM_DEST_2(x86_64::assembly::Instruction, \
+        x86_64::assembly::Mnemonic,                  \
+        x86_64::assembly::O_NUL,                     \
+        inst,                                        \
+        op,                                          \
+        dest)
 
 // Add an instruction with a mnemonic with 1 operand and shorthand
-#define asm__dest_s(inst, op, dest)                                    \
-    inst.emplace_back(                                                 \
-        x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
-            x86_64::assembly::Register::dest,                          \
-            x86_64::assembly::O_NUL })
+#define x64_asm__dest_s(inst, op, dest)             \
+    COMMON_ASM_DEST_S_2(x86_64::assembly::Register, \
+        x86_64::assembly::Instruction,              \
+        x86_64::assembly::Mnemonic,                 \
+        x86_64::assembly::O_NUL,                    \
+        inst,                                       \
+        op,                                         \
+        dest)
 
 // Add an instruction with a mnemonic with 1 operand (e.g. idiv)
-#define asm__src(inst, op, dest)                     \
-    inst.emplace_back(x86_64::assembly::Instruction{ \
-        x86_64::assembly::Mnemonic::op, dest, x86_64::assembly::O_NUL })
+#define x64_asm__src(inst, op, dest)                \
+    COMMON_ASM_SRC_2(x86_64::assembly::Instruction, \
+        x86_64::assembly::Mnemonic,                 \
+        x86_64::assembly::O_NUL,                    \
+        inst,                                       \
+        op,                                         \
+        dest)
 
 /**
  * @brief
@@ -139,33 +180,7 @@
  *
  */
 
-#define make_integral_relational_entry(T, op)         \
-    m::pattern | std::string{ STRINGIFY(T) } = [&] {  \
-        result = type::integral_from_type<T>(lhs_imm) \
-            op type::integral_from_type<T>(rhs_imm);  \
-    }
-
-#define make_string_relational_entry(op)                                      \
-    m::pattern | std::string{ "string" } = [&] {                              \
-        result =                                                              \
-            std::string_view{ lhs_imm }.compare(std::string_view{ rhs_imm }); \
-    }
-
-#define make_char_relational_entry(op)                                    \
-    m::pattern | std::string{ "char" } = [&] {                            \
-        result = static_cast<int>(static_cast<unsigned char>(lhs_imm[1])) \
-            op static_cast<int>(static_cast<unsigned char>(rhs_imm[1]));  \
-    }
-
-#define make_trivial_immediate_binary_result(op)                    \
-    m::pattern | std::string{ STRINGIFY(op) } = [&] {               \
-        m::match(lhs_type)(make_integral_relational_entry(int, op), \
-            make_integral_relational_entry(long, op),               \
-            make_integral_relational_entry(float, op),              \
-            make_integral_relational_entry(double, op),             \
-            make_string_relational_entry(op),                       \
-            make_char_relational_entry(op));                        \
-    }
+// Immediate relational macros moved to common header
 
 /**
  * @brief
@@ -174,35 +189,17 @@
  *
  */
 
-#define REGISTER_OSTREAM(reg) \
-    case rr(reg):             \
-        os << STRINGIFY(reg); \
-        break
+#define X64_REGISTER_OSTREAM(reg) COMMON_REGISTER_OSTREAM(x64_rr, reg)
 
-#define REGISTER_STRING(reg)   \
-    case rr(reg):              \
-        return STRINGIFY(reg); \
-        break
+#define X64_REGISTER_STRING(reg) COMMON_REGISTER_STRING(x64_rr, reg)
 
-#define DIRECTIVE_OSTREAM(d)         \
-    case dd(d): {                    \
-        auto di = sv(STRINGIFY(d));  \
-        if (util::contains(di, "_")) \
-            di.remove_suffix(1);     \
-        os << "." << di;             \
-    }; break
+#define X64_DIRECTIVE_OSTREAM(d) COMMON_DIRECTIVE_OSTREAM(x64_dd, d)
 
-#define DIRECTIVE_OSTREAM_2ARY(d, g)                                       \
-    case dd(d): {                                                          \
-        auto di =                                                          \
-            sv(STRINGIFY(d)) == sv("start") ? "global" : sv(STRINGIFY(d)); \
-        if (util::contains(di, "_"))                                       \
-            di.remove_suffix(1);                                           \
-        os << fmt::format(".{} {}", di, STRINGIFY(g));                     \
-    }; break
+#define X64_DIRECTIVE_OSTREAM_2ARY(d, g) \
+    COMMON_DIRECTIVE_OSTREAM_2ARY(x64_dd, d, g)
 
-#define MNEMONIC_OSTREAM(mnem)                               \
-    case mn(mnem): {                                         \
+#define X64_MNEMONIC_OSTREAM(mnem)                           \
+    case x64_mn(mnem): {                                     \
         auto mnem_str = std::string_view{ STRINGIFY(mnem) }; \
         if (mnem_str == "goto_") {                           \
             os << "jmp";                                     \
@@ -396,61 +393,6 @@ enum class Directive
 
 /**
  * @brief
- *  Template function to compute type-safe trivial arithmetic binary
- * expression
- */
-
-template<util::Numeric T>
-T trivial_arithmetic_from_numeric_table_type(std::string const& lhs,
-    std::string const& op,
-    std::string const& rhs)
-{
-    T result{ 0 };
-    T imm_l = type::integral_from_type<T>(lhs);
-    T imm_r = type::integral_from_type<T>(rhs);
-    switch (op[0]) {
-        case '+':
-            return imm_l + imm_r;
-        case '-':
-            return imm_l - imm_r;
-        case '*':
-            return imm_l * imm_r;
-        case '/':
-            return imm_l / imm_r;
-    }
-    return result;
-}
-
-/**
- * @brief
- *  Template function to compute type-safe trivial bitwise binary
- * expression
- */
-template<util::Numeric T>
-T trivial_bitwise_from_numeric_table_type(std::string const& lhs,
-    std::string const& op,
-    std::string const& rhs)
-{
-    T imm_l = type::integral_from_type<T>(lhs);
-    T imm_r = type::integral_from_type<T>(rhs);
-    if (op == ">>")
-        return imm_l >> imm_r;
-    else if (op == "<<")
-        return imm_l << imm_r;
-    else
-        switch (op[0]) {
-            case '^':
-                return imm_l ^ imm_r;
-            case '&':
-                return imm_l & imm_r;
-            case '|':
-                return imm_l | imm_r;
-        }
-    return 0;
-}
-
-/**
- * @brief
  *
  * Word and operand size implementation helpers
  *
@@ -536,18 +478,18 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
     switch (d) {
         // the special ".global _start" directive
-        DIRECTIVE_OSTREAM_2ARY(start, _start);
+        X64_DIRECTIVE_OSTREAM_2ARY(start, _start);
 
-        DIRECTIVE_OSTREAM(asciz);
-        DIRECTIVE_OSTREAM(global);
-        DIRECTIVE_OSTREAM(data);
-        DIRECTIVE_OSTREAM(text);
-        DIRECTIVE_OSTREAM(quad);
-        DIRECTIVE_OSTREAM(long_);
-        DIRECTIVE_OSTREAM(float_);
-        DIRECTIVE_OSTREAM(double_);
-        DIRECTIVE_OSTREAM(byte_);
-        DIRECTIVE_OSTREAM(extern_);
+        X64_DIRECTIVE_OSTREAM(asciz);
+        X64_DIRECTIVE_OSTREAM(global);
+        X64_DIRECTIVE_OSTREAM(data);
+        X64_DIRECTIVE_OSTREAM(text);
+        X64_DIRECTIVE_OSTREAM(quad);
+        X64_DIRECTIVE_OSTREAM(long_);
+        X64_DIRECTIVE_OSTREAM(float_);
+        X64_DIRECTIVE_OSTREAM(double_);
+        X64_DIRECTIVE_OSTREAM(byte_);
+        X64_DIRECTIVE_OSTREAM(extern_);
     }
     return os;
 }
@@ -558,50 +500,50 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 constexpr std::ostream& operator<<(std::ostream& os, Register reg)
 {
     switch (reg) {
-        REGISTER_OSTREAM(rbp);
-        REGISTER_OSTREAM(rsp);
-        REGISTER_OSTREAM(rax);
-        REGISTER_OSTREAM(rbx);
-        REGISTER_OSTREAM(rcx);
-        REGISTER_OSTREAM(rdx);
-        REGISTER_OSTREAM(rsi);
-        REGISTER_OSTREAM(rdi);
-        REGISTER_OSTREAM(r8);
-        REGISTER_OSTREAM(r9);
-        REGISTER_OSTREAM(r10);
-        REGISTER_OSTREAM(r11);
-        REGISTER_OSTREAM(r12);
-        REGISTER_OSTREAM(r13);
-        REGISTER_OSTREAM(r14);
-        REGISTER_OSTREAM(r15);
-        REGISTER_OSTREAM(ebp);
-        REGISTER_OSTREAM(esp);
-        REGISTER_OSTREAM(eax);
-        REGISTER_OSTREAM(ebx);
-        REGISTER_OSTREAM(edx);
-        REGISTER_OSTREAM(ecx);
-        REGISTER_OSTREAM(esi);
-        REGISTER_OSTREAM(edi);
-        REGISTER_OSTREAM(r8d);
-        REGISTER_OSTREAM(r9d);
-        REGISTER_OSTREAM(r10d);
-        REGISTER_OSTREAM(r11d);
-        REGISTER_OSTREAM(r12d);
-        REGISTER_OSTREAM(r13d);
-        REGISTER_OSTREAM(r14d);
-        REGISTER_OSTREAM(r15d);
-        REGISTER_OSTREAM(di);
-        REGISTER_OSTREAM(dil);
-        REGISTER_OSTREAM(al);
-        REGISTER_OSTREAM(ax);
-        REGISTER_OSTREAM(xmm7);
-        REGISTER_OSTREAM(xmm6);
-        REGISTER_OSTREAM(xmm5);
-        REGISTER_OSTREAM(xmm4);
-        REGISTER_OSTREAM(xmm3);
-        REGISTER_OSTREAM(xmm2);
-        REGISTER_OSTREAM(xmm1);
-        REGISTER_OSTREAM(xmm0);
+        X64_REGISTER_OSTREAM(rbp);
+        X64_REGISTER_OSTREAM(rsp);
+        X64_REGISTER_OSTREAM(rax);
+        X64_REGISTER_OSTREAM(rbx);
+        X64_REGISTER_OSTREAM(rcx);
+        X64_REGISTER_OSTREAM(rdx);
+        X64_REGISTER_OSTREAM(rsi);
+        X64_REGISTER_OSTREAM(rdi);
+        X64_REGISTER_OSTREAM(r8);
+        X64_REGISTER_OSTREAM(r9);
+        X64_REGISTER_OSTREAM(r10);
+        X64_REGISTER_OSTREAM(r11);
+        X64_REGISTER_OSTREAM(r12);
+        X64_REGISTER_OSTREAM(r13);
+        X64_REGISTER_OSTREAM(r14);
+        X64_REGISTER_OSTREAM(r15);
+        X64_REGISTER_OSTREAM(ebp);
+        X64_REGISTER_OSTREAM(esp);
+        X64_REGISTER_OSTREAM(eax);
+        X64_REGISTER_OSTREAM(ebx);
+        X64_REGISTER_OSTREAM(edx);
+        X64_REGISTER_OSTREAM(ecx);
+        X64_REGISTER_OSTREAM(esi);
+        X64_REGISTER_OSTREAM(edi);
+        X64_REGISTER_OSTREAM(r8d);
+        X64_REGISTER_OSTREAM(r9d);
+        X64_REGISTER_OSTREAM(r10d);
+        X64_REGISTER_OSTREAM(r11d);
+        X64_REGISTER_OSTREAM(r12d);
+        X64_REGISTER_OSTREAM(r13d);
+        X64_REGISTER_OSTREAM(r14d);
+        X64_REGISTER_OSTREAM(r15d);
+        X64_REGISTER_OSTREAM(di);
+        X64_REGISTER_OSTREAM(dil);
+        X64_REGISTER_OSTREAM(al);
+        X64_REGISTER_OSTREAM(ax);
+        X64_REGISTER_OSTREAM(xmm7);
+        X64_REGISTER_OSTREAM(xmm6);
+        X64_REGISTER_OSTREAM(xmm5);
+        X64_REGISTER_OSTREAM(xmm4);
+        X64_REGISTER_OSTREAM(xmm3);
+        X64_REGISTER_OSTREAM(xmm2);
+        X64_REGISTER_OSTREAM(xmm1);
+        X64_REGISTER_OSTREAM(xmm0);
     }
     return os;
 }
@@ -612,50 +554,50 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
 constexpr std::string register_as_string(Register reg)
 {
     switch (reg) {
-        REGISTER_STRING(rbp);
-        REGISTER_STRING(rsp);
-        REGISTER_STRING(rax);
-        REGISTER_STRING(rbx);
-        REGISTER_STRING(rcx);
-        REGISTER_STRING(rdx);
-        REGISTER_STRING(rsi);
-        REGISTER_STRING(rdi);
-        REGISTER_STRING(r8);
-        REGISTER_STRING(r9);
-        REGISTER_STRING(r10);
-        REGISTER_STRING(r11);
-        REGISTER_STRING(r12);
-        REGISTER_STRING(r13);
-        REGISTER_STRING(r14);
-        REGISTER_STRING(r15);
-        REGISTER_STRING(ebp);
-        REGISTER_STRING(esp);
-        REGISTER_STRING(eax);
-        REGISTER_STRING(ebx);
-        REGISTER_STRING(edx);
-        REGISTER_STRING(ecx);
-        REGISTER_STRING(esi);
-        REGISTER_STRING(edi);
-        REGISTER_STRING(r8d);
-        REGISTER_STRING(r9d);
-        REGISTER_STRING(r10d);
-        REGISTER_STRING(r11d);
-        REGISTER_STRING(r12d);
-        REGISTER_STRING(r13d);
-        REGISTER_STRING(r14d);
-        REGISTER_STRING(r15d);
-        REGISTER_STRING(di);
-        REGISTER_STRING(dil);
-        REGISTER_STRING(al);
-        REGISTER_STRING(ax);
-        REGISTER_STRING(xmm7);
-        REGISTER_STRING(xmm6);
-        REGISTER_STRING(xmm5);
-        REGISTER_STRING(xmm4);
-        REGISTER_STRING(xmm3);
-        REGISTER_STRING(xmm2);
-        REGISTER_STRING(xmm1);
-        REGISTER_STRING(xmm0);
+        X64_REGISTER_STRING(rbp);
+        X64_REGISTER_STRING(rsp);
+        X64_REGISTER_STRING(rax);
+        X64_REGISTER_STRING(rbx);
+        X64_REGISTER_STRING(rcx);
+        X64_REGISTER_STRING(rdx);
+        X64_REGISTER_STRING(rsi);
+        X64_REGISTER_STRING(rdi);
+        X64_REGISTER_STRING(r8);
+        X64_REGISTER_STRING(r9);
+        X64_REGISTER_STRING(r10);
+        X64_REGISTER_STRING(r11);
+        X64_REGISTER_STRING(r12);
+        X64_REGISTER_STRING(r13);
+        X64_REGISTER_STRING(r14);
+        X64_REGISTER_STRING(r15);
+        X64_REGISTER_STRING(ebp);
+        X64_REGISTER_STRING(esp);
+        X64_REGISTER_STRING(eax);
+        X64_REGISTER_STRING(ebx);
+        X64_REGISTER_STRING(edx);
+        X64_REGISTER_STRING(ecx);
+        X64_REGISTER_STRING(esi);
+        X64_REGISTER_STRING(edi);
+        X64_REGISTER_STRING(r8d);
+        X64_REGISTER_STRING(r9d);
+        X64_REGISTER_STRING(r10d);
+        X64_REGISTER_STRING(r11d);
+        X64_REGISTER_STRING(r12d);
+        X64_REGISTER_STRING(r13d);
+        X64_REGISTER_STRING(r14d);
+        X64_REGISTER_STRING(r15d);
+        X64_REGISTER_STRING(di);
+        X64_REGISTER_STRING(dil);
+        X64_REGISTER_STRING(al);
+        X64_REGISTER_STRING(ax);
+        X64_REGISTER_STRING(xmm7);
+        X64_REGISTER_STRING(xmm6);
+        X64_REGISTER_STRING(xmm5);
+        X64_REGISTER_STRING(xmm4);
+        X64_REGISTER_STRING(xmm3);
+        X64_REGISTER_STRING(xmm2);
+        X64_REGISTER_STRING(xmm1);
+        X64_REGISTER_STRING(xmm0);
     }
     return "rax";
 }
@@ -667,49 +609,49 @@ constexpr std::string register_as_string(Register reg)
 constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 {
     switch (mnemonic) {
-        MNEMONIC_OSTREAM(imul);
-        MNEMONIC_OSTREAM(neg);
-        MNEMONIC_OSTREAM(lea);
-        MNEMONIC_OSTREAM(ret);
-        MNEMONIC_OSTREAM(sub);
-        MNEMONIC_OSTREAM(add);
-        MNEMONIC_OSTREAM(je);
-        MNEMONIC_OSTREAM(jne);
-        MNEMONIC_OSTREAM(jle);
-        MNEMONIC_OSTREAM(jl);
-        MNEMONIC_OSTREAM(jg);
-        MNEMONIC_OSTREAM(jge);
-        MNEMONIC_OSTREAM(idiv);
-        MNEMONIC_OSTREAM(inc);
-        MNEMONIC_OSTREAM(dec);
-        MNEMONIC_OSTREAM(cqo);
-        MNEMONIC_OSTREAM(cdq);
-        MNEMONIC_OSTREAM(leave);
-        MNEMONIC_OSTREAM(mov);
-        MNEMONIC_OSTREAM(movzx);
-        MNEMONIC_OSTREAM(movss);
-        MNEMONIC_OSTREAM(movups);
-        MNEMONIC_OSTREAM(movsd);
-        MNEMONIC_OSTREAM(movq_);
-        MNEMONIC_OSTREAM(mov_);
-        MNEMONIC_OSTREAM(push);
-        MNEMONIC_OSTREAM(pop);
-        MNEMONIC_OSTREAM(call);
-        MNEMONIC_OSTREAM(cmp);
-        MNEMONIC_OSTREAM(sete);
-        MNEMONIC_OSTREAM(goto_);
-        MNEMONIC_OSTREAM(setne);
-        MNEMONIC_OSTREAM(setl);
-        MNEMONIC_OSTREAM(setg);
-        MNEMONIC_OSTREAM(setle);
-        MNEMONIC_OSTREAM(setge);
-        MNEMONIC_OSTREAM(and_);
-        MNEMONIC_OSTREAM(not_);
-        MNEMONIC_OSTREAM(xor_);
-        MNEMONIC_OSTREAM(or_);
-        MNEMONIC_OSTREAM(shl);
-        MNEMONIC_OSTREAM(shr);
-        MNEMONIC_OSTREAM(syscall);
+        X64_MNEMONIC_OSTREAM(imul);
+        X64_MNEMONIC_OSTREAM(neg);
+        X64_MNEMONIC_OSTREAM(lea);
+        X64_MNEMONIC_OSTREAM(ret);
+        X64_MNEMONIC_OSTREAM(sub);
+        X64_MNEMONIC_OSTREAM(add);
+        X64_MNEMONIC_OSTREAM(je);
+        X64_MNEMONIC_OSTREAM(jne);
+        X64_MNEMONIC_OSTREAM(jle);
+        X64_MNEMONIC_OSTREAM(jl);
+        X64_MNEMONIC_OSTREAM(jg);
+        X64_MNEMONIC_OSTREAM(jge);
+        X64_MNEMONIC_OSTREAM(idiv);
+        X64_MNEMONIC_OSTREAM(inc);
+        X64_MNEMONIC_OSTREAM(dec);
+        X64_MNEMONIC_OSTREAM(cqo);
+        X64_MNEMONIC_OSTREAM(cdq);
+        X64_MNEMONIC_OSTREAM(leave);
+        X64_MNEMONIC_OSTREAM(mov);
+        X64_MNEMONIC_OSTREAM(movzx);
+        X64_MNEMONIC_OSTREAM(movss);
+        X64_MNEMONIC_OSTREAM(movups);
+        X64_MNEMONIC_OSTREAM(movsd);
+        X64_MNEMONIC_OSTREAM(movq_);
+        X64_MNEMONIC_OSTREAM(mov_);
+        X64_MNEMONIC_OSTREAM(push);
+        X64_MNEMONIC_OSTREAM(pop);
+        X64_MNEMONIC_OSTREAM(call);
+        X64_MNEMONIC_OSTREAM(cmp);
+        X64_MNEMONIC_OSTREAM(sete);
+        X64_MNEMONIC_OSTREAM(goto_);
+        X64_MNEMONIC_OSTREAM(setne);
+        X64_MNEMONIC_OSTREAM(setl);
+        X64_MNEMONIC_OSTREAM(setg);
+        X64_MNEMONIC_OSTREAM(setle);
+        X64_MNEMONIC_OSTREAM(setge);
+        X64_MNEMONIC_OSTREAM(and_);
+        X64_MNEMONIC_OSTREAM(not_);
+        X64_MNEMONIC_OSTREAM(xor_);
+        X64_MNEMONIC_OSTREAM(or_);
+        X64_MNEMONIC_OSTREAM(shl);
+        X64_MNEMONIC_OSTREAM(shr);
+        X64_MNEMONIC_OSTREAM(syscall);
     }
     return os;
 }
@@ -719,16 +661,15 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
  *
  */
 
-using Immediate = type::Data_Type;
-using Label = type::semantic::Label;
-using Stack_Offset = std::size_t;
-using Storage = std::variant<std::monostate, Stack_Offset, Register, Immediate>;
-using Instruction = std::tuple<Mnemonic, Storage, Storage>;
+using Storage = common::Storage_T<Register>;
+using Binary_Operands = common::Binary_Operands_T<Register>;
+using Instruction = common::Mnemonic_2ARY<Mnemonic, Register>;
 using Literal_Type = std::variant<type::semantic::RValue, float, double>;
 using Data_Pair = std::pair<Directive, Literal_Type>;
 using Directives = std::deque<std::variant<Label, Data_Pair>>;
-using Instructions = std::deque<std::variant<Label, Instruction>>;
-using Instruction_Pair = std::pair<Storage, Instructions>;
+using Instructions = std::deque<common::Instruction_2ARY<Mnemonic, Register>>;
+using Instruction_Pair = common::Instruction_Pair<Storage, Instructions>;
+using Immediate = common::Immediate;
 using Directive_Pair = std::pair<std::string, Directives>;
 
 // Empty storage device
@@ -832,23 +773,6 @@ inline void inserter(assembly::Directives& to, assembly::Directives const& from)
 }
 
 /**
- * @brief directive insertion helper for arrays
- */
-inline x86_64::assembly::Immediate make_array_immediate(
-    std::string_view address)
-{
-    return Immediate{ address, "string", 8UL };
-}
-
-/**
- * @brief directive insertion for arbitrary immediate devices
- */
-inline x86_64::assembly::Immediate make_direct_immediate(std::string_view str)
-{
-    return Immediate{ str, "string", 8UL };
-}
-
-/**
  * @brief asciz directive insertion helper
  */
 inline x86_64::assembly::Immediate make_asciz_immediate(
@@ -882,24 +806,6 @@ constexpr bool is_immediate_r15_address_offset(Storage const& immediate)
 }
 
 /**
- * @brief Type-safe numeric type::Data_Type immediate constructor
- */
-template<util::Numeric T>
-constexpr Immediate make_numeric_immediate(T imm,
-    std::string const& type = "int")
-{
-    return Immediate{ util::to_constexpr_string(imm), type, 4UL };
-}
-
-/**
- * @brief Type-safe numeric u32 type::Data_Type immediate constructor
- */
-constexpr Immediate make_u32_int_immediate(unsigned int imm)
-{
-    return Immediate{ util::to_constexpr_string(imm), "int", 4UL };
-}
-
-/**
  * @brief
  *
  * Easy macro expansion of instruction and directive definitions from
@@ -908,45 +814,45 @@ constexpr Immediate make_u32_int_immediate(unsigned int imm)
  */
 
 // directives
-DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(asciz,
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(asciz,
     type::semantic::RValue);
-DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(doublez,
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(doublez,
     type::semantic::RValue);
-DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(floatz,
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_LITERAL_TEMPLATE(floatz,
     type::semantic::RValue);
-DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(quad);
-DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(long_);
-DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(float_);
-DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(double_);
-DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(byte_);
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(quad);
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(long_);
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(float_);
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(double_);
+X64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(byte_);
 
 // arithmetic
-DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);
-DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(dec);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mul);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(div);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(sub);
-DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(neg);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(add);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mod);
+X64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);
+X64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(dec);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mul);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(div);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(sub);
+X64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(neg);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(add);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(mod);
 // r (relational)
-DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(u_not);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_eq);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_neq);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_lt);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_gt);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_le);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_ge);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_or);
-DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_and);
+X64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(u_not);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_eq);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_neq);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_lt);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_gt);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_le);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_ge);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_or);
+X64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_and);
 // b (bitwise)
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
-DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
+X64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 // pointers
-DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lea);
+X64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lea);
 
 } // namespace x86_64::detail

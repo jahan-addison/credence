@@ -13,28 +13,12 @@
 
 #pragma once
 
-#include <credence/ir/table.h> // for Table
-#include <credence/types.h>    // for LValue, RValue, Data_Type, ...
-#include <credence/util.h>     // for AST_Node
-#include <ostream>             // for ostream
-#include <utility>             // for move
-
-namespace credence::target {
-
-enum class Platform
-{
-    credence_x86_64_platform,
-    credence_arm64_platform,
-    credence_z80_platform
-};
-
-void add_stdlib_functions_to_symbols(util::AST_Node& symbols,
-    Platform platform);
+namespace credence::target::common {
 
 /**
- * @brief
- * The pure virtual methods construct a visitor of ir::ITA::Instructions
+ * @brief IR Visitor to translate to platform ISA
  */
+
 template<typename IR, typename Instructions>
 class IR_Visitor
 {
@@ -63,4 +47,4 @@ class IR_Visitor
     virtual void from_pop_ita() = 0;
 };
 
-} // namespace credence::target
+} // namespace credence::target::common

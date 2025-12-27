@@ -4,89 +4,65 @@
 
 <br>
 
-> This project is dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
+> Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
----
+ * Language grammar: [here](https://github.com/jahan-addison/augur/blob/master/augur/grammar.lark)
+ * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
-* B Language grammar - [here](https://github.com/jahan-addison/chakram/blob/master/chakram/grammar.lark)
-* Language reference - [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
-## [Blog Series](https://soliloq.uy/tag/credence/)
+
+## Overview
 
 The compiler works in 3 stages:
 
-* The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/chakram) in python that interfaces with C++ via `pybind11`
+* The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/augur) in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
+* The target platforms and ISAs - x86-64, ARM64 for Linux and BSD (Darwin)
 
-* The target platforms - x86_64, and ARM64 for Linux and BSD (Darwin)
+<span style="font-size:18px">
+Check out the <a href="https://soliloq.uy/tag/credence/">blog series</a>!
+<br>
+</span>
 
 ## Features
 
 These features are not in the original B language specification.
 
-* **Strongly typed** with type inference
-  * Vectors (arrays) may be non-homogeneous, but their types are determined at compile time from their initial values, similarly to tuples
-  * Uninitialized variables are set to an internal `null` type
-* Compile-time out-of-range boundary checks on vectors and pointer arithmetic
-* `GOTO` and labels are not supported, use control structures
-* Float and double literal types (e.g. `5.55f`)
-* Support for C++ style comments
-* Logical and bitwise operators behave more like C
-* Operator precedence resembles C
-* `argc` and `argv` behave like C
+* **Strongly typed by type inference**
+* Faithful to the original language, vectors may be non-homogeneous but their type is determined by their initial values and may not be changed
+* Uninitialized variables are set to an internal `null` type
+* Compiletime out-of-range boundary checks on vectors and pointer arithmetic
+* `goto` and labels are not supported, use control structures
+* C style `float` and `double` literal types (e.g. `5.55f`)
+* C style constant literals
+* C++ style comment support
+* `argc` and `argv` support
+* Logical and bitwise operators behave like C
+* Operator precedence behaves like C
 * VSCode extension provided in `ext/`
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
-* Constant literals must be exactly 1 byte
 
 Note: currently, windows is not supported.
+
+## Targets
+
+See documentation on code generation [here](credence/target/readme.md).
+
+Machine code generated for each ISA is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
+
+* #### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
+
+* #### ARM64 _(Linux, BSD (Darwin))_ : In Progress 🚂 (80%)
+
+
 
 ## Installation
 
 Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
 
-## Usage
+A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
 
-```
-Credence :: B Language Compiler
-Usage:
-  Credence [OPTION...] positional parameters
-
-  -a, --ast-loader arg   AST Loader [json, python] (default: python)
-  -t, --target arg       Target [ir, syntax, ast, arm64, x86_64] (default:
-                         ir)
-  -d, --debug            Dump symbol table
-  -o, --output arg       Output file (default: stdout)
-  -h, --help             Print usage
-      --source-code arg  B Source file
-```
-
-A complete assembler and linking tool is installed via the installation script.
-
----
-
-## Targets
-
-### x86-64:
-
-#### Linux, BSD (Darwin)
-
-### Done ✅
-
-[Implementation details here](/credence/target/x86_64/readme.md).
-
-#### Features
-
-  * Compliance with the Application Binary Interface (ABI) for System V
-  * SIMD memory alignment requirements
-
-### ARM64:
-
-#### Linux, BSD (Darwin)
-
-Soon. ™️
-
----
 
 ## Test Suite
 
@@ -106,17 +82,11 @@ cmake --build build --target coverage
 
 ## Standard Library
 
-#### [The Standard Library](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/runtime.h#L44)
+#### [The Standard Library](credence/target/common/runtime.h#43)
 
 * The standard library object file is pre-compiled in `stdlib/` for each platform. **None of the standard library depends on libc or libc++**.
 
-In addition, a function map for kernel syscall tables such as `write(3)` is available for each platform, with compile-time type safety.
-
-* **Linux** x86_64
-  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L58)
-* **BSD** (Darwin) x86_64
-  * See details [here](https://github.com/jahan-addison/credence/blob/master/credence/target/x86_64/syscall.h#L453)
-
+In addition, a function map for kernel syscall tables such as `write(3)` is available for each platform and ISA, see details [here](credence/target/common/syscall.h).
 
 ---
 
@@ -141,7 +111,7 @@ identity(*y) {
 
 strings [3] "Good afternoon", "Good morning", "Good evening";
 ```
-#### Result (x86-64, Linux):
+#### Result (x86-64, Darwin):
 
 <img src="docs/images/credence-example-2.png" width="700px" alt="example"> </img>
 
@@ -347,11 +317,27 @@ _L1:
 
 ```
 
+## Usage
+
+```
+Credence :: B Language Compiler
+Usage:
+  Credence [OPTION...] positional parameters
+
+  -a, --ast-loader arg   AST Loader [json, python] (default: python)
+  -t, --target arg       Target [ir, syntax, ast, arm64, x86_64] (default:
+                         ir)
+  -d, --debug            Dump symbol table
+  -o, --output arg       Output file (default: stdout)
+  -h, --help             Print usage
+      --source-code arg  B Source file
+```
+
 ## Dependencies
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `chakram` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/chakram)
+* `augur` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/augur)
 * `easyjson` - [Lightweight memory safe json library](https://github.com/jahan-addison/easyjson)
 * `cxxopts` - Lightweight commandline parser
 * `matchit` - Pattern matching
