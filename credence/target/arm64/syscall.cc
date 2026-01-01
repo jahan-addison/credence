@@ -74,21 +74,21 @@ void make_syscall(assembly::Instructions& instructions,
 #if defined(CREDENCE_TEST) || defined(__linux__)
     assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
-    arm_asm__dest_rs(instructions, mov, x8, syscall_number);
+    arm64_add__asm(instructions, mov, x8, syscall_number);
 #elif defined(__APPLE__) || defined(__bsdi__)
     // Load syscall number into x16 (Darwin uses x16 instead of x8)
     target::arm64::assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
-    arm_asm__dest_rs(instructions, mov, x16, syscall_number);
+    arm64_add__asm(instructions, mov, x16, syscall_number);
 #else
     credence_error("Operating system not supported");
 #endif
 
 #if defined(CREDENCE_TEST) || defined(__linux__)
-    arm_asm__dest(
+    arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0"));
 #elif defined(__APPLE__) || defined(__bsdi__)
-    arm_asm__dest(
+    arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0x80"));
 #endif
 }
@@ -105,7 +105,7 @@ bool set_signal_register_from_safe_address(Instructions& instructions,
         auto* address_of = accessor_->register_accessor.signal_register;
         if (storage == arm_rr(x1) and *address_of == Register::x9) {
             accessor_->set_signal_register(Register::w0);
-            arm_add_asm__as(instructions, mov, storage, arm_rr(x9));
+            arm64_add__asm(instructions, mov, storage, arm_rr(x9));
             return false;
         }
     }
@@ -131,10 +131,10 @@ void syscall_operands_to_instructions(assembly::Instructions instructions,
         d_registers.pop_back();
 
         if (is_immediate_pc_relative_address(arg))
-            arm_add_asm__as(instructions, adr, storage, arg);
+            arm64_add__asm(instructions, adr, storage, arg);
         else if (set_signal_register_from_safe_address(
                      instructions, storage, accessor))
-            arm_add_asm__as(instructions, mov, storage, arg);
+            arm64_add__asm(instructions, mov, storage, arg);
     }
 }
 

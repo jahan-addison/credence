@@ -19,37 +19,6 @@ namespace credence::target::x86_64::assembly {
 
 namespace m = matchit;
 
-/**
- * @brief Helper function for trivial 2-ary mnemonic instructions
- *
- *   Example:
- *
- *    add rax, rdi
- *    imul rax, [rbp - 4]
- */
-Instruction_Pair add_2ary_inst(Mnemonic mnemonic,
-    Storage const& dest,
-    Storage const& src)
-{
-    auto instructions = make_empty();
-    x64_add_asm__(instructions, mnemonic, dest, src);
-    return { dest, instructions };
-}
-
-/**
- * @brief Helper function for trivial 1-ary mnemonic instructions
- *
- *   Example:
- *
- *    idiv edi
- */
-Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
-{
-    auto instructions = make_empty();
-    x64_add_asm__(instructions, mnemonic, src, O_NUL);
-    return { src, instructions };
-}
-
 /*********************************/
 /* x86-64 directive constructors */
 /*********************************/
@@ -125,56 +94,52 @@ Directives byte_(type::semantic::RValue const& rvalue)
 /* x86-64 instruction constructors */
 /***********************************/
 
-// Instruction_Pair is the destination storage device, and std::deque of
-// instructions
-// ---
-
 Instruction_Pair mul(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(imul), dest, src);
+    x8664__make_and_ret(imul, dest, src);
 }
 
 Instruction_Pair div(Storage const& dest, Storage const& src)
 {
     auto inst = make_empty();
-    x64_asm__zero_o(inst, cdq);
-    x64_add_asm__as(inst, mov, dest, src);
-    x64_asm__dest(inst, idiv, dest);
+    x8664_add__asm(inst, cdq);
+    x8664_add__asm(inst, mov, dest, src);
+    x8664_add__asm(inst, idiv, dest);
     return { src, inst };
 }
 
 Instruction_Pair mod(Storage const& dest, Storage const& src)
 {
     auto inst = make_empty();
-    x64_asm__zero_o(inst, cdq);
-    x64_add_asm__as(inst, mov, dest, src);
-    x64_asm__dest(inst, idiv, dest);
+    x8664_add__asm(inst, cdq);
+    x8664_add__asm(inst, mov, dest, src);
+    x8664_add__asm(inst, idiv, dest);
     return { x64_rr(edx), inst };
 }
 
 Instruction_Pair sub(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(Mnemonic::sub, dest, src);
+    x8664__make_and_ret(sub, dest, src);
 }
 
 Instruction_Pair add(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(Mnemonic::add, dest, src);
+    x8664__make_and_ret(add, dest, src);
 }
 
 Instruction_Pair inc(Storage const& dest)
 {
-    return add_1ary_inst(x64_mn(inc), dest);
+    x8664__make_and_ret(inc, dest);
 }
 
 Instruction_Pair dec(Storage const& dest)
 {
-    return add_1ary_inst(x64_mn(dec), dest);
+    x8664__make_and_ret(dec, dest);
 }
 
 Instruction_Pair neg(Storage const& dest)
 {
-    return add_1ary_inst(x64_mn(neg), dest);
+    x8664__make_and_ret(neg, dest);
 }
 
 Instructions r_eq(Storage const& dest,
@@ -183,10 +148,9 @@ Instructions r_eq(Storage const& dest,
     x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    x64_add_asm__as(inst, mov, with, dest);
-    x64_add_asm__as(inst, cmp, with, src);
-    x64_add_asm__as(
-        inst, je, common::assembly::make_direct_immediate(to), O_NUL);
+    x8664_add__asm(inst, mov, with, dest);
+    x8664_add__asm(inst, cmp, with, src);
+    x8664_add__asm(inst, je, direct_immediate(to));
     return inst;
 }
 
@@ -196,10 +160,9 @@ Instructions r_neq(Storage const& dest,
     x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    x64_add_asm__as(inst, mov, with, dest);
-    x64_add_asm__as(inst, cmp, with, src);
-    x64_add_asm__as(
-        inst, jne, common::assembly::make_direct_immediate(to), O_NUL);
+    x8664_add__asm(inst, mov, with, dest);
+    x8664_add__asm(inst, cmp, with, src);
+    x8664_add__asm(inst, jne, direct_immediate(to));
     return inst;
 }
 
@@ -209,10 +172,9 @@ Instructions r_lt(Storage const& dest,
     x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    x64_add_asm__as(inst, mov, with, dest);
-    x64_add_asm__as(inst, cmp, with, src);
-    x64_add_asm__as(
-        inst, jl, common::assembly::make_direct_immediate(to), O_NUL);
+    x8664_add__asm(inst, mov, with, dest);
+    x8664_add__asm(inst, cmp, with, src);
+    x8664_add__asm(inst, jl, direct_immediate(to));
     return inst;
 }
 
@@ -222,10 +184,9 @@ Instructions r_gt(Storage const& dest,
     x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    x64_add_asm__as(inst, mov, with, dest);
-    x64_add_asm__as(inst, cmp, with, src);
-    x64_add_asm__as(
-        inst, jg, common::assembly::make_direct_immediate(to), O_NUL);
+    x8664_add__asm(inst, mov, with, dest);
+    x8664_add__asm(inst, cmp, with, src);
+    x8664_add__asm(inst, jg, direct_immediate(to));
     return inst;
 }
 
@@ -235,10 +196,9 @@ Instructions r_le(Storage const& dest,
     x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    x64_add_asm__as(inst, mov, with, dest);
-    x64_add_asm__as(inst, cmp, with, src);
-    x64_add_asm__as(
-        inst, jle, common::assembly::make_direct_immediate(to), O_NUL);
+    x8664_add__asm(inst, mov, with, dest);
+    x8664_add__asm(inst, cmp, with, src);
+    x8664_add__asm(inst, jle, direct_immediate(to));
     return inst;
 }
 
@@ -248,61 +208,58 @@ Instructions r_ge(Storage const& dest,
     x86_64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    x64_add_asm__as(inst, mov, with, dest);
-    x64_add_asm__as(inst, cmp, with, src);
-    x64_add_asm__as(
-        inst, jge, common::assembly::make_direct_immediate(to), O_NUL);
+    x8664_add__asm(inst, mov, with, dest);
+    x8664_add__asm(inst, cmp, with, src);
+    x8664_add__asm(inst, jge, direct_immediate(to));
     return inst;
 }
 
 Instruction_Pair rshift(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(shr), dest, src);
+    x8664__make_and_ret(shr, dest, src);
 }
 
 Instruction_Pair lshift(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(shl), dest, src);
+    x8664__make_and_ret(shl, dest, src);
 }
 
 Instruction_Pair b_and(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(and_), dest, src);
+    x8664__make_and_ret(and_, dest, src);
 }
 
 Instruction_Pair b_or(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(or_), dest, src);
+    x8664__make_and_ret(or_, dest, src);
 }
 
 Instruction_Pair b_xor(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(xor_), dest, src);
+    x8664__make_and_ret(xor_, dest, src);
 }
 
 Instruction_Pair b_not(Storage const& dest)
 {
-    return add_1ary_inst(x64_mn(not_), dest);
+    x8664__make_and_ret(not_, dest);
 }
 
 Instruction_Pair u_not(Storage const& dest)
 {
     auto inst = make_empty();
-    x64_asm__dest_rs(inst, mov, eax, dest);
-    x64_asm__dest_rs(
-        inst, cmp, eax, common::assembly::make_numeric_immediate(0));
-    x64_asm__dest_s(inst, setne, al);
-    x64_add_asm__as(
-        inst, xor_, x64_rr(al), common::assembly::make_numeric_immediate(-1));
-    x64_add_asm__as(
-        inst, and_, x64_rr(al), common::assembly::make_numeric_immediate(1));
-    x64_asm__short(inst, movzx, eax, al);
+    x8664_add__asm(inst, mov, eax, dest);
+    x8664_add__asm(inst, cmp, eax, common::assembly::make_numeric_immediate(0));
+    x8664_add__asm(inst, setne, al);
+    x8664_add__asm(
+        inst, xor_, al, common::assembly::make_numeric_immediate(-1));
+    x8664_add__asm(inst, and_, al, common::assembly::make_numeric_immediate(1));
+    x8664_add__asm(inst, movzx, eax, al);
     return { x64_rr(eax), inst };
 }
 
 Instruction_Pair lea(Storage const& dest, Storage const& src)
 {
-    return add_2ary_inst(x64_mn(lea), dest, src);
+    x8664__make_and_ret(lea, dest, src);
 }
 
 } // namespace x86_64::detail

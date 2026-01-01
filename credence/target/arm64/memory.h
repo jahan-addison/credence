@@ -129,7 +129,7 @@ using ARM64_Address_Accessor = common::memory::Address_Accessor<Register,
     memory::Stack_Frame>;
 
 using ARM64_Accumulator_Accessor = common::memory::
-    Accumulator_Accessor<std::size_t, Register, assembly::Stack>;
+    Accumulator_Accessor<assembly::Operand_Size, Register, assembly::Stack>;
 
 using ARM64_Instruction_Accessor =
     common::memory::Instruction_Accessor<assembly::Instructions>;
@@ -155,10 +155,18 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
         : ARM64_Accumulator_Accessor(signal_register)
     {
     }
+
+    assembly::Operand_Size get_operand_size_from_immediate(
+        Immediate const& immediate) override
+    {
+        return assembly::get_operand_size_from_rvalue_datatype(immediate);
+    }
+
     /**
      * @brief Get the accumulator register from size
      */
-    Register get_accumulator_register_from_size(std::size_t size = 4) override
+    Register get_accumulator_register_from_size(
+        assembly::Operand_Size size = assembly::Operand_Size::Word) override
     {
         namespace m = matchit;
         if (*signal_register_ != Register::w0) {
@@ -167,9 +175,12 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
             return designated;
         }
         return m::match(size)(
-            m::pattern | 8UL = [&] { return Register::x0; },
-            m::pattern | 2UL = [&] { return Register::w0; }, // No 16-bit direct
-            m::pattern | 1UL = [&] { return Register::w0; }, // No 8-bit direct
+            m::pattern | assembly::Operand_Size::Doubleword =
+                [&] { return Register::x0; },
+            m::pattern | assembly::Operand_Size::Halfword =
+                [&] { return Register::w0; }, // No 16-bit direct
+            m::pattern | assembly::Operand_Size::Byte =
+                [&] { return Register::w0; }, // No 8-bit direct
             m::pattern | m::_ = [&] { return Register::w0; });
     }
 };
@@ -240,7 +251,8 @@ struct Register_Accessor : public ARM64_Register_Accessor
 
     Storage get_register_for_binary_operator(RValue const& rvalue,
         Stack_Pointer& stack);
-    Storage get_available_register(Size size, Stack_Pointer& stack);
+    Storage get_available_register(assembly::Operand_Size size,
+        Stack_Pointer& stack);
 
     void reset_available_registers()
     {

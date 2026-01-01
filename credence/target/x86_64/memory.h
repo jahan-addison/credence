@@ -161,27 +161,10 @@ struct Accumulator_Accessor : public X8664_Accumulator_Accessor
         : X8664_Accumulator_Accessor(signal_register)
     {
     }
-
-    constexpr Register get_accumulator_register_from_storage(
-        Storage const& storage,
-        Stack_Pointer& stack)
+    assembly::Operand_Size get_operand_size_from_immediate(
+        Immediate const& immediate) override
     {
-        Register accumulator{};
-        std::visit(
-            util::overload{
-                [&](std::monostate) { accumulator = Register::eax; },
-                [&](assembly::Stack::Offset const& offset) {
-                    auto size = stack->get_operand_size_from_offset(offset);
-                    accumulator = get_accumulator_register_from_size(size);
-                },
-                [&](Register const& device) { accumulator = device; },
-                [&](Immediate const& immediate) {
-                    auto size = assembly::get_operand_size_from_rvalue_datatype(
-                        immediate);
-                    accumulator = get_accumulator_register_from_size(size);
-                } },
-            storage);
-        return accumulator;
+        return assembly::get_operand_size_from_rvalue_datatype(immediate);
     }
 
     Register get_accumulator_register_from_size(

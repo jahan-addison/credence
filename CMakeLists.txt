@@ -61,7 +61,6 @@ include(${cmake-scripts_SOURCE_DIR}/tools.cmake)
 if(IWYU)
   find_program(IWYU_EXECUTABLE include-what-you-use)
   if(IWYU_EXECUTABLE)
-    # Enable IWYU for C++ targets
     if(APPLE)
       set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE
           "${IWYU_EXECUTABLE};;-isysroot $(xcrun --sdk macosx --show-sdk-path)")
@@ -103,7 +102,7 @@ cpmaddpackage(
   NAME
   easyjson
   VERSION
-  1.2.1
+  1.3.1
   GITHUB_REPOSITORY
   jahan-addison/easyjson
   OPTIONS

@@ -19,37 +19,6 @@ namespace credence::target::arm64::assembly {
 
 namespace m = matchit;
 
-/**
- * @brief Helper function for trivial 2-ary mnemonic instructions
- *
- *   Example:
- *
- *    add x0, x1
- *    mul x0, [sp, #-4]
- */
-Instruction_Pair add_2ary_inst(Mnemonic mnemonic,
-    Storage const& dest,
-    Storage const& src)
-{
-    auto instructions = make_empty();
-    arm_add_asm__(instructions, mnemonic, dest, src);
-    return { dest, instructions };
-}
-
-/**
- * @brief Helper function for trivial 1-ary mnemonic instructions
- *
- *   Example:
- *
- *    idiv edi
- */
-Instruction_Pair add_1ary_inst(Mnemonic mnemonic, Storage const& src)
-{
-    auto instructions = make_empty();
-    arm_add_asm__(instructions, mnemonic, src, O_NUL);
-    return { src, instructions };
-}
-
 /*********************************/
 /* arm64 directive constructors */
 /*********************************/
@@ -149,194 +118,160 @@ Directives string(type::semantic::RValue const& rvalue)
 // instructions
 // ---
 
-Instruction_Pair mul(Storage const& dest, Storage const& src)
+Instruction_Pair mul(Storage const& s0, Storage const& s1)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, mul, dest, dest, src);
-    return { dest, inst };
+    arm64__make_and_ret(mul, s0, s0, s1);
 }
 
-Instruction_Pair div(Storage const& dest, Storage const& src)
+Instruction_Pair div(Storage const& s0, Storage const& s1)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, sdiv, dest, dest, src);
-    return { dest, inst };
+    arm64__make_and_ret(sdiv, s0, s0, s1);
 }
 
-Instruction_Pair mod(Storage const& /*dest*/, Storage const& /*src*/)
+Instruction_Pair mod(Storage const& /*s0*/, Storage const& /*s1*/)
 {
-    // TODO: Implement modulo for ARM64
     return {};
 }
 
-Instruction_Pair sub(Storage const& dest, Storage const& src)
+Instruction_Pair sub(Storage const& s0, Storage const& s1)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, sub, dest, dest, src);
-    return { dest, inst };
+    arm64__make_and_ret(sub, s0, s0, s1);
 }
 
-Instruction_Pair add(Storage const& dest, Storage const& src)
+Instruction_Pair add(Storage const& s0, Storage const& s1)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, add, dest, dest, src);
-    return { dest, inst };
+    arm64__make_and_ret(add, s0, s0, s1);
 }
 
-Instruction_Pair inc(Storage const& dest)
+Instruction_Pair inc(Storage const& s0)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(
-        inst, add, dest, dest, common::assembly::make_numeric_immediate(1));
-    return { dest, inst };
+    arm64__make_and_ret(add, s0, s0, u32_int_immediate(1));
 }
 
-Instruction_Pair dec(Storage const& dest)
+Instruction_Pair dec(Storage const& s0)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(
-        inst, sub, dest, dest, common::assembly::make_numeric_immediate(1));
-    return { dest, inst };
+    arm64__make_and_ret(sub, s0, s0, u32_int_immediate(1));
 }
 
-Instruction_Pair neg(Storage const& dest)
+Instruction_Pair neg(Storage const& s0)
 {
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, sub, dest, arm_rr(xzr), dest);
-    return { dest, inst };
+    arm64__make_and_ret(sub, s0, xzr, s0);
 }
 
-Instructions r_eq(Storage const& dest,
-    Storage const& src,
+Instructions r_eq(Storage const& s0,
+    Storage const& s1,
     Label const& to,
     arm64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    arm_add_asm__as(inst, mov, with, dest);
-    arm_add_asm__as(inst, cmp, with, src);
-    arm_add_asm__as(
-        inst, b_eq, common::assembly::make_direct_immediate(to), O_NUL);
+    arm64_add__asm(inst, mov, with, s0);
+    arm64_add__asm(inst, cmp, with, s1);
+    arm64_add__asm(inst, b_eq, direct_immediate(to));
     return inst;
 }
 
-Instructions r_neq(Storage const& dest,
-    Storage const& src,
+Instructions r_neq(Storage const& s0,
+    Storage const& s1,
     Label const& to,
     arm64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    arm_add_asm__as(inst, mov, with, dest);
-    arm_add_asm__as(inst, cmp, with, src);
-    arm_add_asm__as(
-        inst, b_ne, common::assembly::make_direct_immediate(to), O_NUL);
+    arm64_add__asm(inst, mov, with, s0);
+    arm64_add__asm(inst, cmp, with, s1);
+    arm64_add__asm(inst, b_ne, direct_immediate(to));
     return inst;
 }
 
-Instructions r_lt(Storage const& dest,
-    Storage const& src,
+Instructions r_lt(Storage const& s0,
+    Storage const& s1,
     Label const& to,
     arm64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    arm_add_asm__as(inst, mov, with, dest);
-    arm_add_asm__as(inst, cmp, with, src);
-    arm_add_asm__as(
-        inst, b_lt, common::assembly::make_direct_immediate(to), O_NUL);
+    arm64_add__asm(inst, mov, with, s0);
+    arm64_add__asm(inst, cmp, with, s1);
+    arm64_add__asm(inst, b_lt, direct_immediate(to));
     return inst;
 }
 
-Instructions r_gt(Storage const& dest,
-    Storage const& src,
+Instructions r_gt(Storage const& s0,
+    Storage const& s1,
     Label const& to,
     arm64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    arm_add_asm__as(inst, mov, with, dest);
-    arm_add_asm__as(inst, cmp, with, src);
-    arm_add_asm__as(
-        inst, b_gt, common::assembly::make_direct_immediate(to), O_NUL);
+    arm64_add__asm(inst, mov, with, s0);
+    arm64_add__asm(inst, cmp, with, s1);
+    arm64_add__asm(inst, b_gt, direct_immediate(to));
     return inst;
 }
 
-Instructions r_le(Storage const& dest,
-    Storage const& src,
+Instructions r_le(Storage const& s0,
+    Storage const& s1,
     Label const& to,
     arm64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    arm_add_asm__as(inst, mov, with, dest);
-    arm_add_asm__as(inst, cmp, with, src);
-    arm_add_asm__as(
-        inst, b_le, common::assembly::make_direct_immediate(to), O_NUL);
+    arm64_add__asm(inst, mov, with, s0);
+    arm64_add__asm(inst, cmp, with, s1);
+    arm64_add__asm(inst, b_le, direct_immediate(to));
     return inst;
 }
 
-Instructions r_ge(Storage const& dest,
-    Storage const& src,
+Instructions r_ge(Storage const& s0,
+    Storage const& s1,
     Label const& to,
     arm64::assembly::Register const& with)
 {
     auto inst = make_empty();
-    arm_add_asm__as(inst, mov, with, dest);
-    arm_add_asm__as(inst, cmp, with, src);
-    arm_add_asm__as(
-        inst, b_ge, common::assembly::make_direct_immediate(to), O_NUL);
+    arm64_add__asm(inst, mov, with, s0);
+    arm64_add__asm(inst, cmp, with, s1);
+    arm64_add__asm(inst, b_ge, direct_immediate(to));
     return inst;
 }
 
-Instruction_Pair rshift(Storage const& dest, Storage const& src)
+Instruction_Pair rshift(Storage const& s0, Storage const& s1)
 {
-    return add_2ary_inst(arm_mn(lsr), dest, src);
+    arm64__make_and_ret(lsr, s0, s1);
 }
 
-Instruction_Pair lshift(Storage const& dest, Storage const& src)
+Instruction_Pair lshift(Storage const& s0, Storage const& s1)
 {
-    return add_2ary_inst(arm_mn(lsl), dest, src);
+    arm64__make_and_ret(lsl, s0, s1);
 }
 
-Instruction_Pair b_and(Storage const& dest, Storage const& src)
+Instruction_Pair b_and(Storage const& s0, Storage const& s1)
+{
+    arm64__make_and_ret(and_, s0, s0, s1);
+}
+
+Instruction_Pair b_or(Storage const& s0, Storage const& s1)
+{
+    arm64__make_and_ret(orr, s0, s0, s1);
+}
+
+Instruction_Pair b_xor(Storage const& s0, Storage const& s1)
+{
+    arm64__make_and_ret(eor, s0, s0, s1);
+}
+
+Instruction_Pair b_not(Storage const& s0)
+{
+    arm64__make_and_ret(mvn, s0);
+}
+
+Instruction_Pair u_not(Storage const& s0)
 {
     auto inst = make_empty();
-    arm_add_asm__as3(inst, and_, dest, dest, src);
-    return { dest, inst };
-}
-
-Instruction_Pair b_or(Storage const& dest, Storage const& src)
-{
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, orr, dest, dest, src);
-    return { dest, inst };
-}
-
-Instruction_Pair b_xor(Storage const& dest, Storage const& src)
-{
-    auto inst = make_empty();
-    arm_add_asm__as3(inst, eor, dest, dest, src);
-    return { dest, inst };
-}
-
-Instruction_Pair b_not(Storage const& dest)
-{
-    return add_1ary_inst(arm_mn(mvn), dest);
-}
-
-Instruction_Pair u_not(Storage const& dest)
-{
-    auto inst = make_empty();
-    arm_asm__dest_rs(inst, mov, w0, dest);
-    arm_asm__dest_rs(
-        inst, cmp, w0, common::assembly::make_numeric_immediate(0));
-    arm_add_asm__as3(inst,
-        cset,
-        arm_rr(w0),
-        arm_rr(w0),
-        common::assembly::make_direct_immediate("ne"));
+    arm64_add__asm(inst, mov, w0, s0);
+    arm64_add__asm(inst, cmp, w0, u32_int_immediate(0));
+    arm64_add__asm(inst, cset, w0, w0, direct_immediate("ne"));
     return { arm_rr(w0), inst };
 }
 
-Instruction_Pair lea(Storage const& dest, Storage const& src)
+Instruction_Pair lea(Storage const& s0, Storage const& s1)
 {
-    return add_2ary_inst(arm_mn(add), dest, src);
+    arm64__make_and_ret(add, s0, s1);
 }
 
 } // namespace arm64::detail

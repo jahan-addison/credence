@@ -104,74 +104,29 @@ enum class Register;
 /**
  * @brief
  *
- *  Instrction insertion helpers
+ *  Instrction insertion macro
  *
  */
-#define x64_add_asm__(inst, op, lhs, rhs) \
-    inst.emplace_back(x86_64::assembly::Instruction{ op, lhs, rhs })
 
-// Add an instruction with a mnemonic shorthand
-#define x64_add_asm__as(inst, op, lhs, rhs)          \
-    inst.emplace_back(x86_64::assembly::Instruction{ \
-        x86_64::assembly::Mnemonic::op, lhs, rhs })
+#define x8664_add__asm(inst, op, ...)                                \
+    do {                                                             \
+        using enum x86_64::assembly::Register;                       \
+        using enum x86_64::assembly::Mnemonic;                       \
+        x86_64::assembly::X8664_ASSEMBLY_INSERTER::insert<           \
+            x86_64::assembly::Instruction,                           \
+            x86_64::assembly::X8664_ASSEMBLY_INSERTER::nary::ary_2>( \
+            inst, op __VA_OPT__(, ) __VA_ARGS__);                    \
+    } while (false)
 
-// Add an instruction with a mnemonic and destination shorthand
-#define x64_asm__dest_rs(inst, op, lhs, rhs)                           \
-    inst.emplace_back(                                                 \
-        x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
-            x86_64::assembly::Register::lhs,                           \
-            rhs })
+#define x8664__first_storage_device(first, ...) first
 
-// Add an instruction with a mnemonic and source operand shorthand
-#define x64_asm__src_rs(inst, op, lhs, rhs)                            \
-    inst.emplace_back(                                                 \
-        x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
-            lhs,                                                       \
-            x86_64::assembly::Register::rhs })
-
-// Add an instruction with a mnemonic, destination, and source operand
-// shorthand
-#define x64_asm__short(inst, op, lhs, rhs)                             \
-    inst.emplace_back(                                                 \
-        x86_64::assembly::Instruction{ x86_64::assembly::Mnemonic::op, \
-            x86_64::assembly::Register::lhs,                           \
-            x86_64::assembly::Register::rhs })
-
-// Add an instruction with a mnemonic shorthand, no operands (.e.g 'ret')
-#define x64_asm__zero_o(inst, op)                      \
-    COMMON_ASM_ZERO_O_2(x86_64::assembly::Instruction, \
-        x86_64::assembly::Mnemonic,                    \
-        x86_64::assembly::O_NUL,                       \
-        inst,                                          \
-        op)
-
-// Add an instruction with a mnemonic with no operand (e.g. idiv)
-#define x64_asm__dest(inst, op, dest)                \
-    COMMON_ASM_DEST_2(x86_64::assembly::Instruction, \
-        x86_64::assembly::Mnemonic,                  \
-        x86_64::assembly::O_NUL,                     \
-        inst,                                        \
-        op,                                          \
-        dest)
-
-// Add an instruction with a mnemonic with 1 operand and shorthand
-#define x64_asm__dest_s(inst, op, dest)             \
-    COMMON_ASM_DEST_S_2(x86_64::assembly::Register, \
-        x86_64::assembly::Instruction,              \
-        x86_64::assembly::Mnemonic,                 \
-        x86_64::assembly::O_NUL,                    \
-        inst,                                       \
-        op,                                         \
-        dest)
-
-// Add an instruction with a mnemonic with 1 operand (e.g. idiv)
-#define x64_asm__src(inst, op, dest)                \
-    COMMON_ASM_SRC_2(x86_64::assembly::Instruction, \
-        x86_64::assembly::Mnemonic,                 \
-        x86_64::assembly::O_NUL,                    \
-        inst,                                       \
-        op,                                         \
-        dest)
+#define x8664__make_and_ret(op, ...)                                   \
+    do {                                                               \
+        auto instructions = make_empty();                              \
+        auto s = __VA_OPT__(x8664__first_storage_device(__VA_ARGS__)); \
+        x8664_add__asm(instructions, op __VA_OPT__(, ) __VA_ARGS__);   \
+        return { s, std::move(instructions) };                         \
+    } while (false)
 
 /**
  * @brief
@@ -671,6 +626,11 @@ using Instructions = std::deque<common::Instruction_2ARY<Mnemonic, Register>>;
 using Instruction_Pair = common::Instruction_Pair<Storage, Instructions>;
 using Immediate = common::Immediate;
 using Directive_Pair = std::pair<std::string, Directives>;
+
+using X8664_ASSEMBLY_INSERTER =
+    target::common::assembly::Assembly_Inserter<x86_64::assembly::Mnemonic,
+        x86_64::assembly::Register,
+        x86_64::assembly::Instructions>;
 
 // Empty storage device
 const Storage O_NUL = std::monostate{};

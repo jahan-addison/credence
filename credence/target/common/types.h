@@ -68,7 +68,9 @@ struct is_variant<std::variant<Args...>> : std::true_type
 {};
 
 struct base_stack_pointer
-{};
+{
+    using Offset = Stack_Offset;
+};
 
 } // namespace detail
 

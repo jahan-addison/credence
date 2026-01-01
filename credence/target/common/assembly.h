@@ -57,6 +57,11 @@
             make_char_relational_entry(op));                        \
     }
 
+#define direct_immediate(imm) \
+    target::common::assembly::make_direct_immediate(imm)
+
+#define u32_int_immediate(i) target::common::assembly::make_u32_int_immediate(i)
+
 // ---------------------------------
 // Register and directive print macros
 // ---------------------------------
@@ -90,42 +95,91 @@
         os << fmt::format(".{} {}", di, STRINGIFY(g));                     \
     }; break
 
-// ---------------------------------
-// Generic instruction insertion helpers
-// ---------------------------------
-// Two-operand architectures (e.g., x86_64)
-
-#define COMMON_ASM_ZERO_O_2(InstructionType, MnemonicType, ONUL, inst, op) \
-    inst.emplace_back(InstructionType{ MnemonicType::op, ONUL, ONUL })
-
-#define COMMON_ASM_DEST_2(InstructionType, MnemonicType, ONUL, inst, op, dest) \
-    inst.emplace_back(InstructionType{ MnemonicType::op, dest, ONUL })
-
-#define COMMON_ASM_DEST_S_2(                                           \
-    RegisterType, InstructionType, MnemonicType, ONUL, inst, op, dest) \
-    inst.emplace_back(                                                 \
-        InstructionType{ MnemonicType::op, RegisterType::dest, ONUL })
-
-#define COMMON_ASM_SRC_2(InstructionType, MnemonicType, ONUL, inst, op, src) \
-    inst.emplace_back(InstructionType{ MnemonicType::op, src, ONUL })
-
-// Three-operand architectures (e.g., ARM64)
-
-#define COMMON_ASM_ZERO_O_3(InstructionType, MnemonicType, ONUL, inst, op) \
-    inst.emplace_back(InstructionType{ MnemonicType::op, ONUL, ONUL, ONUL })
-
-#define COMMON_ASM_DEST_3(InstructionType, MnemonicType, ONUL, inst, op, dest) \
-    inst.emplace_back(InstructionType{ MnemonicType::op, dest, ONUL, ONUL })
-
-#define COMMON_ASM_DEST_S_3(                                           \
-    RegisterType, InstructionType, MnemonicType, ONUL, inst, op, dest) \
-    inst.emplace_back(                                                 \
-        InstructionType{ MnemonicType::op, RegisterType::dest, ONUL, ONUL })
-
-#define COMMON_ASM_SRC_3(InstructionType, MnemonicType, ONUL, inst, op, src) \
-    inst.emplace_back(InstructionType{ MnemonicType::op, src, ONUL, ONUL })
-
 namespace credence::target::common::assembly {
+
+namespace detail {
+
+template<Enum_T Mnemonic>
+struct Mnemonic_Resolver
+{
+    Mnemonic value;
+    // cppcheck-suppress noExplicitConstructor
+    constexpr Mnemonic_Resolver(Mnemonic m)
+        : value(m)
+    {
+    }
+};
+
+template<Enum_T Register>
+struct Operand_Resolver
+{
+    using Storage = Storage_T<Register>;
+    Storage value;
+
+    // cppcheck-suppress noExplicitConstructor
+    constexpr Operand_Resolver(Register r)
+        : value(r)
+    {
+    }
+
+    // cppcheck-suppress noExplicitConstructor
+    constexpr Operand_Resolver(common::Stack_Offset o)
+        : value(o)
+    {
+    }
+    // cppcheck-suppress noExplicitConstructor
+    constexpr Operand_Resolver(Immediate const& imm)
+        : value(imm)
+    {
+    }
+    // cppcheck-suppress noExplicitConstructor
+    constexpr Operand_Resolver(std::monostate)
+        : value(std::monostate{})
+    {
+    }
+    // cppcheck-suppress noExplicitConstructor
+    constexpr Operand_Resolver(Storage const& storage)
+        : value(storage)
+    {
+        std::visit(util::overload{
+                       [&](std::monostate) {},
+                       [&](common::Stack_Offset const& s) { value = s; },
+                       [&](Register const& s) { value = s; },
+                       [&](Immediate const& s) { value = s; },
+                   },
+            storage);
+    }
+};
+
+} // namespace detail
+
+template<Enum_T Mnemonic, Enum_T Register, Deque_T Instructions>
+struct Assembly_Inserter
+{
+    Assembly_Inserter() = delete;
+
+    enum class nary
+    {
+        ary_2,
+        ary_3
+    };
+
+    using Op = detail::Mnemonic_Resolver<Mnemonic>;
+
+    template<typename T, nary Size>
+    static void insert(Instructions& inst,
+        Op op,
+        detail::Operand_Resolver<Register> s0 = std::monostate{},
+        detail::Operand_Resolver<Register> s1 = std::monostate{},
+        detail::Operand_Resolver<Register> s2 = std::monostate{})
+    {
+        if constexpr (Size == nary::ary_2) {
+            inst.emplace_back(T{ op.value, s0.value, s1.value });
+        } else if constexpr (Size == nary::ary_3) {
+            inst.emplace_back(T{ op.value, s0.value, s1.value, s2.value });
+        }
+    }
+};
 
 enum class OS_Type
 {

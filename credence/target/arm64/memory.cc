@@ -38,10 +38,13 @@ namespace detail {
  * @brief Get an available register storage device, use the stack if none
  * available
  */
-assembly::Storage Register_Accessor::get_available_register(Size size,
+assembly::Storage Register_Accessor::get_available_register(
+    assembly::Operand_Size size,
     Stack_Pointer& stack)
 {
-    auto& registers = size == 8 ? d_size_registers : w_size_registers;
+    auto& registers = size == assembly::Operand_Size::Doubleword
+                          ? d_size_registers
+                          : w_size_registers;
     if (registers.size() > 0) {
         Storage storage = registers.front();
         registers.pop_front();
@@ -84,7 +87,7 @@ Address_Accessor::Address Address_Accessor::get_lvalue_address_and_instructions(
     if (type::is_dereference_expression(lvalue)) {
         auto storage =
             stack_->get(type::get_unary_rvalue_reference(lvalue)).first;
-        arm_add_asm__as(instructions.second, mov, Register::x0, storage);
+        arm64_add__asm(instructions.second, mov, Register::x0, storage);
         flag_accessor_.set_instruction_flag(
             common::flag::Indirect, instruction_index + 1);
         instructions.first = Register::x0;

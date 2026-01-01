@@ -105,7 +105,7 @@ Address_Accessor::Address Address_Accessor::get_lvalue_address_and_instructions(
     if (type::is_dereference_expression(lvalue)) {
         auto storage =
             stack_->get(type::get_unary_rvalue_reference(lvalue)).first;
-        x64_add_asm__as(instructions.second, mov, Register::rax, storage);
+        x8664_add__asm(instructions.second, mov, Register::rax, storage);
         flag_accessor_.set_instruction_flag(
             common::flag::Indirect, instruction_index + 1);
         instructions.first = Register::rax;

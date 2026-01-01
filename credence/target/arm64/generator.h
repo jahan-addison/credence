@@ -376,6 +376,7 @@ struct Invocation_Inserter
         , stack_frame_(stack_frame)
     {
     }
+    syscall_ns::syscall_arguments_t get_operands_storage_from_argument_stack();
     void insert_from_standard_library_function(std::string_view routine,
         assembly::Instructions& instructions);
     void insert_from_user_defined_function(std::string_view routine,
@@ -386,7 +387,8 @@ struct Invocation_Inserter
         common::memory::Locals const& argument_stack,
         syscall_ns::syscall_arguments_t& operands);
     void insert_type_check_stdlib_printf_arguments(
-        common::memory::Locals const& argument_stack);
+        common::memory::Locals const& argument_stack,
+        syscall_ns::syscall_arguments_t& operands);
 
   private:
     memory::Memory_Access accessor_;

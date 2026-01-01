@@ -28,13 +28,6 @@
 
 namespace credence::target::arm64::assembly {
 
-/**
- * @brief
- * A push-down stack for the ARM64 architecture
- *
- * Provides a means to allocate, traverse, and verify offsets
- * that auto-align on the stack by lvalues and vice-versa.
- */
 class Stack : public common::detail::base_stack_pointer
 {
   public:
@@ -43,13 +36,7 @@ class Stack : public common::detail::base_stack_pointer
     Stack& operator=(Stack const&) = delete;
 
   public:
-    using Type = common::Type;
-    using Size = common::Size;
-    using Label = common::Label;
-    using LValue = common::LValue;
-    using RValue = common::RValue;
-    using Offset = common::Stack_Offset;
-    using Entry = std::pair<Offset, Size>;
+    using Entry = std::pair<Offset, assembly::Operand_Size>;
     using Pair = std::pair<LValue, Entry>;
     using Local = Ordered_Map<LValue, Entry>;
 
@@ -59,7 +46,7 @@ class Stack : public common::detail::base_stack_pointer
   public:
     constexpr bool empty_at(LValue const& lvalue)
     {
-        return stack_address[lvalue].second == 0;
+        return stack_address[lvalue].second == assembly::Operand_Size::Empty;
     }
     constexpr bool contains(LValue const& lvalue)
     {
@@ -69,30 +56,21 @@ class Stack : public common::detail::base_stack_pointer
     {
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
-    /**
-     * @brief Get the stack location offset and size from an lvalue
-     */
+
     constexpr Entry get(LValue const& lvalue) { return stack_address[lvalue]; }
 
-    /**
-     * @brief Get the stack location lvalue and size from an offset
-     */
     constexpr Entry get(Offset offset) const
     {
         auto find = std::find_if(stack_address.begin(),
             stack_address.end(),
             [&](Pair const& entry) { return entry.second.first == offset; });
         if (find == stack_address.end())
-            return { 0, 0 };
+            return { 0, assembly::Operand_Size::Empty };
         else
             return find->second;
     }
 
-    /**
-     * @brief Dynamically set a size for vector indices, which pushes
-     * downward on a chunk
-     */
-    constexpr void set(Offset offset, Size size)
+    constexpr void set(Offset offset, Operand_Size size)
     {
         using namespace fmt::literals;
         stack_address.insert(
@@ -100,33 +78,13 @@ class Stack : public common::detail::base_stack_pointer
             Entry{ offset, size });
     }
 
-    /**
-     * @brief Allocate space on the stack from a word size
-     */
-    constexpr Offset allocate(Size alloc)
+    constexpr Offset allocate(assembly::Operand_Size operand)
     {
+        auto alloc = get_size_from_operand_size(operand);
         size += alloc;
         return size;
     }
 
-    /**
-     * @brief Get the size of an offset address
-     */
-    constexpr Size get_size_from_offset(Offset offset) const
-    {
-        return std::accumulate(stack_address.begin(),
-            stack_address.end(),
-            0UL,
-            [&](Size current_size, Pair const& entry) {
-                if (entry.second.first == offset)
-                    return entry.second.second;
-                return current_size;
-            });
-    }
-
-    /**
-     * @brief Get the operand size of an offset address
-     */
     constexpr assembly::Operand_Size get_operand_size_from_offset(
         Offset offset) const
     {
@@ -135,90 +93,67 @@ class Stack : public common::detail::base_stack_pointer
             assembly::Operand_Size::Empty,
             [&](assembly::Operand_Size size, Pair const& entry) {
                 if (entry.second.first == offset)
-                    return assembly::get_operand_size_from_size(
-                        entry.second.second);
+                    return entry.second.second;
                 return size;
             });
     }
 
-    /**
-     * @brief Set and allocate an address from an immediate
-     */
     constexpr void set_address_from_immediate(LValue const& lvalue,
         assembly::Immediate const& rvalue)
     {
-        if (is_allocated(lvalue))
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto value_size = assembly::get_size_from_rvalue_datatype(rvalue);
-        allocate_aligned_lvalue(lvalue, value_size);
+        auto operand_size =
+            assembly::get_operand_size_from_rvalue_datatype(rvalue);
+        auto value_size = assembly::get_size_from_operand_size(operand_size);
+        allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
 
-    /**
-     * @brief Set and allocate an address from an accumulator register size
-     */
     constexpr void set_address_from_accumulator(LValue const& lvalue,
         assembly::Register acc)
     {
-        if (is_allocated(lvalue))
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto allocation = assembly::get_size_from_register(acc);
-        allocate_aligned_lvalue(lvalue, allocation);
+        auto register_size = assembly::get_operand_size_from_register(acc);
+        auto allocation = assembly::get_size_from_operand_size(register_size);
+
+        allocate_aligned_lvalue(lvalue, allocation, register_size);
     }
 
-    /**
-     * @brief Set and allocate an address from a type in the Table
-     */
     constexpr void set_address_from_type(LValue const& lvalue, Type type)
     {
-        if (is_allocated(lvalue))
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto value_size = assembly::get_size_from_type(type);
-        allocate_aligned_lvalue(lvalue, value_size);
+        auto operand_size = assembly::get_operand_size_from_type(type);
+        auto value_size = assembly::get_size_from_operand_size(operand_size);
+        allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
 
-    /**
-     * @brief
-     * In some cases address space was loaded in chunks for memory alignment
-     *
-     * So skip any previously allocated offsets as we push downwards
-     */
     constexpr void allocate_aligned_lvalue(LValue const& lvalue,
-        Size value_size)
+        Size value_size,
+        assembly::Operand_Size operand_size)
     {
         if (get_lvalue_from_offset(size + value_size).empty()) {
             size += value_size;
-            stack_address.insert(lvalue, { size, value_size });
+            stack_address.insert(lvalue, { size, operand_size });
         } else {
             size = size + value_size + value_size;
         }
     }
 
-    /**
-     * @brief Set and allocate an address for a pointer (always 8 bytes on
-     * arm64)
-     */
     constexpr void set_address_from_address(LValue const& lvalue)
     {
-        const Size ptr_size = 8;
-        size = common::memory::align_up_to(size + ptr_size, ptr_size);
-        stack_address.insert(lvalue, { size, ptr_size });
+        auto qword_size = assembly::Operand_Size::Doubleword;
+        size = common::memory::align_up_to(
+            size + assembly::get_size_from_operand_size(qword_size), 8);
+        stack_address.insert(lvalue, { size, qword_size });
     }
 
-    /**
-     * @brief Get the allocation size of the current frame, aligned up to 16
-     * bytes
-     */
     constexpr Size get_stack_frame_allocation_size()
     {
-        return common::memory::align_up_to(size, 16);
+        return common::memory::align_up_to(size + 16, 16);
     }
 
-    /**
-     * @brief Get the stack address of an index in a vector (array)
-     *
-     * The vector was allocated in a chunk and we allocate each index
-     * downward
-     */
     constexpr Size get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
@@ -240,46 +175,33 @@ class Stack : public common::detail::base_stack_pointer
             });
     }
 
-    /**
-     * @brief Get the size of a vector (array)
-     *
-     * Memory align to multiples of 16 bytes per the ABI
-     */
     constexpr Size get_stack_size_from_table_vector(
         ir::object::Vector const& vector)
     {
-        // clang-format off
-    auto vector_size = size + std::accumulate(
-            vector.data.begin(),
-            vector.data.end(),
-            0UL,
-    [&](type::semantic::Size offset,
-        ir::object::Vector::Entry const& entry) {
-        return offset +
-            assembly::get_size_from_rvalue_datatype(
-                entry.second);
-    });
+        auto vector_size =
+            size + std::accumulate(vector.data.begin(),
+                       vector.data.end(),
+                       0UL,
+                       [&](type::semantic::Size offset,
+                           ir::object::Vector::Entry const& entry) {
+                           return offset +
+                                  assembly::get_size_from_rvalue_datatype(
+                                      entry.second);
+                       });
 
-    return util::align_up_to_16(vector_size);
-        // clang-format on
+        return util::align_up_to_16(vector_size);
     }
 
-    /**
-     * @brief Set and allocate an address from an arbitrary offset
-     */
     constexpr void set_address_from_size(LValue const& lvalue,
         Offset allocate,
-        Size value_size = 4)
+        assembly::Operand_Size operand = assembly::Operand_Size::Word)
     {
-        if (is_allocated(lvalue))
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
         size += allocate;
-        stack_address.insert(lvalue, { size, value_size });
+        stack_address.insert(lvalue, { size, operand });
     }
 
-    /**
-     * @brief Get the lvalue of a local variable allocated at an offset
-     */
     constexpr std::string get_lvalue_from_offset(Offset offset) const
     {
         auto search = std::ranges::find_if(stack_address.begin(),

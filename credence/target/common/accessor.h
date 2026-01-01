@@ -393,18 +393,19 @@ struct Accumulator_Accessor
                                accumulator = get_first_of_enum_t<Register>();
                            },
                 [&](Stack_Offset const& offset) {
-                    auto size = stack->get_size_from_offset(offset);
+                    auto size = stack->get(offset).second;
                     accumulator = get_accumulator_register_from_size(size);
                 },
                 [&](Register const& device) { accumulator = device; },
                 [&](Immediate const& immediate) {
-                    auto size = type::get_size_from_rvalue_data_type(immediate);
+                    auto size = get_operand_size_from_immediate(immediate);
                     accumulator = get_accumulator_register_from_size(size);
                 } },
             storage);
         return accumulator;
     }
 
+    virtual T get_operand_size_from_immediate(Immediate const& immediate) = 0;
     virtual Register get_accumulator_register_from_size(T size) = 0;
 
   protected:

@@ -70,22 +70,20 @@ enum class Register;
 #define arm_rr(n) arm64::assembly::Register::n
 #define arm_dd(n) arm64::assembly::Directive::n
 
-#define ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    arm64::assembly::Instruction_Pair name(                       \
-        arm64::assembly::Storage const& dest,                     \
-        arm64::assembly::Storage const& src)
-#define ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                   \
-    arm64::assembly::Instructions name(arm64::assembly::Storage const& dest, \
-        arm64::assembly::Storage const& src,                                 \
-        target::common::Label const& to,                                     \
+#define ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)              \
+    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s0, \
+        arm64::assembly::Storage const& s1)
+#define ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                 \
+    arm64::assembly::Instructions name(arm64::assembly::Storage const& s0, \
+        arm64::assembly::Storage const& s1,                                \
+        target::common::Label const& to,                                   \
         arm64::assembly::Register const& with)
-#define ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    arm64::assembly::Instruction_Pair name(                       \
-        arm64::assembly::Storage const& dest,                     \
-        arm64::assembly::Storage const& s1,                       \
+#define ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)              \
+    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s0, \
+        arm64::assembly::Storage const& s1,                                    \
         arm64::assembly::Storage const& s2)
 #define ARM64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& src)
+    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s1)
 
 #define ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name) \
     arm64::assembly::Directive_Pair name(                            \
@@ -104,91 +102,29 @@ enum class Register;
 /**
  * @brief
  *
- *  Instrction insertion helpers
+ *  Instruction expansion macros
  *
  */
-#define arm_add_asm__(inst, op, lhs, rhs) \
-    inst.emplace_back(                    \
-        arm64::assembly::Instruction{ op, lhs, rhs, arm64::assembly::O_NUL })
 
-// Add an instruction with a mnemonic shorthand
-#define arm_add_asm__as(inst, op, lhs, rhs)         \
-    inst.emplace_back(arm64::assembly::Instruction{ \
-        arm64::assembly::Mnemonic::op, lhs, rhs, arm64::assembly::O_NUL })
+#define arm64__first_storage_device(first, ...) first
 
-// Add an instruction with a mnemonic and destination shorthand
-#define arm_asm__dest_rs(inst, op, lhs, rhs)                         \
-    inst.emplace_back(                                               \
-        arm64::assembly::Instruction{ arm64::assembly::Mnemonic::op, \
-            arm64::assembly::Register::lhs,                          \
-            rhs,                                                     \
-            arm64::assembly::O_NUL })
+#define arm64__make_and_ret(op, ...)                                   \
+    do {                                                               \
+        auto instructions = make_empty();                              \
+        auto s = __VA_OPT__(arm64__first_storage_device(__VA_ARGS__)); \
+        arm64_add__asm(instructions, op __VA_OPT__(, ) __VA_ARGS__);   \
+        return { s, std::move(instructions) };                         \
+    } while (false)
 
-// Add an instruction with a mnemonic and destination shorthand for 3 operands
-#define arm_asm__dest_rs2(inst, op, dest, s1, s2)                    \
-    inst.emplace_back(                                               \
-        arm64::assembly::Instruction{ arm64::assembly::Mnemonic::op, \
-            arm64::assembly::Register::dest,                         \
-            s1,                                                      \
-            s2 })
-
-// Add an instruction with a mnemonic and source operand shorthand
-#define arm_asm__src_rs(inst, op, lhs, rhs)                          \
-    inst.emplace_back(                                               \
-        arm64::assembly::Instruction{ arm64::assembly::Mnemonic::op, \
-            lhs,                                                     \
-            arm64::assembly::Register::rhs,                          \
-            arm64::assembly::O_NUL })
-
-// Add an instruction with a mnemonic, destination, and source operand
-// shorthand
-#define arm_asm__short(inst, op, lhs, rhs)                           \
-    inst.emplace_back(                                               \
-        arm64::assembly::Instruction{ arm64::assembly::Mnemonic::op, \
-            arm64::assembly::Register::lhs,                          \
-            arm64::assembly::Register::rhs,                          \
-            arm64::assembly::O_NUL })
-
-// Add an instruction with a mnemonic shorthand, no operands (.e.g 'ret')
-#define asm__zero_o(inst, op)                         \
-    COMMON_ASM_ZERO_O_3(arm64::assembly::Instruction, \
-        arm64::assembly::Mnemonic,                    \
-        arm64::assembly::O_NUL,                       \
-        inst,                                         \
-        op)
-
-// Add an instruction with a mnemonic with no operand (e.g. idiv)
-#define arm_asm__dest(inst, op, dest)               \
-    COMMON_ASM_DEST_3(arm64::assembly::Instruction, \
-        arm64::assembly::Mnemonic,                  \
-        arm64::assembly::O_NUL,                     \
-        inst,                                       \
-        op,                                         \
-        dest)
-
-// Add an instruction with a mnemonic with 1 operand and shorthand
-#define arm_asm__dest_s(inst, op, dest)            \
-    COMMON_ASM_DEST_S_3(arm64::assembly::Register, \
-        arm64::assembly::Instruction,              \
-        arm64::assembly::Mnemonic,                 \
-        arm64::assembly::O_NUL,                    \
-        inst,                                      \
-        op,                                        \
-        dest)
-
-// Add an instruction with a mnemonic with 1 operand (e.g. idiv)
-#define arm_asm__src(inst, op, dest)               \
-    COMMON_ASM_SRC_3(arm64::assembly::Instruction, \
-        arm64::assembly::Mnemonic,                 \
-        arm64::assembly::O_NUL,                    \
-        inst,                                      \
-        op,                                        \
-        dest)
-
-// Add an instruction with a mnemonic shorthand and three operands
-#define arm_add_asm__as3(inst, op, dest, s1, s2)    \
-    inst.emplace_back(arm64::assembly::Instruction{ \
-        arm64::assembly::Mnemonic::op, dest, s1, s2 })
+#define arm64_add__asm(inst, op, ...)                               \
+    do {                                                            \
+        using enum arm64::assembly::Register;                       \
+        using enum arm64::assembly::Mnemonic;                       \
+        arm64::assembly::ARM64_ASSEMBLY_INSERTER::insert<           \
+            arm64::assembly::Instruction,                           \
+            arm64::assembly::ARM64_ASSEMBLY_INSERTER::nary::ary_3>( \
+            inst, op __VA_OPT__(, ) __VA_ARGS__);                   \
+    } while (false)
 
 /**
  * @brief
@@ -446,7 +382,6 @@ constexpr const auto FLOAT_REGISTER = { Register::v0,
 
 enum class Mnemonic
 {
-    // Data Processing
     add,
     adds,
     sub,
@@ -463,17 +398,12 @@ enum class Mnemonic
     lsr,
     asr,
     ror,
-
-    // Memory Access
     ldr,
     str,
     ldp,
     stp,
-
-    // Branching
     b,
     bl,
-    ret,
     br,
     blr,
     cbz,
@@ -486,13 +416,10 @@ enum class Mnemonic
     b_le,
     b_gt,
     b_ge,
-
-    // System
-    svc,  // supervisor call
-    adr,  // PC-relative address
-    adrp, // PC-relative address (page)
-
-    // Other
+    svc,
+    adr,
+    adrp,
+    ret,
     mov,
     cmp,
     cmn,
@@ -966,7 +893,6 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         ARM64_MNEMONIC_OSTREAM(stp);
         ARM64_MNEMONIC_OSTREAM(b);
         ARM64_MNEMONIC_OSTREAM(bl);
-        ARM64_MNEMONIC_OSTREAM(cset);
         ARM64_MNEMONIC_OSTREAM(ret);
         ARM64_MNEMONIC_OSTREAM(br);
         ARM64_MNEMONIC_OSTREAM(blr);
@@ -987,11 +913,11 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         ARM64_MNEMONIC_OSTREAM(cmp);
         ARM64_MNEMONIC_OSTREAM(cmn);
         ARM64_MNEMONIC_OSTREAM(tst);
+        ARM64_MNEMONIC_OSTREAM(cset);
         ARM64_MNEMONIC_OSTREAM(nop);
     }
     return os;
 }
-
 /**
  * @brief Internal implementation type details
  *
@@ -1007,6 +933,11 @@ using Instructions = std::deque<common::Instruction_3ARY<Mnemonic, Register>>;
 using Instruction_Pair = common::Instruction_Pair<Storage, Instructions>;
 using Immediate = common::Immediate;
 using Directive_Pair = std::pair<std::string, Directives>;
+
+using ARM64_ASSEMBLY_INSERTER =
+    target::common::assembly::Assembly_Inserter<arm64::assembly::Mnemonic,
+        arm64::assembly::Register,
+        arm64::assembly::Instructions>;
 
 // Empty storage device
 const Storage O_NUL = std::monostate{};

@@ -23,7 +23,7 @@ namespace fs = std::filesystem;
         using namespace credence::target::x86_64;                            \
         auto test = std::ostringstream{};                                    \
         auto fixture_path = fs::path(ROOT_PATH);                             \
-        fixture_path.append("test/fixtures/x86_64/ast");                     \
+        fixture_path.append("test/fixtures/platform/ast");                   \
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \
@@ -39,7 +39,7 @@ namespace fs = std::filesystem;
         using namespace credence::target::x86_64;                            \
         auto test = std::ostringstream{};                                    \
         auto fixture_path = fs::path(ROOT_PATH);                             \
-        fixture_path.append("test/fixtures/x86_64/ast");                     \
+        fixture_path.append("test/fixtures/platform/ast");                   \
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \
@@ -59,7 +59,7 @@ namespace fs = std::filesystem;
         using namespace credence::target::x86_64;                            \
         auto test = std::ostringstream{};                                    \
         auto fixture_path = fs::path(ROOT_PATH);                             \
-        fixture_path.append("test/fixtures/x86_64/ast");                     \
+        fixture_path.append("test/fixtures/platform/ast");                   \
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \

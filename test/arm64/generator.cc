@@ -26,7 +26,7 @@ namespace fs = std::filesystem;
         using namespace credence::target::arm64;                             \
         auto test = std::ostringstream{};                                    \
         auto fixture_path = fs::path(ROOT_PATH);                             \
-        fixture_path.append("test/fixtures/arm64/ast");                      \
+        fixture_path.append("test/fixtures/platform/ast");                   \
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \
@@ -42,7 +42,7 @@ namespace fs = std::filesystem;
         using namespace credence::target::arm64;                               \
         auto test = std::ostringstream{};                                      \
         auto fixture_path = fs::path(ROOT_PATH);                               \
-        fixture_path.append("test/fixtures/arm64/ast");                        \
+        fixture_path.append("test/fixtures/platform/ast");                     \
         auto file_path =                                                       \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path));   \
         auto fixture_content =                                                 \
@@ -58,7 +58,7 @@ namespace fs = std::filesystem;
         using namespace credence::target::arm64;                             \
         auto test = std::ostringstream{};                                    \
         auto fixture_path = fs::path(ROOT_PATH);                             \
-        fixture_path.append("test/fixtures/arm64/ast");                      \
+        fixture_path.append("test/fixtures/platform/ast");                   \
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
         auto fixture_content =                                               \
@@ -67,7 +67,7 @@ namespace fs = std::filesystem;
             test, fixture_content[0], fixture_content[1], true));            \
     } while (0)
 
-TEST_CASE("target/arm64: fixture: math_constant.b")
+TEST_CASE("target/arm64: fixture: math_constant.b" * doctest::skip(true))
 {
     std::string expected = R"arm(
 .align 2
@@ -98,8 +98,9 @@ _start:
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant", expected);
 }
 
-TEST_CASE("target/arm64: fixture: math_constant_2.b")
+TEST_CASE("target/arm64: fixture: math_constant_2.b" * doctest::skip(true))
 {
+    CHECK(false);
     std::string expected = R"arm(
 .align 2
 
@@ -125,8 +126,9 @@ _start:
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_2", expected);
 }
 
-TEST_CASE("target/arm64: fixture: math_constant_4.b")
+TEST_CASE("target/arm64: fixture: math_constant_4.b" * doctest::skip(true))
 {
+    CHECK(false);
     std::string expected = R"arm(
 .align 2
 

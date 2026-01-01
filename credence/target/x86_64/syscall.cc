@@ -83,7 +83,7 @@ bool set_signal_register_from_safe_address(Instructions& instructions,
         auto* address_of = accessor_->register_accessor.signal_register;
         if (storage == x64_rr(rsi) and *address_of == Register::rcx) {
             accessor_->set_signal_register(Register::eax);
-            x64_asm__src_rs(instructions, movq_, storage, rcx);
+            x8664_add__asm(instructions, movq_, storage, rcx);
             return false;
         }
     }
@@ -108,10 +108,10 @@ void syscall_operands_to_instructions(Instructions& instructions,
         qword_registers.pop_back();
         dword_registers.pop_back();
         if (is_immediate_rip_address_offset(arg))
-            x64_add_asm__as(instructions, lea, storage, arg);
+            x8664_add__asm(instructions, lea, storage, arg);
         else if (set_signal_register_from_safe_address(
                      instructions, storage, accessor))
-            x64_add_asm__as(instructions, movq_, storage, arg);
+            x8664_add__asm(instructions, movq_, storage, arg);
     }
 }
 
@@ -171,7 +171,7 @@ void make_syscall(
         syscall_entry[0]);
 #endif
 
-    x64_asm__dest_rs(instructions, mov, rax, syscall_number);
+    x8664_add__asm(instructions, mov, rax, syscall_number);
 
     syscall_operands_to_instructions(instructions,
         arguments,
@@ -180,7 +180,7 @@ void make_syscall(
         stack_frame,
         accessor);
 
-    x64_asm__zero_o(instructions, syscall);
+    x8664_add__asm(instructions, syscall);
 }
 }
 
