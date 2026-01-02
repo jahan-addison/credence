@@ -85,17 +85,17 @@ jobs:
         echo "$(pwd)" > $HOME/.credence
         chmod +x ./bin/credence
         chmod +x ./test/compiled-test.sh
-        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
-        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b
-        ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/x86_64/stdlib/putchar_1.b
-        ./bin/credence -t x86_64 -o stdlib_getchar_test $(pwd)/test/fixtures/x86_64/stdlib/getchar_1.b
-        ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/x86_64/call_1.b
-        ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/x86_64/relational/if_1.b
-        ./bin/credence -t x86_64 -o while_1 $(pwd)/test/fixtures/x86_64/relational/while_1.b
-        ./bin/credence -t x86_64 -o switch_1 $(pwd)/test/fixtures/x86_64/relational/switch_1.b
-        ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/x86_64/call_2.b
-        ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/x86_64/stdlib/printf_1.b
-        ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/x86_64/argc_argv.b
+        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
+        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
+        ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/platform/stdlib/putchar_1.b
+        ./bin/credence -t x86_64 -o stdlib_getchar_test $(pwd)/test/fixtures/platform/stdlib/getchar_1.b
+        ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/platform/call_1.b
+        ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/platform/relational/if_1.b
+        ./bin/credence -t x86_64 -o while_1 $(pwd)/test/fixtures/platform/relational/while_1.b
+        ./bin/credence -t x86_64 -o switch_1 $(pwd)/test/fixtures/platform/relational/switch_1.b
+        ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/platform/call_2.b
+        ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/platform/stdlib/printf_1.b
+        ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/platform/argc_argv.b
         ./test/compiled-test.sh syscall_test
         ./test/compiled-test.sh stdlib_test
         ./test/compiled-test.sh call_test_1
@@ -146,8 +146,8 @@ jobs:
         export CREDENCE_ENV_HOME="$(pwd)"
         echo "$(pwd)" > $HOME/.credence
         chmod +x ./bin/credence
-        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/x86_64/stdlib/write.b
-        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/x86_64/stdlib/print.b
+        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
+        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
         valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
         valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
         valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b

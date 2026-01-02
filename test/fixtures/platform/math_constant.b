@@ -3,5 +3,5 @@ main () {
   m = 1;
   c = 5;
   m = 10 * m + c - 0;
-  printf("%d", m);
+  //printf("%d", m);
 }

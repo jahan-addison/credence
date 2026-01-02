@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <credence/ir/checker.h>                // for Type_Checker
 #include <credence/ir/object.h>                 // for RValue, Size, LValue
 #include <credence/target/arm64/assembly.h>     // for Register, Directive
 #include <credence/target/arm64/stack.h>        // for Stack
@@ -70,7 +71,6 @@ using Directives = assembly::Directives;
 /**
  * Short-form helpers for matchit predicate pattern matching
  */
-// Re-export common predicates from common::memory
 using common::memory::is_immediate;
 using common::memory::is_parameter;
 using common::memory::is_temporary;
@@ -176,13 +176,55 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
         }
         return m::match(size)(
             m::pattern | assembly::Operand_Size::Doubleword =
-                [&] { return Register::x0; },
+                [&] { return Register::x28; },
             m::pattern | assembly::Operand_Size::Halfword =
-                [&] { return Register::w0; }, // No 16-bit direct
+                [&] { return Register::w28; }, // No 16-bit direct
             m::pattern | assembly::Operand_Size::Byte =
-                [&] { return Register::w0; }, // No 8-bit direct
-            m::pattern | m::_ = [&] { return Register::w0; });
+                [&] { return Register::w28; }, // No 8-bit direct
+            m::pattern | m::_ = [&] { return Register::w28; });
     }
+};
+
+struct Instruction_Accessor : public ARM64_Instruction_Accessor
+{};
+
+struct Register_Accessor : public ARM64_Register_Accessor
+{
+    explicit Register_Accessor(Register* signal_register)
+        : ARM64_Register_Accessor(signal_register)
+    {
+    }
+
+    registers::general_purpose get_register_list_by_size(
+        assembly::Operand_Size size)
+    {
+        if (size == assembly::Operand_Size::Doubleword)
+            return d_size_registers;
+        else
+            return w_size_registers;
+    }
+
+    void reset_available_registers()
+    {
+        d_size_registers = registers::available_doubleword;
+        w_size_registers = registers::available_word;
+    }
+
+    /**
+     * @brief Get a second accumulator register from a size
+     */
+    static constexpr Register get_second_register_from_size(
+        type::semantic::Size size)
+    {
+        namespace m = matchit;
+        return m::match(size)(
+            m::pattern | 8UL = [&] { return Register::x1; },
+            m::pattern | m::_ = [&] { return Register::w1; });
+    }
+
+    registers::general_purpose d_size_registers =
+        registers::available_doubleword;
+    registers::general_purpose w_size_registers = registers::available_word;
 };
 
 struct Address_Accessor : public ARM64_Address_Accessor
@@ -190,11 +232,50 @@ struct Address_Accessor : public ARM64_Address_Accessor
   public:
     explicit Address_Accessor(Table_Pointer& table,
         ARM64_Address_Accessor::Stack_Pointer_Type& stack,
-        Flag_Accessor& flag_accessor)
+        Flag_Accessor& flag_accessor,
+        Register_Accessor& register_accessor)
         : ARM64_Address_Accessor(table, stack, flag_accessor)
+        , register_accessor_(register_accessor)
     {
     }
 
+    void reset_storage()
+    {
+        register_id.clear();
+        id_index = 0;
+    }
+
+  private:
+    void set_word_or_doubleword_register(LValue const& lvalue,
+        assembly::Operand_Size size);
+    Size get_size_from_temporary_binary_rvalue_data_type(LValue const& lvalue,
+        Immediate const& rvalue,
+        ir::object::Function_PTR& frame);
+
+  public:
+    bool is_lvalue_allocated_in_memory(LValue const& lvalue);
+    Storage get_storage_for_binary_rvalue(RValue const& rvalue);
+    Storage get_storage_from_lvalue(LValue const& lvalue);
+
+    Register get_available_storage_register(assembly::Operand_Size size);
+    void set_lvalue_to_storage_space(LValue const& lvalue,
+        Stack_Frame& stack_frame);
+
+    assembly::Operand_Size get_word_size_from_storage(
+        assembly::Storage const& storage,
+        Stack_Frame& stack_frame)
+    {
+        return is_doubleword_storage_size(storage, stack_frame)
+                   ? assembly::Operand_Size::Doubleword
+                   : assembly::Operand_Size::Word;
+    }
+
+    assembly::Operand_Size get_word_size_from_lvalue(LValue const& lvalue,
+        Stack_Frame& stack_frame)
+    {
+        auto storage = get_storage_from_lvalue(lvalue);
+        return get_word_size_from_storage(storage, stack_frame);
+    }
     bool is_doubleword_storage_size(assembly::Storage const& storage,
         Stack_Frame& stack_frame)
     {
@@ -224,6 +305,12 @@ struct Address_Accessor : public ARM64_Address_Accessor
         LValue const& lvalue,
         std::size_t instruction_index,
         bool use_prefix = true) override;
+
+  private:
+    Ordered_Map<LValue, Storage> address_table{};
+    std::set<unsigned int> register_id{};
+    unsigned int id_index{ 0 };
+    Register_Accessor& register_accessor_;
 };
 
 struct Vector_Accessor : public ARM64_Vector_Accessor
@@ -237,44 +324,6 @@ struct Vector_Accessor : public ARM64_Vector_Accessor
     {
         return type::get_size_from_rvalue_data_type(immediate);
     }
-};
-
-struct Instruction_Accessor : public ARM64_Instruction_Accessor
-{};
-
-struct Register_Accessor : public ARM64_Register_Accessor
-{
-    explicit Register_Accessor(Register* signal_register)
-        : ARM64_Register_Accessor(signal_register)
-    {
-    }
-
-    Storage get_register_for_binary_operator(RValue const& rvalue,
-        Stack_Pointer& stack);
-    Storage get_available_register(assembly::Operand_Size size,
-        Stack_Pointer& stack);
-
-    void reset_available_registers()
-    {
-        d_size_registers = registers::available_doubleword;
-        w_size_registers = registers::available_word;
-    }
-
-    /**
-     * @brief Get a second accumulator register from a size
-     */
-    static constexpr Register get_second_register_from_size(
-        type::semantic::Size size)
-    {
-        namespace m = matchit;
-        return m::match(size)(
-            m::pattern | 8UL = [&] { return Register::x1; },
-            m::pattern | m::_ = [&] { return Register::w1; });
-    }
-
-    registers::general_purpose d_size_registers =
-        registers::available_doubleword;
-    registers::general_purpose w_size_registers = registers::available_word;
 };
 
 } // namespace detail
@@ -293,11 +342,13 @@ class Memory_Accessor
         , table_accessor(table_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
-        , address_accessor{ table_, stack, flag_accessor }
         , register_accessor{ &signal_register }
+        , address_accessor{ table_, stack, flag_accessor, register_accessor }
     {
         instruction_accessor = std::make_shared<detail::Instruction_Accessor>();
     }
+
+  public:
     constexpr void set_signal_register(Register signal_)
     {
         signal_register = signal_;
@@ -317,8 +368,11 @@ class Memory_Accessor
     detail::Table_Accessor table_accessor{ table_ };
     detail::Accumulator_Accessor accumulator_accessor{ &signal_register };
     detail::Vector_Accessor vector_accessor{ table_ };
-    detail::Address_Accessor address_accessor{ table_, stack, flag_accessor };
     detail::Register_Accessor register_accessor{ &signal_register };
+    detail::Address_Accessor address_accessor{ table_,
+        stack,
+        flag_accessor,
+        register_accessor };
     Instruction_Pointer instruction_accessor{};
 };
 

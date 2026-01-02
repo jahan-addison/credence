@@ -28,6 +28,17 @@
 
 namespace credence::target::arm64::assembly {
 
+/**
+ * @brief
+ * A push-down stack for the arm64 architecture
+ *
+ * Provides a means to allocate, traverse, and verify offsets that auto-align on
+ * the stack by lvalues and vice-versa.
+ *
+ * Since there are so many more registers available, we use as many as possible
+ * before allocating on the stack. Then and only then do we grow the stack frame
+ * allocation size
+ */
 class Stack : public common::detail::base_stack_pointer
 {
   public:
@@ -57,8 +68,14 @@ class Stack : public common::detail::base_stack_pointer
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
 
+    /**
+     * @brief Get the stack location offset and size from an lvalue
+     */
     constexpr Entry get(LValue const& lvalue) { return stack_address[lvalue]; }
 
+    /**
+     * @brief Get the stack location lvalue and size from an offset
+     */
     constexpr Entry get(Offset offset) const
     {
         auto find = std::find_if(stack_address.begin(),
@@ -70,6 +87,10 @@ class Stack : public common::detail::base_stack_pointer
             return find->second;
     }
 
+    /**
+     * @brief Dynamically set an operand size for vector indices, which pushes
+     * downward on a chunk
+     */
     constexpr void set(Offset offset, Operand_Size size)
     {
         using namespace fmt::literals;
@@ -78,6 +99,11 @@ class Stack : public common::detail::base_stack_pointer
             Entry{ offset, size });
     }
 
+    /**
+     * @brief Allocate space on the stack from a word size
+     *
+     * See assembly.h for details
+     */
     constexpr Offset allocate(assembly::Operand_Size operand)
     {
         auto alloc = get_size_from_operand_size(operand);
@@ -85,6 +111,11 @@ class Stack : public common::detail::base_stack_pointer
         return size;
     }
 
+    /**
+     * @brief Get the word size of an offset address
+     *
+     * See assembly.h for details
+     */
     constexpr assembly::Operand_Size get_operand_size_from_offset(
         Offset offset) const
     {
@@ -98,6 +129,9 @@ class Stack : public common::detail::base_stack_pointer
             });
     }
 
+    /**
+     * @brief Set and allocate an address from an immediate
+     */
     constexpr void set_address_from_immediate(LValue const& lvalue,
         assembly::Immediate const& rvalue)
     {
@@ -109,6 +143,9 @@ class Stack : public common::detail::base_stack_pointer
         allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
 
+    /**
+     * @brief Set and allocate an address from an accumulator register size
+     */
     constexpr void set_address_from_accumulator(LValue const& lvalue,
         assembly::Register acc)
     {
@@ -120,6 +157,9 @@ class Stack : public common::detail::base_stack_pointer
         allocate_aligned_lvalue(lvalue, allocation, register_size);
     }
 
+    /**
+     * @brief Set and allocate an address from a type in the Table
+     */
     constexpr void set_address_from_type(LValue const& lvalue, Type type)
     {
         if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
@@ -129,6 +169,12 @@ class Stack : public common::detail::base_stack_pointer
         allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
 
+    /**
+     * @brief
+     * In some cases address space was loaded in chunks for memory alignment
+     *
+     * So skip any previously allocated offsets as we push downwards
+     */
     constexpr void allocate_aligned_lvalue(LValue const& lvalue,
         Size value_size,
         assembly::Operand_Size operand_size)
@@ -141,6 +187,11 @@ class Stack : public common::detail::base_stack_pointer
         }
     }
 
+    /**
+     * @brief Set and allocate an address from another addres (pointer)
+     *
+     * Memory align to multiples of 8 bytes per the ABI
+     */
     constexpr void set_address_from_address(LValue const& lvalue)
     {
         auto qword_size = assembly::Operand_Size::Doubleword;
@@ -149,11 +200,21 @@ class Stack : public common::detail::base_stack_pointer
         stack_address.insert(lvalue, { size, qword_size });
     }
 
+    /**
+     * @brief Get the allocation size of the current frame, aligned up to 16
+     * bytes
+     */
     constexpr Size get_stack_frame_allocation_size()
     {
         return common::memory::align_up_to(size + 16, 16);
     }
 
+    /**
+     * @brief Get the stack address of an index in a vector (array)
+     *
+     * The vector was allocated in a chunk and we allocate each index
+     * downward
+     */
     constexpr Size get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
@@ -175,6 +236,11 @@ class Stack : public common::detail::base_stack_pointer
             });
     }
 
+    /**
+     * @brief Get the size of a vector (array)
+     *
+     * Memory align to multiples of 16 bytes per the ABI
+     */
     constexpr Size get_stack_size_from_table_vector(
         ir::object::Vector const& vector)
     {
@@ -192,6 +258,9 @@ class Stack : public common::detail::base_stack_pointer
         return util::align_up_to_16(vector_size);
     }
 
+    /**
+     * @brief Set and allocate an address from an arbitrary offset
+     */
     constexpr void set_address_from_size(LValue const& lvalue,
         Offset allocate,
         assembly::Operand_Size operand = assembly::Operand_Size::Word)
@@ -202,6 +271,18 @@ class Stack : public common::detail::base_stack_pointer
         stack_address.insert(lvalue, { size, operand });
     }
 
+    constexpr void set_address_from_size(LValue const& lvalue,
+        assembly::Operand_Size operand = assembly::Operand_Size::Word)
+    {
+        if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
+            return;
+        size += static_cast<std::size_t>(operand);
+        stack_address.insert(lvalue, { size, operand });
+    }
+
+    /**
+     * @brief Get the lvalue of a local variable allocated at an offset
+     */
     constexpr std::string get_lvalue_from_offset(Offset offset) const
     {
         auto search = std::ranges::find_if(stack_address.begin(),

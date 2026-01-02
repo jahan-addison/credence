@@ -458,11 +458,11 @@ enum class Directive
 
 enum class Operand_Size : std::size_t
 {
+    Empty = 0,
     Byte = 1,
     Halfword = 2,
     Word = 4,
     Doubleword = 8,
-    Empty = 0
 };
 
 constexpr bool is_doubleword_register(Register r)
@@ -1156,6 +1156,16 @@ constexpr type::semantic::Size get_size_from_register(Register r)
         return 8;
     }
     return 0;
+}
+
+/**
+ * @brief Check that a common::Size is a valid Operand_Size
+ */
+constexpr bool is_valid_size(Size size)
+{
+    if (size == 1UL or size == 2UL or size == 4UL or size == 8UL)
+        return true;
+    return false;
 }
 
 /**

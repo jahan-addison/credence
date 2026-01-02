@@ -85,6 +85,12 @@ constexpr auto integral_unary_types = { "int", "double", "float", "long" };
 constexpr Data_Type NULL_RVALUE_LITERAL =
     Data_Type{ "NULL", "null", sizeof(void*) };
 
+constexpr semantic::RValue get_value_from_rvalue_data_type(
+    Data_Type const& rvalue);
+
+constexpr semantic::Type get_value_from_rvalue_data_type(
+    type::semantic::RValue const& rvalue);
+
 inline int integral_from_type_int(std::string const& t)
 {
     return std::stoi(t);
@@ -366,6 +372,20 @@ constexpr Binary_Expression from_rvalue_binary_expression(
     return { lhs_lvalue, rhs_lvalue, binary_operator };
 }
 
+constexpr Binary_Expression from_rvalue_binary_expression(
+    Data_Type const& datatype)
+{
+    auto rvalue = type::get_value_from_rvalue_data_type(datatype);
+    auto lhs = rvalue.find_first_of(" ");
+    auto rhs = rvalue.find_last_of(" ");
+    auto lhs_lvalue = std::string{ rvalue.begin(), rvalue.begin() + lhs };
+    auto rhs_lvalue = std::string{ rvalue.begin() + 1 + rhs, rvalue.end() };
+    auto binary_operator =
+        std::string{ rvalue.begin() + lhs + 1, rvalue.begin() + rhs };
+
+    return { lhs_lvalue, rhs_lvalue, binary_operator };
+}
+
 /**
  * @brief Get binary operator from ITA rvalue string
  */
@@ -538,7 +558,22 @@ constexpr bool is_binary_datatype_expression(semantic::RValue const& rvalue)
     return true;
 }
 
+constexpr bool is_binary_datatype_expression(Data_Type const& datatype)
+{
+    auto rvalue = get_value_from_rvalue_data_type(datatype);
+
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    auto test = from_rvalue_binary_expression(rvalue);
+    if (!is_rvalue_data_type(std::get<0>(test)))
+        return false;
+    if (!is_rvalue_data_type(std::get<1>(test)))
+        return false;
+    return true;
+}
+
 /**
+ *
  * @brief Check if symbol is an expression with two temporaries
  */
 constexpr bool is_temporary_datatype_binary_expression(
@@ -547,11 +582,17 @@ constexpr bool is_temporary_datatype_binary_expression(
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
     auto test = from_rvalue_binary_expression(rvalue);
-    if (!is_temporary(std::get<0>(test)))
-        return false;
-    if (!is_temporary(std::get<1>(test)))
+    if (!is_temporary(std::get<0>(test)) and
+        not is_temporary(std::get<1>(test)))
         return false;
     return true;
+}
+
+constexpr bool is_temporary_datatype_binary_expression(
+    Data_Type const& datatype)
+{
+    return is_temporary_datatype_binary_expression(
+        get_value_from_rvalue_data_type(datatype));
 }
 
 /**
@@ -569,6 +610,13 @@ constexpr std::string is_temporary_operand_binary_expression(
         return "right";
 
     return std::string{};
+}
+
+constexpr std::string is_temporary_operand_binary_expression(
+    Data_Type const& datatype)
+{
+    return is_temporary_operand_binary_expression(
+        get_value_from_rvalue_data_type(datatype));
 }
 
 } // namespace type
