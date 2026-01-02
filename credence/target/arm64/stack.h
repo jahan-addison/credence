@@ -32,12 +32,20 @@ namespace credence::target::arm64::assembly {
  * @brief
  * A push-down stack for the arm64 architecture
  *
- * Provides a means to allocate, traverse, and verify offsets that auto-align on
- * the stack by lvalues and vice-versa.
- *
  * Since there are so many more registers available, we use as many as possible
  * before allocating on the stack. Then and only then do we grow the stack frame
- * allocation size
+ * allocation size.
+ *
+ * Vectors, both global and local, will use the stack.
+ *
+ * Designated callee-saved registers are saved on the stack:
+ *
+ *   The offset 3 + 8 * 1 is designated for x26
+ *   The offset 4 + 8 * 2 is designated for x23
+ *   Function arguments are x1-x8,
+ *   x9 is reserved for arithmetic scratch data
+ *   The local scope uses x9-x18, then the stack
+ *
  */
 class Stack : public common::detail::base_stack_pointer
 {
@@ -104,11 +112,24 @@ class Stack : public common::detail::base_stack_pointer
      *
      * See assembly.h for details
      */
-    constexpr Offset allocate(assembly::Operand_Size operand)
+    constexpr void allocate(assembly::Operand_Size operand)
     {
         auto alloc = get_size_from_operand_size(operand);
         size += alloc;
-        return size;
+    }
+
+    constexpr void allocate(Size alloc) { size += alloc; }
+
+    /**
+     * @brief Allocate space on the stack
+     */
+    constexpr void deallocate(Size alloc)
+    {
+        if (size - alloc < 0) {
+            size = 0;
+        } else {
+            size -= alloc;
+        }
     }
 
     /**
@@ -206,7 +227,10 @@ class Stack : public common::detail::base_stack_pointer
      */
     constexpr Size get_stack_frame_allocation_size()
     {
-        return common::memory::align_up_to(size + 16, 16);
+        if (size < 16)
+            return 16UL;
+        else
+            return common::memory::align_up_to(size, 16);
     }
 
     /**
@@ -296,7 +320,7 @@ class Stack : public common::detail::base_stack_pointer
 
   private:
     int vectors{ 0 };
-    Offset size{ 0 };
+    Offset size{ 16 };
     Local stack_address{};
 };
 

@@ -66,28 +66,30 @@ class Visitor;
 class Storage_Emitter
 {
   public:
-    explicit Storage_Emitter(memory::Memory_Access& accessor,
-        std::size_t index,
-        Storage& source_storage)
+    explicit Storage_Emitter(memory::Memory_Access& accessor, std::size_t index)
         : accessor_(accessor)
         , instruction_index_(index)
-        , source_storage_(source_storage)
     {
     }
+
+    enum class Source
+    {
+        s_0,
+        s_1,
+        s_2,
+        s_3,
+    };
 
     std::string get_storage_device_as_string(assembly::Storage const& storage);
 
     void emit(std::ostream& os,
         assembly::Storage const& storage,
         assembly::Mnemonic mnemonic,
-        memory::Operand_Type type_);
+        Source source);
 
   private:
     memory::Memory_Access accessor_;
     std::size_t instruction_index_;
-
-  private:
-    Storage& source_storage_;
 };
 
 /**
@@ -106,6 +108,8 @@ class Text_Emitter
     void emit_stdlib_externs(std::ostream& os);
     void emit_text_directives(std::ostream& os);
     void emit_text_section(std::ostream& os);
+
+    void emit_callee_saved_registers_stp(std::size_t index);
 
   private:
     void emit_assembly_instruction(std::ostream& os,
@@ -133,6 +137,7 @@ class Text_Emitter
     memory::Instruction_Pointer instructions_;
     assembly::Instructions return_instructions_;
     std::size_t label_size_{ 0 };
+    int callee_saved{ 0 };
     Label frame_{};
     Label branch_{};
 };
@@ -159,6 +164,14 @@ class Data_Emitter
     void set_data_floats();
     void set_data_doubles();
 
+    inline void set_data_section()
+    {
+        set_data_globals();
+        set_data_strings();
+        set_data_floats();
+        set_data_doubles();
+    }
+
   private:
     assembly::Directives get_instructions_from_directive_type(
         assembly::Directive directive,
@@ -174,15 +187,16 @@ class Data_Emitter
 /**
  * @brief Instruction Inserter used to map IR instructions to arm64 assembly
  */
-class Instruction_Inserter
+class IR_Inserter
 {
   public:
-    explicit Instruction_Inserter(memory::Memory_Access accessor)
+    explicit IR_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
     {
     }
     friend class Visitor;
-    void insert(ir::Instructions const& ir_instructions);
+    void insert(ir::Instructions const& ir_instructions,
+        memory::Stack_Frame&& initial_frame);
     void setup_stack_frame_in_function(ir::Instructions const& ir_instructions,
         Visitor& visitor,
         int index);

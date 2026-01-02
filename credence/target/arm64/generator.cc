@@ -48,12 +48,31 @@
 #include <variant>                           // for variant, get, visit
 #include <vector>                            // for vector
 
+#define set_alignment_flag(flag_name)              \
+    accessor_->flag_accessor.set_instruction_flag( \
+        arm64::detail::flags::flag_name,           \
+        accessor_->instruction_accessor->size())
+
 namespace credence::target::arm64 {
 
 namespace m = matchit;
 
 assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
     memory::Stack_Pointer& stack);
+
+namespace detail::flags {
+
+enum ARM64_Instruction_Flag : common::flag::flags
+{
+
+    Align_Folded = 1 << 7,
+    Align_SP = 1 << 8,
+    Align_SP_Folded = 1 << 9,
+    Align_S3_Folded = 1 << 10,
+    Callee_Saved = 1 << 11
+};
+
+}
 
 /**
  * @brief Assembly Emitter Factory
@@ -78,14 +97,14 @@ void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
  */
 void Assembly_Emitter::emit(std::ostream& os)
 {
-    emit_arm64_assembly_prologue(os);
-    data_.emit_data_section(os);
-    if (!data_.instructions_.empty())
-        assembly::newline(os);
-    auto inserter = Instruction_Inserter{ accessor_ };
-    inserter.insert(ir_instructions_);
+    auto _start = memory::Stack_Frame{ accessor_ };
+    _start.set_stack_frame("main");
+    data_.set_data_section();
+    auto inserter = IR_Inserter{ accessor_ };
+    inserter.insert(ir_instructions_, std::move(_start));
+
     text_.emit_text_section(os);
-    assembly::newline(os);
+    data_.emit_data_section(os);
 }
 
 /**
@@ -220,13 +239,15 @@ void Data_Emitter::set_data_globals()
  */
 void Data_Emitter::emit_data_section(std::ostream& os)
 {
+    assembly::newline(os, 1);
+#if defined(CREDENCE_TEST) || defined(__linux__)
     os << assembly::Directive::data;
 
-    set_data_strings();
-    set_data_floats();
-    set_data_doubles();
-    set_data_globals();
+#elif defined(__APPLE__) || defined(__bsdi__)
 
+    os << ".section	__TEXT,__cstring,cstring_literals";
+
+#endif
     assembly::newline(os, 2);
 
     if (!instructions_.empty())
@@ -304,7 +325,7 @@ constexpr std::string emit_register_storage(Register device,
  */
 void emit_arm64_assembly_prologue(std::ostream& os)
 {
-    os << std::endl << ".align 2" << std::endl << std::endl;
+    os << ".align 3" << std::endl << std::endl;
 }
 
 /**
@@ -328,14 +349,14 @@ std::string Storage_Emitter::get_storage_device_as_string(
 }
 
 /**
- * @brief Emit the representation of a storage device based on type
+ * @brief Emit the representation of an mnemonic operand
  *
  *    Apply all flags set on the instruction index during code translation
  */
 void Storage_Emitter::emit(std::ostream& os,
     assembly::Storage const& storage,
     assembly::Mnemonic mnemonic,
-    memory::Operand_Type type_)
+    Source source)
 {
     auto& stack = accessor_->stack;
     auto& flag_accessor = accessor_->flag_accessor;
@@ -343,46 +364,44 @@ void Storage_Emitter::emit(std::ostream& os,
         flag_accessor.get_instruction_flags_at_index(instruction_index_);
     if (is_variant(std::monostate, storage))
         return;
-    switch (type_) {
-        case memory::Operand_Type::Destination: {
-            os << " " << get_storage_device_as_string(storage);
-            if (flags & flag::Indirect and
-                is_variant(Register, source_storage_))
-                flag_accessor.unset_instruction_flag(
-                    flag::Indirect, instruction_index_);
-        } break;
-        case memory::Operand_Type::Source: {
-            auto source = storage;
-            if (mnemonic == arm_mn(sub) or mnemonic == arm_mn(add))
-                if (flags & flag::Align)
-                    source = common::assembly::make_u32_int_immediate(
-                        stack->get_stack_frame_allocation_size());
-            // Load string operands via label address when requested
-            if ((flags & flag::Load) && is_variant(Immediate, source)) {
-                auto [val, type, size] = std::get<Immediate>(source);
-                if (type == "string") {
-                    auto& addr = accessor_->address_accessor.buffer_accessor;
-                    auto label = addr.get_string_address_offset(val);
-                    source = common::assembly::make_direct_immediate(label);
-                }
-            }
-            if (flags & flag::Indirect_Source)
-                flag_accessor.set_instruction_flag(
-                    flag::Indirect, instruction_index_);
-            if ((flags & flag::Load) && is_variant(Immediate, source)) {
-                auto [val, type, size] = std::get<Immediate>(source);
-                if (type == "string" && mnemonic == arm_mn(ldr)) {
-                    os << ", =" << get_storage_device_as_string(source);
-                } else {
-                    os << ", " << get_storage_device_as_string(source);
-                }
-            } else {
-                os << ", " << get_storage_device_as_string(source);
-            }
-            flag_accessor.unset_instruction_flag(
-                flag::Indirect, instruction_index_);
-        }
+    auto operand = storage;
+    auto delimiter = source == Source::s_0 ? " " : ", ";
+    if (mnemonic == arm_mn(sub) or mnemonic == arm_mn(add) or
+        mnemonic == arm_mn(stp) or mnemonic == arm_mn(ldp)) {
+        if (flags & flag::Align and source == Source::s_2)
+            operand =
+                u32_int_immediate(stack->get_stack_frame_allocation_size());
+        if (flags & detail::flags::Align_S3_Folded and source == Source::s_3)
+            operand =
+                u32_int_immediate(stack->get_stack_frame_allocation_size());
+        if (flags & detail::flags::Align_Folded and source == Source::s_2)
+            operand = u32_int_immediate(
+                stack->get_stack_frame_allocation_size() - 16);
+        if (flags & detail::flags::Align_SP and source == Source::s_2)
+            operand = direct_immediate(fmt::format(
+                "[sp, #-{}]!", stack->get_stack_frame_allocation_size()));
+        if (flags & detail::flags::Align_SP_Folded and source == Source::s_2)
+            operand = direct_immediate(fmt::format(
+                "[sp, #{}]", stack->get_stack_frame_allocation_size() - 16));
     }
+
+    if (flags & flag::Indirect_Source)
+        flag_accessor.set_instruction_flag(flag::Indirect, instruction_index_);
+
+    if ((flags & flag::Load) and is_variant(Immediate, operand)) {
+        auto [value, type, size] = std::get<Immediate>(operand);
+        if (source != Source::s_0 and type == "string" and
+            mnemonic == arm_mn(ldr)) {
+            os << ", =" << get_storage_device_as_string(operand);
+        } else {
+            os << delimiter << get_storage_device_as_string(operand);
+        }
+
+    } else {
+        os << delimiter << get_storage_device_as_string(operand);
+    }
+
+    flag_accessor.unset_instruction_flag(flag::Indirect, instruction_index_);
 }
 
 void Text_Emitter::emit_epilogue_jump(std::ostream& os)
@@ -404,9 +423,12 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
     if (table->hoisted_symbols.has_key(s) and
         table->hoisted_symbols[s]["type"].to_string() ==
             "function_definition") {
+        callee_saved = 0;
         // this is a new frame, emit the last frame function epilogue
-        if (frame_ != s)
+        if (frame_ != s) {
             emit_function_epilogue(os);
+            accessor_->address_accessor.set_current_frame_symbol(s);
+        }
         frame_ = s;
         if (set_label)
             label_size_ = accessor_->table_accessor.table_->functions.at(s)
@@ -434,6 +456,31 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
     }
 }
 
+void Text_Emitter::emit_callee_saved_registers_stp(std::size_t index)
+{
+    auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
+        accessor_->address_accessor.get_current_frame_name());
+    bool has_x23 = stack_frame->tokens.contains("x23");
+    bool has_x26 = stack_frame->tokens.contains("x26");
+    auto& flag_accessor = accessor_->flag_accessor;
+    auto flags = flag_accessor.get_instruction_flags_at_index(index);
+    if (flags & detail::flags::Callee_Saved and callee_saved == 0) {
+        if (has_x23 and has_x26) {
+            flag_accessor.unset_instruction_flag(
+                detail::flags::Callee_Saved, index);
+            callee_saved = 1;
+        } else if (has_x26) {
+            flag_accessor.unset_instruction_flag(
+                detail::flags::Callee_Saved, index);
+            callee_saved = 1;
+        } else if (has_x23) {
+            flag_accessor.unset_instruction_flag(
+                detail::flags::Callee_Saved, index);
+            callee_saved = 1;
+        }
+    }
+}
+
 /**
  * @brief Emit a mnemonic and its possible operands in the text section
  */
@@ -441,17 +488,32 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     std::size_t index,
     assembly::Instruction const& s)
 {
-    auto [mnemonic, dest, src1, src2] = s;
-    auto storage_emitter = Storage_Emitter{ accessor_, index, src1 };
+    auto [mnemonic, src1, src2, src3, src4] = s;
+    auto storage_emitter = Storage_Emitter{ accessor_, index };
     if (branch_ == "_L1" && label_size_ > 0) {
         return_instructions_.emplace_back(s);
         return;
     }
+    auto& flag_accessor = accessor_->flag_accessor;
+    auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
+        accessor_->address_accessor.get_current_frame_name());
+    auto flags = flag_accessor.get_instruction_flags_at_index(index);
+
+    emit_callee_saved_registers_stp(index);
+
+    if (flags & detail::flags::Callee_Saved and callee_saved != 1)
+        return;
 
     os << assembly::tabwidth(4) << mnemonic;
-    storage_emitter.emit(os, dest, mnemonic, memory::Operand_Type::Destination);
-    storage_emitter.emit(os, src1, mnemonic, memory::Operand_Type::Source);
-    storage_emitter.emit(os, src2, mnemonic, memory::Operand_Type::Source);
+
+    storage_emitter.emit(os, src1, mnemonic, Storage_Emitter::Source::s_0);
+    storage_emitter.emit(os, src2, mnemonic, Storage_Emitter::Source::s_1);
+    storage_emitter.emit(os, src3, mnemonic, Storage_Emitter::Source::s_2);
+    storage_emitter.emit(os, src4, mnemonic, Storage_Emitter::Source::s_3);
+
+    if (flags & detail::flags::Callee_Saved and callee_saved == 1)
+        callee_saved = -1;
+
     assembly::newline(os, 1);
 }
 
@@ -516,7 +578,15 @@ void Text_Emitter::emit_text_section(std::ostream& os)
  */
 void Text_Emitter::emit_text_directives(std::ostream& os)
 {
+    assembly::newline(os, 1);
+#if defined(CREDENCE_TEST) || defined(__linux__)
     os << assembly::Directive::text << std::endl;
+#elif defined(__APPLE__) || defined(__bsdi__)
+    os << ".section	__TEXT,__text,regular,pure_instructions" << std::endl;
+#endif
+    assembly::newline(os, 1);
+    os << assembly::tabwidth(4);
+    emit_arm64_assembly_prologue(os);
     os << assembly::tabwidth(4) << assembly::Directive::start;
     assembly::newline(os, 1);
     emit_stdlib_externs(os);
@@ -530,7 +600,6 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
     if (!test_no_stdlib)
         for (auto const& stdlib_f : common::runtime::get_library_symbols()) {
             os << assembly::tabwidth(4) << assembly::Directive::global << " ";
-            // Prepend underscore for macOS/BSD linker compatibility
             os << "_" << stdlib_f;
             assembly::newline(os);
         }
@@ -540,9 +609,9 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 /**
  * @brief Setup the stack frame for a function during instruction insertion
  *
- *  Note: x28 is reserved for the argc address and argv offsets in memory
+ *  Note:s x28 is reserved for the argc address and argv offsets in memory
  */
-void Instruction_Inserter::setup_stack_frame_in_function(
+void IR_Inserter::setup_stack_frame_in_function(
     ir::Instructions const& ir_instructions,
     Visitor& visitor,
     int index)
@@ -551,6 +620,7 @@ void Instruction_Inserter::setup_stack_frame_in_function(
     auto symbol = std::get<1>(ir_instructions.at(index - 1));
     auto name = type::get_label_as_human_readable(symbol);
     stack_frame.set_stack_frame(name);
+    accessor_->address_accessor.set_current_frame_symbol(name);
     if (name == "main") {
         // setup argc, argv
         auto argc_argv = common::runtime::argc_argv_kernel_runtime_access<
@@ -558,7 +628,7 @@ void Instruction_Inserter::setup_stack_frame_in_function(
         if (argc_argv.first) {
             auto& instructions =
                 accessor_->instruction_accessor->get_instructions();
-            auto argc_address = common::assembly::make_direct_immediate("[sp]");
+            auto argc_address = direct_immediate("[sp]");
             arm64_add__asm(instructions, ldr, x27, argc_address);
         }
     }
@@ -568,9 +638,10 @@ void Instruction_Inserter::setup_stack_frame_in_function(
 /**
  * @brief IR instruction visitor to map arm64 instructions in memory
  */
-void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
+void IR_Inserter::insert(ir::Instructions const& ir_instructions,
+    memory::Stack_Frame&& initial_frame)
 {
-    auto stack_frame = memory::Stack_Frame{ accessor_ };
+    auto stack_frame = initial_frame;
     auto ir_visitor = Visitor(accessor_, stack_frame);
     for (std::size_t index = 0; index < ir_instructions.size(); index++) {
         auto inst = ir_instructions[index];
@@ -616,28 +687,35 @@ void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
 void Visitor::from_func_start_ita(Label const& name)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& ins = instruction_accessor->get_instructions();
+    auto& instructions = instruction_accessor->get_instructions();
+    auto& stack = accessor_->stack;
     auto& table = accessor_->table_accessor.table_;
+    auto& ir_instructions = *accessor_->table_accessor.table_->ir_instructions;
     credence_assert(table->functions.contains(name));
-    accessor_->stack->clear();
+    stack->clear();
     accessor_->address_accessor.reset_storage();
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
     auto frame = table->functions[name];
-
-    if (table->stack_frame_contains_ir_instruction(name,
-            ir::Instruction::CALL,
-            *accessor_->table_accessor.table_->ir_instructions)) {
-        accessor_->flag_accessor.set_instruction_flag(
-            flag::Align, instruction_accessor->size());
-        auto imm = common::assembly::make_u32_int_immediate(0);
-        arm64_add__asm(ins, sub, sp, sp, imm);
+    stack->allocate(16);
+    // set_alignment_flag(Align);
+    // arm64_add__asm(instructions, sub, sp, sp, alignment__integer());
+    set_alignment_flag(Align_SP);
+    arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
+    arm64_add__asm(instructions, mov, x29, sp);
+    if (table->stack_frame_contains_call_instruction(name, ir_instructions)) {
+        set_alignment_flag(Align_Folded);
+        arm64_add__asm(instructions, add, x29, sp, alignment__integer());
     }
-
-    auto imm = common::assembly::make_direct_immediate("[sp, #-32]!");
-
-    arm64_add__asm(ins, stp, x29, x30, imm);
-    arm64_add__asm(ins, mov, x29, sp);
+    set_alignment_flag(Callee_Saved);
+    arm64_add__asm(instructions, stp, x26, x23, alignment__sp_integer(16));
+    auto allocated = 1;
+    set_alignment_flag(Callee_Saved);
+    arm64_add__asm(
+        instructions, str, x26, alignment__sp_integer(16 * allocated));
+    set_alignment_flag(Callee_Saved);
+    arm64_add__asm(
+        instructions, str, x23, alignment__sp_integer(16 * allocated));
 }
 
 // Unused
@@ -685,6 +763,9 @@ void Visitor::from_mov_ita(ir::Quadruple const& inst)
             [&] { operand_inserter.insert_from_mnemonic_operand(lhs, rhs); });
 }
 
+/**
+ * @brief IR Instruction Instruction::PUSH
+ */
 void Visitor::from_push_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
@@ -694,6 +775,9 @@ void Visitor::from_push_ita(ir::Quadruple const& inst)
         table->lvalue_at_temporary_object_address(std::get<1>(inst), frame));
 }
 
+/**
+ * @brief IR Instruction Instruction::RETURN
+ */
 void Visitor::from_return_ita()
 {
     auto instruction_accessor = accessor_->instruction_accessor;
@@ -701,30 +785,27 @@ void Visitor::from_return_ita()
     arm64_add__asm(instructions, ret);
 }
 
+/**
+ * @brief IR Instruction Instruction::LEAVE
+ */
 void Visitor::from_leave_ita()
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
 
-    arm64_add__asm(instructions,
-        ldp,
-        x29,
-        x30,
-        common::assembly::make_direct_immediate("[sp], #32"));
+    arm64_add__asm(instructions, ldp, x26, x23, alignment__sp_integer(16));
+
+    auto sp_imm = direct_immediate("[sp]");
+    set_alignment_flag(Align_S3_Folded);
+    arm64_add__asm(instructions, ldp, x29, x30, sp_imm, alignment__integer());
 
     if (stack_frame_.symbol == "main")
         syscall_ns::exit_syscall(instructions, 0);
-    else {
-        accessor_->flag_accessor.set_instruction_flag(
-            flag::Align, instruction_accessor->size());
-        arm64_add__asm(instructions,
-            add,
-            sp,
-            assembly::Register::sp,
-            common::assembly::make_u32_int_immediate(0));
-    }
 }
 
+/**
+ * @brief IR Instruction Instruction::LABEL
+ */
 void Visitor::from_label_ita(ir::Quadruple const& inst)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
@@ -732,6 +813,10 @@ void Visitor::from_label_ita(ir::Quadruple const& inst)
         type::get_label_as_human_readable(std::get<1>(inst)));
 }
 
+/**
+ * @brief Insert and type check the argument instructions for the print
+ * function
+ */
 void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
@@ -762,6 +847,10 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
         common::assembly::make_u32_int_immediate(buffer_size));
 }
 
+/**
+ * @brief Insert and type check the argument instructions for the printf
+ * function
+ */
 void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
@@ -793,26 +882,23 @@ void Unary_Operator_Inserter::from_lvalue_address_of_expression(
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
-    auto& stack = accessor_->stack;
     auto& address_space = accessor_->address_accessor;
 
     credence_assert(type::is_unary_expression(expr));
 
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
-    auto offset = stack->get(rvalue).first;
+    auto offset = address_space.get_storage_from_lvalue_reference(rvalue);
 
     if (op == "&") {
         address_space.address_ir_assignment = true;
-        auto size = stack->get(offset).second;
-        accessor_->stack->set(offset, size);
+        auto frame = stack_frame_.get_stack_frame();
         auto acc =
             accessor_->accumulator_accessor.get_accumulator_register_from_size(
                 assembly::Operand_Size::Doubleword);
-
-        auto imm = u32_int_immediate(offset);
-        arm64_add__asm(instructions, add, acc, x29, imm);
-        accessor_->set_signal_register(Register::x0);
+        frame->tokens.insert("x26");
+        arm64_add__asm(instructions, add, acc, x26, offset);
+        accessor_->set_signal_register(Register::x26);
     } else {
         credence_error("unreachable");
     }
@@ -826,28 +912,23 @@ void Unary_Operator_Inserter::from_lvalue_reference_expression(
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
-    auto& stack = accessor_->stack;
     auto& address_space = accessor_->address_accessor;
 
     credence_assert(type::is_unary_expression(expr));
 
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
-    auto offset = stack->get(rvalue).first;
+    auto offset = address_space.get_storage_from_lvalue_reference(rvalue);
 
     if (op == "*") {
         address_space.address_ir_assignment = true;
-        auto size = stack->get(offset).second;
-        accessor_->stack->set(offset, size);
         auto acc =
             accessor_->accumulator_accessor.get_accumulator_register_from_size(
                 assembly::Operand_Size::Doubleword);
-        auto stack_addr = stack->get(offset).first;
-        arm64_add__asm(instructions,
-            ldr,
-            acc,
-            direct_immediate(fmt::format("[x29, #{}]", stack_addr)));
-        accessor_->set_signal_register(Register::x0);
+        auto access = fmt::format(
+            "[{}]", common::assembly::get_storage_as_string(offset));
+        arm64_add__asm(instructions, ldr, acc, direct_immediate(access));
+        accessor_->set_signal_register(acc);
     } else {
         credence_error("unreachable");
     }
@@ -985,7 +1066,7 @@ void Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
     auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
     auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
     auto comparator_instructions = assembly::r_eq(
-        of_rvalue_storage, with_rvalue_storage, jump_label, Register::w28);
+        of_rvalue_storage, with_rvalue_storage, jump_label, Register::w8);
     assembly::inserter(instructions, comparator_instructions);
 }
 
@@ -1323,7 +1404,7 @@ void Operand_Inserter::insert_from_operands(assembly::Binary_Operands& operands,
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     if (is_variant(Immediate, operands.first) and
         not assembly::is_immediate_x28_address_offset(operands.first) and
-        not assembly::is_immediate_pc_relative_address(operands.first))
+        not assembly::is_immediate_relative_address(operands.first))
         std::swap(operands.first, operands.second);
     if (type::is_binary_arithmetic_operator(op)) {
         auto arithmetic = Arithemtic_Operator_Inserter{ accessor_ };
@@ -1432,8 +1513,8 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     auto size = get_operand_size_from_storage(
                         lhs_storage, accessor_->stack);
                     auto work = size == assembly::Operand_Size::Doubleword
-                                    ? assembly::Register::x28
-                                    : assembly::Register::w28;
+                                    ? assembly::Register::x8
+                                    : assembly::Register::w8;
                     arm64_add__asm(instructions, mov, work, imm);
                     arm64_add__asm(instructions, str, work, lhs_storage);
                 } else {
@@ -1447,8 +1528,12 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     Storage lhs_storage =
                         accessor_->address_accessor.get_storage_from_lvalue(
                             lhs);
-                    arm64_add__asm(
-                        instructions, mov, lhs_storage, Register::x0);
+                    auto size = get_operand_size_from_storage(
+                        lhs_storage, accessor_->stack);
+                    auto work = size == assembly::Operand_Size::Doubleword
+                                    ? assembly::Register::x8
+                                    : assembly::Register::w8;
+                    arm64_add__asm(instructions, mov, lhs_storage, work);
                 } else {
                     auto acc = accumulator.get_accumulator_register_from_size();
                     if (!type::is_unary_expression(lhs))
@@ -1479,14 +1564,138 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
 }
 
 /**
- * @brief Get operand storage from rvalue
+ * @brief Get the storage device of a stack operand
  */
+inline Storage Operand_Inserter::get_operand_storage_from_stack(
+    RValue const& rvalue)
+{
+    auto [operand, operand_inst] =
+        accessor_->address_accessor.get_lvalue_address_and_instructions(
+            rvalue, accessor_->instruction_accessor->size());
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    assembly::inserter(instructions, operand_inst);
+    return operand;
+}
+
+/**
+ * @brief Get the storage device of a return rvalue in the stack frame
+ */
+inline Storage Operand_Inserter::get_operand_storage_from_return()
+{
+    auto& tail_call =
+        accessor_->table_accessor.table_->functions[stack_frame_.tail];
+    if (tail_call->locals.is_pointer(tail_call->ret->first) or
+        type::is_rvalue_data_type_string(tail_call->ret->first))
+        return Register::x8;
+    else
+        return Register::w8;
+}
+
+/**
+ * @brief Get the storage device of an immediate operand
+ */
+Storage Operand_Inserter::get_operand_storage_from_immediate(
+    RValue const& rvalue)
+{
+    assembly::Storage storage{};
+    auto immediate = type::get_rvalue_datatype_from_string(rvalue);
+    auto type = type::get_type_from_rvalue_data_type(immediate);
+    if (type == "string") {
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_string_address_offset(
+                    type::get_value_from_rvalue_data_type(immediate)));
+        return storage;
+    }
+    if (type == "float") {
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_float_address_offset(
+                    type::get_value_from_rvalue_data_type(immediate)));
+        return storage;
+    }
+    if (type == "double") {
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_double_address_offset(
+                    type::get_value_from_rvalue_data_type(immediate)));
+        return storage;
+    }
+    storage = type::get_rvalue_datatype_from_string(rvalue);
+    return storage;
+}
+
+/**
+ * @brief Get the storage device of an parameter rvalue in the stack frame
+ */
+Storage Operand_Inserter::get_operand_storage_from_parameter(
+    RValue const& rvalue)
+{
+    auto frame = stack_frame_.get_stack_frame();
+    auto index_of = frame->get_index_of_parameter(rvalue);
+    credence_assert_nequal(index_of, -1);
+    // the argc and argv special cases
+    if (frame->symbol == "main") {
+        if (index_of == 0)
+            return direct_immediate("[x28]");
+        if (index_of == 1) {
+            if (!is_vector_offset(rvalue))
+                common::runtime::throw_runtime_error(
+                    "invalid argv access, argv is a vector to strings", rvalue);
+            auto offset = type::from_decay_offset(rvalue);
+            if (!util::is_numeric(offset) and
+                not accessor_->address_accessor.is_lvalue_storage_type(
+                    offset, "int"))
+                common::runtime::throw_runtime_error(
+                    fmt::format(
+                        "invalid argv access, argv has malformed offset '{}'",
+                        offset),
+                    rvalue);
+            auto offset_integer = type::integral_from_type_ulint(offset) + 1;
+            return direct_immediate(
+                fmt::format("[x28, #{}]", 8 * offset_integer));
+        }
+    }
+    if (frame->is_pointer_parameter(rvalue))
+        return memory::registers::available_doubleword.at(index_of);
+    else
+        return memory::registers::available_word.at(index_of);
+}
+
 Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
 {
     auto& stack = accessor_->stack;
+    auto frame = stack_frame_.get_stack_frame();
+
+    if (frame->is_parameter(rvalue))
+        return get_operand_storage_from_parameter(rvalue);
+
     if (stack->is_allocated(rvalue))
-        return stack->get(rvalue).first;
-    return type::get_rvalue_datatype_from_string(rvalue);
+        return get_operand_storage_from_stack(rvalue);
+
+#if defined(CREDENCE_TEST) || defined(__linux__)
+    if (!stack_frame_.tail.empty() and
+        not common::runtime::is_stdlib_function(stack_frame_.tail,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::ARM64))
+        return get_operand_storage_from_return();
+
+#elif defined(__APPLE__) || defined(__bsdi__)
+    if (!stack_frame_.tail.empty() and
+        not common::runtime::is_stdlib_function(stack_frame_.tail,
+            common::assembly::OS_Type::BSD,
+            common::assembly::Arch_Type::ARM64))
+        return get_operand_storage_from_return();
+
+#endif
+
+    if (type::is_rvalue_data_type(rvalue))
+        return get_operand_storage_from_immediate(rvalue);
+
+    auto [operand, operand_inst] =
+        accessor_->address_accessor.get_lvalue_address_and_instructions(
+            rvalue, accessor_->instruction_accessor->size());
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    assembly::inserter(instructions, operand_inst);
+
+    return operand;
 }
 
 /**
@@ -1556,8 +1765,7 @@ void Invocation_Inserter::insert_from_user_defined_function(
                 accessor_->instruction_accessor->size());
         arm64_add__asm(instructions, mov, arg_register, operand);
     }
-    auto immediate = common::assembly::make_direct_immediate(routine);
-    arm64_add__asm(instructions, bl, immediate);
+    arm64_add__asm(instructions, bl, direct_immediate(routine));
 }
 
 /**
@@ -1616,10 +1824,13 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
     assembly::Binary_Operands const& operands,
     std::string const& binary_op)
 {
-    assembly::Instruction_Pair instructions{ Register::x0, {} };
+    assembly::Instruction_Pair instructions{ Register::w8, {} };
     m::match(binary_op)(
         m::pattern | std::string{ "*" } =
             [&] {
+                auto frame =
+                    accessor_->table_accessor.table_->get_stack_frame();
+                frame->tokens.insert("x23");
                 instructions = assembly::mul(operands.first, operands.second);
             },
         m::pattern | std::string{ "/" } =
@@ -1660,7 +1871,7 @@ Bitwise_Operator_Inserter::from_bitwise_expression_operands(
     assembly::Binary_Operands const& operands,
     std::string const& binary_op)
 {
-    assembly::Instruction_Pair instructions{ Register::x0, {} };
+    assembly::Instruction_Pair instructions{ Register::w8, {} };
     m::match(binary_op)(
         m::pattern | std::string{ "<<" } =
             [&] {
@@ -1699,12 +1910,12 @@ Relational_Operator_Inserter::from_relational_expression_operands(
     std::string const& binary_op,
     Label const& jump_label)
 {
-    auto register_storage = Register::w0;
+    auto register_storage = Register::w8;
     if (accessor_->address_accessor.is_doubleword_storage_size(
             operands.first, stack_frame_) or
         accessor_->address_accessor.is_doubleword_storage_size(
             operands.second, stack_frame_)) {
-        register_storage = Register::x0;
+        register_storage = Register::x8;
     }
 
     return m::match(binary_op)(

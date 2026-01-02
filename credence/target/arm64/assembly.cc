@@ -120,7 +120,21 @@ Directives string(type::semantic::RValue const& rvalue)
 
 Instruction_Pair mul(Storage const& s0, Storage const& s1)
 {
-    arm64__make_and_ret(mul, s0, s0, s1);
+    if (is_variant(Immediate, s1)) {
+        auto inst = make_empty();
+        auto size =
+            get_operand_size_from_rvalue_datatype(std::get<Immediate>(s1));
+        if (size == Operand_Size::Doubleword) {
+            arm64_add__asm(inst, mov, x23, s1);
+            arm64_add__asm(inst, mul, s0, s0, x23);
+            return { s0, inst };
+        } else {
+            arm64_add__asm(inst, mov, w23, s1);
+            arm64_add__asm(inst, mul, s0, s0, w23);
+            return { s0, inst };
+        }
+    } else
+        arm64__make_and_ret(mul, s0, s0, s1);
 }
 
 Instruction_Pair div(Storage const& s0, Storage const& s1)
@@ -263,10 +277,10 @@ Instruction_Pair b_not(Storage const& s0)
 Instruction_Pair u_not(Storage const& s0)
 {
     auto inst = make_empty();
-    arm64_add__asm(inst, mov, w28, s0);
-    arm64_add__asm(inst, cmp, w28, u32_int_immediate(0));
-    arm64_add__asm(inst, cset, w28, w28, direct_immediate("ne"));
-    return { arm_rr(w28), inst };
+    arm64_add__asm(inst, mov, w8, s0);
+    arm64_add__asm(inst, cmp, w8, u32_int_immediate(0));
+    arm64_add__asm(inst, cset, w8, w8, direct_immediate("ne"));
+    return { arm_rr(w8), inst };
 }
 
 Instruction_Pair lea(Storage const& s0, Storage const& s1)

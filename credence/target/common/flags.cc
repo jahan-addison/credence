@@ -38,6 +38,16 @@ void Flag_Accessor::unset_instruction_flag(flag::Instruction_Flag set_flag,
     }
 }
 
+void Flag_Accessor::unset_instruction_flag(flag::flags unset_flags,
+    unsigned int index)
+{
+    if (instruction_flag.contains(index)) {
+        auto flags = get_instruction_flags_at_index(index);
+        if (flags & unset_flags)
+            set_instruction_flag(flags & ~unset_flags, index);
+    }
+}
+
 void Flag_Accessor::set_instruction_flag(flag::flags flags, unsigned int index)
 {
     if (!instruction_flag.contains(index + 1))

@@ -178,16 +178,17 @@ RValue Object::lvalue_at_temporary_object_address(LValue const& lvalue,
 /**
  * @brief Search the ir instructions in a stack frame for a instruction
  */
-bool Object::stack_frame_contains_ir_instruction(Label name,
-    Instruction inst,
+bool Object::stack_frame_contains_call_instruction(Label name,
     ir::Instructions const& instructions)
 {
     credence_assert(functions.contains(name));
     auto frame = functions.at(name);
-    auto search = std::ranges::find_if(
-        instructions.begin() + frame->address_location[0],
-        instructions.begin() + frame->address_location[1],
-        [&](ir::Quadruple const& quad) { return std::get<0>(quad) == inst; });
+    auto search =
+        std::ranges::find_if(instructions.begin() + frame->address_location[0],
+            instructions.begin() + frame->address_location[1],
+            [&](ir::Quadruple const& quad) {
+                return std::get<0>(quad) == Instruction::CALL;
+            });
     return search != instructions.begin() + frame->address_location[1];
 }
 

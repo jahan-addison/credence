@@ -78,7 +78,7 @@ void Assembly_Emitter::emit(std::ostream& os)
     data_.emit_data_section(os);
     if (!data_.instructions_.empty())
         assembly::newline(os);
-    auto inserter = Instruction_Inserter{ accessor_ };
+    auto inserter = IR_Inserter{ accessor_ };
     inserter.insert(ir_instructions_);
     text_.emit_text_section(os);
     assembly::newline(os);
@@ -538,7 +538,7 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
  *
  *  Note: %r15 is reserved for the argc address and argv offsets in memory
  */
-void Instruction_Inserter::setup_stack_frame_in_function(
+void IR_Inserter::setup_stack_frame_in_function(
     ir::Instructions const& ir_instructions,
     Visitor& visitor,
     int index)
@@ -564,7 +564,7 @@ void Instruction_Inserter::setup_stack_frame_in_function(
 /**
  * @brief IR instruction visitor to map x64 instructions in memory
  */
-void Instruction_Inserter::insert(ir::Instructions const& ir_instructions)
+void IR_Inserter::insert(ir::Instructions const& ir_instructions)
 {
     auto stack_frame = memory::Stack_Frame{ accessor_ };
     auto ir_visitor = Visitor(accessor_, stack_frame);
@@ -623,9 +623,8 @@ void Visitor::from_func_start_ita(Label const& name)
     x8664_add__asm(inst, push, rbp);
     x8664_add__asm(inst, mov_, rbp, rsp);
     // align %rbp if there's a CALL in this stack frame
-    if (table->stack_frame_contains_ir_instruction(name,
-            ir::Instruction::CALL,
-            *accessor_->table_accessor.table_->ir_instructions)) {
+    if (table->stack_frame_contains_call_instruction(
+            name, *accessor_->table_accessor.table_->ir_instructions)) {
         auto imm = u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
             common::flag::Align, instruction_accessor->size());
@@ -641,8 +640,7 @@ void Visitor::from_func_end_ita()
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& table = accessor_->table_accessor.table_;
     auto frame = stack_frame_.get_stack_frame();
-    if (table->stack_frame_contains_ir_instruction(frame->symbol,
-            ir::Instruction::CALL,
+    if (table->stack_frame_contains_call_instruction(frame->symbol,
             *accessor_->table_accessor.table_->ir_instructions)) {
         auto imm = u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
@@ -1951,8 +1949,7 @@ void Visitor::from_leave_ita()
     // care must be taken in the main function during function epilogue
     if (stack_frame_.symbol == "main") {
         if (accessor_->table_accessor.table_
-                ->stack_frame_contains_ir_instruction(stack_frame_.symbol,
-                    ir::Instruction::CALL,
+                ->stack_frame_contains_call_instruction(stack_frame_.symbol,
                     *accessor_->table_accessor.table_->ir_instructions)) {
             auto size = u32_int_immediate(
                 accessor_->stack->get_stack_frame_allocation_size());

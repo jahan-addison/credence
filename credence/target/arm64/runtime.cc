@@ -106,11 +106,6 @@ Library_Call_Inserter::get_available_standard_library_register(
 
 /**
  * @brief Prepare registers for argument operand storage
- *
- * ARM64 uses:
- * - adr/ldr for loading addresses
- * - fmov/ldr for floating point
- * - mov for general purpose
  */
 void Library_Call_Inserter::
     insert_argument_instructions_standard_library_function(Register storage,
@@ -119,52 +114,37 @@ void Library_Call_Inserter::
         address_t const& argument)
 {
     auto* signal_register = accessor_->register_accessor.signal_register;
-    if (arg_type == "string") {
-        // Use adr for PC-relative address loading
-        instructions.emplace_back(assembly::Instruction{
-            assembly::Mnemonic::adr, storage, argument, assembly::O_NUL });
-    } else if (arg_type == "float") {
-        // ARM64 uses ldr for loading floats into SIMD registers
-        instructions.emplace_back(assembly::Instruction{
-            assembly::Mnemonic::ldr, storage, argument, assembly::O_NUL });
-    } else if (arg_type == "double") {
-        // ARM64 uses ldr for loading doubles into SIMD registers
-        instructions.emplace_back(assembly::Instruction{
-            assembly::Mnemonic::ldr, storage, argument, assembly::O_NUL });
-    } else {
-        if (storage == assembly::Register::x0 and
-            *signal_register == assembly::Register::x9) {
-            *signal_register = assembly::Register::w0;
-            instructions.emplace_back(
-                assembly::Instruction{ assembly::Mnemonic::mov,
-                    storage,
-                    assembly::Register::x9,
-                    assembly::O_NUL });
-            return;
-        }
-        if (is_variant(Register, argument) and
-            assembly::is_word_register(std::get<Register>(argument))) {
-            auto storage_dword =
-                assembly::get_word_register_from_doubleword(storage);
-            instructions.emplace_back(
-                assembly::Instruction{ assembly::Mnemonic::mov,
-                    storage_dword,
-                    argument,
-                    assembly::O_NUL });
-        } else
-            instructions.emplace_back(assembly::Instruction{
-                assembly::Mnemonic::mov, storage, argument, assembly::O_NUL });
-    }
+    namespace m = matchit;
+    m::match(arg_type)(
+        m::pattern | m::or_(sv("string"), sv("float"), sv("double")) =
+            [&] {
+                auto immediate = type::get_value_from_rvalue_data_type(
+                    std::get<Immediate>(argument));
+                auto imm_1 =
+                    direct_immediate(fmt::format("{}@PAGE", immediate));
+                arm64_add__asm(instructions, adrp, storage, imm_1);
+                auto imm_2 =
+                    direct_immediate(fmt::format("{}@PAGEOFF", immediate));
+                arm64_add__asm(instructions, add, storage, storage, imm_2);
+            },
+        m::pattern | m::_ =
+            [&] {
+                if (storage == assembly::Register::x26 and
+                    *signal_register == assembly::Register::x26) {
+                    *signal_register = assembly::Register::w0;
+                    arm64_add__asm(instructions, mov, storage, x26);
+                    return;
+                }
+                if (is_variant(Register, argument) and
+                    assembly::is_word_register(std::get<Register>(argument))) {
+                    auto storage_dword =
+                        assembly::get_word_register_from_doubleword(storage);
+                    arm64_add__asm(instructions, mov, storage_dword, argument);
+                } else
+                    arm64_add__asm(instructions, mov, storage, argument);
+            });
 }
 
-/**
- * @brief General purpose register stack in ARM64 AAPCS64 order
- *
- * ARM64 calling convention:
- * - x0-x7 for integer/pointer arguments (64-bit)
- * - w0-w7 for 32-bit integer arguments
- * - v0-v7 for floating point arguments
- */
 std::pair<memory::registers::general_purpose,
     memory::registers::general_purpose>
 get_argument_general_purpose_registers()
@@ -232,14 +212,14 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
             word_storage.pop_back();
         }
     }
-
-    // ARM64 uses bl (branch with link) for function calls
+#if defined(CREDENCE_TEST) || defined(__linux__)
     auto call_immediate =
         common::assembly::make_array_immediate(syscall_function);
-    instructions.emplace_back(assembly::Instruction{ assembly::Mnemonic::bl,
-        call_immediate,
-        assembly::O_NUL,
-        assembly::O_NUL });
+#elif defined(__APPLE__) || defined(__bsdi__)
+    auto call_immediate = common::assembly::make_array_immediate(
+        fmt::format("_{}", syscall_function));
+#endif
+    arm64_add__asm(instructions, bl, call_immediate);
 }
 
 } // namespace credence::target::arm64::runtime

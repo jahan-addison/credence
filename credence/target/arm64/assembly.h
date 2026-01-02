@@ -122,7 +122,7 @@ enum class Register;
         using enum arm64::assembly::Mnemonic;                       \
         arm64::assembly::ARM64_ASSEMBLY_INSERTER::insert<           \
             arm64::assembly::Instruction,                           \
-            arm64::assembly::ARM64_ASSEMBLY_INSERTER::nary::ary_3>( \
+            arm64::assembly::ARM64_ASSEMBLY_INSERTER::nary::ary_4>( \
             inst, op __VA_OPT__(, ) __VA_ARGS__);                   \
     } while (false)
 
@@ -925,11 +925,11 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 
 using Storage = common::Storage_T<Register>;
 using Binary_Operands = common::Binary_Operands_T<Register>;
-using Instruction = common::Mnemonic_3ARY<Mnemonic, Register>;
+using Instruction = common::Mnemonic_4ARY<Mnemonic, Register>;
 using Literal_Type = std::variant<type::semantic::RValue, float, double>;
 using Data_Pair = std::pair<Directive, Literal_Type>;
 using Directives = std::deque<std::variant<Label, Data_Pair>>;
-using Instructions = std::deque<common::Instruction_3ARY<Mnemonic, Register>>;
+using Instructions = std::deque<common::Instruction_4ARY<Mnemonic, Register>>;
 using Instruction_Pair = common::Instruction_Pair<Storage, Instructions>;
 using Immediate = common::Immediate;
 using Directive_Pair = std::pair<std::string, Directives>;
@@ -1060,9 +1060,9 @@ inline arm64::assembly::Immediate make_asciz_immediate(std::string_view address)
 }
 
 /**
- * @brief Check if PC-relative address (label reference)
+ * @brief Check if relative address ofset (label reference)
  */
-constexpr bool is_immediate_pc_relative_address(Storage const& immediate)
+constexpr bool is_immediate_relative_address(Storage const& immediate)
 {
     if (is_variant(Immediate, immediate))
         return util::contains(

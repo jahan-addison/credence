@@ -72,6 +72,18 @@ if [[ "$UNAMESTR" == 'Linux' ]]; then
   ld -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
 elif [[ "$UNAMESTR" == 'Darwin' ]]; then
   as -arch "$ARCH" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
-  ld -arch "$ARCH" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+  if [[ "$ARCH" == "arm64" ]]; then
+    SDK_PATH=$(xcrun --show-sdk-path)
+    ld -arch arm64 \
+      -e _start \
+      -o "$SOURCE_NAME" \
+      "$STDLIB_PATH" \
+      "$SOURCE_NAME".o \
+      -lSystem \
+      -syslibroot "$SDK_PATH"
+        codesign -s - "$SOURCE_NAME"
+  else
+    ld -arch "$ARCH" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+  fi
 fi
 

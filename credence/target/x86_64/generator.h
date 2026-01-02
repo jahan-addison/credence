@@ -186,10 +186,10 @@ class Data_Emitter
 /**
  * @brief Instruction Inserter used to map IR instructions to x64 assembly
  */
-class Instruction_Inserter
+class IR_Inserter
 {
   public:
-    explicit Instruction_Inserter(memory::Memory_Access accessor)
+    explicit IR_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
     {
     }

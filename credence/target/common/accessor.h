@@ -201,15 +201,18 @@ class Buffer_Accessor
     }
     RValue get_string_address_offset(RValue const& string)
     {
+        credence_assert(is_allocated_string(string));
         return string_cache_.at(string);
     }
 
     RValue get_float_address_offset(RValue const& string)
     {
+        credence_assert(is_allocated_float(string));
         return float_cache_.at(string);
     }
     RValue get_double_address_offset(RValue const& string)
     {
+        credence_assert(is_allocated_double(string));
         return double_cache_.at(string);
     }
     bool is_allocated_string(RValue const& rvalue)

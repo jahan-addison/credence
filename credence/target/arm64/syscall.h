@@ -40,7 +40,7 @@ void make_syscall(assembly::Instructions& instructions,
     memory::Stack_Frame* stack_frame = nullptr,
     memory::Memory_Access* accessor = nullptr);
 
-void syscall_operands_to_instructions(assembly::Instructions instructions,
+void syscall_operands_to_instructions(assembly::Instructions& instructions,
     syscall_arguments_t const& arguments,
     memory::registers::general_purpose& w_registers,
     memory::registers::general_purpose& d_registers,
@@ -71,7 +71,7 @@ inline Register get_storage_register_from_safe_address(
 /**
  * @brief NULL-check the memory access, then set the signal register
  */
-bool set_signal_register_from_safe_address(Instructions& instructions,
+bool check_signal_register_from_safe_address(Instructions& instructions,
     assembly::Register storage,
     memory::Memory_Access* accessor);
 }

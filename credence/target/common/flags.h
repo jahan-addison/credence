@@ -34,7 +34,7 @@ enum Instruction_Flag : flags
     Align = 1 << 3,
     Argument = 1 << 4,
     QWord_Dest = 1 << 5,
-    Load = 1 << 6
+    Load = 1 << 6,
 };
 
 } // namespace flags
@@ -48,6 +48,7 @@ struct Flag_Accessor
         unsigned int index);
     void unset_instruction_flag(flag::Instruction_Flag set_flag,
         unsigned int index);
+    void unset_instruction_flag(flag::flags unset_flags, unsigned int index);
     template<Enum_T Mnemonic_T, Enum_T Registers_T>
     void set_load_address_from_previous_instruction(
         Instructions<Mnemonic_T, Registers_T>& instructions);

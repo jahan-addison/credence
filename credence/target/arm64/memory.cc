@@ -33,6 +33,28 @@ namespace credence::target::arm64::memory::detail {
 namespace m = matchit;
 
 /**
+ * @brief Get the accumulator register from size
+ */
+Register Accumulator_Accessor::get_accumulator_register_from_size(
+    assembly::Operand_Size size)
+{
+    namespace m = matchit;
+    if (*signal_register_ != Register::w0) {
+        auto designated = *signal_register_;
+        *signal_register_ = Register::w0;
+        return designated;
+    }
+    return m::match(size)(
+        m::pattern |
+            assembly::Operand_Size::Doubleword = [&] { return Register::x8; },
+        m::pattern | assembly::Operand_Size::Halfword =
+            [&] { return Register::w8; }, // No 16-bit direct
+        m::pattern | assembly::Operand_Size::Byte =
+            [&] { return Register::w8; }, // No 8-bit direct
+        m::pattern | m::_ = [&] { return Register::w8; });
+}
+
+/**
  * @brief Get a storage device for an binary expression operand
  */
 Storage Address_Accessor::get_storage_for_binary_rvalue(RValue const& rvalue)
@@ -56,18 +78,19 @@ Address_Accessor::Address Address_Accessor::get_lvalue_address_and_instructions(
 {
     using namespace assembly;
     auto vector_accessor = Vector_Accessor{ table_ };
-    assembly::Instruction_Pair instructions{ Register::w28, {} };
+    assembly::Instruction_Pair instructions{ Register::w8, {} };
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
 
     if (type::is_dereference_expression(lvalue)) {
         auto storage =
-            stack_->get(type::get_unary_rvalue_reference(lvalue)).first;
-        arm64_add__asm(instructions.second, mov, Register::x0, storage);
+            get_storage_from_lvalue(type::get_unary_rvalue_reference(lvalue));
+        arm64_add__asm(instructions.second, mov, Register::x26, storage);
         flag_accessor_.set_instruction_flag(
             common::flag::Indirect, instruction_index + 1);
-        instructions.first = Register::x0;
+        instructions.first = Register::x26;
     } else if (is_global_vector(lhs)) {
+        credence_assert(table_->vectors.contains(lhs));
         auto vector = table_->vectors.at(lhs);
         if (table_->globals.is_pointer(lhs)) {
             auto offset_storage =
@@ -97,6 +120,7 @@ Register Address_Accessor::get_available_storage_register(
 {
     auto registers = register_accessor_.get_register_list_by_size(size);
     register_id.insert(id_index);
+    credence_assert(registers.size() > id_index);
     Register storage = registers.at(id_index);
     address_table.insert("_", storage);
     id_index++;
@@ -108,6 +132,7 @@ void Address_Accessor::set_word_or_doubleword_register(LValue const& lvalue,
 {
     auto registers = register_accessor_.get_register_list_by_size(size);
     register_id.insert(id_index);
+    credence_assert(registers.size() > id_index);
     Register storage = registers.at(id_index);
     address_table.insert(lvalue, storage);
     id_index++;
@@ -124,7 +149,32 @@ bool Address_Accessor::is_lvalue_allocated_in_memory(LValue const& lvalue)
     return address_table.contains(lvalue);
 }
 
-Size Address_Accessor::get_size_from_temporary_binary_rvalue_data_type(
+bool Address_Accessor::is_doubleword_storage_size(
+    assembly::Storage const& storage,
+    Stack_Frame& stack_frame)
+{
+    auto result{ false };
+    auto frame = stack_frame.get_stack_frame();
+    std::visit(util::overload{
+                   [&](std::monostate) {},
+                   [&](common::Stack_Offset const& s) {
+                       result = stack_->get_operand_size_from_offset(s) ==
+                                assembly::Operand_Size::Doubleword;
+                   },
+                   [&](Register const& s) {
+                       result = assembly::is_doubleword_register(s);
+                   },
+                   [&](Immediate const& s) {
+                       result = type::is_rvalue_data_type_string(s) or
+                                assembly::is_immediate_relative_address(s);
+                   },
+               },
+        storage);
+
+    return result;
+}
+
+Size Address_Accessor::get_size_from_temporary_rvalue_data_type(
     LValue const& lvalue,
     Immediate const& rvalue,
     ir::object::Function_PTR& frame)
@@ -145,6 +195,14 @@ Size Address_Accessor::get_size_from_temporary_binary_rvalue_data_type(
     return size;
 }
 
+void Address_Accessor::set_vector_offset_to_storage_space(LValue const& lvalue,
+    Stack_Frame& stack_frame)
+{
+    auto offset_lvalue =
+        fmt::format("__{}_vector_offset_{}", lvalue, ++vector_index);
+    set_lvalue_to_storage_space(offset_lvalue, stack_frame);
+}
+
 void Address_Accessor::set_lvalue_to_storage_space(LValue const& lvalue,
     Stack_Frame& stack_frame)
 {
@@ -154,8 +212,7 @@ void Address_Accessor::set_lvalue_to_storage_space(LValue const& lvalue,
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->vectors, __source__);
 
-    auto size =
-        get_size_from_temporary_binary_rvalue_data_type(lvalue, rvalue, frame);
+    auto size = get_size_from_temporary_rvalue_data_type(lvalue, rvalue, frame);
 
     credence_assert(assembly::is_valid_size(size));
 
@@ -169,7 +226,7 @@ void Address_Accessor::set_lvalue_to_storage_space(LValue const& lvalue,
             break;
         case assembly::Operand_Size::Word:
         case assembly::Operand_Size::Doubleword: {
-            if (register_id.size() == 30) {
+            if (register_id.size() == 9) {
                 stack_->set_address_from_size(lvalue, operand);
                 address_table.insert(lvalue, stack_->get(lvalue).first);
             } else

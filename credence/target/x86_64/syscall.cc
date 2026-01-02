@@ -74,7 +74,7 @@ assembly::Register get_storage_register_from_safe_address(
 /**
  * @brief NULL-check the memory access, then set the signal register
  */
-bool set_signal_register_from_safe_address(Instructions& instructions,
+bool check_signal_register_from_safe_address(Instructions& instructions,
     assembly::Register storage,
     memory::Memory_Access* accessor)
 {
@@ -109,7 +109,7 @@ void syscall_operands_to_instructions(Instructions& instructions,
         dword_registers.pop_back();
         if (is_immediate_rip_address_offset(arg))
             x8664_add__asm(instructions, lea, storage, arg);
-        else if (set_signal_register_from_safe_address(
+        else if (check_signal_register_from_safe_address(
                      instructions, storage, accessor))
             x8664_add__asm(instructions, movq_, storage, arg);
     }

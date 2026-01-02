@@ -62,11 +62,16 @@
 
 #define u32_int_immediate(i) target::common::assembly::make_u32_int_immediate(i)
 
+#define alignment__integer() target::common::assembly::make_u32_int_immediate(0)
+
+#define alignment__sp_integer(i) direct_immediate(fmt::format("[sp, #{}]", i))
+
+#define alignment__16_integer() \
+    target::common::assembly::make_u32_int_immediate(16)
+
 // ---------------------------------
 // Register and directive print macros
 // ---------------------------------
-// These macros expect rr/dd helpers to be provided by the includer, e.g.
-// x64_rr/arm_rr.
 
 #define COMMON_REGISTER_OSTREAM(rr, reg) \
     case rr(reg):                        \
@@ -161,7 +166,8 @@ struct Assembly_Inserter
     enum class nary
     {
         ary_2,
-        ary_3
+        ary_3,
+        ary_4
     };
 
     using Op = detail::Mnemonic_Resolver<Mnemonic>;
@@ -171,12 +177,16 @@ struct Assembly_Inserter
         Op op,
         detail::Operand_Resolver<Register> s0 = std::monostate{},
         detail::Operand_Resolver<Register> s1 = std::monostate{},
-        detail::Operand_Resolver<Register> s2 = std::monostate{})
+        detail::Operand_Resolver<Register> s2 = std::monostate{},
+        detail::Operand_Resolver<Register> s3 = std::monostate{})
     {
         if constexpr (Size == nary::ary_2) {
             inst.emplace_back(T{ op.value, s0.value, s1.value });
         } else if constexpr (Size == nary::ary_3) {
             inst.emplace_back(T{ op.value, s0.value, s1.value, s2.value });
+        } else if constexpr (Size == nary::ary_4) {
+            inst.emplace_back(
+                T{ op.value, s0.value, s1.value, s2.value, s3.value });
         }
     }
 };

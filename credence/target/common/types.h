@@ -115,10 +115,17 @@ template<Enum_T M, Enum_T R>
 using Mnemonic_3ARY = std::tuple<M, Storage_T<R>, Storage_T<R>, Storage_T<R>>;
 
 template<Enum_T M, Enum_T R>
+using Mnemonic_4ARY =
+    std::tuple<M, Storage_T<R>, Storage_T<R>, Storage_T<R>, Storage_T<R>>;
+
+template<Enum_T M, Enum_T R>
 using Instruction_2ARY = std::variant<Label, Mnemonic_2ARY<M, R>>;
 
 template<Enum_T M, Enum_T R>
 using Instruction_3ARY = std::variant<Label, Mnemonic_3ARY<M, R>>;
+
+template<Enum_T M, Enum_T R>
+using Instruction_4ARY = std::variant<Label, Mnemonic_4ARY<M, R>>;
 
 template<Enum_T M, Enum_T R>
 using Instruction_T = std::variant<Label,

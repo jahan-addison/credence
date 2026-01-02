@@ -160,6 +160,7 @@ struct Function
     type::semantic::Label symbol{};
     type::Labels labels{};
     type::Locals locals{};
+    type::RValues tokens{};
     static constexpr int max_depth = 999;
     unsigned int allocation = 0;
 };
@@ -210,8 +211,7 @@ class Object
     bool local_contains(type::semantic::LValue const& lvalue);
 
   public:
-    bool stack_frame_contains_ir_instruction(Label name,
-        Instruction inst,
+    bool stack_frame_contains_call_instruction(Label name,
         ir::Instructions const& instructions);
 
   public:

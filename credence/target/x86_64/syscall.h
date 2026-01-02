@@ -76,7 +76,7 @@ void make_syscall(assembly::Instructions& instructions,
 /**
  * @brief NULL-check the memory access, then set the signal register
  */
-bool set_signal_register_from_safe_address(Instructions& instructions,
+bool check_signal_register_from_safe_address(Instructions& instructions,
     assembly::Register storage,
     memory::Memory_Access* accessor);
 }

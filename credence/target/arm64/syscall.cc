@@ -76,7 +76,7 @@ void make_syscall(assembly::Instructions& instructions,
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x8, syscall_number);
 #elif defined(__APPLE__) || defined(__bsdi__)
-    // Load syscall number into x16 (Darwin uses x16 instead of x8)
+    // load syscall number into x16 (darwin uses x16 instead of x8)
     target::arm64::assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x16, syscall_number);
@@ -96,16 +96,16 @@ void make_syscall(assembly::Instructions& instructions,
 /**
  * @brief NULL-check the memory access, then set the signal register
  */
-bool set_signal_register_from_safe_address(Instructions& instructions,
+bool check_signal_register_from_safe_address(Instructions& instructions,
     assembly::Register storage,
     memory::Memory_Access* accessor)
 {
     if (accessor != nullptr) {
         auto accessor_ = *accessor;
         auto* address_of = accessor_->register_accessor.signal_register;
-        if (storage == arm_rr(x1) and *address_of == Register::x9) {
+        if (storage == arm_rr(x26) and *address_of == Register::x26) {
             accessor_->set_signal_register(Register::w0);
-            arm64_add__asm(instructions, mov, storage, arm_rr(x9));
+            arm64_add__asm(instructions, mov, storage, arm_rr(x26));
             return false;
         }
     }
@@ -115,7 +115,7 @@ bool set_signal_register_from_safe_address(Instructions& instructions,
  * @brief Prepare the operands for the syscall
  */
 
-void syscall_operands_to_instructions(assembly::Instructions instructions,
+void syscall_operands_to_instructions(assembly::Instructions& instructions,
     syscall_arguments_t const& arguments,
     memory::registers::general_purpose& w_registers,
     memory::registers::general_purpose& d_registers,
@@ -130,10 +130,15 @@ void syscall_operands_to_instructions(assembly::Instructions instructions,
         w_registers.pop_back();
         d_registers.pop_back();
 
-        if (is_immediate_pc_relative_address(arg))
-            arm64_add__asm(instructions, adr, storage, arg);
-        else if (set_signal_register_from_safe_address(
-                     instructions, storage, accessor))
+        if (is_immediate_relative_address(arg)) {
+            auto immediate =
+                type::get_value_from_rvalue_data_type(std::get<Immediate>(arg));
+            auto imm_1 = direct_immediate(fmt::format("{}@PAGE", immediate));
+            arm64_add__asm(instructions, adrp, storage, imm_1);
+            auto imm_2 = direct_immediate(fmt::format("{}@PAGEOFF", immediate));
+            arm64_add__asm(instructions, add, storage, storage, imm_2);
+        } else if (check_signal_register_from_safe_address(
+                       instructions, storage, accessor))
             arm64_add__asm(instructions, mov, storage, arg);
     }
 }

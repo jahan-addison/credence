@@ -85,24 +85,28 @@ namespace registers {
 using general_purpose = std::deque<Register>;
 
 const general_purpose available_doubleword = {
-    Register::x0,
-    Register::x1,
-    Register::x2,
-    Register::x3,
-    Register::x4,
-    Register::x5,
-    Register::x6,
-    Register::x7,
+    Register::x9,
+    Register::x10,
+    Register::x11,
+    Register::x12,
+    Register::x13,
+    Register::x14,
+    Register::x15,
+    Register::x16,
+    Register::x17,
+    Register::x18,
 };
 const general_purpose available_word = {
-    Register::w0,
-    Register::w1,
-    Register::w2,
-    Register::w3,
-    Register::w4,
-    Register::w5,
-    Register::w6,
-    Register::w7,
+    Register::w9,
+    Register::w10,
+    Register::w11,
+    Register::w12,
+    Register::w13,
+    Register::w14,
+    Register::w15,
+    Register::w16,
+    Register::w17,
+    Register::w18,
 };
 
 } // namespace registers
@@ -162,27 +166,8 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
         return assembly::get_operand_size_from_rvalue_datatype(immediate);
     }
 
-    /**
-     * @brief Get the accumulator register from size
-     */
     Register get_accumulator_register_from_size(
-        assembly::Operand_Size size = assembly::Operand_Size::Word) override
-    {
-        namespace m = matchit;
-        if (*signal_register_ != Register::w0) {
-            auto designated = *signal_register_;
-            *signal_register_ = Register::w0;
-            return designated;
-        }
-        return m::match(size)(
-            m::pattern | assembly::Operand_Size::Doubleword =
-                [&] { return Register::x28; },
-            m::pattern | assembly::Operand_Size::Halfword =
-                [&] { return Register::w28; }, // No 16-bit direct
-            m::pattern | assembly::Operand_Size::Byte =
-                [&] { return Register::w28; }, // No 8-bit direct
-            m::pattern | m::_ = [&] { return Register::w28; });
-    }
+        assembly::Operand_Size size = assembly::Operand_Size::Word) override;
 };
 
 struct Instruction_Accessor : public ARM64_Instruction_Accessor
@@ -195,7 +180,7 @@ struct Register_Accessor : public ARM64_Register_Accessor
     {
     }
 
-    registers::general_purpose get_register_list_by_size(
+    inline registers::general_purpose get_register_list_by_size(
         assembly::Operand_Size size)
     {
         if (size == assembly::Operand_Size::Doubleword)
@@ -204,7 +189,7 @@ struct Register_Accessor : public ARM64_Register_Accessor
             return w_size_registers;
     }
 
-    void reset_available_registers()
+    inline void reset_available_registers()
     {
         d_size_registers = registers::available_doubleword;
         w_size_registers = registers::available_word;
@@ -227,6 +212,21 @@ struct Register_Accessor : public ARM64_Register_Accessor
     registers::general_purpose w_size_registers = registers::available_word;
 };
 
+/**
+ * @brief
+ *
+ * Notes:
+ *   x26      = address-of temporary storage register
+ *   x23      = The multiplication register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x9       = A second arithemtic scratch register
+ *   x9 - x18 = Local scope variables, after which the stack is used
+ *
+ *   w0, x0 = Return results
+ *
+ *   Vectors and vector offsets are on the stack
+ *
+ */
 struct Address_Accessor : public ARM64_Address_Accessor
 {
   public:
@@ -248,7 +248,7 @@ struct Address_Accessor : public ARM64_Address_Accessor
   private:
     void set_word_or_doubleword_register(LValue const& lvalue,
         assembly::Operand_Size size);
-    Size get_size_from_temporary_binary_rvalue_data_type(LValue const& lvalue,
+    Size get_size_from_temporary_rvalue_data_type(LValue const& lvalue,
         Immediate const& rvalue,
         ir::object::Function_PTR& frame);
 
@@ -256,12 +256,18 @@ struct Address_Accessor : public ARM64_Address_Accessor
     bool is_lvalue_allocated_in_memory(LValue const& lvalue);
     Storage get_storage_for_binary_rvalue(RValue const& rvalue);
     Storage get_storage_from_lvalue(LValue const& lvalue);
+    inline Storage get_storage_from_lvalue_reference(RValue const& rvalue)
+    {
+        return get_storage_from_lvalue(rvalue);
+    }
 
     Register get_available_storage_register(assembly::Operand_Size size);
     void set_lvalue_to_storage_space(LValue const& lvalue,
         Stack_Frame& stack_frame);
+    void set_vector_offset_to_storage_space(LValue const& lvalue,
+        Stack_Frame& stack_frame);
 
-    assembly::Operand_Size get_word_size_from_storage(
+    inline assembly::Operand_Size get_word_size_from_storage(
         assembly::Storage const& storage,
         Stack_Frame& stack_frame)
     {
@@ -270,36 +276,23 @@ struct Address_Accessor : public ARM64_Address_Accessor
                    : assembly::Operand_Size::Word;
     }
 
-    assembly::Operand_Size get_word_size_from_lvalue(LValue const& lvalue,
-        Stack_Frame& stack_frame)
+    constexpr void set_current_frame_symbol(Label const& label)
     {
-        auto storage = get_storage_from_lvalue(lvalue);
-        return get_word_size_from_storage(storage, stack_frame);
+        current_frame_symbol = label;
     }
-    bool is_doubleword_storage_size(assembly::Storage const& storage,
-        Stack_Frame& stack_frame)
-    {
-        auto result{ false };
-        auto frame = stack_frame.get_stack_frame();
-        std::visit(util::overload{
-                       [&](std::monostate) {},
-                       [&](common::Stack_Offset const& s) {
-                           result = stack_->get_operand_size_from_offset(s) ==
-                                    assembly::Operand_Size::Doubleword;
-                       },
-                       [&](Register const& s) {
-                           result = assembly::is_doubleword_register(s);
-                       },
-                       [&](Immediate const& s) {
-                           result =
-                               type::is_rvalue_data_type_string(s) or
-                               assembly::is_immediate_pc_relative_address(s);
-                       },
-                   },
-            storage);
 
-        return result;
+    constexpr Label get_current_frame_name() { return current_frame_symbol; }
+
+    inline assembly::Operand_Size get_word_size_from_lvalue(
+        LValue const& lvalue,
+        Stack_Frame& stack_frame)
+    {
+        return get_word_size_from_storage(
+            get_storage_from_lvalue(lvalue), stack_frame);
     }
+
+    bool is_doubleword_storage_size(assembly::Storage const& storage,
+        Stack_Frame& stack_frame);
 
     Address_Accessor::Address get_lvalue_address_and_instructions(
         LValue const& lvalue,
@@ -307,9 +300,11 @@ struct Address_Accessor : public ARM64_Address_Accessor
         bool use_prefix = true) override;
 
   private:
+    Label current_frame_symbol{ "main" };
     Ordered_Map<LValue, Storage> address_table{};
     std::set<unsigned int> register_id{};
     unsigned int id_index{ 0 };
+    unsigned int vector_index{ 0 };
     Register_Accessor& register_accessor_;
 };
 
