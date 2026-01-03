@@ -14,6 +14,7 @@
 #include "generator.h"
 
 #include "assembly.h"                        // for newline, operator<<
+#include "flags.h"                           // for flags
 #include "memory.h"                          // for Memory_Accessor, Instru...
 #include "runtime.h"                         // for Library_Call_Inserter
 #include "stack.h"                           // for Stack
@@ -48,31 +49,12 @@
 #include <variant>                           // for variant, get, visit
 #include <vector>                            // for vector
 
-#define set_alignment_flag(flag_name)              \
-    accessor_->flag_accessor.set_instruction_flag( \
-        arm64::detail::flags::flag_name,           \
-        accessor_->instruction_accessor->size())
-
 namespace credence::target::arm64 {
 
 namespace m = matchit;
 
 assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
     memory::Stack_Pointer& stack);
-
-namespace detail::flags {
-
-enum ARM64_Instruction_Flag : common::flag::flags
-{
-
-    Align_Folded = 1 << 7,
-    Align_SP = 1 << 8,
-    Align_SP_Folded = 1 << 9,
-    Align_S3_Folded = 1 << 10,
-    Callee_Saved = 1 << 11
-};
-
-}
 
 /**
  * @brief Assembly Emitter Factory
@@ -240,10 +222,9 @@ void Data_Emitter::set_data_globals()
 void Data_Emitter::emit_data_section(std::ostream& os)
 {
     assembly::newline(os, 1);
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     os << assembly::Directive::data;
-
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
 
     os << ".section	__TEXT,__cstring,cstring_literals";
 
@@ -348,6 +329,66 @@ std::string Storage_Emitter::get_storage_device_as_string(
                          i) = [&] { return emit_immediate_storage(*i); });
 }
 
+void Storage_Emitter::apply_stack_alignment(assembly::Storage& operand,
+    assembly::Mnemonic mnemonic,
+    Source source,
+    common::flag::flags flags)
+{
+    auto& stack = accessor_->stack;
+    if (is_alignment_mnemonic(mnemonic)) {
+        if (flags & flag::Align and source == Source::s_2) {
+            operand =
+                u32_int_immediate(stack->get_stack_frame_allocation_size());
+            return;
+        }
+        if (flags & detail::flags::Align_S3_Folded and source == Source::s_3) {
+            operand =
+                u32_int_immediate(stack->get_stack_frame_allocation_size());
+            return;
+        }
+        if (flags & detail::flags::Align_Folded and source == Source::s_2) {
+            operand = u32_int_immediate(
+                stack->get_stack_frame_allocation_size() - 16);
+            return;
+        }
+        if (flags & detail::flags::Align_SP and source == Source::s_2) {
+            operand = direct_immediate(fmt::format(
+                "[sp, #-{}]!", stack->get_stack_frame_allocation_size()));
+            return;
+        }
+        if (flags & detail::flags::Align_SP_Folded and source == Source::s_2) {
+            operand = direct_immediate(fmt::format(
+                "[sp, #{}]", stack->get_stack_frame_allocation_size() - 16));
+            return;
+        }
+        if (flags & detail::flags::Align_SP_Local and source == Source::s_2) {
+            operand = direct_immediate(fmt::format(
+                "[sp, #-{}!]", stack->get_stack_frame_allocation_size() - 16));
+            return;
+        }
+    }
+}
+
+void Storage_Emitter::emit_operand(std::ostream& os,
+    assembly::Storage const& operand,
+    assembly::Mnemonic mnemonic,
+    Source source,
+    common::flag::flags flags)
+{
+    auto delimiter = source == Source::s_0 ? " " : ", ";
+    if ((flags & flag::Load) and is_variant(Immediate, operand)) {
+        auto [value, type, size] = std::get<Immediate>(operand);
+        if (source != Source::s_0 and type == "string" and
+            mnemonic == arm_mn(ldr)) {
+            os << ", =" << get_storage_device_as_string(operand);
+        } else {
+            os << delimiter << get_storage_device_as_string(operand);
+        }
+    } else {
+        os << delimiter << get_storage_device_as_string(operand);
+    }
+}
+
 /**
  * @brief Emit the representation of an mnemonic operand
  *
@@ -358,48 +399,19 @@ void Storage_Emitter::emit(std::ostream& os,
     assembly::Mnemonic mnemonic,
     Source source)
 {
-    auto& stack = accessor_->stack;
     auto& flag_accessor = accessor_->flag_accessor;
     auto flags =
         flag_accessor.get_instruction_flags_at_index(instruction_index_);
     if (is_variant(std::monostate, storage))
         return;
+
     auto operand = storage;
-    auto delimiter = source == Source::s_0 ? " " : ", ";
-    if (mnemonic == arm_mn(sub) or mnemonic == arm_mn(add) or
-        mnemonic == arm_mn(stp) or mnemonic == arm_mn(ldp)) {
-        if (flags & flag::Align and source == Source::s_2)
-            operand =
-                u32_int_immediate(stack->get_stack_frame_allocation_size());
-        if (flags & detail::flags::Align_S3_Folded and source == Source::s_3)
-            operand =
-                u32_int_immediate(stack->get_stack_frame_allocation_size());
-        if (flags & detail::flags::Align_Folded and source == Source::s_2)
-            operand = u32_int_immediate(
-                stack->get_stack_frame_allocation_size() - 16);
-        if (flags & detail::flags::Align_SP and source == Source::s_2)
-            operand = direct_immediate(fmt::format(
-                "[sp, #-{}]!", stack->get_stack_frame_allocation_size()));
-        if (flags & detail::flags::Align_SP_Folded and source == Source::s_2)
-            operand = direct_immediate(fmt::format(
-                "[sp, #{}]", stack->get_stack_frame_allocation_size() - 16));
-    }
+    apply_stack_alignment(operand, mnemonic, source, flags);
 
     if (flags & flag::Indirect_Source)
         flag_accessor.set_instruction_flag(flag::Indirect, instruction_index_);
 
-    if ((flags & flag::Load) and is_variant(Immediate, operand)) {
-        auto [value, type, size] = std::get<Immediate>(operand);
-        if (source != Source::s_0 and type == "string" and
-            mnemonic == arm_mn(ldr)) {
-            os << ", =" << get_storage_device_as_string(operand);
-        } else {
-            os << delimiter << get_storage_device_as_string(operand);
-        }
-
-    } else {
-        os << delimiter << get_storage_device_as_string(operand);
-    }
+    emit_operand(os, operand, mnemonic, source, flags);
 
     flag_accessor.unset_instruction_flag(flag::Indirect, instruction_index_);
 }
@@ -427,7 +439,7 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
             emit_function_epilogue(os);
-            accessor_->address_accessor.set_current_frame_symbol(s);
+            accessor_->device_accessor.set_current_frame_symbol(s);
         }
         frame_ = s;
         if (set_label)
@@ -459,7 +471,7 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 void Text_Emitter::emit_callee_saved_registers_stp(std::size_t index)
 {
     auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
-        accessor_->address_accessor.get_current_frame_name());
+        accessor_->device_accessor.get_current_frame_name());
     bool has_x23 = stack_frame->tokens.contains("x23");
     bool has_x26 = stack_frame->tokens.contains("x26");
     auto& flag_accessor = accessor_->flag_accessor;
@@ -496,7 +508,7 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     }
     auto& flag_accessor = accessor_->flag_accessor;
     auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
-        accessor_->address_accessor.get_current_frame_name());
+        accessor_->device_accessor.get_current_frame_name());
     auto flags = flag_accessor.get_instruction_flags_at_index(index);
 
     emit_callee_saved_registers_stp(index);
@@ -579,9 +591,9 @@ void Text_Emitter::emit_text_section(std::ostream& os)
 void Text_Emitter::emit_text_directives(std::ostream& os)
 {
     assembly::newline(os, 1);
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     os << assembly::Directive::text << std::endl;
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     os << ".section	__TEXT,__text,regular,pure_instructions" << std::endl;
 #endif
     assembly::newline(os, 1);
@@ -620,7 +632,7 @@ void IR_Inserter::setup_stack_frame_in_function(
     auto symbol = std::get<1>(ir_instructions.at(index - 1));
     auto name = type::get_label_as_human_readable(symbol);
     stack_frame.set_stack_frame(name);
-    accessor_->address_accessor.set_current_frame_symbol(name);
+    accessor_->device_accessor.set_current_frame_symbol(name);
     if (name == "main") {
         // setup argc, argv
         auto argc_argv = common::runtime::argc_argv_kernel_runtime_access<
@@ -693,7 +705,7 @@ void Visitor::from_func_start_ita(Label const& name)
     auto& ir_instructions = *accessor_->table_accessor.table_->ir_instructions;
     credence_assert(table->functions.contains(name));
     stack->clear();
-    accessor_->address_accessor.reset_storage();
+    accessor_->device_accessor.reset_storage_devices();
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
     auto frame = table->functions[name];
@@ -888,7 +900,8 @@ void Unary_Operator_Inserter::from_lvalue_address_of_expression(
 
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
-    auto offset = address_space.get_storage_from_lvalue_reference(rvalue);
+    auto offset =
+        accessor_->device_accessor.get_device_by_lvalue_reference(rvalue);
 
     if (op == "&") {
         address_space.address_ir_assignment = true;
@@ -918,7 +931,8 @@ void Unary_Operator_Inserter::from_lvalue_reference_expression(
 
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
-    auto offset = address_space.get_storage_from_lvalue_reference(rvalue);
+    auto offset =
+        accessor_->device_accessor.get_device_by_lvalue_reference(rvalue);
 
     if (op == "*") {
         address_space.address_ir_assignment = true;
@@ -952,15 +966,16 @@ void Visitor::from_call_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto inserter = Invocation_Inserter{ accessor_, stack_frame_ };
+    auto& instructions = instruction_accessor->get_instructions();
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
 
     auto is_syscall_function = [&](Label const& label) {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
         return common::runtime::is_syscall_function(label,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64);
 
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
         return common::runtime::is_syscall_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64);
@@ -969,38 +984,41 @@ void Visitor::from_call_ita(ir::Quadruple const& inst)
     };
 
     auto is_stdlib_function = [&](Label const& label) {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64);
 
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64);
 
 #endif
     };
-
+    accessor_->device_accessor.save_and_allocate_before_instruction_jump(
+        instructions);
     m::match(function_name)(
         m::pattern | m::app(is_syscall_function, true) =
             [&] {
                 inserter.insert_from_syscall_function(
-                    function_name, instruction_accessor->get_instructions());
+                    function_name, instructions);
             },
         m::pattern | m::app(is_stdlib_function, true) =
             [&] {
                 inserter.insert_from_standard_library_function(
-                    function_name, instruction_accessor->get_instructions());
+                    function_name, instructions);
             },
         m::pattern | m::_ =
             [&] {
                 inserter.insert_from_user_defined_function(
-                    function_name, instruction_accessor->get_instructions());
+                    function_name, instructions);
             });
     stack_frame_.call_stack.emplace_back(function_name);
     stack_frame_.tail = function_name;
-    accessor_->register_accessor.reset_available_registers();
+    // accessor_->register_accessor.reset_available_registers();
+    accessor_->device_accessor.restore_and_deallocate_after_instruction_jump(
+        instructions);
 }
 
 /**
@@ -1032,7 +1050,7 @@ void Visitor::from_locl_ita(ir::Quadruple const& inst)
             [&] {
                 auto lvalue =
                     type::get_unary_rvalue_reference(std::get<1>(inst));
-                accessor_->address_accessor.set_lvalue_to_storage_space(
+                accessor_->device_accessor.insert_lvalue_to_device(
                     lvalue, stack_frame_);
             },
         m::pattern | m::app(is_vector, true) =
@@ -1043,7 +1061,7 @@ void Visitor::from_locl_ita(ir::Quadruple const& inst)
             },
         m::pattern | m::_ =
             [&] {
-                accessor_->address_accessor.set_lvalue_to_storage_space(
+                accessor_->device_accessor.insert_lvalue_to_device(
                     locl_lvalue, stack_frame_);
             }
 
@@ -1059,10 +1077,11 @@ void Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
     auto frame = stack_frame_.get_stack_frame();
     auto of_comparator = frame->temporary.at(of).substr(4);
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    auto of_rvalue_storage = accessor_->address_accessor
-                                 .get_lvalue_address_and_instructions(
-                                     of_comparator, instructions.size())
-                                 .first;
+    auto of_rvalue_storage =
+        accessor_->address_accessor
+            .get_arm64_lvalue_and_insertion_instructions(
+                of_comparator, accessor_->device_accessor, instructions.size())
+            .first;
     auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
     auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
     auto comparator_instructions = assembly::r_eq(
@@ -1091,6 +1110,7 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto& table_accessor = accessor_->table_accessor;
     auto& addresses = accessor_->address_accessor;
+    auto& devices = accessor_->device_accessor;
     auto registers = accessor_->register_accessor;
     auto accumulator = accessor_->accumulator_accessor;
 
@@ -1102,7 +1122,7 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
     auto [lhs, rhs, op] = expression;
     auto immediate = false;
     auto is_address = [&](RValue const& rvalue) {
-        return addresses.is_lvalue_allocated_in_memory(rvalue);
+        return devices.is_lvalue_allocated_in_memory(rvalue);
     };
     m::match(lhs, rhs)(
         m::pattern |
@@ -1118,11 +1138,11 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
         m::pattern | m::ds(m::app(is_address, true), m::app(is_address, true)) =
             [&] {
                 if (!table_accessor.last_ir_instruction_is_assignment()) {
-                    lhs_s = addresses.get_storage_from_lvalue(lhs);
-                    rhs_s = addresses.get_storage_from_lvalue(rhs);
+                    lhs_s = devices.get_device_by_lvalue(lhs);
+                    rhs_s = devices.get_device_by_lvalue(rhs);
                 } else {
                     lhs_s = accumulator.get_accumulator_register_from_size();
-                    rhs_s = addresses.get_storage_from_lvalue(rhs);
+                    rhs_s = devices.get_device_by_lvalue(rhs);
                 }
             },
         m::pattern |
@@ -1150,12 +1170,12 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
         m::pattern |
             m::ds(m::app(is_address, true), m::app(is_address, false)) =
             [&] {
-                lhs_s = addresses.get_storage_from_lvalue(lhs);
-                rhs_s = addresses.get_storage_for_binary_rvalue(rhs);
+                lhs_s = devices.get_device_by_lvalue(lhs);
+                rhs_s = devices.get_device_for_binary_operand(rhs);
 
                 if (table_accessor.last_ir_instruction_is_assignment()) {
-                    auto rvalue = addresses.get_storage_from_lvalue(lhs);
-                    auto size = addresses.get_word_size_from_storage(
+                    auto rvalue = devices.get_device_by_lvalue(lhs);
+                    auto size = devices.get_word_size_from_storage(
                         rvalue, stack_frame_);
                     auto acc =
                         accumulator.get_accumulator_register_from_size(size);
@@ -1164,44 +1184,44 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                 if (is_temporary(rhs) or
                     table_accessor.is_ir_instruction_temporary())
                     lhs_s = accumulator.get_accumulator_register_from_size(
-                        addresses.get_word_size_from_lvalue(lhs, stack_frame_));
+                        devices.get_word_size_from_lvalue(lhs, stack_frame_));
             },
         m::pattern |
             m::ds(m::app(is_address, false), m::app(is_address, true)) =
             [&] {
-                lhs_s = addresses.get_storage_for_binary_rvalue(lhs);
-                rhs_s = addresses.get_storage_from_lvalue(rhs);
+                lhs_s = devices.get_device_for_binary_operand(lhs);
+                rhs_s = devices.get_device_by_lvalue(rhs);
 
                 if (table_accessor.last_ir_instruction_is_assignment()) {
                     auto acc = accumulator.get_accumulator_register_from_size(
-                        addresses.get_word_size_from_lvalue(rhs, stack_frame_));
+                        devices.get_word_size_from_lvalue(rhs, stack_frame_));
                     arm64_add__asm(instructions,
                         mov,
                         acc,
-                        addresses.get_storage_from_lvalue(rhs));
+                        devices.get_device_by_lvalue(rhs));
                 }
 
                 if (is_temporary(lhs) or
                     table_accessor.is_ir_instruction_temporary())
                     rhs_s = accumulator.get_accumulator_register_from_size(
-                        addresses.get_word_size_from_lvalue(rhs, stack_frame_));
+                        devices.get_word_size_from_lvalue(rhs, stack_frame_));
             },
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, false)) =
             [&] {
                 lhs_s = accumulator.get_accumulator_register_from_size();
-                rhs_s = addresses.get_storage_for_binary_rvalue(rhs);
+                rhs_s = devices.get_device_for_binary_operand(rhs);
             },
         m::pattern |
             m::ds(m::app(is_temporary, false), m::app(is_temporary, true)) =
             [&] {
-                lhs_s = addresses.get_storage_for_binary_rvalue(lhs);
+                lhs_s = devices.get_device_for_binary_operand(lhs);
                 rhs_s = accumulator.get_accumulator_register_from_size();
             },
         m::pattern | m::ds(m::_, m::_) =
             [&] {
-                lhs_s = addresses.get_storage_for_binary_rvalue(lhs);
-                rhs_s = addresses.get_storage_for_binary_rvalue(rhs);
+                lhs_s = devices.get_device_for_binary_operand(lhs);
+                rhs_s = devices.get_device_for_binary_operand(rhs);
             });
     if (!immediate) {
         auto operand_inserter = Operand_Inserter{ accessor_, stack_frame_ };
@@ -1337,12 +1357,12 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
         m::pattern | RValue{ "RET" } =
             [&] {
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
                 if (common::runtime::is_stdlib_function(stack_frame_.tail,
                         common::assembly::OS_Type::Linux,
                         common::assembly::Arch_Type::ARM64))
                     return;
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
                 if (common::runtime::is_stdlib_function(stack_frame_.tail,
                         common::assembly::OS_Type::BSD,
                         common::assembly::Arch_Type::ARM64))
@@ -1381,12 +1401,12 @@ void Expression_Inserter::insert_from_global_vector_assignment(
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
     auto [lhs_storage, lhs_storage_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            lhs, instruction_accessor->size());
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            lhs, accessor_->device_accessor, instruction_accessor->size());
     assembly::inserter(instructions, lhs_storage_inst);
     auto [rhs_storage, rhs_storage_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            rhs, instruction_accessor->size());
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            rhs, accessor_->device_accessor, instruction_accessor->size());
     assembly::inserter(instructions, rhs_storage_inst);
     auto acc =
         accessor_->accumulator_accessor.get_accumulator_register_from_storage(
@@ -1494,8 +1514,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
     auto& address_storage = accessor_->address_accessor;
     auto accumulator = accessor_->accumulator_accessor;
     auto is_address = [&](RValue const& rvalue) {
-        return accessor_->address_accessor.is_lvalue_allocated_in_memory(
-            rvalue);
+        return accessor_->device_accessor.is_lvalue_allocated_in_memory(rvalue);
     };
     auto is_stack = [&](assembly::Storage const& st) {
         return is_variant(assembly::Stack::Offset, st);
@@ -1506,8 +1525,9 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 auto [lhs_storage, storage_inst] =
                     accessor_->address_accessor
-                        .get_lvalue_address_and_instructions(
-                            lhs, instruction_accessor->size());
+                        .get_arm64_lvalue_and_insertion_instructions(lhs,
+                            accessor_->device_accessor,
+                            instruction_accessor->size());
                 assembly::inserter(instructions, storage_inst);
                 if (is_stack(lhs_storage)) {
                     auto size = get_operand_size_from_storage(
@@ -1526,8 +1546,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 if (address_storage.address_ir_assignment) {
                     address_storage.address_ir_assignment = false;
                     Storage lhs_storage =
-                        accessor_->address_accessor.get_storage_from_lvalue(
-                            lhs);
+                        accessor_->device_accessor.get_device_by_lvalue(lhs);
                     auto size = get_operand_size_from_storage(
                         lhs_storage, accessor_->stack);
                     auto work = size == assembly::Operand_Size::Doubleword
@@ -1539,8 +1558,10 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     if (!type::is_unary_expression(lhs))
                         stack->set_address_from_accumulator(lhs, acc);
                     auto [lhs_storage, storage_inst] =
-                        address_storage.get_lvalue_address_and_instructions(
-                            lhs, instruction_accessor->size());
+                        address_storage
+                            .get_arm64_lvalue_and_insertion_instructions(lhs,
+                                accessor_->device_accessor,
+                                instruction_accessor->size());
                     assembly::inserter(instructions, storage_inst);
                     arm64_add__asm(instructions, mov, lhs_storage, acc);
                 }
@@ -1548,12 +1569,16 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
         m::pattern | m::app(is_address, true) =
             [&] {
                 auto [lhs_storage, lhs_inst] =
-                    address_storage.get_lvalue_address_and_instructions(
-                        lhs, instruction_accessor->size());
+                    address_storage.get_arm64_lvalue_and_insertion_instructions(
+                        lhs,
+                        accessor_->device_accessor,
+                        instruction_accessor->size());
                 assembly::inserter(instructions, lhs_inst);
                 auto [rhs_storage, rhs_inst] =
-                    address_storage.get_lvalue_address_and_instructions(
-                        rhs, instruction_accessor->size());
+                    address_storage.get_arm64_lvalue_and_insertion_instructions(
+                        rhs,
+                        accessor_->device_accessor,
+                        instruction_accessor->size());
                 assembly::inserter(instructions, rhs_inst);
                 auto acc = accumulator.get_accumulator_register_from_size(
                     stack->get(rhs).second);
@@ -1570,8 +1595,10 @@ inline Storage Operand_Inserter::get_operand_storage_from_stack(
     RValue const& rvalue)
 {
     auto [operand, operand_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            rvalue, accessor_->instruction_accessor->size());
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            rvalue,
+            accessor_->device_accessor,
+            accessor_->instruction_accessor->size());
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     assembly::inserter(instructions, operand_inst);
     return operand;
@@ -1670,14 +1697,14 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
     if (stack->is_allocated(rvalue))
         return get_operand_storage_from_stack(rvalue);
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     if (!stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64))
         return get_operand_storage_from_return();
 
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     if (!stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
@@ -1690,8 +1717,10 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
         return get_operand_storage_from_immediate(rvalue);
 
     auto [operand, operand_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            rvalue, accessor_->instruction_accessor->size());
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            rvalue,
+            accessor_->device_accessor,
+            accessor_->instruction_accessor->size());
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     assembly::inserter(instructions, operand_inst);
 
@@ -1836,7 +1865,7 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
         m::pattern | std::string{ "/" } =
             [&] {
                 auto storage =
-                    accessor_->address_accessor.get_available_storage_register(
+                    accessor_->device_accessor.get_available_storage_register(
                         assembly::Operand_Size::Doubleword);
                 arm64_add__asm(
                     instructions.second, mov, storage, operands.first);
@@ -1853,7 +1882,7 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
         m::pattern | std::string{ "%" } =
             [&] {
                 auto storage =
-                    accessor_->address_accessor.get_available_storage_register(
+                    accessor_->device_accessor.get_available_storage_register(
                         assembly::Operand_Size::Doubleword);
                 accessor_->set_signal_register(Register::x1);
                 arm64_add__asm(

@@ -39,6 +39,10 @@ if [[ "$1" == "stdlib_printf_test" ]]; then
   printf -v expected_output '%s' "hello 5 5.200000 x 1"
 fi
 
+if [[ "$1" == "arm64_constant_1" ]]; then
+  printf -v expected_output '%s\n' "m is 60"
+fi
+
 
 program_name=$1
 
@@ -63,10 +67,10 @@ fi
 
 
 if [[ "$program_output" == "$expected_output" ]]; then
-  printf 'Source code compiled successfully for "%s" on current platform: %s\n' "$program_name" "$(uname -s)"
+  printf 'Source code compiled SUCCESSFULLY for "%s" on %s with: %s\n' "$program_name" "$(uname -s)" "$(uname -a)"
   exit 0
 else
-  printf 'Source code FAILED to compile for "%s" on current platform: %s\n' "$program_name" "$(uname -s)"
+  printf 'Source code compiled FAILED for "%s" on %s with: %s\n' "$program_name" "$(uname -s)" "$(uname -a)"
   echo "--- Expected Output ---"
   echo "$expected_output"
   echo "--- Actual Output ---"

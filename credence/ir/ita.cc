@@ -103,7 +103,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
     Parameters parameter_lvalues{};
     auto block = node["right"];
 
-    symbols_.set_symbol_by_name(name, value::Expression::WORD_LITERAL);
+    symbols_.set_symbol_by_name(name, value::WORD_LITERAL);
 
     if (parameters.JSON_type() == util::AST_Node::Class::Array and
         !parameters.to_deque().front().is_null()) {
@@ -113,8 +113,8 @@ Instructions ITA::build_from_function_definition(Node const& node)
                     [&] {
                         parameter_lvalues.emplace_back(
                             ident["root"].to_string());
-                        symbols_.set_symbol_by_name(ident["root"].to_string(),
-                            value::Expression::NULL_LITERAL);
+                        symbols_.set_symbol_by_name(
+                            ident["root"].to_string(), value::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
                     [&] {
@@ -133,7 +133,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
                             "*{}", ident["left"]["root"].to_string())),
                             symbols_.set_symbol_by_name(
                                 ident["left"]["root"].to_string(),
-                                value::Expression::WORD_LITERAL);
+                                value::WORD_LITERAL);
                     });
         }
     }
@@ -696,8 +696,7 @@ void ITA::build_from_auto_statement(Node const& node,
 #endif
                     instructions.emplace_back(
                         make_quadruple(Instruction::LOCL, name));
-                    symbols_.set_symbol_by_name(
-                        name, value::Expression::NULL_LITERAL);
+                    symbols_.set_symbol_by_name(name, value::NULL_LITERAL);
                 },
             m::pattern | "vector_lvalue" =
                 [&] {
@@ -730,8 +729,7 @@ void ITA::build_from_auto_statement(Node const& node,
 #endif
                     instructions.emplace_back(make_quadruple(
                         Instruction::LOCL, fmt::format("*{}", name)));
-                    symbols_.set_symbol_by_name(
-                        name, value::Expression::WORD_LITERAL);
+                    symbols_.set_symbol_by_name(name, value::WORD_LITERAL);
                 });
     }
 }

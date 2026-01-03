@@ -47,8 +47,14 @@ const auto TYPE_LITERAL =
         { "char",   { "char", sizeof(char) }          }
 });
 
-namespace detail {
+const std::pair<std::monostate, std::pair<std::string, std::size_t>>
+    NULL_LITERAL =
+        std::make_pair(std::monostate{}, std::make_pair("null", 0UL));
 
+const std::pair<std::string, std::pair<std::string, std::size_t>> WORD_LITERAL =
+    std::make_pair("__WORD__", std::make_pair("word", sizeof(void*)));
+
+namespace detail {
 using Literal = std::variant<std::monostate,
     int,
     long,
@@ -69,33 +75,14 @@ using Array = std::vector<Literal>;
 
 struct Expression
 {
-
     explicit constexpr Expression() = default;
 
-    static constexpr auto NULL_LITERAL =
-        std::pair<std::monostate, std::pair<std::string, std::size_t>>{
-            std::monostate{},
-            std::pair<std::string, std::size_t>{ "null", 0 }
-    };
-
-    static constexpr auto WORD_LITERAL =
-        std::pair<std::string, std::pair<std::string, std::size_t>>{
-            "__WORD__",
-            std::pair<std::string, std::size_t>{ "word", sizeof(void*) }
-    };
-
     using Pointer = std::shared_ptr<Expression>;
-
     using LValue = std::pair<std::string, Literal>;
-
     using Symbol = std::pair<LValue, Pointer>;
-
     using Unary = std::pair<type::Operator, Pointer>;
-
     using Relation = std::pair<type::Operator, std::vector<Pointer>>;
-
     using Function = std::pair<LValue, std::vector<Pointer>>;
-
     using Type = std::variant<std::monostate,
         Pointer,
         Array,
@@ -105,9 +92,7 @@ struct Expression
         Function,
         LValue,
         Literal>;
-
     using Type_Pointer = std::shared_ptr<Type>;
-
     Type value;
 };
 
@@ -149,11 +134,11 @@ std::string expression_type_to_string(Expression::Type const& item,
 
 inline Expression::LValue make_lvalue(std::string const& name)
 {
-    return std::make_pair(name, Expression::WORD_LITERAL);
+    return std::make_pair(name, WORD_LITERAL);
 }
 
 template<typename T>
-constexpr Expression::LValue make_lvalue(std::string name, T value)
+inline Expression::LValue make_lvalue(std::string name, T value)
 {
     static_assert(std::is_constructible_v<Literal, T>,
         "Error: Type T is not a valid alternative in "
@@ -162,7 +147,7 @@ constexpr Expression::LValue make_lvalue(std::string name, T value)
 }
 
 template<typename T>
-constexpr Literal make_literal_value(T value, Size size)
+inline Literal make_literal_value(T value, Size size)
 {
     static_assert(std::is_constructible_v<Literal, T>,
         "Error: Type T is not a valid alternative in "

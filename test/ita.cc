@@ -100,8 +100,7 @@ struct ITA_Fixture
         auto os_test = std::ostringstream();
         auto ita = ITA_hoisted(global_symbols);
         for (auto const& s : nulls)
-            ita.symbols_.table_.emplace(
-                s, credence::value::Expression::NULL_LITERAL);
+            ita.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
         auto test_instructions = ita.build_from_function_definition(node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -138,8 +137,7 @@ struct ITA_Fixture
             tail ? ITA_with_tail_branch(symbols) : ITA_hoisted(symbols);
         hoisted.make_root_branch();
         for (auto const& s : nulls)
-            hoisted.symbols_.table_.emplace(
-                s, credence::value::Expression::NULL_LITERAL);
+            hoisted.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
         auto test_instructions = hoisted.build_from_block_statement(node, ret);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -155,8 +153,7 @@ struct ITA_Fixture
         std::ostringstream os_test;
         auto hoisted = ITA_hoisted(symbols);
         for (auto const& s : nulls)
-            hoisted.symbols_.table_.emplace(
-                s, credence::value::Expression::NULL_LITERAL);
+            hoisted.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
         auto test_instructions = hoisted.build_from_return_statement(node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -172,8 +169,7 @@ struct ITA_Fixture
         std::ostringstream os_test;
         auto hoisted = ITA_hoisted(symbols);
         for (auto const& s : nulls)
-            hoisted.symbols_.table_.emplace(
-                s, credence::value::Expression::NULL_LITERAL);
+            hoisted.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
         auto test_instructions = hoisted.build_from_rvalue_statement(node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -1490,12 +1486,12 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
 
     CHECK_THROWS(ita.build_from_extrn_statement(obj["test"], instructions));
 
-    ita.globals_.addr_.emplace("a",
-        credence::value::Array{ credence::value::Expression::NULL_LITERAL });
-    ita.globals_.addr_.emplace("b",
-        credence::value::Array{ credence::value::Expression::NULL_LITERAL });
-    ita.globals_.addr_.emplace("c",
-        credence::value::Array{ credence::value::Expression::NULL_LITERAL });
+    ita.globals_.addr_.emplace(
+        "a", credence::value::Array{ credence::value::NULL_LITERAL });
+    ita.globals_.addr_.emplace(
+        "b", credence::value::Array{ credence::value::NULL_LITERAL });
+    ita.globals_.addr_.emplace(
+        "c", credence::value::Array{ credence::value::NULL_LITERAL });
 
     CHECK_NOTHROW(ita.build_from_extrn_statement(obj["test"], instructions));
 

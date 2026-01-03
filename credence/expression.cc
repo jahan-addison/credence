@@ -328,8 +328,7 @@ Expression_Parser::from_lvalue_expression_node(Node const& node)
                                         "to use extrn?",
                     name);
             else
-                symbols_.set_symbol_by_name(
-                    name, value::Expression::WORD_LITERAL);
+                symbols_.set_symbol_by_name(name, value::WORD_LITERAL);
         }
     }
     Expression::LValue lvalue{};

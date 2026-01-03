@@ -36,21 +36,25 @@ namespace fs = std::filesystem;
         REQUIRE(test.str() == expected);                                     \
     } while (0)
 
-#define SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(                     \
-    ast_path, expected, syscall)                                               \
-    do {                                                                       \
-        using namespace credence::target::arm64;                               \
-        auto test = std::ostringstream{};                                      \
-        auto fixture_path = fs::path(ROOT_PATH);                               \
-        fixture_path.append("test/fixtures/platform/ast");                     \
-        auto file_path =                                                       \
-            fs::path(fixture_path).append(fmt::format("{}.json", ast_path));   \
-        auto fixture_content =                                                 \
-            easyjson::JSON::load_file(file_path.string()).to_deque();          \
-        runtime::add_stdlib_functions_to_symbols(fixture_content[0], syscall); \
-        credence::target::arm64::emit(                                         \
-            test, fixture_content[0], fixture_content[1], true);               \
-        REQUIRE(test.str() == expected);                                       \
+#define SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(                   \
+    ast_path, expected, syscall)                                             \
+    do {                                                                     \
+        using namespace credence::target::arm64;                             \
+        auto test = std::ostringstream{};                                    \
+        auto fixture_path = fs::path(ROOT_PATH);                             \
+        fixture_path.append("test/fixtures/platform/ast");                   \
+        auto file_path =                                                     \
+            fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
+        auto fixture_content =                                               \
+            easyjson::JSON::load_file(file_path.string()).to_deque();        \
+        credence::target::common::runtime::add_stdlib_functions_to_symbols(  \
+            fixture_content[0],                                              \
+            credence::target::common::assembly::OS_Type::BSD,                \
+            credence::target::common::assembly::Arch_Type::ARM64,            \
+            syscall);                                                        \
+        credence::target::arm64::emit(                                       \
+            test, fixture_content[0], fixture_content[1], true);             \
+        REQUIRE(test.str() == expected);                                     \
     } while (0)
 
 #define SETUP_ARM64_FIXTURE_SHOULD_THROW_FROM_AST(ast_path)                  \
@@ -67,105 +71,160 @@ namespace fs = std::filesystem;
             test, fixture_content[0], fixture_content[1], true));            \
     } while (0)
 
-TEST_CASE("target/arm64: fixture: math_constant.b" * doctest::skip(true))
+TEST_CASE("target/arm64: fixture: math_constant.b")
 {
+
+#if defined(__linux__)
     std::string expected = R"arm(
-.align 2
-
-.data
-
 .text
+
+    .align 3
+
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-48]!
     mov x29, sp
-    mov w0, #1
-    mov w0, #5
-    str w0, [sp, #4]
-    ldr  w0, [sp, #4]
-    sub w0, w0, #0
-    ldr w0, [sp, #0]
-    add w0, w0, w0
-    str w0, [sp, #0]
-    mov w1, #10
-    mul w0, w0, w1
-    str w0, [sp, #8]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    stp x26, x23, [sp, #16]
+    mov w9, #1
+    mov w10, #5
+    mov w8, w10
+    sub w8, w8, #0
+    add w8, w8, w0
+    mov w23, #10
+    mul w8, w8, w23
+    mov w9, w8
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #48
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
 
 )arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    stp x26, x23, [sp, #16]
+    mov w9, #1
+    mov w10, #5
+    mov w8, w10
+    sub w8, w8, #0
+    add w8, w8, w0
+    mov w23, #10
+    mul w8, w8, w23
+    mov w9, w8
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #48
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant", expected);
-}
+};
 
-TEST_CASE("target/arm64: fixture: math_constant_2.b" * doctest::skip(true))
+TEST_CASE("target/arm64: fixture: math_constant_8.b")
 {
-    CHECK(false);
+
+#if defined(__linux__)
     std::string expected = R"arm(
-.align 2
-
-.data
-
 .text
+
+    .align 3
+
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-48]!
     mov x29, sp
-    mov w0, #4
-    add w0, w0, #1
-    str w0, [sp, #4]
-    mov w0, #2
-    ldr w1, [sp, #4]
-    sub w0, w0, w1
-    str w0, [sp, #8]
+    add x29, sp, #32
+    stp x26, x23, [sp, #16]
+    mov w9, #1
+    mov w10, #5
+    mov w8, w10
+    sub w8, w8, #0
+    add w8, w8, w0
+    mov w23, #10
+    mul w8, w8, w23
+    mov w9, w8
+    sub sp, sp, #16
+    str w9, [sp, #0]
+    str w10, [sp, #4]
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    mov w1, w9
+    bl printf
+    str w9, [sp, #0]
+    str w10, [sp, #4]
     add sp, sp, #16
-    ldp x29, x30, [sp], #16
-
-)arm";
-    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_2", expected);
-}
-
-TEST_CASE("target/arm64: fixture: math_constant_4.b" * doctest::skip(true))
-{
-    CHECK(false);
-    std::string expected = R"arm(
-.align 2
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #48
+    mov x0, #0
+    mov x8, #1
+    svc #0
 
 .data
 
-.text
+._L_str1__:
+    .asciz "m is %d\n"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-48]!
     mov x29, sp
-    mov w0, #20
-    str w0, [sp, #4]
-    mov w0, #10
-    str w0, [sp, #8]
-    ldr  w0, [sp, #4]
-    sdiv x0, x0, [sp, #8]
-    str w0, [sp, #12]
-    ldr  w0, [sp, #4]
-    ldr w1, [sp, #8]
-    add w0, w0, w1
-    str w0, [sp, #12]
-    ldr  w0, [sp, #4]
-    ldr w1, [sp, #8]
-    sub w0, w0, w1
-    str w0, [sp, #12]
-    ldr  w0, [sp, #4]
-    ldr w1, [sp, #8]
-    mul w0, w0, w1
-    str w0, [sp, #12]
-    ldr  w0, [sp, #4]
-    str x1, [sp, #12]
-    mov w0, #10
-    str w0, [sp, #12]
+    add x29, sp, #32
+    stp x26, x23, [sp, #16]
+    mov w9, #1
+    mov w10, #5
+    mov w8, w10
+    sub w8, w8, #0
+    add w8, w8, w0
+    mov w23, #10
+    mul w8, w8, w23
+    mov w9, w8
+    sub sp, sp, #16
+    str w9, [sp, #0]
+    str w10, [sp, #4]
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    mov w1, w9
+    bl _printf
+    str w9, [sp, #0]
+    str w10, [sp, #4]
     add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #48
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
 
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "m is %d\n"
 )arm";
-    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_4", expected);
+#endif
+
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "math_constant_8", expected, true);
 }

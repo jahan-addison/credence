@@ -574,7 +574,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                                         lhs_name.first, op, rhs_name.first));
                                 value::Expression::LValue temp_lvalue =
                                     std::make_pair(std::get<1>(operand_temp),
-                                        value::Expression::NULL_LITERAL);
+                                        value::NULL_LITERAL);
                                 operand_stack.emplace(
                                     value::make_value_type_pointer(
                                         temp_lvalue));

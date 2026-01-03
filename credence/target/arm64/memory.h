@@ -123,9 +123,7 @@ using Stack_Frame = target::common::memory::Stack_Frame<Memory_Accessor>;
 
 namespace detail {
 
-/**
- *  Forward declarations for the Memory_Accessor dependent accessors
- */
+class Device_Accessor;
 
 using ARM64_Address_Accessor = common::memory::Address_Accessor<Register,
     assembly::Stack,
@@ -212,21 +210,6 @@ struct Register_Accessor : public ARM64_Register_Accessor
     registers::general_purpose w_size_registers = registers::available_word;
 };
 
-/**
- * @brief
- *
- * Notes:
- *   x26      = address-of temporary storage register
- *   x23      = The multiplication register
- *   x8       = The default "accumulator" register for expression expansion
- *   x9       = A second arithemtic scratch register
- *   x9 - x18 = Local scope variables, after which the stack is used
- *
- *   w0, x0 = Return results
- *
- *   Vectors and vector offsets are on the stack
- *
- */
 struct Address_Accessor : public ARM64_Address_Accessor
 {
   public:
@@ -239,73 +222,131 @@ struct Address_Accessor : public ARM64_Address_Accessor
     {
     }
 
-    void reset_storage()
+    friend class Device_Accessor;
+
+    bool is_doubleword_storage_size(assembly::Storage const& storage,
+        Stack_Frame& stack_frame);
+
+    Address_Accessor::Address get_arm64_lvalue_and_insertion_instructions(
+        LValue const& lvalue,
+        Device_Accessor& device_accessor,
+        std::size_t instruction_index);
+
+  private:
+    Address_Accessor::Address get_lvalue_address_and_from_unary_and_vectors(
+        Address& instructions,
+        LValue const& lvalue,
+        std::size_t instruction_index,
+        Device_Accessor& device_accessor);
+
+  private:
+    Register_Accessor& register_accessor_;
+};
+
+/**
+ * @brief
+ *
+ * Notes:
+ *   x26   = address-of temporary storage register
+ *   x23   = The multiplication register
+ *   x8    = The default "accumulator" register for expression expansion
+ *   x9    = A second arithemtic scratch register
+ *   x9 - x18 = Local scope variables, after which the stack is used
+ *
+ *  NOTE : we save x9-x18 on the stack before calling a function
+ *  via the Allocate, Access, Deallocate pattern
+ *
+ *   w0, x0 = Return results
+ *
+ *   Vectors and vector offsets are on the stack
+ *
+ */
+class Device_Accessor
+{
+  public:
+    using Device = Storage;
+
+  public:
+    Device_Accessor(Address_Accessor& address_accessor, Stack_Pointer& stack)
+        : address_accessor_(address_accessor)
+        , register_accessor_(address_accessor.register_accessor_)
+        , stack_(stack)
+    {
+    }
+
+    using Operand_Size = assembly::Operand_Size;
+
+    void reset_storage_devices()
     {
         register_id.clear();
         id_index = 0;
     }
 
-  private:
-    void set_word_or_doubleword_register(LValue const& lvalue,
-        assembly::Operand_Size size);
-    Size get_size_from_temporary_rvalue_data_type(LValue const& lvalue,
-        Immediate const& rvalue,
-        ir::object::Function_PTR& frame);
-
   public:
     bool is_lvalue_allocated_in_memory(LValue const& lvalue);
-    Storage get_storage_for_binary_rvalue(RValue const& rvalue);
-    Storage get_storage_from_lvalue(LValue const& lvalue);
-    inline Storage get_storage_from_lvalue_reference(RValue const& rvalue)
+    Device get_device_for_binary_operand(RValue const& rvalue);
+    Device get_device_by_lvalue(LValue const& lvalue);
+    inline Device get_device_by_lvalue_reference(RValue const& rvalue)
     {
-        return get_storage_from_lvalue(rvalue);
+        return get_device_by_lvalue(rvalue);
+    }
+    constexpr void set_current_frame_symbol(Label const& label)
+    {
+        frame_symbol = label;
+    }
+    constexpr Label get_current_frame_name() { return frame_symbol; }
+
+  public:
+    void save_and_allocate_before_instruction_jump(
+        assembly::Instructions& instructions);
+    void restore_and_deallocate_after_instruction_jump(
+        assembly::Instructions& instructions);
+
+  public:
+    inline Operand_Size get_word_size_from_storage(
+        assembly::Storage const& storage,
+        Stack_Frame& stack_frame)
+    {
+        return address_accessor_.is_doubleword_storage_size(
+                   storage, stack_frame)
+                   ? Operand_Size::Doubleword
+                   : Operand_Size::Word;
     }
 
-    Register get_available_storage_register(assembly::Operand_Size size);
-    void set_lvalue_to_storage_space(LValue const& lvalue,
+    inline Operand_Size get_word_size_from_lvalue(LValue const& lvalue,
+        Stack_Frame& stack_frame)
+    {
+        return get_word_size_from_storage(
+            get_device_by_lvalue(lvalue), stack_frame);
+    }
+
+  public:
+    Register get_available_storage_register(Operand_Size size);
+    void insert_lvalue_to_device(LValue const& lvalue,
         Stack_Frame& stack_frame);
     void set_vector_offset_to_storage_space(LValue const& lvalue,
         Stack_Frame& stack_frame);
 
-    inline assembly::Operand_Size get_word_size_from_storage(
-        assembly::Storage const& storage,
-        Stack_Frame& stack_frame)
-    {
-        return is_doubleword_storage_size(storage, stack_frame)
-                   ? assembly::Operand_Size::Doubleword
-                   : assembly::Operand_Size::Word;
-    }
-
-    constexpr void set_current_frame_symbol(Label const& label)
-    {
-        current_frame_symbol = label;
-    }
-
-    constexpr Label get_current_frame_name() { return current_frame_symbol; }
-
-    inline assembly::Operand_Size get_word_size_from_lvalue(
-        LValue const& lvalue,
-        Stack_Frame& stack_frame)
-    {
-        return get_word_size_from_storage(
-            get_storage_from_lvalue(lvalue), stack_frame);
-    }
-
-    bool is_doubleword_storage_size(assembly::Storage const& storage,
-        Stack_Frame& stack_frame);
-
-    Address_Accessor::Address get_lvalue_address_and_instructions(
-        LValue const& lvalue,
-        std::size_t instruction_index,
-        bool use_prefix = true) override;
+  private:
+    void set_word_or_doubleword_register(LValue const& lvalue,
+        Operand_Size size);
+    Size get_size_of_address_table();
+    Size get_size_from_temporary_rvalue_data_type(LValue const& lvalue,
+        Immediate const& rvalue,
+        ir::object::Function_PTR& frame);
 
   private:
-    Label current_frame_symbol{ "main" };
+    Address_Accessor& address_accessor_;
+    Register_Accessor& register_accessor_;
+    Stack_Pointer& stack_;
+
+  private:
+    Label frame_symbol{ "main" };
     Ordered_Map<LValue, Storage> address_table{};
+    Size local_size{ 0 };
     std::set<unsigned int> register_id{};
     unsigned int id_index{ 0 };
     unsigned int vector_index{ 0 };
-    Register_Accessor& register_accessor_;
 };
 
 struct Vector_Accessor : public ARM64_Vector_Accessor
@@ -368,6 +409,7 @@ class Memory_Accessor
         stack,
         flag_accessor,
         register_accessor };
+    detail::Device_Accessor device_accessor{ address_accessor, stack };
     Instruction_Pointer instruction_accessor{};
 };
 

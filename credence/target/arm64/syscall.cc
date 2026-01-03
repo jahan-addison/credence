@@ -40,12 +40,12 @@ void make_syscall(assembly::Instructions& instructions,
     memory::Stack_Frame* stack_frame,
     memory::Memory_Access* accessor)
 {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::Linux,
         target::common::assembly::Arch_Type::ARM64);
 
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::BSD,
         target::common::assembly::Arch_Type::ARM64);
@@ -71,11 +71,11 @@ void make_syscall(assembly::Instructions& instructions,
         stack_frame,
         accessor);
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x8, syscall_number);
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     // load syscall number into x16 (darwin uses x16 instead of x8)
     target::arm64::assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
@@ -84,10 +84,10 @@ void make_syscall(assembly::Instructions& instructions,
     credence_error("Operating system not supported");
 #endif
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0"));
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0x80"));
 #endif

@@ -196,10 +196,10 @@ struct Address_Accessor : public X8664_Address_Accessor
     bool is_qword_storage_size(assembly::Storage const& storage,
         memory::Stack_Frame& stack_frame);
 
-    Address_Accessor::Address get_lvalue_address_and_instructions(
+    Address_Accessor::Address get_lvalue_address_and_insertion_instructions(
         LValue const& lvalue,
         std::size_t instruction_index,
-        bool use_prefix = true) override;
+        bool use_prefix = true);
 };
 
 struct Vector_Accessor : public X8664_Vector_Accessor

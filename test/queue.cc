@@ -350,7 +350,7 @@ TEST_CASE("ir/queue.cc: rvalues_to_queue")
         "\"root\" : [\"=\", null]\n                }");
 
     Expression_Parser parser{ obj };
-    value::Literal null = value::Expression::NULL_LITERAL;
+    value::Literal null = value::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);
     parser.symbols_.table_.emplace("exp", null);

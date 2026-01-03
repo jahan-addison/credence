@@ -80,12 +80,30 @@ class Storage_Emitter
         s_3,
     };
 
+    constexpr bool is_alignment_mnemonic(Mnemonic mnemonic)
+    {
+        return mnemonic == arm_mn(sub) or mnemonic == arm_mn(add) or
+               mnemonic == arm_mn(stp) or mnemonic == arm_mn(ldp) or
+               mnemonic == arm_mn(ldr) or mnemonic == arm_mn(str);
+    }
+
     std::string get_storage_device_as_string(assembly::Storage const& storage);
 
     void emit(std::ostream& os,
         assembly::Storage const& storage,
         assembly::Mnemonic mnemonic,
         Source source);
+
+  private:
+    void apply_stack_alignment(assembly::Storage& operand,
+        assembly::Mnemonic mnemonic,
+        Source source,
+        common::flag::flags flags);
+    void emit_operand(std::ostream& os,
+        assembly::Storage const& operand,
+        assembly::Mnemonic mnemonic,
+        Source source,
+        common::flag::flags flags);
 
   private:
     memory::Memory_Access accessor_;

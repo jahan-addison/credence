@@ -82,7 +82,7 @@ constexpr auto relation_binary_operators = { "==",
 
 constexpr auto integral_unary_types = { "int", "double", "float", "long" };
 
-constexpr Data_Type NULL_RVALUE_LITERAL =
+const Data_Type NULL_RVALUE_LITERAL =
     Data_Type{ "NULL", "null", sizeof(void*) };
 
 constexpr semantic::RValue get_value_from_rvalue_data_type(

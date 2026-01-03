@@ -81,6 +81,12 @@ class Stack : public common::detail::base_stack_pointer
      */
     constexpr Entry get(LValue const& lvalue) { return stack_address[lvalue]; }
 
+    inline Entry get(Register const& device)
+    {
+        auto lvalue = common::assembly::get_storage_as_string<Register>(device);
+        return stack_address[lvalue];
+    }
+
     /**
      * @brief Get the stack location lvalue and size from an offset
      */
@@ -125,7 +131,7 @@ class Stack : public common::detail::base_stack_pointer
      */
     constexpr void deallocate(Size alloc)
     {
-        if (size - alloc < 0) {
+        if ((size - alloc) <= 0) {
             size = 0;
         } else {
             size -= alloc;
@@ -167,7 +173,7 @@ class Stack : public common::detail::base_stack_pointer
     /**
      * @brief Set and allocate an address from an accumulator register size
      */
-    constexpr void set_address_from_accumulator(LValue const& lvalue,
+    inline void set_address_from_accumulator(LValue const& lvalue,
         assembly::Register acc)
     {
         if (stack_address[lvalue].second != assembly::Operand_Size::Empty)

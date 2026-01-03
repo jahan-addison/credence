@@ -171,7 +171,7 @@ TEST_CASE("expression.cc: Expression_Parser::rvalue_expression")
         "[\"^\"]\n    "
         "            }]");
     auto temp = Expression_Parser(obj);
-    credence::value::Literal null = value::Expression::NULL_LITERAL;
+    credence::value::Literal null = value::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("c", null);
@@ -205,7 +205,7 @@ TEST_CASE("expression.cc: Expression_Parser::function_expression")
         "\"z\"\n   "
         "                 }]\n}\n                    ");
     auto temp = Expression_Parser(obj);
-    credence::value::Literal null = value::Expression::NULL_LITERAL;
+    credence::value::Literal null = value::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
     temp.symbols_.table_.emplace("y", null);
@@ -255,7 +255,7 @@ TEST_CASE("expression.cc: Expression_Parser::evaluated_expression")
         "  "
         "}]");
     auto temp = Expression_Parser(obj);
-    credence::value::Literal null = value::Expression::NULL_LITERAL;
+    credence::value::Literal null = value::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
 
@@ -334,7 +334,7 @@ TEST_CASE("expression.cc: Expression_Parser::from_relation_expression")
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
     auto temp = Expression_Parser(obj);
-    credence::value::Literal null = value::Expression::NULL_LITERAL;
+    credence::value::Literal null = value::NULL_LITERAL;
 
     std::vector<credence::value::Expression::Pointer> arguments{};
     temp.symbols_.table_.emplace("x", null);
@@ -498,7 +498,7 @@ TEST_CASE("expression.cc: Expression_Parser::from_unary_expression")
         "    \"root\" : [\"!\"]\n                }]");
     auto temp = Expression_Parser(obj);
 
-    credence::value::Literal null = value::Expression::NULL_LITERAL;
+    credence::value::Literal null = value::NULL_LITERAL;
 
     temp.symbols_.table_.emplace("x", null);
 
@@ -580,7 +580,7 @@ TEST_CASE_FIXTURE(Fixture,
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression_node(obj["test"]));
 
-    credence::value::Literal value_type = value::Expression::NULL_LITERAL;
+    credence::value::Literal value_type = value::NULL_LITERAL;
 
     credence::value::Literal assigned_type = { 5,
         value::TYPE_LITERAL.at("int") };
@@ -612,7 +612,7 @@ TEST_CASE_FIXTURE(Fixture, "expression.cc: Expression_Parser::is_symbol")
     auto temp2 = Expression_Parser(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
-    credence::value::Literal value_type = value::Expression::NULL_LITERAL;
+    credence::value::Literal value_type = value::NULL_LITERAL;
     temp2.symbols_.set_symbol_by_name("x", value_type);
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }

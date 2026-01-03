@@ -13,29 +13,49 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.platform.name }} / ${{ matrix.compiler }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        compiler: [g++, clang++]
-        exclude: # Exclude macOS + GCC as it's not the default and requires extra setup
-          - os: macos-latest
+        include:
+          # x86_64 Linux
+          - platform: { name: 'x86_64 Linux', os: ubuntu-latest, arch: x86_64 }
             compiler: g++
+            cxx: g++
+          - platform: { name: 'x86_64 Linux', os: ubuntu-latest, arch: x86_64 }
+            compiler: clang++
+            cxx: clang++
+          # ARM64 Linux
+          # - platform: { name: 'ARM64 Linux', os: ubuntu-latest, arch: arm64 }
+          #   compiler: g++
+          #   cxx: g++
+          # - platform: { name: 'ARM64 Linux', os: ubuntu-latest, arch: arm64 }
+          #   compiler: clang++
+          #   cxx: clang++
+          # x86_64 macOS
+          - platform: { name: 'x86_64 macOS', os:  macos-latest, arch: arm64 }
+            compiler: clang++
+            cxx: clang++
+          # ARM64 macOS
+          - platform: { name: 'ARM64 macOS', os:  macos-latest, arch: arm64 }
+            compiler: g++
+            cxx: g++-13 # from brew
+          - platform: { name: 'ARM64 macOS', os:  macos-latest, arch: arm64 }
+            compiler: clang++
+            cxx: clang++
 
     steps:
-    - name: Setup cmake
+    - name: cmake
       uses: jwlawson/actions-setup-cmake@v2
       with:
         cmake-version: '3.16.x'
 
     - name: install dependencies (Ubuntu)
-      if: startsWith(matrix.os, 'ubuntu')
+      if: startsWith(matrix.platform.os, 'ubuntu')
       shell: bash
       run: |
         sudo apt-get update
-        # wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        # sudo add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
         sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
         echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.bashrc
         source ~/.bashrc
@@ -52,39 +72,61 @@ jobs:
         sudo update-alternatives \
           --install /usr/bin/clang clang /usr/bin/clang-20 100
 
+    - name: install qemu for arm64 tests
+      if: matrix.platform.name == 'ARM64 Linux'
+      run: sudo apt-get install -y qemu-user-static
+
     - name: install dependencies (Mac)
-      if: startsWith(matrix.os, 'macos')
+      if: startsWith(matrix.platform.os, 'macos')
       run: |
         brew update
-        brew install include-what-you-use llvm@20 lcov clang-format cppcheck coreutils poetry
+        brew install gcc include-what-you-use llvm@20 lcov clang-format cppcheck coreutils poetry
 
     - name: python
-      if: startsWith(matrix.os, 'macos')
+      if: startsWith(matrix.platform.os, 'macos')
       uses: actions/setup-python@v6
       with:
         python-version: '3.13'
 
-    - uses: actions/checkout@v4
+    - name: checkout
+      uses: actions/checkout@v4
 
-    - name: build
+    - name: build with clang
+      if: matrix.compiler == 'clang++'
       run: |
         # Make with -fsanitize
-        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-
-    - name: test
-      run: |
-        # Make with -fsanitize
+        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         cmake --build build
         git submodule update --init --recursive
         cd python/augur
         poetry install
         make install
         cd ../../
-        ./build/test_suite
         export CREDENCE_ENV_HOME="$(pwd)"
         echo "$(pwd)" > $HOME/.credence
         chmod +x ./bin/credence
         chmod +x ./test/compiled-test.sh
+
+    - name: build with g++
+      if: matrix.compiler == 'g++' || matrix.cxx == 'g++-13'
+      run: |
+        # Make without -fsanitize
+        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cmake --build build
+        git submodule update --init --recursive
+        cd python/augur
+        poetry install
+        make install
+        cd ../../
+        export CREDENCE_ENV_HOME="$(pwd)"
+        echo "$(pwd)" > $HOME/.credence
+        chmod +x ./bin/credence
+        chmod +x ./test/compiled-test.sh
+
+    - name: test x86_64
+      if: matrix.platform.arch == 'x86_64'
+      run: |
+        ./build/test_suite
         ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
         ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
         ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/platform/stdlib/putchar_1.b
@@ -108,14 +150,30 @@ jobs:
         ./test/compiled-test.sh argc argc_argv
         ./test/compiled-test.sh stdlib_printf_test
 
+    - name: test arm64
+      if:  matrix.platform.arch == 'arm64'
+      run: |
+        ./build/test_suite
+        ./bin/credence -t x86_64 -o arm64_constant_1 $(pwd)/test/fixtures/platform/math_constant_8.b
+        ./test/compiled-test.sh arm64_constant_1
+
+    - name: memcheck
+      if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
+      run: |
+        ./bin/credence -t ${{ matrix.platform.arch }} -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
+        ./bin/credence -t ${{ matrix.platform.arch }} -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
+        valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
+        valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
+        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
+
     - name: build coverage
       if: |
         github.ref == 'refs/heads/master' &&
-        startsWith(matrix.os, 'macos') &&
+        matrix.platform.name == 'x86_64 macOS' &&
         matrix.compiler == 'clang++'
       run: |
         export PATH=/opt/homebrew/bin:$PATH:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:
-        cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
+        cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
         cmake --build build
         cmake --build build --target coverage
 
@@ -123,31 +181,10 @@ jobs:
       uses: peaceiris/actions-gh-pages@v4
       if: |
         github.ref == 'refs/heads/master' &&
-        startsWith(matrix.os, 'macos') &&
+        matrix.platform.name == 'x86_64 macOS' &&
         matrix.compiler == 'clang++'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./build/coverage_report
         publish_branch: gh-pages
         force_orphan: true
-
-    - name: memcheck
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        # Build for valgrind without -fsanitize
-        rm -rf build
-        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=ON
-        cmake --build build
-        git submodule update --init --recursive
-        cd python/augur
-        poetry install
-        make install
-        cd ../../
-        export CREDENCE_ENV_HOME="$(pwd)"
-        echo "$(pwd)" > $HOME/.credence
-        chmod +x ./bin/credence
-        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
-        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
-        valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
-        valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
-        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b

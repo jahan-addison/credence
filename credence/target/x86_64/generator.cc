@@ -843,8 +843,9 @@ inline Storage Operand_Inserter::get_operand_storage_from_stack(
     RValue const& rvalue)
 {
     auto [operand, operand_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            rvalue, accessor_->instruction_accessor->size());
+        accessor_->address_accessor
+            .get_lvalue_address_and_insertion_instructions(
+                rvalue, accessor_->instruction_accessor->size());
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     assembly::inserter(instructions, operand_inst);
     return operand;
@@ -929,8 +930,9 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
         return get_operand_storage_from_immediate(rvalue);
 
     auto [operand, operand_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            rvalue, accessor_->instruction_accessor->size());
+        accessor_->address_accessor
+            .get_lvalue_address_and_insertion_instructions(
+                rvalue, accessor_->instruction_accessor->size());
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     assembly::inserter(instructions, operand_inst);
 
@@ -1189,7 +1191,7 @@ void Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
     auto of_comparator = frame->temporary.at(of).substr(4);
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto of_rvalue_storage = accessor_->address_accessor
-                                 .get_lvalue_address_and_instructions(
+                                 .get_lvalue_address_and_insertion_instructions(
                                      of_comparator, instructions.size())
                                  .first;
     auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
@@ -1306,8 +1308,9 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
                 auto [lhs_storage, storage_inst] =
-                    address_storage.get_lvalue_address_and_instructions(
-                        lhs, instruction_accessor->size());
+                    address_storage
+                        .get_lvalue_address_and_insertion_instructions(
+                            lhs, instruction_accessor->size());
                 assembly::inserter(instructions, storage_inst);
                 if (type::get_type_from_rvalue_data_type(imm) == "string")
                     insert_from_string_address_operand(lhs, lhs_storage, rhs);
@@ -1332,8 +1335,9 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     if (!type::is_unary_expression(lhs))
                         stack->set_address_from_accumulator(lhs, acc);
                     auto [lhs_storage, storage_inst] =
-                        address_storage.get_lvalue_address_and_instructions(
-                            lhs, instruction_accessor->size());
+                        address_storage
+                            .get_lvalue_address_and_insertion_instructions(
+                                lhs, instruction_accessor->size());
                     assembly::inserter(instructions, storage_inst);
                     x8664_add__asm(instructions, mov, lhs_storage, acc);
                 }
@@ -1353,8 +1357,9 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
         m::pattern | m::app(type::is_unary_expression, true) =
             [&] {
                 auto [lhs_storage, storage_inst] =
-                    address_storage.get_lvalue_address_and_instructions(
-                        lhs, instruction_accessor->size());
+                    address_storage
+                        .get_lvalue_address_and_insertion_instructions(
+                            lhs, instruction_accessor->size());
                 assembly::inserter(instructions, storage_inst);
                 auto unary_op = type::get_unary_operator(rhs);
                 unary_inserter.insert_from_unary_expression(
@@ -1409,7 +1414,8 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
         insert_from_unary_expression(op, acc);
     } else if (is_vector(rvalue)) {
         auto [address, address_inst] =
-            address_space.get_lvalue_address_and_instructions(rvalue, false);
+            address_space.get_lvalue_address_and_insertion_instructions(
+                rvalue, false);
         assembly::inserter(instructions, address_inst);
         auto size = get_operand_size_from_storage(address, stack);
         auto acc =
@@ -1859,12 +1865,14 @@ void Expression_Inserter::insert_from_global_vector_assignment(
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
     auto [lhs_storage, lhs_storage_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            lhs, instruction_accessor->size());
+        accessor_->address_accessor
+            .get_lvalue_address_and_insertion_instructions(
+                lhs, instruction_accessor->size());
     assembly::inserter(instructions, lhs_storage_inst);
     auto [rhs_storage, rhs_storage_inst] =
-        accessor_->address_accessor.get_lvalue_address_and_instructions(
-            rhs, instruction_accessor->size());
+        accessor_->address_accessor
+            .get_lvalue_address_and_insertion_instructions(
+                rhs, instruction_accessor->size());
     assembly::inserter(instructions, rhs_storage_inst);
     auto acc =
         accessor_->accumulator_accessor.get_accumulator_register_from_storage(

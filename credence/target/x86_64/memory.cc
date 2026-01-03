@@ -92,7 +92,8 @@ assembly::Storage Register_Accessor::get_available_register(
 /**
  * @brief Get the storage device of an lvalue, and its insertion instructions
  */
-Address_Accessor::Address Address_Accessor::get_lvalue_address_and_instructions(
+Address_Accessor::Address
+Address_Accessor::get_lvalue_address_and_insertion_instructions(
     LValue const& lvalue,
     std::size_t instruction_index,
     bool use_prefix)

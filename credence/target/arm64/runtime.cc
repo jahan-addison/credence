@@ -212,10 +212,10 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
             word_storage.pop_back();
         }
     }
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     auto call_immediate =
         common::assembly::make_array_immediate(syscall_function);
-#elif defined(__APPLE__) || defined(__bsdi__)
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     auto call_immediate = common::assembly::make_array_immediate(
         fmt::format("_{}", syscall_function));
 #endif

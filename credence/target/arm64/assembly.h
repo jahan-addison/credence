@@ -244,7 +244,7 @@ enum class Register
     wsp,
     wzr,
 
-    // Vector registers (for floating point)
+    // vector registers (for floating point)
     v0,
     v1,
     v2,
@@ -276,7 +276,8 @@ enum class Register
     v28,
     v29,
     v30,
-    v31
+    v31,
+
 };
 
 constexpr const auto DOUBLEWORD_REGISTER = { Register::x0,

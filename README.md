@@ -66,9 +66,9 @@ A complete assembler and linking tool is installed via the installation script. 
 
 ## Test Suite
 
-Credence has [80% line and function code coverage](https://jahan-addison.github.io/credence/) with exhaustive type checking, ast, and code generation test suites.
+Credence [line and function code coverage](https://jahan-addison.github.io/credence/) is available with exhaustive type checking, ast, and code generation test suites.
 
-To build the test suite and coverage yourself (with `llvm-cov`):
+To build the test suite and coverage yourself (with `llvm-cov`), run:
 
 ```bash
 

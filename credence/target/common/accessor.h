@@ -459,10 +459,6 @@ class Address_Accessor
         }
     }
 
-    virtual Address get_lvalue_address_and_instructions(LValue const& lvalue,
-        std::size_t instruction_index,
-        bool use_prefix = true) = 0;
-
   protected:
     Operand_Lambda is_vector = [&](RValue const& rvalue) {
         return table_->vectors.contains(type::from_lvalue_offset(rvalue));
