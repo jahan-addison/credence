@@ -40,7 +40,7 @@ if [[ "$1" == "stdlib_printf_test" ]]; then
 fi
 
 if [[ "$1" == "arm64_constant_1" ]]; then
-  printf -v expected_output '%s\n' "m is 60"
+  printf -v expected_output '%s' "m is 60"
 fi
 
 

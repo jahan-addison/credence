@@ -99,7 +99,7 @@ class Storage_Emitter
         assembly::Mnemonic mnemonic,
         Source source,
         common::flag::flags flags);
-    void emit_operand(std::ostream& os,
+    void emit_mnemonic_operand(std::ostream& os,
         assembly::Storage const& operand,
         assembly::Mnemonic mnemonic,
         Source source,

@@ -149,7 +149,6 @@ struct Function
         }
         return -1;
     }
-    std::size_t get_index_of_label_before_reserved();
 
     Return_RValue ret{};
     Label label_before_reserved{};

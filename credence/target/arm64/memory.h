@@ -258,7 +258,7 @@ struct Address_Accessor : public ARM64_Address_Accessor
  *
  *   w0, x0 = Return results
  *
- *   Vectors and vector offsets are on the stack
+ *   Vectors and vector offsets will always be on the stack
  *
  */
 class Device_Accessor
@@ -298,7 +298,8 @@ class Device_Accessor
 
   public:
     void save_and_allocate_before_instruction_jump(
-        assembly::Instructions& instructions);
+        assembly::Instructions& instructions,
+        Stack_Frame& stack_frame);
     void restore_and_deallocate_after_instruction_jump(
         assembly::Instructions& instructions);
 
@@ -330,7 +331,7 @@ class Device_Accessor
   private:
     void set_word_or_doubleword_register(LValue const& lvalue,
         Operand_Size size);
-    Size get_size_of_address_table();
+    Size get_size_of_address_table(Stack_Frame& stack_frame);
     Size get_size_from_temporary_rvalue_data_type(LValue const& lvalue,
         Immediate const& rvalue,
         ir::object::Function_PTR& frame);

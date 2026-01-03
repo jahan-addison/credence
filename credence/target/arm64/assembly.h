@@ -390,6 +390,7 @@ enum class Mnemonic
     mul,
     sdiv,
     udiv,
+    msub,
     and_,
     ands,
     orr,
@@ -878,6 +879,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         ARM64_MNEMONIC_OSTREAM(subs);
         ARM64_MNEMONIC_OSTREAM(mul);
         ARM64_MNEMONIC_OSTREAM(sdiv);
+        ARM64_MNEMONIC_OSTREAM(msub);
         ARM64_MNEMONIC_OSTREAM(udiv);
         ARM64_MNEMONIC_OSTREAM(and_);
         ARM64_MNEMONIC_OSTREAM(ands);

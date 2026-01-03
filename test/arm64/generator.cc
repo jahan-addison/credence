@@ -71,9 +71,29 @@ namespace fs = std::filesystem;
             test, fixture_content[0], fixture_content[1], true));            \
     } while (0)
 
+std::string replace_last_lines_in_string(std::string_view src,
+    std::string_view replacement,
+    int amount = 3)
+{
+    size_t pos = src.length();
+    int newlines = 0;
+    while (pos > 0) {
+        if (src[pos - 1] == '\n') {
+            newlines++;
+            if (newlines == amount) {
+                break;
+            }
+        }
+        pos--;
+    }
+    std::string result(src.substr(0, pos));
+    result += replacement;
+
+    return result;
+}
+
 TEST_CASE("target/arm64: fixture: math_constant.b")
 {
-
 #if defined(__linux__)
     std::string expected = R"arm(
 .text
@@ -83,19 +103,19 @@ TEST_CASE("target/arm64: fixture: math_constant.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
     stp x26, x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
-    add w8, w8, w0
+    add w8, w8, w9
     mov w23, #10
     mul w8, w8, w23
     mov w9, w8
     ldp x26, x23, [sp, #16]
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -112,19 +132,19 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
     stp x26, x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
-    add w8, w8, w0
+    add w8, w8, w9
     mov w23, #10
     mul w8, w8, w23
     mov w9, w8
     ldp x26, x23, [sp, #16]
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -148,15 +168,14 @@ TEST_CASE("target/arm64: fixture: math_constant_8.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
-    add x29, sp, #32
     stp x26, x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
-    add w8, w8, w0
+    add w8, w8, w9
     mov w23, #10
     mul w8, w8, w23
     mov w9, w8
@@ -171,7 +190,7 @@ _start:
     str w10, [sp, #4]
     add sp, sp, #16
     ldp x26, x23, [sp, #16]
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -190,15 +209,14 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
-    add x29, sp, #32
     stp x26, x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
-    add w8, w8, w0
+    add w8, w8, w9
     mov w23, #10
     mul w8, w8, w23
     mov w9, w8
@@ -213,7 +231,7 @@ _start:
     str w10, [sp, #4]
     add sp, sp, #16
     ldp x26, x23, [sp, #16]
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -227,4 +245,142 @@ _start:
 
     SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "math_constant_8", expected, true);
+}
+
+TEST_CASE("target/arm64: fixture: math_constant_2.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    mov w8, #4
+    add w8, w8, #1
+    mov w9, w8
+    mov w8, #2
+    sub w8, w8, w9
+    mov x10, w8
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    mov w8, #4
+    add w8, w8, #1
+    mov w9, w8
+    mov w8, #2
+    sub w8, w8, w9
+    mov x10, w8
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_2", expected);
+}
+
+TEST_CASE("target/arm64: fixture: math_constant_4.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    stp x26, x23, [sp, #16]
+    mov w9, #20
+    mov w10, #10
+    sdiv w8, w8, w10
+    mov w11, w8
+    add w8, w8, w10
+    mov w11, w8
+    sub w8, w8, w10
+    mov w11, w8
+    mul w8, w8, w10
+    mov w11, w8
+    sdiv w8, w8, w10
+    msub w8, w8, w10, w8
+    mov w11, w8
+    mov w8, #10
+    mov w11, w8
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    stp x26, x23, [sp, #16]
+    mov w9, #20
+    mov w10, #10
+    sdiv w8, w8, w10
+    mov w11, w8
+    add w8, w8, w10
+    mov w11, w8
+    sub w8, w8, w10
+    mov w11, w8
+    mul w8, w8, w10
+    mov w11, w8
+    sdiv w8, w8, w10
+    msub w8, w8, w10, w8
+    mov w11, w8
+    mov w8, #10
+    mov w11, w8
+    ldp x26, x23, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_4", expected);
 }

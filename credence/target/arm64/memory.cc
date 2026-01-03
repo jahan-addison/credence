@@ -67,7 +67,7 @@ Device_Accessor::Device Device_Accessor::get_device_for_binary_operand(
     if (is_lvalue_allocated_in_memory(rvalue))
         return get_device_by_lvalue(rvalue);
 
-    return assembly::Register::w0;
+    return assembly::Register::w8;
 }
 
 Address_Accessor::Address
@@ -138,20 +138,22 @@ Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     return instructions;
 }
 
-Size Device_Accessor::get_size_of_address_table()
+Size Device_Accessor::get_size_of_address_table(Stack_Frame& stack_frame)
 {
     auto size = 0UL;
     for (auto const& device : address_table) {
-        size +=
-            assembly::get_size_from_register(std::get<Register>(device.second));
+        size += static_cast<std::size_t>(
+            get_word_size_from_storage(device.second, stack_frame));
     }
     return size;
 }
 
 void Device_Accessor::save_and_allocate_before_instruction_jump(
-    assembly::Instructions& instructions)
+    assembly::Instructions& instructions,
+    Stack_Frame& stack_frame)
 {
-    local_size = common::memory::align_up_to(get_size_of_address_table(), 16);
+    local_size =
+        common::memory::align_up_to(get_size_of_address_table(stack_frame), 16);
     arm64_add__asm(instructions, sub, sp, sp, u32_int_immediate(local_size));
     Size size_at = 0;
     for (auto const& device : address_table) {
@@ -213,12 +215,15 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     auto frame = stack_frame.get_stack_frame();
     credence_assert(frame->locals.is_defined(lvalue));
 
+    if (is_lvalue_allocated_in_memory(lvalue))
+        return;
+
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->vectors, __source__);
 
     auto size = get_size_from_temporary_rvalue_data_type(lvalue, rvalue, frame);
 
-    credence_assert(assembly::is_valid_size(size));
+    credence_assert_message(assembly::is_valid_size(size), lvalue);
 
     auto operand = static_cast<assembly::Operand_Size>(size);
 
@@ -258,9 +263,23 @@ Size Device_Accessor::get_size_from_temporary_rvalue_data_type(
         auto temp_side = type::is_temporary_operand_binary_expression(rvalue);
         auto [left, right, _] = type::from_rvalue_binary_expression(rvalue);
         if (temp_side == "left")
-            size = type::get_size_from_rvalue_data_type(right);
-        else
-            size = type::get_size_from_rvalue_data_type(left);
+            if (!type::is_rvalue_data_type(right))
+                size = type::get_size_from_rvalue_data_type(
+                    ir::object::get_rvalue_at_lvalue_object_storage(
+                        right, frame, table_->vectors, __source__));
+            else
+                size = type::get_size_from_rvalue_data_type(right);
+        else {
+            if (!type::is_rvalue_data_type(left))
+                size = type::get_size_from_rvalue_data_type(
+                    ir::object::get_rvalue_at_lvalue_object_storage(
+                        left, frame, table_->vectors, __source__));
+            else
+                size = type::get_size_from_rvalue_data_type(left);
+        }
+    } else if (type::is_binary_datatype_expression(rvalue)) {
+        auto [left, right, _] = type::from_rvalue_binary_expression(rvalue);
+        size = type::get_size_from_rvalue_data_type(left);
     } else {
         size = type::get_size_from_rvalue_data_type(
             ir::object::get_rvalue_at_lvalue_object_storage(
@@ -271,7 +290,7 @@ Size Device_Accessor::get_size_from_temporary_rvalue_data_type(
 
 bool Device_Accessor::is_lvalue_allocated_in_memory(LValue const& lvalue)
 {
-    return address_table.contains(lvalue);
+    return address_table.contains(lvalue) or stack_->is_allocated(lvalue);
 }
 
 bool Address_Accessor::is_doubleword_storage_size(

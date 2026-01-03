@@ -20,171 +20,140 @@ jobs:
       matrix:
         include:
           # x86_64 Linux
-          - platform: { name: 'x86_64 Linux', os: ubuntu-latest, arch: x86_64 }
+          - platform: { name: "x86_64 Linux", os: ubuntu-latest, arch: x86_64 }
             compiler: g++
             cxx: g++
-          - platform: { name: 'x86_64 Linux', os: ubuntu-latest, arch: x86_64 }
+          - platform: { name: "x86_64 Linux", os: ubuntu-latest, arch: x86_64 }
             compiler: clang++
             cxx: clang++
-          # ARM64 Linux
-          # - platform: { name: 'ARM64 Linux', os: ubuntu-latest, arch: arm64 }
-          #   compiler: g++
-          #   cxx: g++
-          # - platform: { name: 'ARM64 Linux', os: ubuntu-latest, arch: arm64 }
-          #   compiler: clang++
-          #   cxx: clang++
           # x86_64 macOS
-          - platform: { name: 'x86_64 macOS', os:  macos-latest, arch: arm64 }
+          - platform: { name: "x86_64 macOS", os: macos-latest, arch: x86_64 }
             compiler: clang++
             cxx: clang++
           # ARM64 macOS
-          - platform: { name: 'ARM64 macOS', os:  macos-latest, arch: arm64 }
-            compiler: g++
-            cxx: g++-13 # from brew
-          - platform: { name: 'ARM64 macOS', os:  macos-latest, arch: arm64 }
+          - platform: { name: "ARM64 macOS", os: macos-latest, arch: arm64 }
             compiler: clang++
             cxx: clang++
 
     steps:
-    - name: cmake
-      uses: jwlawson/actions-setup-cmake@v2
-      with:
-        cmake-version: '3.16.x'
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
 
-    - name: install dependencies (Ubuntu)
-      if: startsWith(matrix.platform.os, 'ubuntu')
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-10 llvm-20 valgrind clang-20 iwyu python3-dev cppcheck clang-tidy pipx
-        echo 'eval "$(register-python-argcomplete pipx)"' >> ~/.bashrc
-        source ~/.bashrc
-        pipx install poetry
-        sudo update-alternatives \
-          --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 \
-          --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-10 \
-          --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-10 \
-          --slave /usr/bin/gcov gcov /usr/bin/gcov-10
-        sudo update-alternatives \
-          --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-20 100 \
-          --slave /usr/bin/llvm-ranlib llvm-ranlib /usr/bin/llvm-ranlib-20 \
-          --slave /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-20
-        sudo update-alternatives \
-          --install /usr/bin/clang clang /usr/bin/clang-20 100
+      - name: setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
 
-    - name: install qemu for arm64 tests
-      if: matrix.platform.name == 'ARM64 Linux'
-      run: sudo apt-get install -y qemu-user-static
+      - name: setup poetry
+        run: pipx install poetry
 
-    - name: install dependencies (Mac)
-      if: startsWith(matrix.platform.os, 'macos')
-      run: |
-        brew update
-        brew install gcc include-what-you-use llvm@20 lcov clang-format cppcheck coreutils poetry
+      - name: install python dependencies
+        run: |
+          cd python/augur
+          poetry install
+          make install
+          cd ../../
 
-    - name: python
-      if: startsWith(matrix.platform.os, 'macos')
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.13'
+      - name: install extras linux
+        if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
+        run: |
+          sudo apt-get install -y valgrind
 
-    - name: checkout
-      uses: actions/checkout@v4
+      - name: install extras macos
+        if: |
+          matrix.platform.name == 'x86_64 macOS' &&
+          matrix.compiler == 'clang++'
+        run: |
+          brew install llvm@20 lcov
+          export PATH="/opt/homebrew/opt/llvm@20/bin:/opt/homebrew/bin:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:$PATH"
 
-    - name: build with clang
-      if: matrix.compiler == 'clang++'
-      run: |
-        # Make with -fsanitize
-        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        cmake --build build
-        git submodule update --init --recursive
-        cd python/augur
-        poetry install
-        make install
-        cd ../../
-        export CREDENCE_ENV_HOME="$(pwd)"
-        echo "$(pwd)" > $HOME/.credence
-        chmod +x ./bin/credence
-        chmod +x ./test/compiled-test.sh
+          export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
 
-    - name: build with g++
-      if: matrix.compiler == 'g++' || matrix.cxx == 'g++-13'
-      run: |
-        # Make without -fsanitize
-        cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        cmake --build build
-        git submodule update --init --recursive
-        cd python/augur
-        poetry install
-        make install
-        cd ../../
-        export CREDENCE_ENV_HOME="$(pwd)"
-        echo "$(pwd)" > $HOME/.credence
-        chmod +x ./bin/credence
-        chmod +x ./test/compiled-test.sh
+          llvm-cov --version
+          llvm-profdata --version
 
-    - name: test x86_64
-      if: matrix.platform.arch == 'x86_64'
-      run: |
-        ./build/test_suite
-        ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
-        ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
-        ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/platform/stdlib/putchar_1.b
-        ./bin/credence -t x86_64 -o stdlib_getchar_test $(pwd)/test/fixtures/platform/stdlib/getchar_1.b
-        ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/platform/call_1.b
-        ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/platform/relational/if_1.b
-        ./bin/credence -t x86_64 -o while_1 $(pwd)/test/fixtures/platform/relational/while_1.b
-        ./bin/credence -t x86_64 -o switch_1 $(pwd)/test/fixtures/platform/relational/switch_1.b
-        ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/platform/call_2.b
-        ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/platform/stdlib/printf_1.b
-        ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/platform/argc_argv.b
-        ./test/compiled-test.sh syscall_test
-        ./test/compiled-test.sh stdlib_test
-        ./test/compiled-test.sh call_test_1
-        ./test/compiled-test.sh if_1
-        ./test/compiled-test.sh while_1
-        ./test/compiled-test.sh switch_1
-        ./test/compiled-test.sh call_test_2
-        ./test/compiled-test.sh stdlib_putchar_test
-        ./test/compiled-test.sh stdin stdlib_getchar_test
-        ./test/compiled-test.sh argc argc_argv
-        ./test/compiled-test.sh stdlib_printf_test
+      - name: configure build
+        run: |
+          SANDFLAGS=""
+          if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
+            SANDFLAGS="-DUSE_SANITIZER=Address;Undefined"
+          fi
+          cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
-    - name: test arm64
-      if:  matrix.platform.arch == 'arm64'
-      run: |
-        ./build/test_suite
-        ./bin/credence -t x86_64 -o arm64_constant_1 $(pwd)/test/fixtures/platform/math_constant_8.b
-        ./test/compiled-test.sh arm64_constant_1
+      - name: build
+        run: cmake --build build
 
-    - name: memcheck
-      if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
-      run: |
-        ./bin/credence -t ${{ matrix.platform.arch }} -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
-        ./bin/credence -t ${{ matrix.platform.arch }} -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
-        valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
-        valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
-        valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
+      - name: prepare for test
+        run: |
+          export CREDENCE_ENV_HOME="$(pwd)"
+          echo "$(pwd)" > $HOME/.credence
+          chmod +x ./bin/credence
+          chmod +x ./test/compiled-test.sh
 
-    - name: build coverage
-      if: |
-        github.ref == 'refs/heads/master' &&
-        matrix.platform.name == 'x86_64 macOS' &&
-        matrix.compiler == 'clang++'
-      run: |
-        export PATH=/opt/homebrew/bin:$PATH:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:
-        cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
-        cmake --build build
-        cmake --build build --target coverage
+      - name: test x86_64
+        if: matrix.platform.arch == 'x86_64'
+        run: |
+          ./build/test_suite
+          ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
+          ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
+          ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/platform/stdlib/putchar_1.b
+          ./bin/credence -t x86_64 -o stdlib_getchar_test $(pwd)/test/fixtures/platform/stdlib/getchar_1.b
+          ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/platform/call_1.b
+          ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/platform/relational/if_1.b
+          ./bin/credence -t x86_64 -o while_1 $(pwd)/test/fixtures/platform/relational/while_1.b
+          ./bin/credence -t x86_64 -o switch_1 $(pwd)/test/fixtures/platform/relational/switch_1.b
+          ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/platform/call_2.b
+          ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/platform/stdlib/printf_1.b
+          ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/platform/argc_argv.b
+          ./test/compiled-test.sh syscall_test
+          ./test/compiled-test.sh stdlib_test
+          ./test/compiled-test.sh call_test_1
+          ./test/compiled-test.sh if_1
+          ./test/compiled-test.sh while_1
+          ./test/compiled-test.sh switch_1
+          ./test/compiled-test.sh call_test_2
+          ./test/compiled-test.sh stdlib_putchar_test
+          ./test/compiled-test.sh stdin stdlib_getchar_test
+          ./test/compiled-test.sh argc argc_argv
+          ./test/compiled-test.sh stdlib_printf_test
 
-    - name: deploy
-      uses: peaceiris/actions-gh-pages@v4
-      if: |
-        github.ref == 'refs/heads/master' &&
-        matrix.platform.name == 'x86_64 macOS' &&
-        matrix.compiler == 'clang++'
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./build/coverage_report
-        publish_branch: gh-pages
-        force_orphan: true
+      - name: test arm64
+        if: matrix.platform.arch == 'arm64'
+        run: |
+          ./build/test_suite
+          ./bin/credence -t arm64 -o arm64_constant_1 $(pwd)/test/fixtures/platform/math_constant_8.b
+          ./test/compiled-test.sh arm64_constant_1
+
+      - name: memcheck
+        if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
+        run: |
+          ./bin/credence -t ${{ matrix.platform.arch }} -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
+          ./bin/credence -t ${{ matrix.platform.arch }} -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
+          valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
+          valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
+          valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
+
+      - name: build coverage
+        if: |
+          github.ref == 'refs/heads/master' &&
+          matrix.platform.name == 'x86_64 macOS' &&
+          matrix.compiler == 'clang++'
+        run: |
+          rm -rf build
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
+          cmake --build build
+          cmake --build build --target coverage
+
+      - name: deploy
+        uses: peaceiris/actions-gh-pages@v4
+        if: |
+          github.ref == 'refs/heads/master' &&
+          matrix.platform.name == 'x86_64 macOS' &&
+          matrix.compiler == 'clang++'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/coverage_report
+          publish_branch: gh-pages
+          force_orphan: true
