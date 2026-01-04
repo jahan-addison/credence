@@ -41,6 +41,11 @@ jobs:
         with:
           submodules: "recursive"
 
+      - name: cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.16.x'
+
       - name: setup python
         uses: actions/setup-python@v6
         with:
@@ -69,18 +74,21 @@ jobs:
           brew install llvm@20 lcov
           export PATH="/opt/homebrew/opt/llvm@20/bin:/opt/homebrew/bin:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:$PATH"
 
-          export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
-
           llvm-cov --version
           llvm-profdata --version
 
       - name: configure build
         run: |
           SANDFLAGS=""
+          COVERAGE=""
           if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
             SANDFLAGS="-DUSE_SANITIZER=Address;Undefined"
+            if [[ "${{ matrix.platform.name }}" == "x86_64 macOS" ]]; then
+              COVERAGE="-DENABLE_TEST_COVERAGE=ON"
+              export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
+            fi
           fi
-          cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS $COVERAGE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: build
         run: cmake --build build
@@ -141,8 +149,6 @@ jobs:
           matrix.platform.name == 'x86_64 macOS' &&
           matrix.compiler == 'clang++'
         run: |
-          rm -rf build
-          cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
           cmake --build build
           cmake --build build --target coverage
 
