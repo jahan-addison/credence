@@ -336,7 +336,7 @@ struct Unary_Operator_Inserter
         Storage const& dest,
         Storage const& src = assembly::O_NUL);
 
-    void from_temporary_unary_operator_expression(RValue const& expr);
+    Storage from_temporary_unary_operator_expression(RValue const& expr);
 
   private:
     Storage get_temporary_storage_from_temporary_expansion(

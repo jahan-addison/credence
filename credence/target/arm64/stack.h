@@ -38,13 +38,7 @@ namespace credence::target::arm64::assembly {
  *
  * Vectors, both global and local, will use the stack.
  *
- * Designated callee-saved registers are saved on the stack:
- *
- *   The offset 3 + 8 * 1 is designated for x26
- *   The offset 4 + 8 * 2 is designated for x23
- *   Function arguments are x1-x8,
- *   x9 is reserved for arithmetic scratch data
- *   The local scope uses x9-x18, then the stack
+ * Designated callee-saved registers are saved on the stack
  *
  */
 class Stack : public common::detail::base_stack_pointer

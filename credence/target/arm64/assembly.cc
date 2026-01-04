@@ -287,7 +287,10 @@ Instruction_Pair b_xor(Storage const& s0, Storage const& s1)
 
 Instruction_Pair b_not(Storage const& s0, Storage const& s1)
 {
-    arm64__make_and_ret(movn, s0, s1);
+    if (is_variant(Immediate, s1))
+        arm64__make_and_ret(movn, s0, s1);
+    else
+        arm64__make_and_ret(mvn, s0, s1);
 }
 
 Instruction_Pair u_not(Storage const& s0)

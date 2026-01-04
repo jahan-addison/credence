@@ -926,6 +926,12 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
 
 #endif
 
+    if (type::is_unary_expression(rvalue)) {
+        auto unary_inserter =
+            Unary_Operator_Inserter{ accessor_, stack_frame_ };
+        return unary_inserter.from_temporary_unary_operator_expression(rvalue);
+    }
+
     if (type::is_rvalue_data_type(rvalue))
         return get_operand_storage_from_immediate(rvalue);
 
@@ -1376,7 +1382,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
  *
  * See ir/temporary.h for details
  */
-void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
+Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
     RValue const& expr)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
@@ -1387,6 +1393,8 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
     auto& register_accessor = accessor_->register_accessor;
 
     credence_assert(type::is_unary_expression(expr));
+
+    Storage storage{};
 
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
@@ -1401,44 +1409,42 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
             address_space.address_ir_assignment = true;
             insert_from_unary_expression(op, stack->get(rvalue).first);
             accessor_->set_signal_register(Register::rcx);
-            return;
+            return Register::rcx;
         }
         auto size = stack->get(rvalue).second;
-        auto acc =
-            table_accessor.next_ir_instruction_is_temporary() and
-                    not table_accessor.last_ir_instruction_is_assignment()
-                ? register_accessor.get_second_register_from_size(size)
-                : accessor_->accumulator_accessor
-                      .get_accumulator_register_from_size(size);
-        x8664_add__asm(instructions, mov, acc, stack->get(rvalue).first);
-        insert_from_unary_expression(op, acc);
+        storage = table_accessor.next_ir_instruction_is_temporary() and
+                          not table_accessor.last_ir_instruction_is_assignment()
+                      ? register_accessor.get_second_register_from_size(size)
+                      : accessor_->accumulator_accessor
+                            .get_accumulator_register_from_size(size);
+        x8664_add__asm(instructions, mov, storage, stack->get(rvalue).first);
+        insert_from_unary_expression(op, storage);
     } else if (is_vector(rvalue)) {
         auto [address, address_inst] =
             address_space.get_lvalue_address_and_insertion_instructions(
                 rvalue, false);
         assembly::inserter(instructions, address_inst);
         auto size = get_operand_size_from_storage(address, stack);
-        auto acc =
-            table_accessor.next_ir_instruction_is_temporary() and
-                    not table_accessor.last_ir_instruction_is_assignment()
-                ? register_accessor.get_second_register_from_size(size)
-                : accessor_->accumulator_accessor
-                      .get_accumulator_register_from_size(size);
+        storage = table_accessor.next_ir_instruction_is_temporary() and
+                          not table_accessor.last_ir_instruction_is_assignment()
+                      ? register_accessor.get_second_register_from_size(size)
+                      : accessor_->accumulator_accessor
+                            .get_accumulator_register_from_size(size);
         address_space.address_ir_assignment = true;
         accessor_->set_signal_register(Register::rax);
-        insert_from_unary_expression(op, acc, address);
+        insert_from_unary_expression(op, storage, address);
     } else {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
         auto size = assembly::get_operand_size_from_rvalue_datatype(immediate);
-        auto acc =
-            table_accessor.next_ir_instruction_is_temporary() and
-                    not table_accessor.last_ir_instruction_is_assignment()
-                ? register_accessor.get_second_register_from_size(size)
-                : accessor_->accumulator_accessor
-                      .get_accumulator_register_from_size(size);
-        x8664_add__asm(instructions, mov, acc, immediate);
-        insert_from_unary_expression(op, acc);
+        storage = table_accessor.next_ir_instruction_is_temporary() and
+                          not table_accessor.last_ir_instruction_is_assignment()
+                      ? register_accessor.get_second_register_from_size(size)
+                      : accessor_->accumulator_accessor
+                            .get_accumulator_register_from_size(size);
+        x8664_add__asm(instructions, mov, storage, immediate);
+        insert_from_unary_expression(op, storage);
     }
+    return storage;
 }
 
 /**

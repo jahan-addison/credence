@@ -1302,7 +1302,7 @@ Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
 /**
  * @brief Inserter from ir unary expression types
  */
-void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
+Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
     RValue const& expr)
 {
     credence_assert(type::is_unary_expression(expr));
@@ -1311,7 +1311,7 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
     auto& instructions = instruction_accessor->get_instructions();
     auto& address_space = accessor_->address_accessor;
 
-    credence_assert(type::is_unary_expression(expr));
+    Storage storage{};
 
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
@@ -1328,9 +1328,10 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
             [&] {
                 if (op == "&") {
                     from_lvalue_address_of_expression(expr);
+                    storage = Register::x26;
                     return;
                 }
-                auto storage = devices.get_device_by_lvalue_reference(rvalue);
+                storage = devices.get_device_by_lvalue_reference(rvalue);
                 insert_from_unary_expression(op, storage, storage);
             },
         m::pattern | m::app(is_vector, true) =
@@ -1339,20 +1340,22 @@ void Unary_Operator_Inserter::from_temporary_unary_operator_expression(
                     address_space.get_arm64_lvalue_and_insertion_instructions(
                         rvalue, devices, instructions.size());
                 assembly::inserter(instructions, address_inst);
-                auto acc =
+                storage =
                     get_temporary_storage_from_temporary_expansion(rvalue);
                 address_space.address_ir_assignment = true;
                 accessor_->set_signal_register(Register::x8);
-                insert_from_unary_expression(op, acc, address);
+                insert_from_unary_expression(op, storage, address);
             },
 
         m::pattern | m::_ =
             [&] {
                 auto immediate = type::get_rvalue_datatype_from_string(rvalue);
-                auto acc =
+                storage =
                     get_temporary_storage_from_temporary_expansion(rvalue);
-                insert_from_unary_expression(op, acc, immediate);
+                insert_from_unary_expression(op, storage, immediate);
             });
+
+    return storage;
 }
 
 /**
@@ -1783,6 +1786,7 @@ Storage Operand_Inserter::get_operand_storage_from_immediate(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
+
     storage = type::get_rvalue_datatype_from_string(rvalue);
     return storage;
 }
@@ -1848,6 +1852,12 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
         return get_operand_storage_from_return();
 
 #endif
+
+    if (type::is_unary_expression(rvalue)) {
+        auto unary_inserter =
+            Unary_Operator_Inserter{ accessor_, stack_frame_ };
+        return unary_inserter.from_temporary_unary_operator_expression(rvalue);
+    }
 
     if (type::is_rvalue_data_type(rvalue))
         return get_operand_storage_from_immediate(rvalue);

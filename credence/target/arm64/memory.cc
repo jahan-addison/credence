@@ -144,7 +144,8 @@ Address_Accessor::Address
 Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     LValue const& lvalue,
     Device_Accessor& device_accessor,
-    std::size_t instruction_index)
+    std::size_t instruction_index,
+    INLINE_DEBUG)
 {
     Address instructions{ Register::wzr, {} };
 
@@ -152,7 +153,8 @@ Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
         instructions, lvalue, instruction_index, device_accessor);
 
     if (std::get<Register>(instructions.first) == Register::wzr)
-        instructions.first = device_accessor.get_device_by_lvalue(lvalue);
+        instructions.first =
+            device_accessor.get_device_by_lvalue(lvalue, source);
 
     return instructions;
 }
@@ -236,12 +238,14 @@ void Device_Accessor::set_word_or_doubleword_register(LValue const& lvalue,
 }
 
 /**
- * @brief Gets the storage device for a given lvalue
+ * @brief Gets the storage device for an lvalue
  */
 Device_Accessor::Device Device_Accessor::get_device_by_lvalue(
-    LValue const& lvalue)
+    LValue const& lvalue,
+    INLINE_DEBUG)
 {
-    credence_assert_message(is_lvalue_allocated_in_memory(lvalue), lvalue);
+    credence_assert_message_trace(
+        is_lvalue_allocated_in_memory(lvalue), lvalue, source);
     return address_table.at(lvalue);
 }
 

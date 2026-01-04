@@ -216,7 +216,8 @@ struct Address_Accessor : public ARM64_Address_Accessor
     Address_Accessor::Address get_arm64_lvalue_and_insertion_instructions(
         LValue const& lvalue,
         Device_Accessor& device_accessor,
-        std::size_t instruction_index);
+        std::size_t instruction_index,
+        SET_INLINE_DEBUG);
 
   private:
     Address_Accessor::Address get_lvalue_address_and_from_unary_and_vectors(
@@ -271,7 +272,7 @@ class Device_Accessor
     bool is_lvalue_allocated_in_memory(LValue const& lvalue);
     Device get_operand_device_from_rvalue(RValue const& rvalue);
     Register get_second_register_for_binary_operand(Operand_Size size);
-    Device get_device_by_lvalue(LValue const& lvalue);
+    Device get_device_by_lvalue(LValue const& lvalue, SET_INLINE_DEBUG);
     inline Device get_device_by_lvalue_reference(RValue const& rvalue)
     {
         return get_device_by_lvalue(rvalue);

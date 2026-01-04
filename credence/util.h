@@ -41,6 +41,8 @@ class JSON;
 #define WIDE_STRINGIFY(x) WIDE_AND_STRINGIFY(x)
 
 #define __source__ std::source_location::current()
+#define SET_INLINE_DEBUG std::source_location const& source = __source__
+#define INLINE_DEBUG std::source_location const& source
 
 namespace easyjson {
 class JSON;

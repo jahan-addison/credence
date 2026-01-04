@@ -309,7 +309,7 @@ struct Unary_Operator_Inserter
         Storage const& src = assembly::O_NUL);
     void insert_from_unary_to_unary_assignment(LValue const& lhs,
         LValue const& rhs);
-    void from_temporary_unary_operator_expression(RValue const& expr);
+    Storage from_temporary_unary_operator_expression(RValue const& expr);
 
   private:
     memory::Memory_Access accessor_;
