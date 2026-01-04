@@ -185,7 +185,7 @@ Instruction_Pair dec(Storage const& s0)
 
 Instruction_Pair neg(Storage const& s0)
 {
-    arm64__make_and_ret(sub, s0, xzr, s0);
+    arm64__make_and_ret(neg, s0, s0);
 }
 
 Instructions r_eq(Storage const& s0,
@@ -285,9 +285,9 @@ Instruction_Pair b_xor(Storage const& s0, Storage const& s1)
     arm64__make_and_ret(eor, s0, s0, s1);
 }
 
-Instruction_Pair b_not(Storage const& s0)
+Instruction_Pair b_not(Storage const& s0, Storage const& s1)
 {
-    arm64__make_and_ret(mvn, s0);
+    arm64__make_and_ret(movn, s0, s1);
 }
 
 Instruction_Pair u_not(Storage const& s0)

@@ -329,12 +329,19 @@ struct Unary_Operator_Inserter
         , stack_frame_(stack_frame)
     {
     }
+    using Size = assembly::Operand_Size;
+
+    Size get_operand_size_from_lvalue_reference(LValue const& lvalue);
     void insert_from_unary_expression(std::string const& op,
         Storage const& dest,
         Storage const& src = assembly::O_NUL);
+
     void from_temporary_unary_operator_expression(RValue const& expr);
+
+  private:
+    Storage get_temporary_storage_from_temporary_expansion(
+        RValue const& rvalue);
     void from_lvalue_address_of_expression(RValue const& expr);
-    void from_lvalue_reference_expression(RValue const& expr);
 
   private:
     memory::Memory_Access accessor_;

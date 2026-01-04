@@ -402,6 +402,7 @@ enum class Mnemonic
     ror,
     ldr,
     str,
+    neg,
     ldp,
     stp,
     b,
@@ -423,6 +424,7 @@ enum class Mnemonic
     adrp,
     ret,
     mov,
+    movn,
     cmp,
     cmn,
     tst,
@@ -886,12 +888,14 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         ARM64_MNEMONIC_OSTREAM(orr);
         ARM64_MNEMONIC_OSTREAM(eor);
         ARM64_MNEMONIC_OSTREAM(mvn);
+        ARM64_MNEMONIC_OSTREAM(movn);
         ARM64_MNEMONIC_OSTREAM(lsl);
         ARM64_MNEMONIC_OSTREAM(lsr);
         ARM64_MNEMONIC_OSTREAM(asr);
         ARM64_MNEMONIC_OSTREAM(ror);
         ARM64_MNEMONIC_OSTREAM(ldr);
         ARM64_MNEMONIC_OSTREAM(str);
+        ARM64_MNEMONIC_OSTREAM(neg);
         ARM64_MNEMONIC_OSTREAM(ldp);
         ARM64_MNEMONIC_OSTREAM(stp);
         ARM64_MNEMONIC_OSTREAM(b);
@@ -1142,7 +1146,7 @@ ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
-ARM64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
+ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 // pointers
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lea);

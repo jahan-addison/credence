@@ -176,6 +176,8 @@ struct Register_Accessor : public ARM64_Register_Accessor
     explicit Register_Accessor(Register* signal_register)
         : ARM64_Register_Accessor(signal_register)
     {
+        d_size_registers = registers::available_doubleword;
+        w_size_registers = registers::available_word;
     }
 
     inline registers::general_purpose get_register_list_by_size(
@@ -192,22 +194,6 @@ struct Register_Accessor : public ARM64_Register_Accessor
         d_size_registers = registers::available_doubleword;
         w_size_registers = registers::available_word;
     }
-
-    /**
-     * @brief Get a second accumulator register from a size
-     */
-    static constexpr Register get_second_register_from_size(
-        type::semantic::Size size)
-    {
-        namespace m = matchit;
-        return m::match(size)(
-            m::pattern | 8UL = [&] { return Register::x1; },
-            m::pattern | m::_ = [&] { return Register::w1; });
-    }
-
-    registers::general_purpose d_size_registers =
-        registers::available_doubleword;
-    registers::general_purpose w_size_registers = registers::available_word;
 };
 
 struct Address_Accessor : public ARM64_Address_Accessor
@@ -248,9 +234,8 @@ struct Address_Accessor : public ARM64_Address_Accessor
  *
  * Notes:
  *   x26   = address-of temporary storage register
- *   x23   = The multiplication register
+ *   x23   = The multiplication register, arithmetic scratch register
  *   x8    = The default "accumulator" register for expression expansion
- *   x9    = A second arithemtic scratch register
  *   x9 - x18 = Local scope variables, after which the stack is used
  *
  *  NOTE : we save x9-x18 on the stack before calling a function
@@ -284,7 +269,8 @@ class Device_Accessor
 
   public:
     bool is_lvalue_allocated_in_memory(LValue const& lvalue);
-    Device get_device_for_binary_operand(RValue const& rvalue);
+    Device get_operand_device_from_rvalue(RValue const& rvalue);
+    Register get_second_register_for_binary_operand(Operand_Size size);
     Device get_device_by_lvalue(LValue const& lvalue);
     inline Device get_device_by_lvalue_reference(RValue const& rvalue)
     {

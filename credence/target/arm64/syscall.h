@@ -49,10 +49,10 @@ void syscall_operands_to_instructions(assembly::Instructions& instructions,
 
 inline Register get_storage_register_from_safe_address(
     assembly::Storage& argument,
-    memory::registers::general_purpose& w_registers,
-    memory::registers::general_purpose& d_registers,
-    memory::Stack_Frame* stack_frame = nullptr,
-    memory::Memory_Access* accessor = nullptr)
+    memory::registers::general_purpose const& w_registers,
+    memory::registers::general_purpose const& d_registers,
+    memory::Stack_Frame const* stack_frame = nullptr,
+    memory::Memory_Access const* accessor = nullptr)
 {
     Register storage = common::get_first_of_enum_t<Register>();
     if (accessor != nullptr and stack_frame != nullptr) {
