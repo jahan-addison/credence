@@ -562,9 +562,25 @@ void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
         from_pointer_or_vector_assignment(lhs, rvalue);
         return;
     }
-    if (!rvalue.empty())
+    if (!rvalue.empty()) {
+        // resolve unary expression rvalue sizes
+        if (type::is_unary_expression(rvalue)) {
+            auto rvalue_reference = type::get_unary_rvalue_reference(rvalue);
+            if (locals.is_defined(rvalue_reference)) {
+                auto [_, type, size] =
+                    locals.get_symbol_by_name(rvalue_reference);
+                locals.set_symbol_by_name(lhs, { rvalue, type, size });
+                return;
+            }
+            if (type::is_rvalue_data_type(rvalue_reference)) {
+                auto [_, type, size] =
+                    type::get_rvalue_datatype_from_string(rvalue_reference);
+                locals.set_symbol_by_name(lhs, { rvalue, type, size });
+                return;
+            }
+        }
         locals.set_symbol_by_name(lhs, { rvalue, "word", sizeof(void*) });
-    else
+    } else
         locals.set_symbol_by_name(lhs, { rhs, "word", sizeof(void*) });
 }
 

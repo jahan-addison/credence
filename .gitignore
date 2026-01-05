@@ -9,6 +9,7 @@ ast.json
 *.swp
 CMakeFiles/
 CMakeCache.txt
+.cache
 .ast_cache
 .roxas_cache
 .credence_cache

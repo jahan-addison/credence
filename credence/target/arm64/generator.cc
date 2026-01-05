@@ -408,6 +408,7 @@ void Storage_Emitter::emit_mnemonic_operand(std::ostream& os,
     common::flag::flags flags)
 {
     auto delimiter = source == Source::s_0 ? " " : ", ";
+
     if ((flags & flag::Load) and is_variant(Immediate, operand)) {
         auto [value, type, size] = std::get<Immediate>(operand);
         if (source != Source::s_0 and type == "string" and
@@ -434,10 +435,12 @@ void Storage_Emitter::emit(std::ostream& os,
     auto& flag_accessor = accessor_->flag_accessor;
     auto flags =
         flag_accessor.get_instruction_flags_at_index(instruction_index_);
+
     if (is_variant(std::monostate, storage))
         return;
 
     auto operand = storage;
+
     apply_stack_alignment(operand, mnemonic, source, flags);
 
     if (flags & flag::Indirect_Source)
@@ -470,7 +473,6 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
     if (table->hoisted_symbols.has_key(s) and
         table->hoisted_symbols[s]["type"].to_string() ==
             "function_definition") {
-        callee_saved = 0;
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
             emit_function_epilogue(os);
@@ -504,34 +506,63 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 }
 
 /**
- * @brief Emit the x23 and x26 special registers if they are in use in the
- * function
+ * @brief Do we need to save the callee-saved registers on the stack?
  *
- *   Check memory.h for details
  */
-void Text_Emitter::emit_callee_saved_registers_stp(std::size_t index)
+bool Text_Emitter::emit_callee_saved_registers_stp(Mnemonic mnemonic,
+    std::ostream& os,
+    std::size_t index)
 {
+    auto flags = accessor_->flag_accessor.get_instruction_flags_at_index(index);
     auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
         accessor_->device_accessor.get_current_frame_name());
-    bool has_x23 = stack_frame->tokens.contains("x23");
-    bool has_x26 = stack_frame->tokens.contains("x26");
-    auto& flag_accessor = accessor_->flag_accessor;
-    auto flags = flag_accessor.get_instruction_flags_at_index(index);
-    if (flags & detail::flags::Callee_Saved and callee_saved == 0) {
-        if (has_x23 and has_x26) {
-            flag_accessor.unset_instruction_flag(
-                detail::flags::Callee_Saved, index);
-            callee_saved = 1;
-        } else if (has_x26) {
-            flag_accessor.unset_instruction_flag(
-                detail::flags::Callee_Saved, index);
-            callee_saved = 1;
-        } else if (has_x23) {
-            flag_accessor.unset_instruction_flag(
-                detail::flags::Callee_Saved, index);
-            callee_saved = 1;
+
+    if (flags & detail::flags::Callee_Saved)
+        if (!stack_frame->tokens.contains("x23") and
+            not stack_frame->tokens.contains("x26"))
+            return false;
+
+    if (flags & detail::flags::Callee_Saved and mnemonic == Mnemonic::stp) {
+        if (stack_frame->tokens.contains("x23") and
+            stack_frame->tokens.contains("x26")) {
+            // both true, let through
+            return true;
+        }
+        if (stack_frame->tokens.contains("x23") and
+            not stack_frame->tokens.contains("x26")) {
+            os << assembly::tabwidth(4);
+            os << "str x23, [sp, #16]" << std::endl;
+            return false;
+        }
+        if (stack_frame->tokens.contains("x26") and
+            not stack_frame->tokens.contains("x23")) {
+            os << assembly::tabwidth(4);
+            os << "str x26, [sp, #16]" << std::endl;
+            return false;
         }
     }
+
+    if (flags & detail::flags::Callee_Saved and mnemonic == Mnemonic::ldp) {
+        if (stack_frame->tokens.contains("x23") and
+            stack_frame->tokens.contains("x26")) {
+            // both true, let through
+            return true;
+        }
+        if (stack_frame->tokens.contains("x23") and
+            not stack_frame->tokens.contains("x26")) {
+            os << assembly::tabwidth(4);
+            os << "ldr x23, [sp, #16]" << std::endl;
+            return false;
+        }
+        if (stack_frame->tokens.contains("x26") and
+            not stack_frame->tokens.contains("x23")) {
+            os << assembly::tabwidth(4);
+            os << "ldr x26, [sp, #16]" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -543,18 +574,12 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
 {
     auto [mnemonic, src1, src2, src3, src4] = s;
     auto storage_emitter = Storage_Emitter{ accessor_, index };
+
     if (branch_ == "_L1" && label_size_ > 0) {
         return_instructions_.emplace_back(s);
         return;
     }
-    auto& flag_accessor = accessor_->flag_accessor;
-    auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
-        accessor_->device_accessor.get_current_frame_name());
-    auto flags = flag_accessor.get_instruction_flags_at_index(index);
-
-    emit_callee_saved_registers_stp(index);
-
-    if (flags & detail::flags::Callee_Saved and callee_saved != 1)
+    if (!emit_callee_saved_registers_stp(mnemonic, os, index))
         return;
 
     os << assembly::tabwidth(4) << mnemonic;
@@ -563,9 +588,6 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     storage_emitter.emit(os, src2, mnemonic, Storage_Emitter::Source::s_1);
     storage_emitter.emit(os, src3, mnemonic, Storage_Emitter::Source::s_2);
     storage_emitter.emit(os, src4, mnemonic, Storage_Emitter::Source::s_3);
-
-    if (flags & detail::flags::Callee_Saved and callee_saved == 1)
-        callee_saved = -1;
 
     assembly::newline(os, 1);
 }
@@ -741,17 +763,13 @@ void Visitor::from_func_start_ita(Label const& name)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
-    auto& stack = accessor_->stack;
     auto& table = accessor_->table_accessor.table_;
     credence_assert(table->functions.contains(name));
-    stack->clear();
     accessor_->device_accessor.reset_storage_devices();
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
     auto frame = table->functions[name];
-    stack->allocate(16);
-    // set_alignment_flag(Align);
-    // arm64_add__asm(instructions, sub, sp, sp, alignment__integer());
+    accessor_->stack->allocate(16);
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
     arm64_add__asm(instructions, mov, x29, sp);
@@ -821,9 +839,11 @@ void Visitor::from_push_ita(ir::Quadruple const& inst)
  */
 void Visitor::from_return_ita()
 {
-    auto instruction_accessor = accessor_->instruction_accessor;
-    auto& instructions = instruction_accessor->get_instructions();
-    arm64_add__asm(instructions, ret);
+    auto inserter = Expression_Inserter{ accessor_, stack_frame_ };
+    auto frame =
+        accessor_->table_accessor.table_->functions[stack_frame_.symbol];
+    if (frame->ret.has_value())
+        inserter.insert_from_return_rvalue(frame->ret);
 }
 
 /**
@@ -834,6 +854,7 @@ void Visitor::from_leave_ita()
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
 
+    set_alignment_flag(Callee_Saved);
     arm64_add__asm(instructions, ldp, x26, x23, alignment__sp_integer(16));
 
     auto sp_imm = direct_immediate("[sp]");
@@ -842,6 +863,8 @@ void Visitor::from_leave_ita()
 
     if (stack_frame_.symbol == "main")
         syscall_ns::exit_syscall(instructions, 0);
+    else
+        arm64_add__asm(instructions, ret);
 }
 
 /**
@@ -1414,7 +1437,8 @@ void Unary_Operator_Inserter::insert_from_unary_expression(
             },
         m::pattern | std::string{ "-" } =
             [&] {
-                assembly::inserter(instructions, assembly::neg(dest).second);
+                assembly::inserter(
+                    instructions, assembly::neg(dest, src).second);
             },
         m::pattern | std::string{ "+" } = [&] {});
 }
@@ -1429,6 +1453,27 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
     auto& table = accessor_->table_accessor.table_;
     auto temporary = table->lvalue_at_temporary_object_address(lvalue, frame);
     insert_from_rvalue(temporary);
+}
+
+/**
+ * @brief Inserter of a return value from a function body in the stack frame
+ *
+ *  test(*y) {
+ *   return(y); <---
+ *  }
+ */
+void Expression_Inserter::insert_from_return_rvalue(
+    ir::object::Function::Return_RValue const& ret)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto operand_inserter = Operand_Inserter{ accessor_, stack_frame_ };
+    auto immediate =
+        operand_inserter.get_operand_storage_from_rvalue(ret->second);
+    if (accessor_->address_accessor.is_doubleword_storage_size(
+            immediate, stack_frame_))
+        arm64_add__asm(instructions, mov, x0, immediate);
+    else
+        arm64_add__asm(instructions, mov, w0, immediate);
 }
 
 /**
@@ -1695,8 +1740,8 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     auto size = get_operand_size_from_storage(
                         lhs_storage, accessor_->stack);
                     auto work = size == assembly::Operand_Size::Doubleword
-                                    ? assembly::Register::x26
-                                    : assembly::Register::w26;
+                                    ? assembly::Register::x8
+                                    : assembly::Register::w8;
                     arm64_add__asm(instructions, mov, lhs_storage, work);
                 } else {
                     auto acc = accumulator.get_accumulator_register_from_size();
@@ -1723,8 +1768,8 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 assembly::inserter(instructions, rhs_inst);
                 auto acc = accumulator.get_accumulator_register_from_size(
                     devices.get_word_size_from_lvalue(rhs, stack_frame_));
-                arm64_add__asm(instructions, ldr, acc, rhs_storage);
-                arm64_add__asm(instructions, str, acc, lhs_storage);
+                arm64_add__asm(instructions, mov, acc, rhs_storage);
+                arm64_add__asm(instructions, mov, lhs_storage, acc);
             },
         m::pattern | m::_ = [&] {});
 }
@@ -2003,12 +2048,14 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
     m::match(binary_op)(
         m::pattern | std::string{ "*" } =
             [&] {
-                frame->tokens.insert("x23");
+                if (is_variant(Immediate, operands.second))
+                    frame->tokens.insert("x23");
                 instructions = assembly::mul(operands.first, operands.second);
             },
         m::pattern | std::string{ "/" } =
             [&] {
-                frame->tokens.insert("x23");
+                if (is_variant(Immediate, operands.second))
+                    frame->tokens.insert("x23");
                 instructions = assembly::div(operands.first, operands.second);
             },
         m::pattern | std::string{ "-" } =
@@ -2021,7 +2068,8 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
             },
         m::pattern | std::string{ "%" } =
             [&] {
-                frame->tokens.insert("x23");
+                if (is_variant(Immediate, operands.second))
+                    frame->tokens.insert("x23");
                 instructions = assembly::mod(operands.first, operands.second);
             });
     return instructions;

@@ -105,7 +105,7 @@ TEST_CASE("target/arm64: fixture: math_constant.b")
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    stp x26, x23, [sp, #16]
+    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
@@ -114,7 +114,7 @@ _start:
     mov w23, #10
     mul w8, w8, w23
     mov w9, w8
-    ldp x26, x23, [sp, #16]
+    ldr x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
@@ -134,7 +134,7 @@ _start:
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    stp x26, x23, [sp, #16]
+    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
@@ -143,7 +143,7 @@ _start:
     mov w23, #10
     mul w8, w8, w23
     mov w9, w8
-    ldp x26, x23, [sp, #16]
+    ldr x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
@@ -170,7 +170,7 @@ TEST_CASE("target/arm64: fixture: math_constant_8.b")
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    stp x26, x23, [sp, #16]
+    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
@@ -189,7 +189,7 @@ _start:
     str w9, [sp, #0]
     str w10, [sp, #4]
     add sp, sp, #16
-    ldp x26, x23, [sp, #16]
+    ldr x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
@@ -211,7 +211,7 @@ _start:
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    stp x26, x23, [sp, #16]
+    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
@@ -230,7 +230,7 @@ _start:
     str w9, [sp, #0]
     str w10, [sp, #4]
     add sp, sp, #16
-    ldp x26, x23, [sp, #16]
+    ldr x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
@@ -267,7 +267,6 @@ _start:
     mov w8, #2
     sub w8, w8, w9
     mov x10, w8
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
@@ -293,7 +292,6 @@ _start:
     mov w8, #2
     sub w8, w8, w9
     mov x10, w8
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
@@ -320,7 +318,6 @@ TEST_CASE("target/arm64: fixture: math_constant_4.b")
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    stp x26, x23, [sp, #16]
     mov w9, #20
     mov w10, #10
     sdiv w8, w8, w10
@@ -336,7 +333,6 @@ _start:
     mov w11, w8
     mov w8, #10
     mov w11, w8
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
@@ -356,7 +352,6 @@ _start:
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    stp x26, x23, [sp, #16]
     mov w9, #20
     mov w10, #10
     sdiv w8, w8, w10
@@ -372,7 +367,6 @@ _start:
     mov w11, w8
     mov w8, #10
     mov w11, w8
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
@@ -405,7 +399,6 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
@@ -431,7 +424,6 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
@@ -465,7 +457,6 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
@@ -492,7 +483,6 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x26, x23, [sp, #16]
     ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
@@ -503,4 +493,69 @@ _start:
 )arm";
 #endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_6", expected);
+}
+
+TEST_CASE("target/arm64: fixture: math_constant_7.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    movn w8, #10
+    mov w9, w8
+    neg w9, w9
+    mov w10, w8
+    mov w8, #-100
+    mov w11, w8
+    mov w9, w8
+    add w9, w9, #1
+    mov w8, w9
+    mov w10, w8
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    movn w8, #10
+    mov w9, w8
+    neg w9, w9
+    mov w10, w8
+    mov w8, #-100
+    mov w11, w8
+    mov w9, w8
+    add w9, w9, #1
+    mov w8, w9
+    mov w10, w8
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_7", expected);
 }

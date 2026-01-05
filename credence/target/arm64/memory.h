@@ -321,7 +321,7 @@ class Device_Accessor
     Size get_size_of_address_table(Stack_Frame& stack_frame);
     Size get_size_from_temporary_rvalue_data_type(LValue const& lvalue,
         Immediate const& rvalue,
-        ir::object::Function_PTR& frame);
+        Stack_Frame& stack_frame);
 
   private:
     Address_Accessor& address_accessor_;
@@ -399,6 +399,9 @@ class Memory_Accessor
         register_accessor };
     detail::Device_Accessor device_accessor{ address_accessor, stack };
     Instruction_Pointer instruction_accessor{};
+
+  public:
+    // Ordered_Map<Label, Stack_Pointer&> stack_accessor;
 };
 
 } // namespace memory

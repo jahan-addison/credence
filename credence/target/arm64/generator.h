@@ -127,7 +127,9 @@ class Text_Emitter
     void emit_text_directives(std::ostream& os);
     void emit_text_section(std::ostream& os);
 
-    void emit_callee_saved_registers_stp(std::size_t index);
+    bool emit_callee_saved_registers_stp(Mnemonic mnemonic,
+        std::ostream& os,
+        std::size_t index);
 
   private:
     void emit_assembly_instruction(std::ostream& os,
@@ -155,7 +157,6 @@ class Text_Emitter
     memory::Instruction_Pointer instructions_;
     assembly::Instructions return_instructions_;
     std::size_t label_size_{ 0 };
-    int callee_saved{ 0 };
     Label frame_{};
     Label branch_{};
 };

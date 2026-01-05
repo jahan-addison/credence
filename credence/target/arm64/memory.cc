@@ -265,7 +265,8 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->vectors, __source__);
 
-    auto size = get_size_from_temporary_rvalue_data_type(lvalue, rvalue, frame);
+    auto size =
+        get_size_from_temporary_rvalue_data_type(lvalue, rvalue, stack_frame);
 
     credence_assert_message(assembly::is_valid_size(size), lvalue);
 
@@ -305,10 +306,11 @@ void Device_Accessor::set_vector_offset_to_storage_space(LValue const& lvalue,
 Size Device_Accessor::get_size_from_temporary_rvalue_data_type(
     LValue const& lvalue,
     Immediate const& rvalue,
-    ir::object::Function_PTR& frame)
+    Stack_Frame& stack_frame)
 {
     Size size = 0UL;
     auto& table_ = address_accessor_.table_;
+    auto frame = stack_frame.get_stack_frame();
     if (type::is_temporary_datatype_binary_expression(rvalue)) {
         auto temp_side = type::is_temporary_operand_binary_expression(rvalue);
         auto [left, right, _] = type::from_rvalue_binary_expression(rvalue);
@@ -316,14 +318,14 @@ Size Device_Accessor::get_size_from_temporary_rvalue_data_type(
             if (!type::is_rvalue_data_type(right))
                 size = type::get_size_from_rvalue_data_type(
                     ir::object::get_rvalue_at_lvalue_object_storage(
-                        right, frame, table_->vectors, __source__));
+                        right, frame, table_->vectors));
             else
                 size = type::get_size_from_rvalue_data_type(right);
         else {
             if (!type::is_rvalue_data_type(left))
                 size = type::get_size_from_rvalue_data_type(
                     ir::object::get_rvalue_at_lvalue_object_storage(
-                        left, frame, table_->vectors, __source__));
+                        left, frame, table_->vectors));
             else
                 size = type::get_size_from_rvalue_data_type(left);
         }
@@ -331,9 +333,20 @@ Size Device_Accessor::get_size_from_temporary_rvalue_data_type(
         auto [left, right, _] = type::from_rvalue_binary_expression(rvalue);
         size = type::get_size_from_rvalue_data_type(left);
     } else {
+        auto value = type::get_value_from_rvalue_data_type(rvalue);
+        if (type::is_unary_expression(value)) {
+            auto lvalue_reference = type::get_unary_rvalue_reference(value);
+            if (is_lvalue_allocated_in_memory(lvalue_reference))
+                return assembly::get_size_from_operand_size(
+                    get_word_size_from_lvalue(lvalue_reference, stack_frame));
+            else
+                return type::get_size_from_rvalue_data_type(
+                    ir::object::get_rvalue_at_lvalue_object_storage(
+                        lvalue_reference, frame, table_->vectors));
+        }
         size = type::get_size_from_rvalue_data_type(
             ir::object::get_rvalue_at_lvalue_object_storage(
-                lvalue, frame, table_->vectors, __source__));
+                lvalue, frame, table_->vectors));
     }
     return size;
 }

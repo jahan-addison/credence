@@ -188,6 +188,16 @@ Instruction_Pair neg(Storage const& s0)
     arm64__make_and_ret(neg, s0, s0);
 }
 
+Instruction_Pair neg(Storage const& s0, Storage const& s1)
+{
+    if (is_variant(Immediate, s1)) {
+        auto sid = common::assembly::get_storage_as_string<Register>(s1);
+        arm64__make_and_ret(
+            mov, s0, direct_immediate(fmt::format("#-{}", sid)));
+    } else
+        arm64__make_and_ret(neg, s0, s1);
+}
+
 Instructions r_eq(Storage const& s0,
     Storage const& s1,
     Label const& to,

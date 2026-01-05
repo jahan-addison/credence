@@ -34,10 +34,6 @@ template<Enum_T Registers,
     Stack_Frame_T Frame>
 class Address_Accessor;
 
-/**
- * @brief Buffer accessor that stores addresses of strings, floats, and doubles
- * Architecture-agnostic implementation
- */
 template<Stack_Frame_T T>
 class Buffer_Accessor
 {
