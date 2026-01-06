@@ -116,6 +116,69 @@ enum class Register;
         return { s, std::move(instructions) };                         \
     } while (false)
 
+#define arm64__make_and_ret_with_immediate(op)                 \
+    do {                                                       \
+        if (is_variant(Immediate, s1)) {                       \
+            auto inst = make_empty();                          \
+            auto size = get_operand_size_from_rvalue_datatype( \
+                std::get<Immediate>(s1));                      \
+            if (size == Operand_Size::Doubleword) {            \
+                arm64_add__asm(inst, mov, x23, s1);            \
+                arm64_add__asm(inst, op, s0, s0, x23);         \
+                return { s0, inst };                           \
+            } else {                                           \
+                arm64_add__asm(inst, mov, w23, s1);            \
+                arm64_add__asm(inst, op, s0, s0, w23);         \
+                return { s0, inst };                           \
+            }                                                  \
+        } else                                                 \
+            arm64__make_and_ret(op, s0, s0, s1);               \
+    } while (false)
+
+#define arm64__bitwise_and_ret_with_register_3ary(op)                         \
+    do {                                                                      \
+        if (is_variant(Immediate, s1) or is_variant(Register, s1)) {          \
+            auto inst = make_empty();                                         \
+            auto size =                                                       \
+                is_variant(Immediate, s1)                                     \
+                    ? get_operand_size_from_rvalue_datatype(                  \
+                          std::get<Immediate>(s1))                            \
+                    : get_operand_size_from_register(std::get<Register>(s1)); \
+            if (size == Operand_Size::Doubleword) {                           \
+                arm64_add__asm(inst, op, x8, s0, s1);                         \
+                return { s0, inst };                                          \
+            } else {                                                          \
+                arm64_add__asm(inst, op, w8, s0, s1);                         \
+                return { s0, inst };                                          \
+            }                                                                 \
+        } else                                                                \
+            arm64__make_and_ret(op, s0, s0, s1);                              \
+                                                                              \
+    } while (false)
+
+#define arm64__bitwise_and_ret_with_register_2ary(op)                         \
+    do {                                                                      \
+        if (is_variant(Immediate, s1) or is_variant(Register, s1)) {          \
+            auto inst = make_empty();                                         \
+            auto size =                                                       \
+                is_variant(Immediate, s1)                                     \
+                    ? get_operand_size_from_rvalue_datatype(                  \
+                          std::get<Immediate>(s1))                            \
+                    : get_operand_size_from_register(std::get<Register>(s1)); \
+            if (size == Operand_Size::Doubleword) {                           \
+                arm64_add__asm(inst, mov, x8, s1);                            \
+                arm64_add__asm(inst, op, s0, s0, x8);                         \
+                return { s0, inst };                                          \
+            } else {                                                          \
+                arm64_add__asm(inst, mov, w8, s1);                            \
+                arm64_add__asm(inst, op, w8, w8);                             \
+                return { s0, inst };                                          \
+            }                                                                 \
+        } else                                                                \
+            arm64__make_and_ret(op, s0, s0, s1);                              \
+                                                                              \
+    } while (false)
+
 #define arm64_add__asm(inst, op, ...)                               \
     do {                                                            \
         using enum arm64::assembly::Register;                       \

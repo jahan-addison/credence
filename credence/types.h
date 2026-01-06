@@ -283,6 +283,16 @@ constexpr bool is_unary_expression(RValue_Reference rvalue)
     });
 }
 
+constexpr bool is_unary_data_type_expression(Data_Type const& datatype)
+{
+    auto rvalue = type::get_value_from_rvalue_data_type(datatype);
+    if (util::substring_count_of(rvalue, " ") >= 2)
+        return false;
+    return std::ranges::any_of(unary_operators, [&](std::string_view x) {
+        return rvalue.starts_with(x) or rvalue.ends_with(x);
+    });
+}
+
 /**
  * @brief Check if an expression contains unary operator
  */

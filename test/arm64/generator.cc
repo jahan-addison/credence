@@ -559,3 +559,121 @@ _start:
 #endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("math_constant_7", expected);
 }
+
+TEST_CASE("target/arm64: fixture: relation_constant.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    mov w8, 1
+    mov w9, w8
+    mov w10, #1
+    mov w11, #0
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    mov w8, 1
+    mov w9, w8
+    mov w10, #1
+    mov w11, #0
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("relation_constant", expected);
+}
+
+TEST_CASE("target/arm64: fixture: bitwise_constant_1.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    movn w8, #10
+    mov w9, w8
+    mov w8, #10
+    eor w8, w8, w9
+    orr w8, w8, #1
+    mov w10, w8
+    mvn w9, w9
+    mvn w10, w10
+    and w8, w9, w10
+    mov w11, w8
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    movn w8, #10
+    mov w9, w8
+    mov w8, #10
+    eor w8, w8, w9
+    orr w8, w8, #1
+    mov w10, w8
+    mvn w9, w9
+    mvn w10, w10
+    and w8, w9, w10
+    mov w11, w8
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("bitwise_constant_1", expected);
+}

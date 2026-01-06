@@ -312,6 +312,11 @@ struct Binary_Operator_Inserter
         , stack_frame_(stack_frame)
     {
     }
+
+    using Operand_Stack = std::deque<Storage>;
+
+    void get_operand_stack_from_temporary_lvalue(LValue const& lvalue,
+        Operand_Stack& stack);
     void from_binary_operator_expression(RValue const& rvalue);
 
   private:

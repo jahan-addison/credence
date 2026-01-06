@@ -1,20 +1,36 @@
 [
   {
+    "k": {
+      "column": 11,
+      "end_column": 12,
+      "end_pos": 21,
+      "line": 2,
+      "start_pos": 20,
+      "type": "lvalue"
+    },
     "m": {
-      "type": "lvalue",
+      "column": 8,
+      "end_column": 9,
+      "end_pos": 18,
       "line": 2,
       "start_pos": 17,
-      "column": 8,
-      "end_pos": 18,
-      "end_column": 9
+      "type": "lvalue"
     },
     "main": {
-      "type": "function_definition",
+      "column": 1,
+      "end_column": 5,
+      "end_pos": 4,
       "line": 1,
       "start_pos": 0,
-      "column": 1,
-      "end_pos": 4,
-      "end_column": 5
+      "type": "function_definition"
+    },
+    "t": {
+      "column": 14,
+      "end_column": 15,
+      "end_pos": 24,
+      "line": 2,
+      "start_pos": 23,
+      "type": "lvalue"
     }
   },
   {
@@ -31,6 +47,14 @@
                 {
                   "node": "lvalue",
                   "root": "m"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "k"
+                },
+                {
+                  "node": "lvalue",
+                  "root": "t"
                 }
               ],
               "node": "statement",
@@ -58,6 +82,38 @@
                       "root": [
                         "||"
                       ]
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "k"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "bool_literal",
+                      "root": "true"
+                    },
+                    "root": [
+                      "="
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "t"
+                    },
+                    "node": "assignment_expression",
+                    "right": {
+                      "node": "bool_literal",
+                      "root": "false"
                     },
                     "root": [
                       "="

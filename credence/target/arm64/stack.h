@@ -75,12 +75,6 @@ class Stack : public common::detail::base_stack_pointer
      */
     constexpr Entry get(LValue const& lvalue) { return stack_address[lvalue]; }
 
-    inline Entry get(Register const& device)
-    {
-        auto lvalue = common::assembly::get_storage_as_string<Register>(device);
-        return stack_address[lvalue];
-    }
-
     /**
      * @brief Get the stack location lvalue and size from an offset
      */

@@ -275,6 +275,8 @@ _start:
     mov rbp, rsp
     mov al, 1
     mov byte ptr [rbp - 1], al
+    mov dword ptr [rbp - 5], 1
+    mov dword ptr [rbp - 9], 0
     mov rax, 60
     mov rdi, 0
     syscall

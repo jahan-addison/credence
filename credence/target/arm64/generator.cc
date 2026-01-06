@@ -1120,6 +1120,44 @@ inline auto get_rvalue_pair_as_immediate(RValue const& lhs, RValue const& rhs)
 }
 
 /**
+ * @brief
+ * ...  wefjjefjeequfjeunfencthulhufefewifmwecthulhucthulhukefwemw
+ */
+void Binary_Operator_Inserter::get_operand_stack_from_temporary_lvalue(
+    LValue const& lvalue,
+    Operand_Stack& stack)
+{
+    auto& table = accessor_->table_accessor.table_;
+    auto frame = stack_frame_.get_stack_frame();
+    auto rvalue = table->lvalue_at_temporary_object_address(lvalue, frame);
+    auto& locals = frame->locals;
+
+    if (type::is_unary_expression(rvalue))
+        get_operand_stack_from_temporary_lvalue(
+            type::get_unary_rvalue_reference(rvalue), stack);
+    if (type::is_binary_expression(rvalue)) {
+        auto [left, right, op] = type::from_rvalue_binary_expression(rvalue);
+        if (type::is_rvalue_data_type(left))
+            get_operand_stack_from_temporary_lvalue(left, stack);
+        if (type::is_rvalue_data_type(right))
+            get_operand_stack_from_temporary_lvalue(right, stack);
+        if (locals.is_defined(left))
+            stack.emplace_back(
+                accessor_->device_accessor.get_operand_device_from_rvalue(
+                    left));
+        if (locals.is_defined(right))
+            stack.emplace_back(
+                accessor_->device_accessor.get_operand_device_from_rvalue(
+                    right));
+    }
+    if (type::is_rvalue_data_type(rvalue))
+        stack.emplace_back(type::get_rvalue_datatype_from_string(rvalue));
+    if (locals.is_defined(rvalue))
+        stack.emplace_back(
+            accessor_->device_accessor.get_operand_device_from_rvalue(rvalue));
+}
+
+/**
  * @brief Binary operator inserter of expression operands
  */
 void Binary_Operator_Inserter::from_binary_operator_expression(
@@ -1143,6 +1181,7 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
     auto is_address = [&](RValue const& rvalue) {
         return devices.is_lvalue_allocated_in_memory(rvalue);
     };
+
     m::match(lhs, rhs)(
         m::pattern |
             m::ds(m::app(is_immediate, true), m::app(is_immediate, true)) =
@@ -1167,8 +1206,6 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
             [&] {
-                auto size = assembly::get_operand_size_from_register(
-                    accumulator.get_accumulator_register_from_size());
                 auto acc = accumulator.get_accumulator_register_from_size();
                 lhs_s = acc;
                 auto& immediate_stack = addresses.immediate_stack;
@@ -1181,9 +1218,14 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                         immediate_stack.pop_back();
                     }
                 } else {
-                    auto intermediate =
-                        devices.get_second_register_for_binary_operand(size);
-                    rhs_s = intermediate;
+                    auto operand_stack = Operand_Stack{};
+                    get_operand_stack_from_temporary_lvalue(lhs, operand_stack);
+                    if (operand_stack.size() == 1)
+                        lhs_s = operand_stack.back();
+                    operand_stack.clear();
+                    get_operand_stack_from_temporary_lvalue(rhs, operand_stack);
+                    if (operand_stack.size() == 1)
+                        rhs_s = operand_stack.back();
                 }
             },
         m::pattern |
@@ -1193,36 +1235,26 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                 rhs_s = devices.get_operand_device_from_rvalue(rhs);
 
                 if (table_accessor.last_ir_instruction_is_assignment()) {
-                    auto rvalue = devices.get_device_by_lvalue(lhs);
-                    auto size = devices.get_word_size_from_storage(
-                        rvalue, stack_frame_);
+                    auto size =
+                        devices.get_word_size_from_storage(lhs_s, stack_frame_);
                     auto acc =
                         accumulator.get_accumulator_register_from_size(size);
-                    arm64_add__asm(instructions, mov, acc, rvalue);
+                    arm64_add__asm(instructions, mov, acc, lhs_s);
                 }
 
-                if (is_temporary(rhs)) {
+                if (is_temporary(rhs) or type::is_bitwise_binary_operator(op)) {
                     lhs_s = accumulator.get_accumulator_register_from_size(
-                        devices.get_word_size_from_lvalue(lhs, stack_frame_));
+                        assembly::get_operand_size_from_size(
+                            devices.get_size_from_rvalue_reference(
+                                lhs, stack_frame_)));
                     rhs_s = devices.get_device_by_lvalue(lhs);
                 }
 
                 if (table_accessor.is_ir_instruction_temporary()) {
-                    if (type::is_bitwise_binary_operator(op)) {
-                        auto storage =
-                            devices.get_operand_device_from_rvalue(lhs);
-                        arm64_add__asm(instructions,
-                            mov,
-                            storage,
-                            devices.get_device_by_lvalue(lhs));
-                        lhs_s = storage;
-                    } else {
-                        if (!type::is_relation_binary_operator(op))
-                            lhs_s =
-                                accumulator.get_accumulator_register_from_size(
-                                    devices.get_word_size_from_lvalue(
-                                        lhs, stack_frame_));
-                    }
+                    if (!type::is_relation_binary_operator(op))
+                        lhs_s = accumulator.get_accumulator_register_from_size(
+                            devices.get_word_size_from_lvalue(
+                                lhs, stack_frame_));
                 }
             },
         m::pattern |
@@ -1231,19 +1263,34 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                 lhs_s = devices.get_operand_device_from_rvalue(lhs);
                 rhs_s = devices.get_device_by_lvalue(rhs);
 
-                if (table_accessor.last_ir_instruction_is_assignment()) {
+                if (table_accessor.last_ir_instruction_is_assignment() and
+                    not type::is_bitwise_binary_operator(op)) {
                     auto acc = accumulator.get_accumulator_register_from_size(
-                        devices.get_word_size_from_lvalue(rhs, stack_frame_));
-                    arm64_add__asm(instructions,
-                        mov,
-                        acc,
-                        devices.get_device_by_lvalue(rhs));
+                        assembly::get_operand_size_from_size(
+                            devices.get_size_from_rvalue_reference(
+                                rhs, stack_frame_)));
+                    arm64_add__asm(instructions, mov, acc, rhs_s);
                 }
 
                 if (is_temporary(lhs) or
                     table_accessor.is_ir_instruction_temporary()) {
                     rhs_s = accumulator.get_accumulator_register_from_size(
-                        devices.get_word_size_from_lvalue(rhs, stack_frame_));
+                        assembly::get_operand_size_from_size(
+                            devices.get_size_from_rvalue_reference(
+                                rhs, stack_frame_)));
+                }
+
+                if (type::is_bitwise_binary_operator(op)) {
+                    if (is_variant(Immediate, lhs_s)) {
+                        auto acc =
+                            accumulator.get_accumulator_register_from_size(
+                                assembly::get_operand_size_from_size(
+                                    devices.get_size_from_rvalue_reference(
+                                        rhs, stack_frame_)));
+                        arm64_add__asm(instructions, mov, acc, lhs_s);
+                        lhs_s = acc;
+                        rhs_s = devices.get_device_by_lvalue(rhs);
+                    }
                 }
             },
         m::pattern |
@@ -1390,6 +1437,7 @@ void Unary_Operator_Inserter::insert_from_unary_expression(
     Storage const& src)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto frame = accessor_->table_accessor.table_->get_stack_frame();
     auto index = accessor_->instruction_accessor->size();
     auto is_stack = [&](assembly::Storage const& storage) {
         return is_variant(assembly::Stack::Offset, storage);
@@ -1693,6 +1741,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
         return is_variant(assembly::Stack::Offset, st);
     };
     m::match(rhs)(
+        // Translate from an immediate value assignment
         m::pattern | m::app(is_immediate, true) =
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);
@@ -1731,12 +1780,18 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 unary_inserter.insert_from_unary_expression(
                     unary_op, lhs_storage);
             },
+        // The expanded temporary rvalue is in a accumulator register,
+        // use it
+
         m::pattern | m::app(is_temporary, true) =
             [&] {
                 if (address_storage.address_ir_assignment) {
                     address_storage.address_ir_assignment = false;
-                    Storage lhs_storage =
-                        accessor_->device_accessor.get_device_by_lvalue(lhs);
+                    auto [lhs_storage, storage_inst] =
+                        address_storage
+                            .get_arm64_lvalue_and_insertion_instructions(
+                                lhs, devices, instruction_accessor->size());
+                    assembly::inserter(instructions, storage_inst);
                     auto size = get_operand_size_from_storage(
                         lhs_storage, accessor_->stack);
                     auto work = size == assembly::Operand_Size::Doubleword
@@ -2083,6 +2138,7 @@ Bitwise_Operator_Inserter::from_bitwise_expression_operands(
     assembly::Binary_Operands const& operands,
     std::string const& binary_op)
 {
+    auto frame = accessor_->table_accessor.table_->get_stack_frame();
     assembly::Instruction_Pair instructions{ Register::w8, {} };
     m::match(binary_op)(
         m::pattern | std::string{ "<<" } =
@@ -2097,10 +2153,7 @@ Bitwise_Operator_Inserter::from_bitwise_expression_operands(
             },
         m::pattern | std::string{ "^" } =
             [&] {
-                auto acc = accessor_->accumulator_accessor
-                               .get_accumulator_register_from_storage(
-                                   operands.first, accessor_->stack);
-                instructions = assembly::b_xor(acc, operands.second);
+                instructions = assembly::b_xor(operands.first, operands.second);
             },
         m::pattern | std::string{ "&" } =
             [&] {

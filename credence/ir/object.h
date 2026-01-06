@@ -226,7 +226,11 @@ class Object
 
   public:
     RValue lvalue_at_temporary_object_address(LValue const& lvalue,
-        Function_PTR& stack_frame);
+        Function_PTR const& stack_frame);
+    Size lvalue_size_at_temporary_object_address(LValue const& lvalue,
+        Function_PTR const& stack_frame);
+    Size get_size_of_temporary_binary_rvalue(RValue const& rvalue,
+        Function_PTR const& stack_frame);
 
   public:
     Instruction_PTR ir_instructions{};

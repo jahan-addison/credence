@@ -43,6 +43,7 @@ class JSON;
 #define __source__ std::source_location::current()
 #define SET_INLINE_DEBUG std::source_location const& source = __source__
 #define INLINE_DEBUG std::source_location const& source
+#define DEBUG_SOURCE source
 
 namespace easyjson {
 class JSON;

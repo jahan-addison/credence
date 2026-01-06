@@ -311,17 +311,20 @@ class Device_Accessor
   public:
     Register get_available_storage_register(Operand_Size size);
     void insert_lvalue_to_device(LValue const& lvalue,
-        Stack_Frame& stack_frame);
+        Stack_Frame& stack_frame,
+        SET_INLINE_DEBUG);
     void set_vector_offset_to_storage_space(LValue const& lvalue,
+        Stack_Frame& stack_frame);
+    Size get_size_from_rvalue_reference(RValue const& rvalue,
         Stack_Frame& stack_frame);
 
   private:
+    Size get_size_from_rvalue_data_type(LValue const& lvalue,
+        Immediate const& rvalue,
+        Stack_Frame& stack_frame);
     void set_word_or_doubleword_register(LValue const& lvalue,
         Operand_Size size);
     Size get_size_of_address_table(Stack_Frame& stack_frame);
-    Size get_size_from_temporary_rvalue_data_type(LValue const& lvalue,
-        Immediate const& rvalue,
-        Stack_Frame& stack_frame);
 
   private:
     Address_Accessor& address_accessor_;

@@ -120,40 +120,12 @@ Directives string(type::semantic::RValue const& rvalue)
 
 Instruction_Pair mul(Storage const& s0, Storage const& s1)
 {
-    if (is_variant(Immediate, s1)) {
-        auto inst = make_empty();
-        auto size =
-            get_operand_size_from_rvalue_datatype(std::get<Immediate>(s1));
-        if (size == Operand_Size::Doubleword) {
-            arm64_add__asm(inst, mov, x23, s1);
-            arm64_add__asm(inst, mul, s0, s0, x23);
-            return { s0, inst };
-        } else {
-            arm64_add__asm(inst, mov, w23, s1);
-            arm64_add__asm(inst, mul, s0, s0, w23);
-            return { s0, inst };
-        }
-    } else
-        arm64__make_and_ret(mul, s0, s0, s1);
+    arm64__make_and_ret_with_immediate(mul);
 }
 
 Instruction_Pair div(Storage const& s0, Storage const& s1)
 {
-    if (is_variant(Immediate, s1)) {
-        auto inst = make_empty();
-        auto size =
-            get_operand_size_from_rvalue_datatype(std::get<Immediate>(s1));
-        if (size == Operand_Size::Doubleword) {
-            arm64_add__asm(inst, mov, x23, s1);
-            arm64_add__asm(inst, sdiv, s0, s0, x23);
-            return { s0, inst };
-        } else {
-            arm64_add__asm(inst, mov, w23, s1);
-            arm64_add__asm(inst, sdiv, s0, s0, w23);
-            return { s0, inst };
-        }
-    } else
-        arm64__make_and_ret(sdiv, s0, s0, s1);
+    arm64__make_and_ret_with_immediate(sdiv);
 }
 
 Instruction_Pair mod(Storage const& s0, Storage const& s1)
@@ -280,19 +252,19 @@ Instruction_Pair lshift(Storage const& s0, Storage const& s1)
     arm64__make_and_ret(lsl, s0, s1);
 }
 
+Instruction_Pair b_xor(Storage const& s0, Storage const& s1)
+{
+    arm64__bitwise_and_ret_with_register_3ary(eor);
+}
+
 Instruction_Pair b_and(Storage const& s0, Storage const& s1)
 {
-    arm64__make_and_ret(and_, s0, s0, s1);
+    arm64__bitwise_and_ret_with_register_3ary(and_);
 }
 
 Instruction_Pair b_or(Storage const& s0, Storage const& s1)
 {
     arm64__make_and_ret(orr, s0, s0, s1);
-}
-
-Instruction_Pair b_xor(Storage const& s0, Storage const& s1)
-{
-    arm64__make_and_ret(eor, s0, s0, s1);
 }
 
 Instruction_Pair b_not(Storage const& s0, Storage const& s1)
