@@ -543,14 +543,14 @@ void IR_Inserter::setup_stack_frame_in_function(
     Visitor& visitor,
     int index)
 {
-    auto stack_frame = memory::Stack_Frame{ accessor_ };
+    auto stack_frame = accessor_->stack_frame;
     auto symbol = std::get<1>(ir_instructions.at(index - 1));
     auto name = type::get_label_as_human_readable(symbol);
     stack_frame.set_stack_frame(name);
     if (name == "main") {
         // setup argc, argv
-        auto argc_argv = common::runtime::argc_argv_kernel_runtime_access<
-            memory::Stack_Frame>(stack_frame);
+        auto argc_argv =
+            common::runtime::argc_argv_kernel_runtime_access(stack_frame);
         if (argc_argv.first) {
             auto& instructions =
                 accessor_->instruction_accessor->get_instructions();
@@ -566,8 +566,7 @@ void IR_Inserter::setup_stack_frame_in_function(
  */
 void IR_Inserter::insert(ir::Instructions const& ir_instructions)
 {
-    auto stack_frame = memory::Stack_Frame{ accessor_ };
-    auto ir_visitor = Visitor(accessor_, stack_frame);
+    auto ir_visitor = Visitor(accessor_, accessor_->stack_frame);
     for (std::size_t index = 0; index < ir_instructions.size(); index++) {
         auto inst = ir_instructions[index];
         ir_visitor.set_iterator_index(index);
@@ -785,7 +784,7 @@ void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
                 accessor_->set_signal_register(acc);
                 x8664_add__asm(instructions, mov, acc, imm);
             },
-        m::pattern | m::app(type::is_bitwise_binary_operator, true) =
+        m::pattern | m::app(assembly::x8664_is_bitwise_binary_operator, true) =
             [&] {
                 auto imm = common::assembly::
                     get_result_from_trivial_bitwise_expression(lhs, op, rhs);
@@ -929,7 +928,7 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
     if (type::is_unary_expression(rvalue)) {
         auto unary_inserter =
             Unary_Operator_Inserter{ accessor_, stack_frame_ };
-        return unary_inserter.from_temporary_unary_operator_expression(rvalue);
+        return unary_inserter.insert_from_unary_operator_rvalue(rvalue);
     }
 
     if (type::is_rvalue_data_type(rvalue))
@@ -1368,7 +1367,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                             lhs, instruction_accessor->size());
                 assembly::inserter(instructions, storage_inst);
                 auto unary_op = type::get_unary_operator(rhs);
-                unary_inserter.insert_from_unary_expression(
+                unary_inserter.insert_from_unary_operator_operands(
                     unary_op, lhs_storage);
             },
         // Translate from binary expressions in the IR
@@ -1382,7 +1381,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
  *
  * See ir/temporary.h for details
  */
-Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
+Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
     RValue const& expr)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
@@ -1407,7 +1406,7 @@ Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
         // This is the address-of operator, use a qword size register
         if (op == "&") {
             address_space.address_ir_assignment = true;
-            insert_from_unary_expression(op, stack->get(rvalue).first);
+            insert_from_unary_operator_operands(op, stack->get(rvalue).first);
             accessor_->set_signal_register(Register::rcx);
             return Register::rcx;
         }
@@ -1418,7 +1417,7 @@ Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
                       : accessor_->accumulator_accessor
                             .get_accumulator_register_from_size(size);
         x8664_add__asm(instructions, mov, storage, stack->get(rvalue).first);
-        insert_from_unary_expression(op, storage);
+        insert_from_unary_operator_operands(op, storage);
     } else if (is_vector(rvalue)) {
         auto [address, address_inst] =
             address_space.get_lvalue_address_and_insertion_instructions(
@@ -1432,7 +1431,7 @@ Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
                             .get_accumulator_register_from_size(size);
         address_space.address_ir_assignment = true;
         accessor_->set_signal_register(Register::rax);
-        insert_from_unary_expression(op, storage, address);
+        insert_from_unary_operator_operands(op, storage, address);
     } else {
         auto immediate = type::get_rvalue_datatype_from_string(rvalue);
         auto size = assembly::get_operand_size_from_rvalue_datatype(immediate);
@@ -1442,7 +1441,7 @@ Storage Unary_Operator_Inserter::from_temporary_unary_operator_expression(
                       : accessor_->accumulator_accessor
                             .get_accumulator_register_from_size(size);
         x8664_add__asm(instructions, mov, storage, immediate);
-        insert_from_unary_expression(op, storage);
+        insert_from_unary_operator_operands(op, storage);
     }
     return storage;
 }
@@ -1687,7 +1686,7 @@ void Operand_Inserter::insert_from_operands(assembly::Binary_Operands& operands,
             bitwise.from_bitwise_expression_operands(operands, op).second);
     } else if (type::is_unary_expression(op)) {
         auto unary = Unary_Operator_Inserter{ accessor_, stack_frame_ };
-        unary.insert_from_unary_expression(op, operands.first);
+        unary.insert_from_unary_operator_operands(op, operands.first);
     } else {
         credence_error(fmt::format("unreachable: operator '{}'", op));
     }
@@ -1708,7 +1707,7 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
 /**
  * @brief Inserter from ir unary expression types
  */
-void Unary_Operator_Inserter::insert_from_unary_expression(
+void Unary_Operator_Inserter::insert_from_unary_operator_operands(
     std::string const& op,
     Storage const& dest,
     Storage const& src)
@@ -1792,9 +1791,7 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
         m::pattern | m::app(type::is_binary_expression, true) =
             [&] { binary_inserter.from_binary_operator_expression(rvalue); },
         m::pattern | m::app(type::is_unary_expression, true) =
-            [&] {
-                unary_inserter.from_temporary_unary_operator_expression(rvalue);
-            },
+            [&] { unary_inserter.insert_from_unary_operator_rvalue(rvalue); },
         m::pattern | m::app(type::is_rvalue_data_type, true) =
             [&] {
                 Storage immediate =

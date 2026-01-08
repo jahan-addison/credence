@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <credence/ir/object.h>
 #include <credence/ir/table.h>
 #include <memory>
 #include <string>
@@ -21,28 +22,27 @@ namespace credence::target::common::memory {
 
 using Locals = ir::Stack;
 
-template<typename Memory_Accessor>
 struct Stack_Frame
 {
-    explicit Stack_Frame(std::shared_ptr<Memory_Accessor> accessor)
-        : accessor_(accessor)
+    explicit Stack_Frame(std::shared_ptr<ir::object::Object> objects)
+        : objects_(objects)
     {
     }
 
-    using IR_Function = ir::object::Function_PTR;
+    using Frame = ir::object::Function_PTR;
     using Label = std::string;
 
     inline void set_stack_frame(Label const& name)
     {
-        accessor_->table_accessor.table_->set_stack_frame(name);
+        objects_->set_stack_frame(name);
     }
-    inline IR_Function get_stack_frame(Label const& name) const
+    inline Frame get_stack_frame(Label const& name) const
     {
-        return accessor_->table_accessor.table_->functions.at(name);
+        return objects_->functions.at(name);
     }
-    inline IR_Function get_stack_frame() const
+    inline Frame get_stack_frame() const
     {
-        return accessor_->table_accessor.table_->functions.at(symbol);
+        return objects_->functions.at(symbol);
     }
 
     Locals argument_stack{};
@@ -52,10 +52,7 @@ struct Stack_Frame
     std::size_t size{};
 
   protected:
-    std::shared_ptr<Memory_Accessor> accessor_;
+    std::shared_ptr<ir::object::Object> objects_;
 };
-
-template<typename M>
-concept Stack_Frame_T = std::derived_from<Stack_Frame<M>, Stack_Frame<M>>;
 
 } // namespace target::common::memory

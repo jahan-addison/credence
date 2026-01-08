@@ -109,7 +109,7 @@ using Table_Pointer = std::shared_ptr<ir::object::Object>;
 /**
  * @brief Stack frame object that keeps a stack of function calls and arguments
  */
-using Stack_Frame = target::common::memory::Stack_Frame<Memory_Accessor>;
+using Stack_Frame = target::common::memory::Stack_Frame;
 
 /**
  * @brief Get the intel-format prefix for storage device sizes
@@ -131,8 +131,7 @@ namespace detail {
 using X8664_Address_Accessor =
     common::memory::Address_Accessor<assembly::Register,
         assembly::Stack,
-        assembly::Instruction_Pair,
-        memory::Stack_Frame>;
+        assembly::Instruction_Pair>;
 
 using X8664_Accumulator_Accessor =
     common::memory::Accumulator_Accessor<assembly::Operand_Size,
@@ -145,7 +144,7 @@ using X8664_Instruction_Accessor =
 using X8664_Vector_Accessor =
     common::memory::Vector_Accessor<assembly::Operand_Size>;
 
-using Buffer_Accessor = common::memory::Buffer_Accessor<memory::Stack_Frame>;
+using Buffer_Accessor = common::memory::Buffer_Accessor;
 
 using Table_Accessor = common::memory::Table_Accessor;
 
@@ -271,6 +270,7 @@ class Memory_Accessor
     explicit Memory_Accessor(Table_Pointer table, Stack_Pointer stack_pointer)
         : table_(std::move(table))
         , stack(std::move(stack_pointer))
+        , stack_frame{ table_ }
         , table_accessor(table_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
@@ -279,6 +279,7 @@ class Memory_Accessor
     {
         instruction_accessor = std::make_shared<detail::Instruction_Accessor>();
     }
+
     constexpr void set_signal_register(Register signal_)
     {
         signal_register = signal_;
@@ -292,6 +293,7 @@ class Memory_Accessor
 
   public:
     Stack_Pointer stack;
+    Stack_Frame stack_frame;
 
   public:
     detail::Flag_Accessor flag_accessor{};

@@ -15,7 +15,7 @@
 
 #include <credence/ir/object.h>              // for Size, Type, Label
 #include <credence/target/common/assembly.h> // for COMMON_REGISTER_OSTREAM
-#include <credence/target/common/types.h>    // for Label, Binary_Operands_T
+#include <credence/target/common/types.h>    // for Label, Assignment_Operands_T
 #include <credence/types.h>                  // for RValue, get_type_from_r...
 #include <credence/util.h>                   // for STRINGIFY, range_contains
 #include <cstddef>                           // for size_t
@@ -994,7 +994,8 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
  */
 
 using Storage = common::Storage_T<Register>;
-using Binary_Operands = common::Binary_Operands_T<Register>;
+using Assignment_Operands = common::Binary_Operands_T<Register>;
+using Ternary_Operands = common::Ternary_Operands_T<Register>;
 using Instruction = common::Mnemonic_4ARY<Mnemonic, Register>;
 using Literal_Type = std::variant<type::semantic::RValue, float, double>;
 using Data_Pair = std::pair<Directive, Literal_Type>;
@@ -1003,6 +1004,13 @@ using Instructions = std::deque<common::Instruction_4ARY<Mnemonic, Register>>;
 using Instruction_Pair = common::Instruction_Pair<Storage, Instructions>;
 using Immediate = common::Immediate;
 using Directive_Pair = std::pair<std::string, Directives>;
+
+constexpr auto arm64_bitwise_binary_operators = { "<<",
+    ">>",
+    "~",
+    "|",
+    "^",
+    "&" };
 
 using ARM64_ASSEMBLY_INSERTER =
     target::common::assembly::Assembly_Inserter<arm64::assembly::Mnemonic,
@@ -1206,12 +1214,20 @@ ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_ge);
 ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_or);
 ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(r_and);
 // b (bitwise)
+ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
+ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
+ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
+ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
+ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
+ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
+
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(rshift);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lshift);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_and);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_or);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
+
 // pointers
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lea);
 

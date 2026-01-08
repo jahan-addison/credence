@@ -42,12 +42,20 @@ namespace credence::target::arm64 {
 
 namespace flag = common::flag;
 
+namespace {
+using Instructions = assembly::Instructions;
+using Instruction = assembly::Instruction;
+using Operand_Size = assembly::Operand_Size;
 using Instruction_Pair = assembly::Instruction_Pair;
+using Mnemonic = assembly::Mnemonic;
+using Storage = assembly::Storage;
+using Immediate = assembly::Immediate;
+using Operand_Stack = std::deque<Storage>;
+}
 
 void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
 
-constexpr std::string emit_immediate_storage(
-    assembly::Immediate const& immediate);
+constexpr std::string emit_immediate_storage(Immediate const& immediate);
 
 constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
     common::flag::flags flags);
@@ -87,21 +95,21 @@ class Storage_Emitter
                mnemonic == arm_mn(ldr) or mnemonic == arm_mn(str);
     }
 
-    std::string get_storage_device_as_string(assembly::Storage const& storage);
+    std::string get_storage_device_as_string(Storage const& storage);
 
     void emit(std::ostream& os,
-        assembly::Storage const& storage,
-        assembly::Mnemonic mnemonic,
+        Storage const& storage,
+        Mnemonic mnemonic,
         Source source);
 
   private:
-    void apply_stack_alignment(assembly::Storage& operand,
-        assembly::Mnemonic mnemonic,
+    void apply_stack_alignment(Storage& operand,
+        Mnemonic mnemonic,
         Source source,
         common::flag::flags flags);
     void emit_mnemonic_operand(std::ostream& os,
-        assembly::Storage const& operand,
-        assembly::Mnemonic mnemonic,
+        Storage const& operand,
+        Mnemonic mnemonic,
         Source source,
         common::flag::flags flags);
 
@@ -134,12 +142,12 @@ class Text_Emitter
   private:
     void emit_assembly_instruction(std::ostream& os,
         std::size_t index,
-        assembly::Instruction const& s);
+        Instruction const& s);
     void emit_assembly_label(std::ostream& os,
         Label const& s,
         bool set_label = true);
     void emit_text_instruction(std::ostream& os,
-        std::variant<Label, assembly::Instruction> const& instruction,
+        std::variant<Label, Instruction> const& instruction,
         std::size_t index,
         bool set_label = true);
     void emit_function_epilogue(std::ostream& os);
@@ -155,7 +163,7 @@ class Text_Emitter
 
   private:
     memory::Instruction_Pointer instructions_;
-    assembly::Instructions return_instructions_;
+    Instructions return_instructions_;
     std::size_t label_size_{ 0 };
     Label frame_{};
     Label branch_{};
@@ -206,16 +214,15 @@ class Data_Emitter
 /**
  * @brief Instruction Inserter used to map IR instructions to arm64 assembly
  */
-class IR_Inserter
+class IR_Translator
 {
   public:
-    explicit IR_Inserter(memory::Memory_Access accessor)
+    explicit IR_Translator(memory::Memory_Access accessor)
         : accessor_(accessor)
     {
     }
     friend class Visitor;
-    void insert(ir::Instructions const& ir_instructions,
-        memory::Stack_Frame&& initial_frame);
+    void from_ir_instructions(ir::Instructions const& ir_instructions);
     void setup_stack_frame_in_function(ir::Instructions const& ir_instructions,
         Visitor& visitor,
         int index);
@@ -230,10 +237,9 @@ class IR_Inserter
 class Operand_Inserter
 {
   public:
-    explicit Operand_Inserter(memory::Memory_Access accessor,
-        memory::Stack_Frame& stack_frame)
+    explicit Operand_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
-        , stack_frame_(stack_frame)
+        , stack_frame_(accessor_->stack_frame)
     {
     }
 
@@ -244,7 +250,7 @@ class Operand_Inserter
     void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs);
-    void insert_from_operands(assembly::Binary_Operands& operands,
+    void insert_from_operands(assembly::Assignment_Operands& operands,
         std::string const& op);
     void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
 
@@ -275,10 +281,9 @@ class Operand_Inserter
  */
 struct Expression_Inserter
 {
-    explicit Expression_Inserter(memory::Memory_Access accessor,
-        memory::Stack_Frame& stack_frame)
+    explicit Expression_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
-        , stack_frame_(stack_frame)
+        , stack_frame_(accessor->stack_frame)
     {
     }
     void insert_from_string(RValue const& str);
@@ -288,7 +293,7 @@ struct Expression_Inserter
     void insert_from_global_vector_assignment(LValue const& lhs,
         LValue const& rhs);
     void insert_lvalue_at_temporary_object_address(LValue const& lvalue);
-    void insert_from_rvalue(RValue const& rvalue);
+    void insert_from_temporary_rvalue(RValue const& rvalue);
     void insert_from_return_rvalue(
         ir::object::Function::Return_RValue const& ret);
     void insert_from_mnemonic_operand(const Mnemonic& mnemonic,
@@ -306,17 +311,11 @@ struct Expression_Inserter
  */
 struct Binary_Operator_Inserter
 {
-    explicit Binary_Operator_Inserter(memory::Memory_Access accessor,
-        memory::Stack_Frame& stack_frame)
+    explicit Binary_Operator_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
-        , stack_frame_(stack_frame)
+        , stack_frame_(accessor_->stack_frame)
     {
     }
-
-    using Operand_Stack = std::deque<Storage>;
-
-    void get_operand_stack_from_temporary_lvalue(LValue const& lvalue,
-        Operand_Stack& stack);
     void from_binary_operator_expression(RValue const& rvalue);
 
   private:
@@ -329,20 +328,19 @@ struct Binary_Operator_Inserter
  */
 struct Unary_Operator_Inserter
 {
-    explicit Unary_Operator_Inserter(memory::Memory_Access accessor,
-        memory::Stack_Frame& stack_frame)
+    explicit Unary_Operator_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
-        , stack_frame_(stack_frame)
+        , stack_frame_(accessor_->stack_frame)
     {
     }
     using Size = assembly::Operand_Size;
 
     Size get_operand_size_from_lvalue_reference(LValue const& lvalue);
-    void insert_from_unary_expression(std::string const& op,
+    void insert_from_unary_operator_operands(std::string const& op,
         Storage const& dest,
         Storage const& src = assembly::O_NUL);
 
-    Storage from_temporary_unary_operator_expression(RValue const& expr);
+    Storage insert_from_unary_operator_rvalue(RValue const& expr);
 
   private:
     Storage get_temporary_storage_from_temporary_expansion(
@@ -359,20 +357,17 @@ struct Unary_Operator_Inserter
  */
 struct Relational_Operator_Inserter
 {
-    explicit Relational_Operator_Inserter(memory::Memory_Access accessor,
-        memory::Stack_Frame& stack_frame)
+    explicit Relational_Operator_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
-        , stack_frame_(stack_frame)
     {
     }
-    assembly::Instructions from_relational_expression_operands(
-        assembly::Binary_Operands const& operands,
+    Instructions from_relational_expression_operands(
+        assembly::Assignment_Operands const& operands,
         std::string const& binary_op,
         Label const& jump_label);
 
   private:
     memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
 };
 
 /**
@@ -385,7 +380,7 @@ struct Arithemtic_Operator_Inserter
     {
     }
     Instruction_Pair from_arithmetic_expression_operands(
-        assembly::Binary_Operands const& operands,
+        assembly::Assignment_Operands const& operands,
         std::string const& binary_op);
 
   private:
@@ -402,9 +397,13 @@ struct Bitwise_Operator_Inserter
     {
     }
     Instruction_Pair from_bitwise_expression_operands(
-        assembly::Binary_Operands const& operands,
+        assembly::Ternary_Operands const& operands,
         std::string const& binary_op);
-    void from_bitwise_operator_expression(RValue const& expr);
+    void from_bitwise_temporary_expression(RValue const& expr);
+
+  private:
+    void get_operand_stack_from_temporary_lvalue(LValue const& lvalue,
+        Operand_Stack& stack);
 
   private:
     memory::Memory_Access accessor_;
@@ -415,19 +414,18 @@ struct Bitwise_Operator_Inserter
  */
 struct Invocation_Inserter
 {
-    explicit Invocation_Inserter(memory::Memory_Access accessor,
-        memory::Stack_Frame& stack_frame)
+    explicit Invocation_Inserter(memory::Memory_Access accessor)
         : accessor_(accessor)
-        , stack_frame_(stack_frame)
+        , stack_frame_(accessor_->stack_frame)
     {
     }
     syscall_ns::syscall_arguments_t get_operands_storage_from_argument_stack();
     void insert_from_standard_library_function(std::string_view routine,
-        assembly::Instructions& instructions);
+        Instructions& instructions);
     void insert_from_user_defined_function(std::string_view routine,
-        assembly::Instructions& instructions);
+        Instructions& instructions);
     void insert_from_syscall_function(std::string_view routine,
-        assembly::Instructions& instructions);
+        Instructions& instructions);
     void insert_type_check_stdlib_print_arguments(
         common::memory::Locals const& argument_stack,
         syscall_ns::syscall_arguments_t& operands);
@@ -480,18 +478,16 @@ class Assembly_Emitter
  *
  */
 class Visitor final
-    : public target::common::IR_Visitor<ir::Quadruple,
-          arm64::assembly::Instructions>
+    : public target::common::IR_Visitor<ir::Quadruple, arm64::Instructions>
 {
   public:
-    explicit Visitor(memory::Memory_Access& accessor,
-        memory::Stack_Frame stack_frame)
+    explicit Visitor(memory::Memory_Access& accessor)
         : accessor_(accessor)
-        , stack_frame_(std::move(stack_frame))
+        , stack_frame_(accessor_->stack_frame)
     {
     }
 
-    using Instructions = arm64::assembly::Instructions;
+    using Instructions = arm64::Instructions;
     void set_stack_frame_from_table(Label const& function_name);
 
   public:
@@ -521,7 +517,7 @@ class Visitor final
 
   private:
     memory::Memory_Access accessor_;
-    memory::Stack_Frame stack_frame_;
+    memory::Stack_Frame& stack_frame_;
 };
 
 #ifdef CREDENCE_TEST

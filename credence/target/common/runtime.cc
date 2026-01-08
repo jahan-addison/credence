@@ -12,6 +12,7 @@
  ****************************************************************************/
 
 #include "runtime.h"
+#include "stack_frame.h"    // for Locals, Stack_Frame_T
 #include "syscall.h"        // for get_platform_syscall_symbols
 #include "types.h"          // for Label
 #include <algorithm>        // for __find, find
@@ -45,6 +46,24 @@ bool is_library_function(Label const& label)
 {
     auto lib = get_library_symbols();
     return std::ranges::find(lib, label) != lib.end();
+}
+
+std::pair<bool, bool> argc_argv_kernel_runtime_access(
+    memory::Stack_Frame& stack_frame)
+{
+    credence_assert_equal(stack_frame.symbol, "main");
+    auto entry_point = stack_frame.get_stack_frame("main");
+    if (entry_point->parameters.size() > 2)
+        throw_runtime_error("invalid argument count, expected at most two for "
+                            "'argc' and 'argv'",
+            "main",
+            __source__,
+            "program invocation");
+
+    auto main_argc = entry_point->parameters.size() >= 1;
+    auto main_argv = entry_point->parameters.size() == 2;
+
+    return { main_argc, main_argv };
 }
 
 /**

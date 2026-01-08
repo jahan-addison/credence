@@ -37,29 +37,24 @@ void exit_syscall(assembly::Instructions& instructions, int exit_status = 0);
 void make_syscall(assembly::Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    memory::Stack_Frame* stack_frame = nullptr,
     memory::Memory_Access* accessor = nullptr);
 
 void syscall_operands_to_instructions(assembly::Instructions& instructions,
     syscall_arguments_t const& arguments,
     memory::registers::general_purpose& w_registers,
     memory::registers::general_purpose& d_registers,
-    memory::Stack_Frame* stack_frame = nullptr,
     memory::Memory_Access* accessor = nullptr);
 
 inline Register get_storage_register_from_safe_address(
     assembly::Storage& argument,
     memory::registers::general_purpose const& w_registers,
     memory::registers::general_purpose const& d_registers,
-    memory::Stack_Frame const* stack_frame = nullptr,
     memory::Memory_Access const* accessor = nullptr)
 {
     Register storage = common::get_first_of_enum_t<Register>();
-    if (accessor != nullptr and stack_frame != nullptr) {
+    if (accessor != nullptr) {
         auto accessor_ = *accessor;
-        auto stack_frame_ = *stack_frame;
-        if (accessor_->address_accessor.is_doubleword_storage_size(
-                argument, stack_frame_)) {
+        if (accessor_->device_accessor.is_doubleword_storage_size(argument)) {
             storage = w_registers.back();
         } else {
             storage = d_registers.back();

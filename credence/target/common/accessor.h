@@ -28,13 +28,9 @@
 
 namespace credence::target::common::memory {
 
-template<Enum_T Registers,
-    Stack_T Stack,
-    Pair_T Address_Result,
-    Stack_Frame_T Frame>
+template<Enum_T Registers, Stack_T Stack, Pair_T Address_Result>
 class Address_Accessor;
 
-template<Stack_Frame_T T>
 class Buffer_Accessor
 {
   public:
@@ -43,7 +39,7 @@ class Buffer_Accessor
     {
     }
 
-    using Stack_Frame_Type = T;
+    using Stack_Frame_Type = Stack_Frame;
 
     std::size_t get_lvalue_string_size(LValue const& lvalue,
         Stack_Frame_Type const& stack_frame)
@@ -56,7 +52,6 @@ class Buffer_Accessor
         auto offset = type::from_decay_offset(lvalue);
         auto frame = stack_frame.get_stack_frame();
         auto return_frame = stack_frame.tail;
-        // A stack of return calls, i.e. return_value = func(func(func(x)));
         if (lvalue == "RET") {
             credence_assert(table_->functions.contains(return_frame));
             auto tail_frame = table_->functions.at(return_frame);
@@ -414,10 +409,7 @@ struct Accumulator_Accessor
 /**
  * @brief Address accessor base class with common address resolution logic.
  */
-template<Enum_T Registers,
-    Stack_T Stack,
-    Pair_T Address_Result,
-    Stack_Frame_T Frame>
+template<Enum_T Registers, Stack_T Stack, Pair_T Address_Result>
 class Address_Accessor
 {
   public:
@@ -476,7 +468,7 @@ class Address_Accessor
     Flag_Accessor& flag_accessor_;
 
   public:
-    Buffer_Accessor<Frame> buffer_accessor;
+    Buffer_Accessor buffer_accessor;
 };
 template<Enum_T Register>
 struct Register_Accessor

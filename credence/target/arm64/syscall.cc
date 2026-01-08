@@ -30,14 +30,12 @@ namespace credence::target::arm64::syscall_ns {
 void exit_syscall(assembly::Instructions& instructions, int exit_status)
 {
     auto immediate = common::assembly::make_numeric_immediate(exit_status);
-    syscall_ns::make_syscall(
-        instructions, "exit", { immediate }, nullptr, nullptr);
+    syscall_ns::make_syscall(instructions, "exit", { immediate }, nullptr);
 }
 
 void make_syscall(assembly::Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    memory::Stack_Frame* stack_frame,
     memory::Memory_Access* accessor)
 {
 #if defined(__linux__)
@@ -64,12 +62,8 @@ void make_syscall(assembly::Instructions& instructions,
     auto [doubleword_storage, word_storage] =
         target::arm64::runtime::get_argument_general_purpose_registers();
 
-    target::arm64::syscall_ns::syscall_operands_to_instructions(instructions,
-        arguments,
-        doubleword_storage,
-        word_storage,
-        stack_frame,
-        accessor);
+    target::arm64::syscall_ns::syscall_operands_to_instructions(
+        instructions, arguments, doubleword_storage, word_storage, accessor);
 
 #if defined(__linux__)
     assembly::Storage syscall_number =
@@ -119,13 +113,12 @@ void syscall_operands_to_instructions(assembly::Instructions& instructions,
     syscall_arguments_t const& arguments,
     memory::registers::general_purpose& w_registers,
     memory::registers::general_purpose& d_registers,
-    memory::Stack_Frame* stack_frame,
     memory::Memory_Access* accessor)
 {
     for (std::size_t i = 0; i < arguments.size(); i++) {
         Storage arg = arguments[i];
         auto storage = get_storage_register_from_safe_address(
-            arg, w_registers, d_registers, stack_frame, accessor);
+            arg, w_registers, d_registers, accessor);
 
         w_registers.pop_back();
         d_registers.pop_back();

@@ -188,22 +188,7 @@ struct Library_Call_Inserter
     }
 };
 
-template<memory::Stack_Frame_T Stack_Frame>
-std::pair<bool, bool> argc_argv_kernel_runtime_access(Stack_Frame& stack_frame)
-{
-    credence_assert_equal(stack_frame.symbol, "main");
-    auto entry_point = stack_frame.get_stack_frame("main");
-    if (entry_point->parameters.size() > 2)
-        throw_runtime_error("invalid argument count, expected at most two for "
-                            "'argc' and 'argv'",
-            "main",
-            __source__,
-            "program invocation");
-
-    auto main_argc = entry_point->parameters.size() >= 1;
-    auto main_argv = entry_point->parameters.size() == 2;
-
-    return { main_argc, main_argv };
-}
+std::pair<bool, bool> argc_argv_kernel_runtime_access(
+    memory::Stack_Frame& stack_frame);
 
 } // namespace target::common::runtime

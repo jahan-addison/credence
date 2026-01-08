@@ -378,6 +378,16 @@ constexpr bool is_dword_register(Register r)
     return util::range_contains(r, DWORD_REGISTER);
 }
 
+constexpr bool x8664_is_bitwise_binary_expression(RValue const& rvalue)
+{
+    return type::is_bitwise_binary_expression(rvalue);
+}
+
+constexpr bool x8664_is_bitwise_binary_operator(type::RValue_Reference rvalue)
+{
+    return type::is_bitwise_binary_operator(rvalue);
+}
+
 constexpr Operand_Size get_operand_size_from_register(Register acc)
 {
     if (acc == Register::al) {

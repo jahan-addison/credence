@@ -181,8 +181,6 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
     credence_assert(common::runtime::library_list.contains(syscall_function));
     auto [arg_size] = common::runtime::library_list.at(syscall_function);
 
-    auto address_space = accessor_->address_accessor;
-
     library_call_argument_check(syscall_function, arguments, arg_size);
 
     auto [doubleword_storage, word_storage] =
@@ -198,7 +196,7 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
 
         auto float_size = float_registers_.size();
 
-        if (address_space.is_doubleword_storage_size(arg, stack_frame_))
+        if (accessor_->device_accessor.is_doubleword_storage_size(arg))
             storage = get_available_standard_library_register(
                 doubleword_storage, locals, i);
         else

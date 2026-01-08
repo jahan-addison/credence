@@ -304,12 +304,12 @@ struct Unary_Operator_Inserter
         , stack_frame_(stack_frame)
     {
     }
-    void insert_from_unary_expression(std::string const& op,
+    void insert_from_unary_operator_operands(std::string const& op,
         Storage const& dest,
         Storage const& src = assembly::O_NUL);
     void insert_from_unary_to_unary_assignment(LValue const& lhs,
         LValue const& rhs);
-    Storage from_temporary_unary_operator_expression(RValue const& expr);
+    Storage insert_from_unary_operator_rvalue(RValue const& expr);
 
   private:
     memory::Memory_Access accessor_;

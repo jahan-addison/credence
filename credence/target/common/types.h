@@ -101,6 +101,10 @@ concept Operands_T = (std::same_as<T2, Rest> && ...);
 template<Enum_T Registers>
 using Binary_Operands_T = std::pair<Storage_T<Registers>, Storage_T<Registers>>;
 
+template<Enum_T Registers>
+using Ternary_Operands_T = std::
+    tuple<Storage_T<Registers>, Storage_T<Registers>, Storage_T<Registers>>;
+
 template<Enum_T Directives>
 using Directive_Pair = std::pair<std::string, Directives>;
 

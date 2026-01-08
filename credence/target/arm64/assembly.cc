@@ -242,29 +242,37 @@ Instructions r_ge(Storage const& s0,
     return inst;
 }
 
-Instruction_Pair rshift(Storage const& s0, Storage const& s1)
+Instruction_Pair rshift(Storage const& s0, Storage const& s1, Storage const& s2)
 {
-    arm64__make_and_ret(lsr, s0, s1);
+    arm64__make_and_ret(lsr, s0, s1, s2);
 }
 
-Instruction_Pair lshift(Storage const& s0, Storage const& s1)
+Instruction_Pair lshift(Storage const& s0, Storage const& s1, Storage const& s2)
 {
-    arm64__make_and_ret(lsl, s0, s1);
+    arm64__make_and_ret(lsl, s0, s1, s2);
 }
 
-Instruction_Pair b_xor(Storage const& s0, Storage const& s1)
+Instruction_Pair b_xor(Storage const& s0, Storage const& s1, Storage const& s2)
 {
-    arm64__bitwise_and_ret_with_register_3ary(eor);
+    arm64__make_and_ret(eor, s0, s1, s2);
 }
 
-Instruction_Pair b_and(Storage const& s0, Storage const& s1)
+Instruction_Pair b_and(Storage const& s0, Storage const& s1, Storage const& s2)
 {
-    arm64__bitwise_and_ret_with_register_3ary(and_);
+    arm64__make_and_ret(and_, s0, s1, s2);
 }
 
-Instruction_Pair b_or(Storage const& s0, Storage const& s1)
+Instruction_Pair b_or(Storage const& s0, Storage const& s1, Storage const& s2)
 {
-    arm64__make_and_ret(orr, s0, s0, s1);
+    arm64__make_and_ret(orr, s0, s1, s2);
+}
+
+Instruction_Pair b_not(Storage const& s0, Storage const& s1, Storage const& s2)
+{
+    if (is_variant(Immediate, s2))
+        arm64__make_and_ret(movn, s0, s1, s2);
+    else
+        arm64__make_and_ret(mvn, s0, s1, s2);
 }
 
 Instruction_Pair b_not(Storage const& s0, Storage const& s1)
