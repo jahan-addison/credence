@@ -13,8 +13,7 @@
 
 #pragma once
 
-#include "assembly.h"           // for Arch_Type
-#include "stack_frame.h"        // for Locals, Stack_Frame_T
+#include "stack_frame.h"        // for Locals
 #include "types.h"              // for Enum_T, Label, Stack_Pointer, Storage_T
 #include <array>                // for array
 #include <credence/error.h>     // for compile_error_impl, throw_compiletim...
@@ -31,6 +30,24 @@
 #include <string_view>          // for basic_string_view, string_view
 #include <utility>              // for pair
 #include <vector>               // for vector
+namespace credence {
+namespace target {
+namespace common {
+namespace assembly {
+enum class Arch_Type;
+}
+}
+}
+}
+namespace credence {
+namespace target {
+namespace common {
+namespace assembly {
+enum class OS_Type;
+}
+}
+}
+}
 
 namespace credence::target::common::runtime {
 

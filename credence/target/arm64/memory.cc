@@ -13,21 +13,25 @@
 
 #include "memory.h"
 
-#include "assembly.h"                        // for Register, is_doubleword...
-#include "flags.h"                           // for flags
+#include "assembly.h"                        // for Register, Operand_Size
+#include "credence/target/common/flags.h"    // for Flag_Accessor, Instruct...
+#include "credence/target/common/memory.h"   // for align_up_to, is_vector_...
+#include "credence/target/common/types.h"    // for Stack_Offset, Table_Poi...
 #include "stack.h"                           // for Stack
-#include <credence/error.h>                  // for credence_assert
-#include <credence/ir/object.h>              // for Object, LValue, RValue
+#include <credence/error.h>                  // for credence_assert, creden...
+#include <credence/ir/object.h>              // for LValue, Object, get_rva...
 #include <credence/symbol.h>                 // for Symbol_Table
-#include <credence/target/common/assembly.h> // for make_array_immediate
-#include <credence/types.h>                  // for is_rvalue_data_type_string
-#include <credence/util.h>                   // for overload
+#include <credence/target/common/assembly.h> // for direct_immediate, make_...
+#include <credence/types.h>                  // for get_size_from_rvalue_da...
+#include <credence/util.h>                   // for INLINE_DEBUG, is_variant
 #include <deque>                             // for deque
 #include <fmt/format.h>                      // for format
-#include <matchit.h>                         // for matchit
+#include <matchit.h>                         // for App, pattern, app, Patt...
 #include <string>                            // for basic_string, char_traits
+#include <string_view>                       // for basic_string_view
+#include <tuple>                             // for get
 #include <utility>                           // for pair
-#include <variant>                           // for variant, monostate, visit
+#include <variant>                           // for get, variant, monostate
 
 namespace credence::target::arm64::memory::detail {
 

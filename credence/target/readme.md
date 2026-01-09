@@ -2,8 +2,10 @@
 
 Each platform roughly inherits the same set of pure virtual classes, macros, and templates below to `visit` each IR instruction and construct machine code for X8664, ARM64, on Linux and BSD (Darwin).
 
-## Accessors
+## Accessor
 #### A set of pure virtual and template classes that enable platform-dependent memory access
+## Inserter
+#### Deconstruction of algebraic types like unary, relational, bitwise operands to compose machine code of expressions
 # Visitor
 #### Pure virtual [IR instruction](/credence/ir/README.md) visitor base for each platform
 ## Assembly

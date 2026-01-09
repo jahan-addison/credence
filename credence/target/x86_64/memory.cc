@@ -12,7 +12,11 @@
  ****************************************************************************/
 
 #include "memory.h"
+
 #include "assembly.h"                        // for Register, is_immediate_...
+#include "credence/target/common/flags.h"    // for Flag_Accessor, Instruct...
+#include "credence/target/common/memory.h"   // for is_vector_offset
+#include "credence/target/common/types.h"    // for Stack_Offset
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for throw_compiletime_error
 #include <credence/ir/object.h>              // for Object, LValue, RValue
@@ -27,8 +31,6 @@
 #include <string_view>                       // for basic_string_view
 #include <utility>                           // for pair
 #include <variant>                           // for variant, monostate, visit
-
-#include <credence/ir/object.h>
 
 #define credence_current_location std::source_location::current()
 

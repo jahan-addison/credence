@@ -21,7 +21,6 @@
 #include <credence/target/common/memory.h>      // for Operand_Type, is_imm...
 #include <credence/target/common/stack_frame.h> // for Stack_Frame
 #include <credence/target/common/types.h>       // for Storage_T
-#include <credence/util.h>                      // for overload
 #include <cstddef>                              // for size_t
 #include <deque>                                // for deque
 #include <functional>                           // for function
@@ -29,7 +28,6 @@
 #include <memory>                               // for shared_ptr, make_shared
 #include <string>                               // for basic_string, string
 #include <utility>                              // for move
-#include <variant>                              // for monostate, visit
 namespace credence {
 namespace target {
 namespace x86_64 {
@@ -38,7 +36,7 @@ class Memory_Accessor;
 }
 }
 }
-} // lines 38-38
+} // lines 37-37
 namespace credence {
 namespace target {
 namespace x86_64 {
@@ -49,7 +47,7 @@ struct Instruction_Accessor;
 }
 }
 }
-} // lines 41-41
+} // lines 47-47
 
 namespace credence::target::x86_64::memory {
 class Memory_Accessor;
@@ -105,6 +103,9 @@ using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
 using Table_Pointer = std::shared_ptr<ir::object::Object>;
+using Stack_Frame = target::common::memory::Stack_Frame;
+
+using X8664_Memory_Accessor = common::memory::Memory_Accessor;
 
 /**
  * @brief Stack frame object that keeps a stack of function calls and arguments
@@ -262,15 +263,15 @@ struct Register_Accessor
 /**
  * @brief The Memory registry and mediator that orchestrates access to memory
  */
-class Memory_Accessor
+class Memory_Accessor final : public X8664_Memory_Accessor
 {
   public:
     Memory_Accessor() = delete;
 
     explicit Memory_Accessor(Table_Pointer table, Stack_Pointer stack_pointer)
-        : table_(std::move(table))
+        : X8664_Memory_Accessor(table)
+        , table_(std::move(table))
         , stack(std::move(stack_pointer))
-        , stack_frame{ table_ }
         , table_accessor(table_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
@@ -293,7 +294,6 @@ class Memory_Accessor
 
   public:
     Stack_Pointer stack;
-    Stack_Frame stack_frame;
 
   public:
     detail::Flag_Accessor flag_accessor{};

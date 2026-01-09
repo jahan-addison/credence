@@ -13,30 +13,19 @@
 
 #pragma once
 
-#include "assembly.h"                           // for Instructions, Binary...
-#include "memory.h"                             // for Memory_Access, Stack...
-#include "stack.h"                              // for Stack
-#include "syscall.h"                            // for syscall_arguments_t
-#include <credence/ir/ita.h>                    // for Quadruple, Instructions
-#include <credence/ir/object.h>                 // for RValue, LValue, Label
-#include <credence/target/common/flags.h>       // for flags
-#include <credence/target/common/stack_frame.h> // for Locals
-#include <credence/target/common/visitor.h>     // for IR_Visitor
-#include <credence/types.h>                     // for Size
-#include <credence/util.h>                      // for AST_Node, CREDENCE_P...
-#include <cstddef>                              // for size_t
-#include <ostream>                              // for ostream
-#include <string>                               // for basic_string, string
-#include <string_view>                          // for string_view
-#include <utility>                              // for move
-#include <variant>                              // for variant
-namespace credence {
-namespace target {
-namespace arm64 {
-class Visitor;
-}
-}
-} // lines 51-51
+#include "assembly.h"                     // for Mnemonic, arm_mn, Directives
+#include "memory.h"                       // for Memory_Access, Mnemonic
+#include "stack.h"                        // for Stack
+#include <credence/ir/ita.h>              // for Instructions
+#include <credence/ir/object.h>           // for Label, Object, RValue
+#include <credence/target/common/flags.h> // for flags
+#include <credence/util.h>                // for AST_Node, CREDENCE_PRIVATE...
+#include <cstddef>                        // for size_t
+#include <deque>                          // for deque
+#include <ostream>                        // for ostream
+#include <string>                         // for basic_string, string
+#include <utility>                        // for move
+#include <variant>                        // for variant
 
 namespace credence::target::arm64 {
 
@@ -66,7 +55,6 @@ constexpr std::string emit_register_storage(assembly::Register device,
 void emit_arm64_assembly_prologue(std::ostream& os);
 
 class Assembly_Emitter;
-class Visitor;
 
 /**
  * @brief Storage Emitter for destination and source storage devices
@@ -212,233 +200,6 @@ class Data_Emitter
 };
 
 /**
- * @brief Instruction Inserter used to map IR instructions to arm64 assembly
- */
-class IR_Translator
-{
-  public:
-    explicit IR_Translator(memory::Memory_Access accessor)
-        : accessor_(accessor)
-    {
-    }
-    friend class Visitor;
-    void from_ir_instructions(ir::Instructions const& ir_instructions);
-    void setup_stack_frame_in_function(ir::Instructions const& ir_instructions,
-        Visitor& visitor,
-        int index);
-
-  private:
-    memory::Memory_Access accessor_;
-};
-
-/**
- * @brief Operand Inserter to translate operand types into arm64 instructions
- */
-class Operand_Inserter
-{
-  public:
-    explicit Operand_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
-    {
-    }
-
-  public:
-    Storage get_operand_storage_from_rvalue(RValue const& rvalue);
-
-  public:
-    void insert_from_immediate_rvalues(Immediate const& lhs,
-        std::string const& op,
-        Immediate const& rhs);
-    void insert_from_operands(assembly::Assignment_Operands& operands,
-        std::string const& op);
-    void insert_from_mnemonic_operand(LValue const& lhs, RValue const& rhs);
-
-  private:
-    Storage get_operand_storage_from_parameter(RValue const& rvalue);
-    Storage get_operand_storage_from_stack(RValue const& rvalue);
-    Storage get_operand_storage_from_return();
-    Storage get_operand_storage_from_immediate(RValue const& rvalue);
-
-  private:
-    void insert_from_string_address_operand(LValue const& lhs,
-        Storage const& storage,
-        RValue const& rhs);
-    void insert_from_float_address_operand(LValue const& lhs,
-        Storage const& storage,
-        RValue const& rhs);
-    void insert_from_double_address_operand(LValue const& lhs,
-        Storage const& storage,
-        RValue const& rhs);
-
-  private:
-    memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
-};
-
-/**
- * @brief Expression Inserter to translate rvalue types into arm64 instructions
- */
-struct Expression_Inserter
-{
-    explicit Expression_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-        , stack_frame_(accessor->stack_frame)
-    {
-    }
-    void insert_from_string(RValue const& str);
-    void insert_from_float(RValue const& str);
-    void insert_from_double(RValue const& str);
-    Instruction_Pair insert_from_expression(RValue const& expr);
-    void insert_from_global_vector_assignment(LValue const& lhs,
-        LValue const& rhs);
-    void insert_lvalue_at_temporary_object_address(LValue const& lvalue);
-    void insert_from_temporary_rvalue(RValue const& rvalue);
-    void insert_from_return_rvalue(
-        ir::object::Function::Return_RValue const& ret);
-    void insert_from_mnemonic_operand(const Mnemonic& mnemonic,
-        const Storage& dest,
-        const Storage& source,
-        type::semantic::Size size);
-
-  private:
-    memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
-};
-
-/**
- * @brief Binary Operator Inserter to translate binary expressions
- */
-struct Binary_Operator_Inserter
-{
-    explicit Binary_Operator_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
-    {
-    }
-    void from_binary_operator_expression(RValue const& rvalue);
-
-  private:
-    memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
-};
-
-/**
- * @brief Unary Operator to translate unary operator expressions
- */
-struct Unary_Operator_Inserter
-{
-    explicit Unary_Operator_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
-    {
-    }
-    using Size = assembly::Operand_Size;
-
-    Size get_operand_size_from_lvalue_reference(LValue const& lvalue);
-    void insert_from_unary_operator_operands(std::string const& op,
-        Storage const& dest,
-        Storage const& src = assembly::O_NUL);
-
-    Storage insert_from_unary_operator_rvalue(RValue const& expr);
-
-  private:
-    Storage get_temporary_storage_from_temporary_expansion(
-        RValue const& rvalue);
-    void from_lvalue_address_of_expression(RValue const& expr);
-
-  private:
-    memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
-};
-
-/**
- * @brief Relational Operator Inserter to translate relational operands
- */
-struct Relational_Operator_Inserter
-{
-    explicit Relational_Operator_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-    {
-    }
-    Instructions from_relational_expression_operands(
-        assembly::Assignment_Operands const& operands,
-        std::string const& binary_op,
-        Label const& jump_label);
-
-  private:
-    memory::Memory_Access accessor_;
-};
-
-/**
- * @brief Arithemtic Operator Inserter to translate arithemtic expressions
- */
-struct Arithemtic_Operator_Inserter
-{
-    explicit Arithemtic_Operator_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-    {
-    }
-    Instruction_Pair from_arithmetic_expression_operands(
-        assembly::Assignment_Operands const& operands,
-        std::string const& binary_op);
-
-  private:
-    memory::Memory_Access accessor_;
-};
-
-/**
- * @brief Bitwise Operator Inserter to translate bitwise expressions
- */
-struct Bitwise_Operator_Inserter
-{
-    explicit Bitwise_Operator_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-    {
-    }
-    Instruction_Pair from_bitwise_expression_operands(
-        assembly::Ternary_Operands const& operands,
-        std::string const& binary_op);
-    void from_bitwise_temporary_expression(RValue const& expr);
-
-  private:
-    void get_operand_stack_from_temporary_lvalue(LValue const& lvalue,
-        Operand_Stack& stack);
-
-  private:
-    memory::Memory_Access accessor_;
-};
-
-/**
- * @brief Invocation Inserter to translate function invocation and arguments
- */
-struct Invocation_Inserter
-{
-    explicit Invocation_Inserter(memory::Memory_Access accessor)
-        : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
-    {
-    }
-    syscall_ns::syscall_arguments_t get_operands_storage_from_argument_stack();
-    void insert_from_standard_library_function(std::string_view routine,
-        Instructions& instructions);
-    void insert_from_user_defined_function(std::string_view routine,
-        Instructions& instructions);
-    void insert_from_syscall_function(std::string_view routine,
-        Instructions& instructions);
-    void insert_type_check_stdlib_print_arguments(
-        common::memory::Locals const& argument_stack,
-        syscall_ns::syscall_arguments_t& operands);
-    void insert_type_check_stdlib_printf_arguments(
-        common::memory::Locals const& argument_stack,
-        syscall_ns::syscall_arguments_t& operands);
-
-  private:
-    memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
-};
-
-/**
  * @brief Assembly Emitter that emits the data and text section of an arm64
  * application
  */
@@ -465,59 +226,6 @@ class Assembly_Emitter
     Data_Emitter data_{ accessor_ };
     Text_Emitter text_{ accessor_ };
     // clang-format on
-};
-
-/**
- * @brief IR Visitor for the arm64 architecture and ISA
- *
- * The Storage_Container is defined in assembly.h, and
- * each intermediate instruction is a quadruple defined in ita.h.
- *
- * Macros and helpers to compose mnemonics, registers, and immediate
- * values instructions are defined in assembly.h.
- *
- */
-class Visitor final
-    : public target::common::IR_Visitor<ir::Quadruple, arm64::Instructions>
-{
-  public:
-    explicit Visitor(memory::Memory_Access& accessor)
-        : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
-    {
-    }
-
-    using Instructions = arm64::Instructions;
-    void set_stack_frame_from_table(Label const& function_name);
-
-  public:
-    constexpr void set_iterator_index(std::size_t index)
-    {
-        iterator_index_ = index;
-    }
-
-  public:
-    void from_locl_ita(ir::Quadruple const& inst) override;
-    void from_pop_ita() override;
-    void from_push_ita(ir::Quadruple const& inst) override;
-    void from_func_start_ita(Label const& name) override;
-    void from_func_end_ita() override;
-    void from_cmp_ita(ir::Quadruple const& inst) override;
-    void from_mov_ita(ir::Quadruple const& inst) override;
-    void from_return_ita() override;
-    void from_leave_ita() override;
-    void from_label_ita(ir::Quadruple const& inst) override;
-    void from_call_ita(ir::Quadruple const& inst) override;
-    void from_if_ita(ir::Quadruple const& inst) override;
-    void from_jmp_e_ita(ir::Quadruple const& inst) override;
-    void from_goto_ita(ir::Quadruple const& inst) override;
-
-  private:
-    std::size_t iterator_index_{ 0 };
-
-  private:
-    memory::Memory_Access accessor_;
-    memory::Stack_Frame& stack_frame_;
 };
 
 #ifdef CREDENCE_TEST

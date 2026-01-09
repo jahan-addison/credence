@@ -13,6 +13,9 @@
 
 #pragma once
 
+#include "stack_frame.h"
+#include "types.h"
+
 #include <credence/types.h>
 #include <credence/util.h>
 #include <memory>
@@ -23,8 +26,7 @@ namespace credence::target::common::memory {
 /**
  * @brief Align a value up to the nearest multiple of another value.
  */
-inline constexpr std::size_t align_up_to(std::size_t value,
-    std::size_t alignment)
+constexpr std::size_t align_up_to(std::size_t value, std::size_t alignment)
 {
     if (alignment == 0) {
         return value;

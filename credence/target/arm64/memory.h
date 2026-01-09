@@ -13,9 +13,10 @@
 
 #pragma once
 
-#include <credence/ir/checker.h>                // for Type_Checker
-#include <credence/ir/object.h>                 // for RValue, Size, LValue
-#include <credence/target/arm64/assembly.h>     // for Register, Directive
+#include "credence/map.h"                       // for Ordered_Map
+#include "credence/util.h"                      // for SET_INLINE_DEBUG
+#include <credence/ir/object.h>                 // for LValue, Size, RValue
+#include <credence/target/arm64/assembly.h>     // for Register, Operand_Size
 #include <credence/target/arm64/stack.h>        // for Stack
 #include <credence/target/common/accessor.h>    // for Accumulator_Accessor
 #include <credence/target/common/flags.h>       // for Flag_Accessor
@@ -26,8 +27,8 @@
 #include <cstddef>                              // for size_t
 #include <deque>                                // for deque
 #include <functional>                           // for function
-#include <matchit.h>                            // for pattern, Wildcard
 #include <memory>                               // for shared_ptr, make_shared
+#include <set>                                  // for set
 #include <string>                               // for basic_string, string
 #include <utility>                              // for move
 namespace credence {
@@ -38,7 +39,18 @@ class Memory_Accessor;
 }
 }
 }
-} // lines 39-39
+} // lines 37-37
+namespace credence {
+namespace target {
+namespace arm64 {
+namespace memory {
+namespace detail {
+class Device_Accessor;
+}
+}
+}
+}
+} // lines 127-127
 namespace credence {
 namespace target {
 namespace arm64 {
@@ -49,14 +61,7 @@ struct Instruction_Accessor;
 }
 }
 }
-} // lines 42-42
-
-namespace credence::target::arm64::memory {
-class Memory_Accessor;
-}
-namespace credence::target::arm64::memory::detail {
-struct Instruction_Accessor;
-}
+} // lines 47-47
 
 namespace credence::target::arm64 {
 
@@ -123,6 +128,8 @@ using Stack_Pointer = std::shared_ptr<assembly::Stack>;
 using Table_Pointer = std::shared_ptr<ir::object::Object>;
 using Stack_Frame = target::common::memory::Stack_Frame;
 
+using ARM64_Memory_Accessor = common::memory::Memory_Accessor;
+
 namespace detail {
 
 class Device_Accessor;
@@ -138,11 +145,11 @@ using ARM64_Instruction_Accessor =
 
 using ARM64_Vector_Accessor = common::memory::Vector_Accessor<Size>;
 
+using ARM64_Register_Accessor = common::memory::Register_Accessor<Register>;
+
 using Buffer_Accessor = common::memory::Buffer_Accessor;
 
 using Table_Accessor = common::memory::Table_Accessor;
-
-using ARM64_Register_Accessor = common::memory::Register_Accessor<Register>;
 
 using Operand_Lambda = std::function<bool(RValue)>;
 
@@ -350,15 +357,15 @@ struct Vector_Accessor : public ARM64_Vector_Accessor
 /**
  * @brief The Memory registry and mediator that orchestrates access to memory
  */
-class Memory_Accessor
+class Memory_Accessor final : public ARM64_Memory_Accessor
 {
   public:
     Memory_Accessor() = delete;
 
     explicit Memory_Accessor(Table_Pointer table, Stack_Pointer stack_pointer)
-        : table_(std::move(table))
+        : ARM64_Memory_Accessor(table)
+        , table_(std::move(table))
         , stack(std::move(stack_pointer))
-        , stack_frame{ table_ }
         , table_accessor(table_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
@@ -376,13 +383,10 @@ class Memory_Accessor
 
   private:
     Register signal_register = assembly::Register::w0;
-
-  private:
     Table_Pointer table_;
 
   public:
     Stack_Pointer stack;
-    Stack_Frame stack_frame;
 
   public:
     detail::Flag_Accessor flag_accessor{};
@@ -398,9 +402,6 @@ class Memory_Accessor
         stack_frame,
         stack };
     Instruction_Pointer instruction_accessor{};
-
-  public:
-    // Ordered_Map<Label, Stack_Pointer&> stack_accessor;
 };
 
 } // namespace memory

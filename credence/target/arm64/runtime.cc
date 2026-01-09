@@ -13,18 +13,23 @@
 
 #include "runtime.h"
 
-#include "assembly.h"                        // for Register, O_NUL, operat...
-#include "stack.h"                           // for Stack
-#include <array>                             // for get, array
-#include <credence/error.h>                  // for credence_assert
-#include <credence/target/arm64/memory.h>    // for Address_Accessor, Register
-#include <credence/target/common/assembly.h> // for get_storage_as_string
-#include <credence/target/common/types.h>    // for Immediate, Stack_Offset
-#include <credence/types.h>                  // for get_type_from_rvalue_da...
-#include <credence/util.h>                   // for contains, __source__
-#include <deque>                             // for deque
-#include <stdexcept>                         // for out_of_range
-#include <variant>                           // for get, monostate, visit
+#include "assembly.h"                           // for Register, operator<<
+#include "credence/ir/object.h"                 // for get_rvalue_at_lvalue...
+#include "credence/target/common/runtime.h"     // for library_list
+#include "credence/target/common/stack_frame.h" // for Locals
+#include "matchit.h"                            // for Or, Wildcard, pattern
+#include "stack.h"                              // for Stack
+#include <array>                                // for get, array
+#include <credence/error.h>                     // for credence_assert
+#include <credence/target/arm64/memory.h>       // for Register, Address_Ac...
+#include <credence/target/common/assembly.h>    // for get_storage_as_string
+#include <credence/target/common/types.h>       // for Immediate, Stack_Offset
+#include <credence/types.h>                     // for get_type_from_rvalue...
+#include <credence/util.h>                      // for contains, sv, __sour...
+#include <deque>                                // for deque
+#include <fmt/format.h>                         // for format
+#include <stdexcept>                            // for out_of_range
+#include <variant>                              // for get, monostate, visit
 
 namespace credence::target::arm64::runtime {
 

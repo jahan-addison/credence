@@ -19,6 +19,7 @@
 #include "stack_frame.h"
 #include "types.h"
 
+#include <concepts>
 #include <credence/ir/object.h>
 #include <credence/types.h>
 #include <credence/util.h>
@@ -27,6 +28,24 @@
 #include <string>
 
 namespace credence::target::common::memory {
+
+class Memory_Accessor
+{
+  public:
+    explicit Memory_Accessor(std::shared_ptr<ir::object::Object> objects)
+        : stack_frame(objects)
+    {
+    }
+
+  public:
+    Stack_Frame stack_frame;
+};
+
+template<typename T>
+concept Memory_Accessor_T = std::derived_from<T, Memory_Accessor>;
+
+template<Memory_Accessor_T Accessor>
+using Memory_Access = std::shared_ptr<Accessor>;
 
 template<Enum_T Registers, Stack_T Stack, Pair_T Address_Result>
 class Address_Accessor;
@@ -39,84 +58,29 @@ class Buffer_Accessor
     {
     }
 
-    using Stack_Frame_Type = Stack_Frame;
-
-    std::size_t get_lvalue_string_size(LValue const& lvalue,
-        Stack_Frame_Type const& stack_frame)
+  public:
+    Size get_size_of_string_lvalue_buffer_address(LValue const& lvalue,
+        Stack_Frame const& stack_frame)
     {
-        Size len{ 0 };
-        std::string key{};
-        auto& locals = table_->get_stack_frame_symbols();
-        auto& vectors = table_->vectors;
         auto lhs = type::from_lvalue_offset(lvalue);
         auto offset = type::from_decay_offset(lvalue);
+        auto& vectors = table_->vectors;
         auto frame = stack_frame.get_stack_frame();
-        auto return_frame = stack_frame.tail;
-        if (lvalue == "RET") {
-            credence_assert(table_->functions.contains(return_frame));
-            auto tail_frame = table_->functions.at(return_frame);
-            auto return_rvalue = tail_frame->ret->second;
-            // what was passed to this function in its parameters?
-            if (tail_frame->is_parameter(return_rvalue)) {
-                credence_assert(
-                    table_->functions.contains(stack_frame.call_stack.back()));
-                // get the last frame in the call stack
-                auto last_stack_frame =
-                    table_->functions.at(stack_frame.call_stack.back());
-                if (last_stack_frame->locals.is_pointer(
-                        tail_frame->ret->first)) {
-                    return type::get_size_from_rvalue_data_type(
-                        type::get_rvalue_datatype_from_string(
-                            last_stack_frame->locals.get_pointer_by_name(
-                                tail_frame->ret->first)));
-                }
-                if (type::is_rvalue_data_type(tail_frame->ret->first))
-                    return type::get_size_from_rvalue_data_type(
-                        type::get_rvalue_datatype_from_string(
-                            tail_frame->ret->first));
-                return type::get_size_from_rvalue_data_type(
-                    last_stack_frame->locals.get_symbol_by_name(
-                        tail_frame->ret->first));
-            }
-            return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(tail_frame->ret->first));
-        }
-        // The string is a local in the stack frame
-        if (locals.is_defined(lvalue)) {
-            if (locals.is_pointer(lvalue) and
-                type::is_rvalue_data_type_string(
-                    locals.get_pointer_by_name(lvalue))) {
-                return type::get_size_from_rvalue_data_type(
-                    type::get_rvalue_datatype_from_string(
-                        locals.get_pointer_by_name(lvalue)));
-            }
-            if (locals.is_pointer(lvalue)) {
-                auto rvalue_address =
-                    ir::object::get_rvalue_at_lvalue_object_storage(
-                        lvalue, frame, vectors, __source__);
-                return type::get_size_from_rvalue_data_type(rvalue_address);
-            }
-            auto local_symbol = locals.get_symbol_by_name(lvalue);
-            auto local_rvalue =
-                type::get_value_from_rvalue_data_type(local_symbol);
-            if (local_rvalue == "RET") {
-                credence_assert(table_->functions.contains(return_frame));
-                auto tail_frame = table_->functions.at(return_frame);
-                return type::get_size_from_rvalue_data_type(
-                    type::get_rvalue_datatype_from_string(
-                        tail_frame->ret->first));
-            }
-            return type::get_size_from_rvalue_data_type(local_symbol);
-        }
+
+        if (lvalue == "RET")
+            return get_size_of_return_string(stack_frame);
+
+        if (table_->get_stack_frame_symbols().is_defined(lvalue))
+            return get_size_in_local_address(lvalue, stack_frame);
 
         if (type::is_dereference_expression(lvalue)) {
-            len = type::get_size_from_rvalue_data_type(
+            return type::get_size_from_rvalue_data_type(
                 ir::object::get_rvalue_at_lvalue_object_storage(
-                    type::get_unary_rvalue_reference(lvalue),
-                    frame,
-                    vectors,
-                    __source__));
-        } else if (is_global_vector(lhs)) {
+                    type::get_unary_rvalue_reference(lvalue), frame, vectors));
+        }
+
+        if (is_global_vector(lhs)) {
+            std::string key{};
             auto vector = table_->vectors.at(lhs);
             if (util::is_numeric(offset)) {
                 key = offset;
@@ -126,8 +90,11 @@ class Buffer_Accessor
                 key =
                     std::string{ type::get_value_from_rvalue_data_type(index) };
             }
-            len = type::get_size_from_rvalue_data_type(vector->data.at(key));
-        } else if (is_vector_offset(lvalue)) {
+            return type::get_size_from_rvalue_data_type(vector->data.at(key));
+        }
+
+        if (is_vector_offset(lvalue)) {
+            std::string key{};
             auto vector = table_->vectors.at(lhs);
             if (util::is_numeric(offset)) {
                 key = offset;
@@ -137,16 +104,16 @@ class Buffer_Accessor
                 key =
                     std::string{ type::get_value_from_rvalue_data_type(index) };
             }
-            len = type::get_size_from_rvalue_data_type(vector->data.at(key));
-        } else if (is_immediate(lvalue)) {
-            len = type::get_size_from_rvalue_data_type(
+            return type::get_size_from_rvalue_data_type(vector->data.at(key));
+        }
+
+        if (is_immediate(lvalue))
+            return type::get_size_from_rvalue_data_type(
                 type::get_rvalue_datatype_from_string(lvalue));
-        } else {
-            len = type::get_size_from_rvalue_data_type(
+        else
+            return type::get_size_from_rvalue_data_type(
                 ir::object::get_rvalue_at_lvalue_object_storage(
                     lvalue, frame, vectors, __source__));
-        }
-        return len;
     }
 
     void set_buffer_size_from_syscall(std::string_view routine,
@@ -176,6 +143,64 @@ class Buffer_Accessor
         return table_->vectors.contains(rvalue_reference) and
                table_->globals.is_pointer(rvalue_reference);
     };
+
+  private:
+    Size get_size_of_return_string(Stack_Frame const& stack_frame)
+    {
+        credence_assert(table_->functions.contains(stack_frame.tail));
+        auto tail_frame = table_->functions.at(stack_frame.tail);
+        auto return_rvalue = tail_frame->ret->second;
+        if (tail_frame->is_parameter(return_rvalue)) {
+            credence_assert(
+                table_->functions.contains(stack_frame.call_stack.back()));
+            auto last_stack_frame =
+                table_->functions.at(stack_frame.call_stack.back());
+            if (last_stack_frame->locals.is_pointer(tail_frame->ret->first)) {
+                return type::get_size_from_rvalue_data_type(
+                    type::get_rvalue_datatype_from_string(
+                        last_stack_frame->locals.get_pointer_by_name(
+                            tail_frame->ret->first)));
+            }
+            if (type::is_rvalue_data_type(tail_frame->ret->first))
+                return type::get_size_from_rvalue_data_type(
+                    type::get_rvalue_datatype_from_string(
+                        tail_frame->ret->first));
+            return type::get_size_from_rvalue_data_type(
+                last_stack_frame->locals.get_symbol_by_name(
+                    tail_frame->ret->first));
+        }
+        return type::get_size_from_rvalue_data_type(
+            type::get_rvalue_datatype_from_string(tail_frame->ret->first));
+    }
+
+    Size get_size_in_local_address(LValue const& lvalue,
+        Stack_Frame const& stack_frame)
+    {
+        auto frame = stack_frame.get_stack_frame();
+        auto& locals = table_->get_stack_frame_symbols();
+        if (locals.is_pointer(lvalue) and
+            type::is_rvalue_data_type_string(
+                locals.get_pointer_by_name(lvalue))) {
+            return type::get_size_from_rvalue_data_type(
+                type::get_rvalue_datatype_from_string(
+                    locals.get_pointer_by_name(lvalue)));
+        }
+        if (locals.is_pointer(lvalue)) {
+            auto rvalue_address =
+                ir::object::get_rvalue_at_lvalue_object_storage(
+                    lvalue, frame, table_->vectors, __source__);
+            return type::get_size_from_rvalue_data_type(rvalue_address);
+        }
+        auto local_symbol = locals.get_symbol_by_name(lvalue);
+        auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
+        if (local_rvalue == "RET") {
+            credence_assert(table_->functions.contains(stack_frame.tail));
+            auto tail_frame = table_->functions.at(stack_frame.tail);
+            return type::get_size_from_rvalue_data_type(
+                type::get_rvalue_datatype_from_string(tail_frame->ret->first));
+        }
+        return type::get_size_from_rvalue_data_type(local_symbol);
+    }
 
   public:
     void insert_string_literal(RValue const& key, Label const& asciz_address)
