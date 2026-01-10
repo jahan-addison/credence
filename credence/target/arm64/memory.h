@@ -171,7 +171,7 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
     }
 
     Register get_accumulator_register_from_size(
-        assembly::Operand_Size size = assembly::Operand_Size::Word) override;
+        assembly::Operand_Size size) override;
 };
 
 struct Instruction_Accessor : public ARM64_Instruction_Accessor
@@ -315,10 +315,10 @@ class Device_Accessor
     void insert_lvalue_to_device(LValue const& lvalue, SET_INLINE_DEBUG);
     void set_vector_offset_to_storage_space(LValue const& lvalue);
     Size get_size_from_rvalue_reference(RValue const& rvalue);
-
-  private:
     Size get_size_from_rvalue_data_type(LValue const& lvalue,
         Immediate const& rvalue);
+
+  private:
     void set_word_or_doubleword_register(LValue const& lvalue,
         Operand_Size size);
     Size get_size_of_address_table();
@@ -380,6 +380,10 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
     {
         signal_register = signal_;
     }
+
+  public:
+    Register get_accumulator_with_rvalue_context(Storage const& device);
+    Register get_accumulator_with_rvalue_context(assembly::Operand_Size size);
 
   private:
     Register signal_register = assembly::Register::w0;

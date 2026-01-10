@@ -145,7 +145,7 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 RValue Object::lvalue_at_temporary_object_address(LValue const& lvalue,
     Function_PTR const& stack_frame)
 {
-    auto rvalue = util::contains(lvalue, "_t") or util::contains(lvalue, "_p")
+    auto rvalue = type::is_temporary(lvalue) or util::contains(lvalue, "_p")
                       ? stack_frame->temporary[lvalue]
                       : lvalue;
     if (util::contains(rvalue, "_t") and util::contains(rvalue, " ")) {
@@ -159,6 +159,23 @@ RValue Object::lvalue_at_temporary_object_address(LValue const& lvalue,
 }
 
 /**
+ * @brief Resolve the size of an rvalue data type that is NOT a word literal
+ */
+Size Object::get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
+    Function_PTR const& stack_frame)
+{
+    auto& locals = stack_frame->locals;
+    credence_assert(locals.is_defined(lvalue));
+    auto datatype = locals.get_symbol_by_name(lvalue);
+    if (type::is_rvalue_data_type_word(datatype))
+        return lvalue_size_at_temporary_object_address(
+            type::get_value_from_rvalue_data_type(datatype), stack_frame);
+    else
+        return type::get_size_from_rvalue_data_type(
+            locals.get_symbol_by_name(lvalue));
+}
+
+/**
  * @brief Resolve the size at a temporary storage address in the object table
  */
 Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
@@ -166,27 +183,55 @@ Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
 {
     auto rvalue = lvalue_at_temporary_object_address(lvalue, stack_frame);
     auto& locals = stack_frame->locals;
-    if (type::is_rvalue_data_type(rvalue))
+
+    if (type::is_rvalue_data_type(rvalue) and
+        not type::is_rvalue_data_type_word(rvalue))
         return type::get_size_from_rvalue_data_type(rvalue);
     if (type::is_unary_expression(rvalue))
         return lvalue_size_at_temporary_object_address(
             type::get_unary_rvalue_reference(rvalue), stack_frame);
     if (type::is_binary_expression(rvalue)) {
         auto [left, right, op] = type::from_rvalue_binary_expression(rvalue);
-        if (type::is_rvalue_data_type(left))
+        if (type::is_rvalue_data_type(left) and
+            not type::is_rvalue_data_type_word(left))
             return type::get_size_from_rvalue_data_type(left);
-        if (type::is_rvalue_data_type(right))
+        if (type::is_rvalue_data_type(right) and
+            not type::is_rvalue_data_type_word(right))
             return type::get_size_from_rvalue_data_type(right);
-        if (locals.is_defined(left) and not locals.is_pointer(left))
-            return type::get_size_from_rvalue_data_type(
-                locals.get_symbol_by_name(left));
-        if (locals.is_defined(right) and not locals.is_pointer(right))
-            return type::get_size_from_rvalue_data_type(
-                locals.get_symbol_by_name(right));
+        if (locals.is_defined(left) and not locals.is_pointer(left)) {
+            auto datatype = locals.get_symbol_by_name(left);
+            if (type::is_rvalue_data_type_word(datatype))
+                return lvalue_size_at_temporary_object_address(
+                    type::get_value_from_rvalue_data_type(datatype),
+                    stack_frame);
+            else
+                return type::get_size_from_rvalue_data_type(
+                    locals.get_symbol_by_name(left));
+        }
+        if (locals.is_defined(right) and not locals.is_pointer(right)) {
+            auto datatype = locals.get_symbol_by_name(right);
+            if (type::is_rvalue_data_type_word(datatype))
+                return lvalue_size_at_temporary_object_address(
+                    type::get_value_from_rvalue_data_type(datatype),
+                    stack_frame);
+            else
+                return type::get_size_from_rvalue_data_type(
+                    locals.get_symbol_by_name(right));
+        }
     }
-    if (locals.is_defined(rvalue))
-        return type::get_size_from_rvalue_data_type(
-            locals.get_symbol_by_name(rvalue));
+    if (type::is_temporary_datatype_binary_expression(rvalue)) {
+        auto [left, right, op] = type::from_rvalue_binary_expression(rvalue);
+        return lvalue_size_at_temporary_object_address(left, stack_frame);
+    }
+    if (locals.is_defined(rvalue)) {
+        auto datatype = locals.get_symbol_by_name(rvalue);
+        if (type::is_rvalue_data_type_word(datatype))
+            return lvalue_size_at_temporary_object_address(
+                type::get_value_from_rvalue_data_type(datatype), stack_frame);
+        else
+            return type::get_size_from_rvalue_data_type(
+                locals.get_symbol_by_name(rvalue));
+    }
     credence_error("unreachable");
     return 0UL;
 }

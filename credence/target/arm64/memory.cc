@@ -33,9 +33,33 @@
 #include <utility>                           // for pair
 #include <variant>                           // for get, variant, monostate
 
-namespace credence::target::arm64::memory::detail {
+namespace credence::target::arm64::memory {
 
 namespace m = matchit;
+
+/**
+ * @brief Get a general purpose accumulator including during temporary expansion
+ */
+Register Memory_Accessor::get_accumulator_with_rvalue_context(
+    Storage const& device)
+{
+    auto size = device_accessor.get_word_size_from_storage(device);
+    return table_accessor.next_ir_instruction_is_temporary() and
+                   not table_accessor.last_ir_instruction_is_assignment()
+               ? device_accessor.get_second_register_for_binary_operand(size)
+               : accumulator_accessor.get_accumulator_register_from_size(size);
+}
+
+Register Memory_Accessor::get_accumulator_with_rvalue_context(
+    assembly::Operand_Size size)
+{
+    return table_accessor.next_ir_instruction_is_temporary() and
+                   not table_accessor.last_ir_instruction_is_assignment()
+               ? device_accessor.get_second_register_for_binary_operand(size)
+               : accumulator_accessor.get_accumulator_register_from_size(size);
+}
+
+namespace detail {
 
 /**
  * @brief Unary template instantiation for matchit from credence/types.h
@@ -442,4 +466,6 @@ bool Device_Accessor::is_doubleword_storage_size(
     return result;
 }
 
-} // namespace credence::target::arm64::memory::detail
+} // namespace detail
+
+} // namespace credence::target::arm64::memory

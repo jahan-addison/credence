@@ -101,7 +101,6 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
     credence_assert(type::is_binary_expression(rvalue));
     auto frame = accessor_->stack_frame.get_stack_frame();
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    auto& table_accessor = accessor_->table_accessor;
     auto& immediate_stack = accessor_->address_accessor.immediate_stack;
     auto& devices = accessor_->device_accessor;
     auto& registers = accessor_->register_accessor;
@@ -144,6 +143,15 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
                     lhs_s = devices.get_operand_rvalue_device(lhs);
                     rhs_s = immediate_stack.back();
                     immediate_stack.pop_back();
+                    if (!immediate_stack.empty()) {
+                        auto acc =
+                            accessor_->get_accumulator_with_rvalue_context(
+                                immediate_stack.back());
+                        arm64_add__asm(
+                            instructions, mov, acc, immediate_stack.back());
+                        immediate_stack.pop_back();
+                    }
+
                 } else {
                     auto& registers_stack = registers.stack;
                     if (!registers_stack.empty()) {
@@ -183,14 +191,7 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
             });
     if (!immediate) {
         auto bitwise = Bitwise_Operator_Inserter{ accessor_ };
-        auto size = devices.get_word_size_from_storage(lhs_s);
-        auto acc =
-            table_accessor.next_ir_instruction_is_temporary() and
-                    not table_accessor.last_ir_instruction_is_assignment()
-                ? accessor_->device_accessor
-                      .get_second_register_for_binary_operand(size)
-                : accessor_->accumulator_accessor
-                      .get_accumulator_register_from_size(size);
+        auto acc = accessor_->get_accumulator_with_rvalue_context(lhs_s);
         registers.stack.emplace_back(acc);
         if (acc == Register::x23 or acc == Register::w23 or
             is_variant(Immediate, lhs_s)) {
@@ -416,14 +417,16 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                     lhs_s = devices.get_device_by_lvalue(lhs);
                     rhs_s = devices.get_device_by_lvalue(rhs);
                 } else {
-                    lhs_s = accumulator.get_accumulator_register_from_size();
+                    lhs_s = accumulator.get_accumulator_register_from_size(
+                        devices.get_word_size_from_lvalue(lhs));
                     rhs_s = devices.get_device_by_lvalue(rhs);
                 }
             },
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
             [&] {
-                auto acc = accumulator.get_accumulator_register_from_size();
+                auto acc = accumulator.get_accumulator_register_from_size(
+                    devices.get_word_size_from_lvalue(lhs));
                 lhs_s = acc;
                 auto& immediate_stack = addresses.immediate_stack;
                 if (!immediate_stack.empty()) {
@@ -435,7 +438,8 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                         immediate_stack.pop_back();
                     }
                 } else {
-                    lhs_s = accumulator.get_accumulator_register_from_size();
+                    lhs_s = accumulator.get_accumulator_register_from_size(
+                        devices.get_word_size_from_lvalue(lhs));
                     rhs_s = devices.get_device_by_lvalue(rhs);
                 }
             },
@@ -545,16 +549,9 @@ Operand_Size Unary_Operator_Inserter::get_operand_size_from_lvalue_reference(
 Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
     RValue const& rvalue)
 {
-    auto& table_accessor = accessor_->table_accessor;
     auto size = get_operand_size_from_lvalue_reference(rvalue);
     auto frame = accessor_->table_accessor.table_->get_stack_frame();
-    auto acc =
-        table_accessor.next_ir_instruction_is_temporary() and
-                not table_accessor.last_ir_instruction_is_assignment()
-            ? accessor_->device_accessor.get_second_register_for_binary_operand(
-                  size)
-            : accessor_->accumulator_accessor
-                  .get_accumulator_register_from_size(size);
+    auto acc = accessor_->get_accumulator_with_rvalue_context(size);
     if (acc == Register::x23 or acc == Register::w23)
         frame->tokens.insert("x23");
     return acc;
@@ -651,13 +648,7 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
                 if (table_accessor.is_ir_instruction_temporary() and
                     table_accessor.next_ir_instruction_is_temporary()) {
                     auto acc =
-                        table_accessor.next_ir_instruction_is_temporary() and
-                                not table_accessor
-                                        .last_ir_instruction_is_assignment()
-                            ? accessor_->device_accessor
-                                  .get_second_register_for_binary_operand(size)
-                            : accessor_->accumulator_accessor
-                                  .get_accumulator_register_from_size(size);
+                        accessor_->get_accumulator_with_rvalue_context(size);
                     assembly::inserter(
                         instructions, assembly::b_not(acc, src).second);
                     accessor_->register_accessor.stack.emplace_back(acc);
@@ -913,8 +904,7 @@ void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
             [&] {
                 auto imm = common::assembly::
                     get_result_from_trivial_bitwise_expression(lhs, op, rhs);
-                auto acc = accumulator.get_accumulator_register_from_size(
-                    assembly::get_operand_size_from_rvalue_datatype(lhs));
+                auto acc = accessor_->get_accumulator_with_rvalue_context(imm);
                 if (!accessor_->table_accessor.is_ir_instruction_temporary())
                     arm64_add__asm(instructions, mov, acc, imm);
                 else
@@ -989,14 +979,19 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                             .get_arm64_lvalue_and_insertion_instructions(
                                 lhs, devices, instruction_accessor->size());
                     assembly::inserter(instructions, storage_inst);
-                    auto size = get_operand_size_from_storage(
-                        lhs_storage, accessor_->stack);
+                    auto size = devices.get_word_size_from_storage(lhs_storage);
                     auto work = size == Operand_Size::Doubleword
                                     ? assembly::Register::x8
                                     : assembly::Register::w8;
                     arm64_add__asm(instructions, mov, lhs_storage, work);
                 } else {
-                    auto acc = accumulator.get_accumulator_register_from_size();
+                    auto frame = stack_frame_.get_stack_frame();
+                    auto size = assembly::get_operand_size_from_size(
+                        accessor_->table_accessor.table_
+                            ->lvalue_size_at_temporary_object_address(
+                                rhs, frame));
+                    auto acc =
+                        accumulator.get_accumulator_register_from_size(size);
                     if (!type::is_unary_expression(lhs))
                         accessor_->device_accessor.insert_lvalue_to_device(lhs);
                     auto [lhs_storage, storage_inst] =

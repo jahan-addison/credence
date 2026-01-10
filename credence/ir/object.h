@@ -85,8 +85,9 @@ struct Vector
 /**
  *  Function and function frame map and storage sizes for the object table
  */
-struct Function
+class Function
 {
+  public:
     explicit Function(type::semantic::Label const& label)
         : symbol(label)
     {
@@ -119,6 +120,7 @@ struct Function
         }
     }
 
+  public:
     constexpr bool is_pointer_in_stack_frame(RValue const& rvalue)
     {
         return locals.is_pointer(rvalue) or is_pointer_parameter(rvalue);
@@ -150,6 +152,7 @@ struct Function
         return -1;
     }
 
+  public:
     Return_RValue ret{};
     Label label_before_reserved{};
     type::Parameters parameters{};
@@ -223,6 +226,10 @@ class Object
     Function_PTR get_stack_frame();
     Function_PTR get_stack_frame(Label const& label);
     type::Locals& get_stack_frame_symbols();
+
+  private:
+    Size get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
+        Function_PTR const& stack_frame);
 
   public:
     RValue lvalue_at_temporary_object_address(LValue const& lvalue,

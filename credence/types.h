@@ -304,18 +304,6 @@ constexpr bool is_dereference_expression(RValue_Reference rvalue)
 }
 
 /**
- * @brief Check if an expression contains binary operators
- */
-constexpr bool is_binary_expression(semantic::RValue const& rvalue)
-{
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    return is_binary_arithmetic_expression(rvalue) or
-           is_relation_binary_expression(rvalue) or
-           is_bitwise_binary_expression(rvalue);
-}
-
-/**
  * @brief Check if an operator is binary operator
  */
 constexpr bool is_binary_operator(semantic::RValue const& op)
@@ -606,7 +594,7 @@ constexpr bool is_temporary_datatype_binary_expression(
 }
 
 /**
- * @brief Check if an operand is a temporary lvalue
+ * @brief Check and get the operand of a temporary binary rvalue
  */
 constexpr std::string is_temporary_operand_binary_expression(
     semantic::RValue const& rvalue)
@@ -620,6 +608,19 @@ constexpr std::string is_temporary_operand_binary_expression(
         return "right";
 
     return std::string{};
+}
+
+/**
+ * @brief Check if an expression contains binary operators
+ */
+constexpr bool is_binary_expression(semantic::RValue const& rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") != 2)
+        return false;
+    return is_binary_arithmetic_expression(rvalue) or
+           is_relation_binary_expression(rvalue) or
+           is_temporary_datatype_binary_expression(rvalue) or
+           is_bitwise_binary_expression(rvalue);
 }
 
 constexpr std::string is_temporary_operand_binary_expression(
