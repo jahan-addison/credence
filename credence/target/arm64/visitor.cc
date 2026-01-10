@@ -270,7 +270,8 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
             [&] {
                 auto lvalue =
                     type::get_unary_rvalue_reference(std::get<1>(inst));
-                accessor_->device_accessor.insert_lvalue_to_device(lvalue);
+                accessor_->device_accessor.insert_lvalue_to_device(
+                    lvalue, Operand_Size::Doubleword);
             },
         m::pattern | m::app(is_vector, true) =
             [&] {

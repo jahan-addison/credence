@@ -312,6 +312,7 @@ class Device_Accessor
 
   public:
     Register get_available_storage_register(Operand_Size size);
+    void insert_lvalue_to_device(LValue const& lvalue, Operand_Size size);
     void insert_lvalue_to_device(LValue const& lvalue, SET_INLINE_DEBUG);
     void set_vector_offset_to_storage_space(LValue const& lvalue);
     Size get_size_from_rvalue_reference(RValue const& rvalue);

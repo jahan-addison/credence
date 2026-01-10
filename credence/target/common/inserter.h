@@ -258,7 +258,7 @@ class Operand_Inserter
     virtual void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs) = 0;
-    virtual void insert_from_operands(Operands& operands,
+    virtual void insert_from_binary_operands(Operands& operands,
         std::string const& op) = 0;
     virtual void insert_from_mnemonic_operand(LValue const& lhs,
         RValue const& rhs) = 0;

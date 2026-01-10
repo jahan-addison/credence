@@ -178,13 +178,12 @@ struct Unary_Operator_Inserter : public ARM64_Unary_Operator_Inserter
     void insert_from_unary_operator_operands(std::string const& op,
         Storage const& dest,
         Storage const& src = assembly::O_NUL) override;
-
+    common::Stack_Offset from_lvalue_address_of_expression(RValue const& expr);
     Storage insert_from_unary_operator_rvalue(RValue const& expr) override;
 
   private:
     Storage get_temporary_storage_from_temporary_expansion(
         RValue const& rvalue);
-    void from_lvalue_address_of_expression(RValue const& expr);
 };
 
 struct Expression_Inserter : public ARM64_Expression_Inserter
@@ -204,6 +203,9 @@ struct Expression_Inserter : public ARM64_Expression_Inserter
     void insert_from_temporary_rvalue(RValue const& rvalue) override;
     void insert_from_return_rvalue(
         ir::object::Function::Return_RValue const& ret) override;
+
+  private:
+    std::deque<LValue> stack{};
 };
 
 class Instruction_Inserter : public ARM64_Instruction_Inserter
@@ -234,7 +236,7 @@ class Operand_Inserter : public ARM64_Operand_Inserter
     void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs) override;
-    void insert_from_operands(assembly::Assignment_Operands& operands,
+    void insert_from_binary_operands(assembly::Assignment_Operands& operands,
         std::string const& op) override;
     void insert_from_mnemonic_operand(LValue const& lhs,
         RValue const& rhs) override;

@@ -1185,7 +1185,7 @@ ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 
 // pointers
-ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(lea);
+Instruction_Pair store(Storage const& s0, common::Stack_Offset const& s1);
 
 /**
  * @brief Get the size in bytes from a register

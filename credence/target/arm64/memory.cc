@@ -313,6 +313,29 @@ Device_Accessor::Device Device_Accessor::get_device_by_lvalue(
  * @brief Allocates a register or stack space for a given lvalue
  */
 void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
+    Operand_Size size)
+{
+    if (is_lvalue_allocated_in_memory(lvalue))
+        return;
+
+    switch (size) {
+        case assembly::Operand_Size::Empty:
+        case assembly::Operand_Size::Byte:
+        case assembly::Operand_Size::Halfword:
+            stack_->set_address_from_size(lvalue, size);
+            break;
+        case assembly::Operand_Size::Word:
+        case assembly::Operand_Size::Doubleword: {
+            if (register_id.size() == 9) {
+                stack_->set_address_from_size(lvalue, size);
+                address_table.insert(lvalue, stack_->get(lvalue).first);
+            } else
+                set_word_or_doubleword_register(lvalue, size);
+        } break;
+    }
+}
+
+void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     INLINE_DEBUG)
 {
     auto& table_ = address_accessor_.table_;

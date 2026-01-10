@@ -243,7 +243,7 @@ class Operand_Inserter : public X8664_Operand_Inserter
     void insert_from_immediate_rvalues(Immediate const& lhs,
         std::string const& op,
         Immediate const& rhs) override;
-    void insert_from_operands(assembly::Binary_Operands& operands,
+    void insert_from_binary_operands(assembly::Binary_Operands& operands,
         std::string const& op) override;
     void insert_from_mnemonic_operand(LValue const& lhs,
         RValue const& rhs) override;

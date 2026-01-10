@@ -294,13 +294,20 @@ constexpr bool is_unary_data_type_expression(Data_Type const& datatype)
 }
 
 /**
- * @brief Check if an expression contains unary operator
+ * @brief Check if an expression contains dereference unary operator
  */
 constexpr bool is_dereference_expression(RValue_Reference rvalue)
 {
     if (util::substring_count_of(rvalue, " ") >= 2)
         return false;
     return get_unary_operator(rvalue) == "*";
+}
+
+constexpr bool is_address_of_expression(RValue_Reference rvalue)
+{
+    if (util::substring_count_of(rvalue, " ") >= 2)
+        return false;
+    return get_unary_operator(rvalue) == "&";
 }
 
 /**

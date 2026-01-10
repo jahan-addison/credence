@@ -209,6 +209,9 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 class Object
 {
   public:
+    explicit Object() = default;
+
+  public:
     bool vector_contains(type::semantic::LValue const& lvalue);
     bool local_contains(type::semantic::LValue const& lvalue);
 

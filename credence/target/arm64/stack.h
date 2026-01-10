@@ -40,6 +40,10 @@ namespace credence::target::arm64::assembly {
  *
  * Designated callee-saved registers are saved on the stack
  *
+ * This stack type works different from the x86864 one, in that you must
+ * allocate the amount you need from a stack frame upfront, and then offsets
+ * push downwards.
+ *
  */
 class Stack : public common::detail::base_stack_pointer
 {
@@ -102,27 +106,34 @@ class Stack : public common::detail::base_stack_pointer
     }
 
     /**
-     * @brief Allocate space on the stack from a word size
+     * @brief Allocate space on the stack
      *
      * See assembly.h for details
      */
     constexpr void allocate(assembly::Operand_Size operand)
     {
         auto alloc = get_size_from_operand_size(operand);
+        frame_size += alloc;
         size += alloc;
     }
 
-    constexpr void allocate(Size alloc) { size += alloc; }
+    constexpr void allocate(Size alloc)
+    {
+        frame_size += alloc;
+        size += alloc;
+    }
 
     /**
      * @brief Allocate space on the stack
      */
     constexpr void deallocate(Size alloc)
     {
-        if ((size - alloc) <= 0) {
+        if ((frame_size - alloc) <= 0) {
+            frame_size = 0;
             size = 0;
         } else {
-            size -= alloc;
+            frame_size -= alloc;
+            size = 0;
         }
     }
 
@@ -195,10 +206,10 @@ class Stack : public common::detail::base_stack_pointer
         assembly::Operand_Size operand_size)
     {
         if (get_lvalue_from_offset(size + value_size).empty()) {
-            size += value_size;
+            size -= value_size;
             stack_address.insert(lvalue, { size, operand_size });
         } else {
-            size = size + value_size + value_size;
+            size = size - value_size + value_size;
         }
     }
 
@@ -211,7 +222,7 @@ class Stack : public common::detail::base_stack_pointer
     {
         auto qword_size = assembly::Operand_Size::Doubleword;
         size = common::memory::align_up_to(
-            size + assembly::get_size_from_operand_size(qword_size), 8);
+            size - assembly::get_size_from_operand_size(qword_size), 8);
         stack_address.insert(lvalue, { size, qword_size });
     }
 
@@ -221,10 +232,10 @@ class Stack : public common::detail::base_stack_pointer
      */
     constexpr Size get_stack_frame_allocation_size()
     {
-        if (size < 16)
+        if (frame_size < 16)
             return 16UL;
         else
-            return common::memory::align_up_to(size, 16);
+            return common::memory::align_up_to(frame_size, 16);
     }
 
     /**
@@ -280,12 +291,13 @@ class Stack : public common::detail::base_stack_pointer
      * @brief Set and allocate an address from an arbitrary offset
      */
     constexpr void set_address_from_size(LValue const& lvalue,
-        Offset allocate,
+        Offset offset_address,
         assembly::Operand_Size operand = assembly::Operand_Size::Word)
     {
         if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        size += allocate;
+        allocate(offset_address);
+        size -= offset_address;
         stack_address.insert(lvalue, { size, operand });
     }
 
@@ -294,7 +306,7 @@ class Stack : public common::detail::base_stack_pointer
     {
         if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        size += static_cast<std::size_t>(operand);
+        size -= static_cast<std::size_t>(operand);
         stack_address.insert(lvalue, { size, operand });
     }
 
@@ -315,6 +327,7 @@ class Stack : public common::detail::base_stack_pointer
   private:
     int vectors{ 0 };
     Offset size{ 16 };
+    Offset frame_size{ 16 };
     Local stack_address{};
 };
 

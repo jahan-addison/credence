@@ -898,14 +898,15 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
     if (!immediate) {
         auto operand_inserter = Operand_Inserter{ accessor_ };
         assembly::Binary_Operands operands = { lhs_s, rhs_s };
-        operand_inserter.insert_from_operands(operands, op);
+        operand_inserter.insert_from_binary_operands(operands, op);
     }
 }
 
 /**
  * @brief Operand Inserter mediator for expression mnemonics operands
  */
-void Operand_Inserter::insert_from_operands(assembly::Binary_Operands& operands,
+void Operand_Inserter::insert_from_binary_operands(
+    assembly::Binary_Operands& operands,
     std::string const& op)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();

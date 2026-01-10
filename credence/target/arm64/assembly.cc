@@ -292,9 +292,9 @@ Instruction_Pair u_not(Storage const& s0)
     return { arm_rr(w8), inst };
 }
 
-Instruction_Pair lea(Storage const& s0, Storage const& s1)
+Instruction_Pair store(Storage const& s0, common::Stack_Offset const& s1)
 {
-    arm64__make_and_ret(add, s0, s1);
+    arm64__make_and_ret(str, s0, s1);
 }
 
 } // namespace arm64::detail

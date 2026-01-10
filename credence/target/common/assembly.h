@@ -237,7 +237,7 @@ std::string get_storage_as_string(Storage_T<Registers> const& storage)
 {
     std::ostringstream result{};
     std::visit(util::overload{
-                   [&](std::monostate) {},
+                   [&](std::monostate) { result << "(empty)"; },
                    [&](common::Stack_Offset const& s) {
                        result << fmt::format("stack offset: {}", s);
                    },
