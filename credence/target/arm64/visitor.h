@@ -11,6 +11,29 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64 IR Visitor Implementation
+ *
+ * Visits ITA intermediate representation instructions and emits ARM64
+ * assembly. Implements the IR_Visitor interface for ARM64 ISA.
+ *
+ * Example - visiting assignment:
+ *
+ *   ITA:    x = 42;  (x is first local variable)
+ *
+ * Visitor generates:
+ *   mov x9, #42              ; x in register x9
+ *
+ * Example - visiting function call:
+ *
+ *   ITA:    CALL add
+ *
+ * Visitor generates:
+ *   bl add
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                       // for Instructions

@@ -11,6 +11,31 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Instruction flags for code generation
+ *
+ * Bit flags that control how instructions are emitted. Used to mark special
+ * addressing modes, alignment requirements, and operand types during the
+ * code generation phase.
+ *
+ * Example - indirect addressing:
+ *
+ *   B code:    *ptr = 42;
+ *
+ * Sets Indirect flag to generate:
+ *
+ *   x86-64:    mov qword ptr [rax], 42
+ *   ARM64:     str x1, [x0]
+ *
+ * Example - address calculation:
+ *
+ *   B code:    ptr = &x;
+ *
+ * Sets Address flag to generate address-of operations.
+ *
+ *****************************************************************************/
+
 #include "types.h"        // for Enum_T, Instructions
 #include <credence/map.h> // for Ordered_Map
 

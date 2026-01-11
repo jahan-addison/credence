@@ -11,6 +11,22 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Runtime support implementation
+ *
+ * Implements program initialization, argc/argv setup, and standard library
+ * function management. Handles differences between Linux and Darwin runtime
+ * environments.
+ *
+ * Example - program startup:
+ *
+ *   B code:    main(argc, argv) { ... }
+ *
+ * Runtime initializes stack with argc/argv, calls main, handles return value.
+ *
+ *****************************************************************************/
+
 #include "runtime.h"
 
 #include "credence/ir/object.h" // for Function
@@ -74,15 +90,15 @@ std::pair<bool, bool> argc_argv_kernel_runtime_access(
 {
     credence_assert_equal(stack_frame.symbol, "main");
     auto entry_point = stack_frame.get_stack_frame("main");
-    if (entry_point->parameters.size() > 2)
+    if (entry_point->get_parameters().size() > 2)
         throw_runtime_error("invalid argument count, expected at most two for "
                             "'argc' and 'argv'",
             "main",
             __source__,
             "program invocation");
 
-    auto main_argc = entry_point->parameters.size() >= 1;
-    auto main_argv = entry_point->parameters.size() == 2;
+    auto main_argc = entry_point->get_parameters().size() >= 1;
+    auto main_argv = entry_point->get_parameters().size() == 2;
 
     return { main_argc, main_argv };
 }

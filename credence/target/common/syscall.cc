@@ -11,6 +11,15 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * System call management implementation
+ *
+ * Retrieves available syscalls for the target platform and architecture.
+ * Returns list of syscall symbols that can be used in B programs.
+ *
+ *****************************************************************************/
+
 #include "syscall.h"
 #include "assembly.h"
 #include <string> // for basic_string, string

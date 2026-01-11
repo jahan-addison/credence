@@ -11,6 +11,43 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Compiler error handling and diagnostics
+ *
+ * Provides compile-time error detection and reporting with clear messages.
+ * Catches semantic errors, type mismatches, out-of-bounds array access,
+ * undefined symbols, and other programming errors before code generation.
+ *
+ * Example - compile-time boundary checking:
+ *
+ *   main() {
+ *     extrn values;
+ *     print(values[10]);  // Error: array 'values' has size 3
+ *   }
+ *   values [3] 1, 2, 3;
+ *
+ *   Output: "Out of range: index 10 exceeds array size 3"
+ *
+ * Example - type mismatch:
+ *
+ *   add(x, y) { return(x + y); }
+ *
+ *   main() {
+ *     add(5);  // Error: function 'add' expects 2 arguments, got 1
+ *   }
+ *
+ * Example - undefined symbol:
+ *
+ *   main() {
+ *     auto x;
+ *     x = unknown_var;  // Error: undefined symbol 'unknown_var'
+ *   }
+ *
+ * All errors include source location (file, line, column) for easy debugging.
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <credence/util.h>

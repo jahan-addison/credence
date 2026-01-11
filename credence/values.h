@@ -11,6 +11,33 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Value representation and type literals
+ *
+ * This module defines the internal representation of values and types in
+ * the B language. Values can be literals (int, float, double, string),
+ * arrays, or expressions. The type system uses type inference - variables
+ * aren't declared with explicit types, their type is determined by the
+ * value assigned to them.
+ *
+ * Example:
+ *
+ *   main() {
+ *     auto x, y, *z;
+ *     x = 42;        // x inferred as int
+ *     y = 3.14f;     // y inferred as float
+ *     z = &x;        // z is pointer to x
+ *   }
+ *
+ * Vectors (arrays) may be non-homogeneous but their type is determined by
+ * their initial values:
+ *
+ *   numbers [3] 10, 20, 30;     // array of ints
+ *   mixed [2] 5, 2.5f;          // first element determines type
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <credence/operators.h> // for Operator

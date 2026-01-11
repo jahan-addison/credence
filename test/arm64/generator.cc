@@ -259,7 +259,7 @@ TEST_CASE("target/arm64: fixture: math_constant_2.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov w8, #4
     add w8, w8, #1
@@ -267,7 +267,7 @@ _start:
     mov w8, #2
     sub w8, w8, w9
     mov w10, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -284,7 +284,7 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov w8, #4
     add w8, w8, #1
@@ -292,7 +292,7 @@ _start:
     mov w8, #2
     sub w8, w8, w9
     mov w10, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -316,7 +316,7 @@ TEST_CASE("target/arm64: fixture: math_constant_4.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov w9, #20
     mov w10, #10
@@ -333,7 +333,7 @@ _start:
     mov w11, w8
     mov w8, #10
     mov w11, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -350,7 +350,7 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov w9, #20
     mov w10, #10
@@ -367,7 +367,7 @@ _start:
     mov w11, w8
     mov w8, #10
     mov w11, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -391,7 +391,7 @@ TEST_CASE("target/arm64: fixture: math_constant_5.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -399,7 +399,7 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -416,7 +416,7 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -424,7 +424,7 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -448,7 +448,7 @@ TEST_CASE("target/arm64: fixture: math_constant_6.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -457,7 +457,7 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -474,7 +474,7 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -483,7 +483,7 @@ _start:
     add w9, w9, #1
     sub w10, w10, #1
     add w10, w10, #1
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -507,7 +507,7 @@ TEST_CASE("target/arm64: fixture: math_constant_7.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -519,7 +519,7 @@ _start:
     add w9, w9, #1
     mov w8, w9
     mov w10, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -536,7 +536,7 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -548,7 +548,7 @@ _start:
     add w9, w9, #1
     mov w8, w9
     mov w10, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -572,13 +572,13 @@ TEST_CASE("target/arm64: fixture: relation_constant.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov w8, 1
     mov w9, w8
     mov w10, #1
     mov w11, #0
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -595,13 +595,13 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov w8, 1
     mov w9, w8
     mov w10, #1
     mov w11, #0
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -836,7 +836,7 @@ TEST_CASE("target/arm64: fixture: bitwise_4.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -848,7 +848,7 @@ _start:
     mvn w23, w10
     and w8, w8, w23
     mov w11, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -865,7 +865,7 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     movn w8, #10
     mov w9, w8
@@ -877,7 +877,7 @@ _start:
     mvn w23, w10
     and w8, w8, w23
     mov w11, w8
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80

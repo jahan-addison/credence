@@ -11,6 +11,34 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Instruction inserters for operations
+ *
+ * Translates B language operations into sequences of assembly instructions.
+ * Handles relational operators, binary operations, unary operations, and
+ * complex expressions by inserting appropriate instruction sequences.
+ *
+ * Example - relational operator:
+ *
+ *   B code:    if (x > y) { ... }
+ *
+ * Inserter generates:
+ *   1. Load x into register
+ *   2. Compare with y
+ *   3. Conditional jump based on flags
+ *
+ * Example - binary arithmetic:
+ *
+ *   B code:    result = a + b * c;
+ *
+ * Inserter generates instruction sequence respecting precedence:
+ *   1. Multiply b * c
+ *   2. Add result to a
+ *   3. Store in result
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "accessor.h"

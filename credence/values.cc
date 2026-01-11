@@ -11,6 +11,25 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Value representation implementation
+ *
+ * Implements string conversion and manipulation of literal values.
+ * Handles the internal representation of B language literals including
+ * integers, floats, doubles, and pointers.
+ *
+ * Example - literal string representation:
+ *
+ *   42     → "(42:int:4)"
+ *   3.14f  → "(3.14:float:4)"
+ *   3.14   → "(3.14:double:8)"
+ *
+ * Used throughout the compiler for debug output, type tracking, and
+ * generating intermediate representation.
+ *
+ *****************************************************************************/
+
 #include <credence/values.h>
 
 #include <credence/operators.h> // for Operator

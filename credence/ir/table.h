@@ -24,6 +24,26 @@
 #include <string>               // for basic_string
 #include <utility>              // for move
 
+/****************************************************************************
+ *  Symbol table builder for the IR. Walks ITA instructions to construct
+ *  the Object table with type information, function frames, vectors, and
+ *  performs type checking on all assignments.
+ *
+ *  Example table construction:
+ *
+ *  main() {
+ *    auto x,
+ *    auto arr[3];
+ *    x = 10;
+ *    arr[0] = x;
+ *  }
+ *
+ *  Builds Object table:
+ *    functions["main"] -> { locals: {x: (10:int:4)} }
+ *    vectors["arr"]    -> { size: 3, data: {"0": (10:int:4)} }
+ *
+ ****************************************************************************/
+
 namespace credence::ir {
 
 void emit(std::ostream& os,
@@ -45,10 +65,10 @@ class Table
     explicit Table(ITA::Node const& hoisted_symbols)
     {
         objects_ = std::make_shared<object::Object>(object::Object{});
-        objects_->hoisted_symbols = std::move(hoisted_symbols);
+        objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
         instructions_ = std::make_shared<ir::Instructions>();
-        objects_->ir_instructions = instructions_;
-        objects_->globals = Symbol_Table<>{};
+        objects_->get_ir_instructions() = instructions_;
+        objects_->get_globals() = Symbol_Table<>{};
     }
 #endif
     explicit Table(ITA::Node hoisted_symbols,
@@ -58,9 +78,9 @@ class Table
         objects_ = std::make_shared<object::Object>(object::Object{});
         instructions_ =
             std::make_shared<ir::Instructions>(std::move(instructions));
-        objects_->ir_instructions = instructions_;
-        objects_->hoisted_symbols = std::move(hoisted_symbols);
-        objects_->globals = std::move(globals);
+        objects_->get_ir_instructions() = instructions_;
+        objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
+        objects_->get_globals() = std::move(globals);
     }
 
   public:
@@ -111,8 +131,8 @@ class Table
             symbol,
             location,
             type_,
-            objects_->get_stack_frame()->symbol,
-            objects_->hoisted_symbols);
+            objects_->get_stack_frame()->get_symbol(),
+            objects_->get_hoisted_symbols());
     }
 
   CREDENCE_PRIVATE_UNLESS_TESTED:

@@ -11,6 +11,33 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Stack frame management for function calls
+ *
+ * Tracks local variables, parameters, and call stack for each function.
+ * Manages stack offsets for variable access during code generation.
+ *
+ * Example - function with locals:
+ *
+ *   compute(a, b) {
+ *     auto x, y, z;
+ *     x = a + b;
+ *     y = x * 2;
+ *     z = y - a;
+ *     return(z);
+ *   }
+ *
+ * Stack frame layout:
+ *   [rbp + 16] parameter 'b'
+ *   [rbp + 8]  parameter 'a'
+ *   [rbp + 0]  saved base pointer
+ *   [rbp - 8]  local 'x'
+ *   [rbp - 16] local 'y'
+ *   [rbp - 24] local 'z'
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <credence/ir/object.h>
@@ -38,11 +65,11 @@ struct Stack_Frame
     }
     inline Frame get_stack_frame(Label const& name) const
     {
-        return objects_->functions.at(name);
+        return objects_->get_functions().at(name);
     }
     inline Frame get_stack_frame() const
     {
-        return objects_->functions.at(symbol);
+        return objects_->get_functions().at(symbol);
     }
 
     Locals argument_stack{};

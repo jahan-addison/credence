@@ -22,6 +22,7 @@
 #include "credence/target/common/runtime.h"     // for is_stdlib_function
 #include "credence/target/common/types.h"       // for Immediate, Table_Poi...
 #include "credence/util.h"                      // for is_variant, sv, __so...
+#include "flags.h"                              // for Align_Folded
 #include "memory.h"                             // for Memory_Accessor, Ins...
 #include "runtime.h"                            // for Library_Call_Inserter
 #include "stack.h"                              // for Stack
@@ -59,6 +60,9 @@ assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
         m::pattern | m::_ = [&] { return Operand_Size::Empty; });
 }
 
+/**
+ * @brief Get a stack of rvalues by evaluating the lvalue of a ir temporary
+ */
 void Bitwise_Operator_Inserter::get_operand_stack_from_temporary_lvalue(
     LValue const& lvalue,
     Operand_Stack& stack)
@@ -67,7 +71,7 @@ void Bitwise_Operator_Inserter::get_operand_stack_from_temporary_lvalue(
     auto stack_frame = accessor_->stack_frame;
     auto frame = stack_frame.get_stack_frame();
     auto rvalue = table->lvalue_at_temporary_object_address(lvalue, frame);
-    auto& locals = frame->locals;
+    auto& locals = frame->get_locals();
 
     if (type::is_unary_expression(rvalue))
         get_operand_stack_from_temporary_lvalue(
@@ -195,7 +199,7 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
         registers.stack.emplace_back(acc);
         if (acc == Register::x23 or acc == Register::w23 or
             is_variant(Immediate, lhs_s)) {
-            frame->tokens.insert("x23");
+            frame->get_tokens().insert("x23");
         }
         if (is_variant(Immediate, lhs_s)) {
             auto intermediate = devices.get_second_register_for_binary_operand(
@@ -315,7 +319,8 @@ common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
     auto offset =
         accessor_->device_accessor.get_device_by_lvalue_reference(rvalue);
     address_space.address_ir_assignment = true;
-    accessor_->stack->increment_pointer_count();
+    accessor_->stack->allocate_pointer_on_stack();
+    accessor_->stack_frame.get_stack_frame()->get_pointers().insert(rvalue);
     accessor_->stack->add_address_location_to_stack(rvalue);
     insert_from_unary_operator_operands(
         op, offset, accessor_->stack->get(rvalue).first);
@@ -511,7 +516,7 @@ Operand_Size Unary_Operator_Inserter::get_operand_size_from_lvalue_reference(
     auto& device_accessor = accessor_->device_accessor;
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto is_vector = [&](RValue const& rvalue) {
-        return accessor_->table_accessor.table_->vectors.contains(
+        return accessor_->table_accessor.table_->get_vectors().contains(
             type::from_lvalue_offset(rvalue));
     };
     auto is_address = [&](RValue const& rvalue) {
@@ -545,7 +550,7 @@ Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
     auto frame = accessor_->table_accessor.table_->get_stack_frame();
     auto acc = accessor_->get_accumulator_with_rvalue_context(size);
     if (acc == Register::x23 or acc == Register::w23)
-        frame->tokens.insert("x23");
+        frame->get_tokens().insert("x23");
     return acc;
 }
 
@@ -566,7 +571,7 @@ Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
     auto is_vector = [&](RValue const& rvalue) {
-        return accessor_->table_accessor.table_->vectors.contains(
+        return accessor_->table_accessor.table_->get_vectors().contains(
             type::from_lvalue_offset(rvalue));
     };
     auto is_address = [&](RValue const& rvalue) {
@@ -642,7 +647,6 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
             },
         m::pattern | std::string{ "&" } =
             [&] {
-                accessor_->stack->allocate(8);
                 accessor_->flag_accessor.set_instruction_flag(
                     common::flag::Address, index);
                 assembly::inserter(instructions,
@@ -733,7 +737,7 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
             [&] {
                 if (type::is_address_of_expression(rvalue)) {
                     auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
-                    stack_frame_.get_stack_frame()->tokens.insert("x26");
+                    stack_frame_.get_stack_frame()->get_tokens().insert("x26");
                     auto rhs_s = u32_int_immediate(
                         unary_inserter.from_lvalue_address_of_expression(
                             rvalue));
@@ -771,12 +775,13 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
                         common::assembly::Arch_Type::ARM64))
                     return;
 #endif
-                credence_assert(table->functions.contains(stack_frame_.tail));
-                auto frame = table->functions[stack_frame_.tail];
-                credence_assert(frame->ret.has_value());
+                credence_assert(
+                    table->get_functions().contains(stack_frame_.tail));
+                auto frame = table->get_functions()[stack_frame_.tail];
+                credence_assert(frame->get_ret().has_value());
                 auto immediate =
                     operand_inserter.get_operand_storage_from_rvalue(
-                        frame->ret->first);
+                        frame->get_ret()->first);
                 if (get_operand_size_from_storage(immediate,
                         accessor_->stack) == Operand_Size::Doubleword) {
                     accessor_->set_signal_register(Register::x0);
@@ -836,7 +841,7 @@ void Unary_Operator_Inserter::insert_from_unary_to_unary_assignment(
         type::get_unary_operator(rhs))(m::pattern | m::ds("*", "*") = [&] {
         auto frame = stack_frame_.get_stack_frame();
         auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
-            lhs, frame, accessor_->table_accessor.table_->vectors);
+            lhs, frame, accessor_->table_accessor.table_->get_vectors());
         auto size = assembly::get_operand_size_from_size(
             devices.get_size_from_rvalue_data_type(lhs, rvalue));
         auto acc =
@@ -845,10 +850,10 @@ void Unary_Operator_Inserter::insert_from_unary_to_unary_assignment(
         Storage lhs_storage = devices.get_device_by_lvalue(lhs_lvalue);
         Storage rhs_storage = devices.get_device_by_lvalue(rhs_lvalue);
         accessor_->flag_accessor.set_instruction_flag(
-            common::flag::Indirect_Source, instruction_accessor->size());
+            detail::flags::Align_Folded, instruction_accessor->size());
         arm64_add__asm(instructions, ldr, acc, lhs_storage);
         accessor_->flag_accessor.set_instruction_flag(
-            common::flag::Indirect_Source, instruction_accessor->size());
+            detail::flags::Align_Folded, instruction_accessor->size());
         arm64_add__asm(instructions, str, acc, rhs_storage);
     });
 }
@@ -880,7 +885,7 @@ void Operand_Inserter::insert_from_binary_operands(
             [&] {
                 auto relational = Relational_Operator_Inserter{ accessor_ };
                 auto& ir_instructions =
-                    accessor_->table_accessor.table_->ir_instructions;
+                    accessor_->table_accessor.table_->get_ir_instructions();
                 auto ir_index = accessor_->table_accessor.index;
                 if (ir_instructions->size() > ir_index and
                     std::get<0>(ir_instructions->at(ir_index + 1)) ==
@@ -1064,9 +1069,9 @@ inline Storage Operand_Inserter::get_operand_storage_from_stack(
 inline Storage Operand_Inserter::get_operand_storage_from_return()
 {
     auto& tail_call =
-        accessor_->table_accessor.table_->functions[stack_frame_.tail];
-    if (tail_call->locals.is_pointer(tail_call->ret->first) or
-        type::is_rvalue_data_type_string(tail_call->ret->first))
+        accessor_->table_accessor.table_->get_functions()[stack_frame_.tail];
+    if (tail_call->get_locals().is_pointer(tail_call->get_ret()->first) or
+        type::is_rvalue_data_type_string(tail_call->get_ret()->first))
         return Register::x8;
     else
         return Register::w8;
@@ -1114,7 +1119,7 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
     auto index_of = frame->get_index_of_parameter(rvalue);
     credence_assert_nequal(index_of, -1);
     // the argc and argv special cases
-    if (frame->symbol == "main") {
+    if (frame->get_symbol() == "main") {
         if (index_of == 0)
             return direct_immediate("[x28]");
         if (index_of == 1) {
@@ -1194,11 +1199,12 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
     auto& table = accessor_->table_accessor.table_;
     for (auto const& rvalue : stack_frame_.argument_stack) {
         if (rvalue == "RET") {
-            credence_assert(table->functions.contains(stack_frame_.tail));
-            auto tail_frame = table->functions.at(stack_frame_.tail);
+            credence_assert(table->get_functions().contains(stack_frame_.tail));
+            auto tail_frame = table->get_functions().at(stack_frame_.tail);
             if (accessor_->address_accessor.is_lvalue_storage_type(
-                    tail_frame->ret->first, "string") or
-                caller_frame->is_pointer_in_stack_frame(tail_frame->ret->first))
+                    tail_frame->get_ret()->first, "string") or
+                caller_frame->is_pointer_in_stack_frame(
+                    tail_frame->get_ret()->first))
                 arguments.emplace_back(Register::x0);
             else
                 arguments.emplace_back(Register::w0);
@@ -1295,13 +1301,13 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
         m::pattern | std::string{ "*" } =
             [&] {
                 if (is_variant(Immediate, operands.second))
-                    frame->tokens.insert("x23");
+                    frame->get_tokens().insert("x23");
                 instructions = assembly::mul(operands.first, operands.second);
             },
         m::pattern | std::string{ "/" } =
             [&] {
                 if (is_variant(Immediate, operands.second))
-                    frame->tokens.insert("x23");
+                    frame->get_tokens().insert("x23");
                 instructions = assembly::div(operands.first, operands.second);
             },
         m::pattern | std::string{ "-" } =
@@ -1315,7 +1321,7 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
         m::pattern | std::string{ "%" } =
             [&] {
                 if (is_variant(Immediate, operands.second))
-                    frame->tokens.insert("x23");
+                    frame->get_tokens().insert("x23");
                 instructions = assembly::mod(operands.first, operands.second);
             });
     return instructions;

@@ -11,6 +11,34 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Shunting-yard algorithm for expression evaluation
+ *
+ * Implements Dijkstra's shunting-yard algorithm to convert infix expressions
+ * to postfix (RPN) form. This handles operator precedence and associativity
+ * correctly without needing explicit parentheses everywhere.
+ *
+ * Example - infix to postfix conversion:
+ *
+ *   Input:  3 + 4 * 2
+ *   Output: 3 4 2 * +
+ *
+ *   Input:  (5 + 3) * (10 - 2)
+ *   Output: 5 3 + 10 2 - *
+ *
+ * In B language context:
+ *
+ *   main() {
+ *     auto x;
+ *     x = 5 + 3 * 2;  // Respects precedence: 5 + (3 * 2) = 11
+ *   }
+ *
+ * The queue handles complex expressions with proper C-style operator
+ * precedence and associativity rules.
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <credence/operators.h> // for Operator

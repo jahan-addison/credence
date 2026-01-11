@@ -11,6 +11,47 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 Assembly Code Generator
+ *
+ * Generates Intel-syntax x86-64 assembly for Linux and Darwin (macOS).
+ * Compliant with System V ABI calling conventions. Translates ITA
+ * intermediate representation into optimized x86-64 machine code.
+ *
+ * Example - simple function:
+ *
+ *   B code:
+ *     add(x, y) {
+ *       return(x + y);
+ *     }
+ *
+ *   Generated x86-64 (Intel syntax):
+ *     add:
+ *         push rbp
+ *         mov rbp, rsp
+ *         mov rax, rdi        ; x in rdi (1st arg)
+ *         add rax, rsi        ; y in rsi (2nd arg)
+ *         pop rbp
+ *         ret
+ *
+ * Example - globals and strings:
+ *
+ *   B code:
+ *     greeting "Hello, World!*n";
+ *     counter 0;
+ *
+ *   Generated:
+ *     .data
+ *     ._L_str1__:
+ *         .asciz "Hello, World!\n"
+ *     greeting:
+ *         .quad ._L_str1__
+ *     counter:
+ *         .quad 0
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                     // for Operand_Size, Storage, Dir...
@@ -177,7 +218,8 @@ class Assembly_Emitter
     explicit Assembly_Emitter(memory::Memory_Access accessor)
         : accessor_(std::move(accessor))
     {
-        ir_instructions_ = *accessor_->table_accessor.table_->ir_instructions;
+        ir_instructions_ =
+            *accessor_->table_accessor.table_->get_ir_instructions();
     }
 
   public:

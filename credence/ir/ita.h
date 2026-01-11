@@ -29,6 +29,29 @@
 #include <utility>           // for pair, make_pair
 #include <vector>            // for vector
 
+/****************************************************************************
+ *  Intermediate Tuple Assembly (ITA) - A linearized 3-address code format
+ *  that serves as the IR for the B compiler. Instructions are quadruples
+ *  (instruction, operand1, operand2, operand3) that represent operations.
+ *
+ *  Example transformation:
+ *
+ *  main() {
+ *    auto x;
+ *    x = 5 + 10;
+ *  }
+ *
+ *  Becomes:
+ *
+ *  __main():
+ *   BeginFunc ;
+ *    LOCL x;
+ *    _t1 = (5:int:4) + (10:int:4);
+ *    MOV x _t1;
+ *   EndFunc ;
+ *
+ ****************************************************************************/
+
 namespace credence {
 
 namespace ir {

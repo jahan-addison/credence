@@ -49,18 +49,18 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& table = accessor_->table_accessor.table_;
-    credence_assert(table->functions.contains(name));
+    credence_assert(table->get_functions().contains(name));
     accessor_->stack->clear();
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
-    auto frame = table->functions[name];
+    auto frame = table->get_functions()[name];
     auto& inst = instruction_accessor->get_instructions();
     // function prologue
     x8664_add__asm(inst, push, rbp);
     x8664_add__asm(inst, mov_, rbp, rsp);
     // align %rbp if there's a CALL in this stack frame
     if (table->stack_frame_contains_call_instruction(
-            name, *accessor_->table_accessor.table_->ir_instructions)) {
+            name, *accessor_->table_accessor.table_->get_ir_instructions())) {
         auto imm = u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
             common::flag::Align, instruction_accessor->size());
@@ -76,8 +76,8 @@ void IR_Instruction_Visitor::from_func_end_ita()
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& table = accessor_->table_accessor.table_;
     auto frame = stack_frame_.get_stack_frame();
-    if (table->stack_frame_contains_call_instruction(frame->symbol,
-            *accessor_->table_accessor.table_->ir_instructions)) {
+    if (table->stack_frame_contains_call_instruction(frame->get_symbol(),
+            *accessor_->table_accessor.table_->get_ir_instructions())) {
         auto imm = u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
             common::flag::Align, instruction_accessor->size());
@@ -109,7 +109,7 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
                 locals.get_symbol_by_name(rvalue)));
     };
     auto is_vector = [&](RValue const& rvalue) {
-        return table->vectors.contains(type::from_lvalue_offset(rvalue));
+        return table->get_vectors().contains(type::from_lvalue_offset(rvalue));
     };
     m::match(locl_lvalue)(
         // Allocate a pointer on the stack
@@ -123,7 +123,7 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
         // the stack
         m::pattern | m::app(is_vector, true) =
             [&] {
-                auto vector = table->vectors.at(locl_lvalue);
+                auto vector = table->get_vectors().at(locl_lvalue);
                 auto size = stack->get_stack_size_from_table_vector(*vector);
                 stack->set_address_from_size(locl_lvalue, size);
             },
@@ -233,8 +233,8 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
 
     auto is_global_vector = [&](RValue const& rvalue) {
         auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table->vectors.contains(rvalue_reference) and
-               table->globals.is_pointer(rvalue_reference);
+        return table->get_vectors().contains(rvalue_reference) and
+               table->get_globals().is_pointer(rvalue_reference);
     };
 
     m::match(lhs, rhs)(
@@ -287,7 +287,7 @@ void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
 {
     auto [_, of, with, jump] = inst;
     auto frame = stack_frame_.get_stack_frame();
-    auto of_comparator = frame->temporary.at(of).substr(4);
+    auto of_comparator = frame->get_temporary().at(of).substr(4);
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto of_rvalue_storage = accessor_->address_accessor
                                  .get_lvalue_address_and_insertion_instructions(
@@ -319,9 +319,9 @@ void IR_Instruction_Visitor::from_return_ita()
 {
     auto inserter = Expression_Inserter{ accessor_ };
     auto frame =
-        accessor_->table_accessor.table_->functions[stack_frame_.symbol];
-    if (frame->ret.has_value())
-        inserter.insert_from_return_rvalue(frame->ret);
+        accessor_->table_accessor.table_->get_functions()[stack_frame_.symbol];
+    if (frame->get_ret().has_value())
+        inserter.insert_from_return_rvalue(frame->get_ret());
 }
 
 /**
@@ -334,7 +334,7 @@ void IR_Instruction_Visitor::from_leave_ita()
     if (stack_frame_.symbol == "main") {
         if (accessor_->table_accessor.table_
                 ->stack_frame_contains_call_instruction(stack_frame_.symbol,
-                    *accessor_->table_accessor.table_->ir_instructions)) {
+                    *accessor_->table_accessor.table_->get_ir_instructions())) {
             auto size = u32_int_immediate(
                 accessor_->stack->get_stack_frame_allocation_size());
             x8664_add__asm(accessor_->instruction_accessor->get_instructions(),

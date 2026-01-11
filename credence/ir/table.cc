@@ -36,6 +36,21 @@
 #include <utility>               // for pair, get
 #include <vector>                // for vector
 
+/****************************************************************************
+ *  Symbol table construction from ITA instructions. Processes each ITA
+ *  instruction sequentially to build the Object table, validate types,
+ *  and track function frames and vector storage.
+ *
+ *  Example processing:
+ *
+ *  ITA:                         Table Action:
+ *  __main():                 -> create function frame "main"
+ *   LOCL x;                  -> add local symbol x = NULL
+ *   MOV x (10:int:4);        -> assign x = (10:int:4), type check
+ *   EndFunc ;                -> close frame, record end address
+ *
+ ****************************************************************************/
+
 namespace credence {
 
 namespace ir {
@@ -114,7 +129,7 @@ void Table::build_from_ir_instructions()
  */
 void Table::build_vector_definitions_from_symbols()
 {
-    auto& hoisted_symbols = objects_->hoisted_symbols;
+    auto& hoisted_symbols = objects_->get_hoisted_symbols();
     auto keys = hoisted_symbols.dump_keys();
     for (LValue const& key : keys) {
         auto symbol_type = hoisted_symbols[key]["type"].to_string();
@@ -123,8 +138,8 @@ void Table::build_vector_definitions_from_symbols()
                 static_cast<std::size_t>(hoisted_symbols[key]["size"].to_int());
             if (size > object::Vector::max_size)
                 throw_object_type_error("stack overflow", key);
-            if (!objects_->vectors.contains(key))
-                objects_->vectors[key] = std::make_shared<object::Vector>(
+            if (!objects_->get_vectors().contains(key))
+                objects_->get_vectors()[key] = std::make_shared<object::Vector>(
                     object::Vector{ key, size });
         }
     }
@@ -139,9 +154,10 @@ void Table::from_locl_ita_instruction(Quadruple const& instruction)
     auto frame = objects_->get_stack_frame();
     if (std::get<1>(instruction).starts_with("*")) {
         label = std::get<1>(instruction);
-        frame->locals.set_symbol_by_name(label.substr(1), "NULL");
+        frame->get_locals().set_symbol_by_name(label.substr(1), "NULL");
     } else
-        frame->locals.set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
+        frame->get_locals().set_symbol_by_name(
+            label, type::NULL_RVALUE_LITERAL);
 }
 
 /**
@@ -151,7 +167,7 @@ void Table::from_return_instruction(Quadruple const& instruction)
 {
     auto return_rvalue = util::str_trim_ws(std::get<1>(instruction));
     auto frame = objects_->get_stack_frame();
-    if (frame->ret.has_value())
+    if (frame->get_ret().has_value())
         throw_object_type_error("invalid return statement", return_rvalue);
     object::set_stack_frame_return_value(return_rvalue, frame, objects_);
 }
@@ -161,11 +177,11 @@ void Table::from_return_instruction(Quadruple const& instruction)
  */
 void Table::from_globl_ita_instruction(Label const& label)
 {
-    if (!objects_->vectors.contains(label))
+    if (!objects_->get_vectors().contains(label))
         throw_object_type_error(
             "extrn statement failed, identifier does not exist", label);
     auto frame = objects_->get_stack_frame();
-    frame->locals.set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
+    frame->get_locals().set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
 }
 
 /**
@@ -173,19 +189,20 @@ void Table::from_globl_ita_instruction(Label const& label)
  */
 void Table::build_vector_definitions_from_globals()
 {
-    auto& globals = objects_->globals;
+    auto& globals = objects_->get_globals();
     if (!globals.empty())
         for (auto i = globals.begin_t(); i != globals.end_t(); i++) {
             std::size_t index = 0;
             auto symbol = *i;
-            objects_->vectors[symbol.first] = std::make_shared<object::Vector>(
-                object::Vector{ symbol.first, symbol.second.size() });
+            objects_->get_vectors()[symbol.first] =
+                std::make_shared<object::Vector>(
+                    object::Vector{ symbol.first, symbol.second.size() });
             for (auto const& item : symbol.second) {
                 auto key = std::to_string(index++);
                 auto value = type::get_rvalue_datatype_from_string(
                     value::expression_type_to_string(item, false));
                 insert_address_storage_rvalue(value);
-                objects_->vectors[symbol.first]->data[key] = value;
+                objects_->get_vectors()[symbol.first]->get_data()[key] = value;
             }
         }
 }
@@ -202,10 +219,10 @@ void Table::from_label_ita_instruction(Quadruple const& instruction)
     Label label = std::get<1>(instruction);
     if (objects_->is_stack_frame()) {
         auto frame = objects_->get_stack_frame();
-        if (frame->labels.contains(label))
+        if (frame->get_labels().contains(label))
             throw_object_type_error("label is already defined", label);
-        frame->labels.emplace(label);
-        frame->label_address.set_symbol_by_name(label, instruction_index);
+        frame->get_labels().emplace(label);
+        frame->get_label_address().set_symbol_by_name(label, instruction_index);
     }
 }
 
@@ -245,7 +262,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
         from_pointer_or_vector_assignment(lhs, rhs);
         return;
     }
-    if (objects_->hoisted_symbols.has_key(rhs)) {
+    if (objects_->get_hoisted_symbols().has_key(rhs)) {
         from_scaler_symbol_assignment(lhs, rhs);
         return;
     }
@@ -275,8 +292,8 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
             fmt::format("right-hand-side exceeds maximum byte size '{}'", rhs),
             lhs);
 
-    frame->locals.set_symbol_by_name(lhs, rvalue_symbol);
-    frame->allocation += size;
+    frame->get_locals().set_symbol_by_name(lhs, rvalue_symbol);
+    frame->get_allocation() += size;
 
     insert_address_storage_rvalue(rvalue_symbol);
 }
@@ -288,22 +305,28 @@ void Table::insert_address_storage_rvalue(RValue const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
-        objects_->floats.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_floats().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
     if (type == "double")
-        objects_->doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_doubles().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
     if (type == "string")
-        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_strings().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
 }
 
 void Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
-        objects_->floats.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_floats().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
     if (type == "double")
-        objects_->doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_doubles().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
     if (type == "string")
-        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_strings().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
 }
 
 /**
@@ -330,7 +353,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
     bool indirection)
 {
     auto& locals = objects_->get_stack_frame_symbols();
-    auto& vectors = objects_->vectors;
+    auto& vectors = objects_->get_vectors();
     auto frame = objects_->get_stack_frame();
     std::string rhs_lvalue{};
 
@@ -352,7 +375,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
         if (!frame->is_scaler_parameter(offset) and
             not locals.is_defined(offset) and
             (!vectors.contains(safe_rvalue) or
-                not vectors[safe_rvalue]->data.contains(offset)))
+                not vectors[safe_rvalue]->get_data().contains(offset)))
             throw_object_type_error(
                 fmt::format("invalid vector assignment, element at '{}' "
                             "does not exist",
@@ -382,7 +405,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
                         type::get_type_from_rvalue_data_type(
                             rvalue_symbol.value())),
                     lvalue);
-            vectors[lhs_lvalue]->data[offset] = rvalue_symbol.value();
+            vectors[lhs_lvalue]->get_data()[offset] = rvalue_symbol.value();
         } else {
             // is the rhs a scaler rvalue? e.g. (10:"int":4UL)
             if (type::is_rvalue_data_type(rvalue)) {
@@ -390,7 +413,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
                 auto value = type::get_rvalue_datatype_from_string(rvalue);
                 insert_address_storage_rvalue(value);
                 if (vectors.contains(lhs_lvalue))
-                    vectors[lhs_lvalue]->data[offset] =
+                    vectors[lhs_lvalue]->get_data()[offset] =
                         type::get_rvalue_datatype_from_string(rvalue);
             }
         }
@@ -428,8 +451,8 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
 void Table::from_trivial_vector_assignment(LValue const& lhs,
     type::Data_Type const& rvalue)
 {
-    if (objects_->vectors.contains(lhs)) {
-        objects_->vectors[lhs]->data["0"] = rvalue;
+    if (objects_->get_vectors().contains(lhs)) {
+        objects_->get_vectors()[lhs]->get_data()["0"] = rvalue;
     }
 }
 
@@ -440,16 +463,18 @@ void Table::from_trivial_vector_assignment(LValue const& lhs,
 void Table::from_func_start_ita_instruction(Label const& label)
 {
     Label human_label = type::get_label_as_human_readable(label);
-    objects_->address_table.set_symbol_by_name(label, instruction_index - 1);
-    if (objects_->labels.contains(human_label))
+    objects_->get_address_table().set_symbol_by_name(
+        label, instruction_index - 1);
+    if (objects_->get_labels().contains(human_label))
         throw_object_type_error("function name already exists", human_label);
 
-    objects_->functions[human_label] =
+    objects_->get_functions()[human_label] =
         std::make_shared<object::Function>(object::Function{ human_label });
-    objects_->functions[human_label]->address_location[0] =
+    objects_->get_functions()[human_label]->get_address_location()[0] =
         instruction_index + 1;
-    objects_->functions[human_label]->set_parameters_from_symbolic_label(label);
-    objects_->labels.emplace(human_label);
+    objects_->get_functions()[human_label]->set_parameters_from_symbolic_label(
+        label);
+    objects_->get_labels().emplace(human_label);
     objects_->set_stack_frame(human_label);
 }
 
@@ -459,7 +484,7 @@ void Table::from_func_start_ita_instruction(Label const& label)
 void Table::from_func_end_ita_instruction()
 {
     if (objects_->is_stack_frame())
-        objects_->get_stack_frame()->address_location[1] =
+        objects_->get_stack_frame()->get_address_location()[1] =
             instruction_index - 1;
 
     objects_->reset_stack_frame();
@@ -473,8 +498,8 @@ void Table::from_push_instruction(Quadruple const& instruction)
     RValue operand = std::get<1>(instruction);
     auto frame = objects_->get_stack_frame();
     if (objects_->is_stack_frame()) {
-        // credence_assert(frame->temporary.contains(operand));
-        objects_->stack.emplace_back(frame->temporary.at(operand));
+        // credence_assert(frame->get_temporary().contains(operand));
+        objects_->get_stack().emplace_back(frame->get_temporary().at(operand));
     }
 }
 
@@ -485,7 +510,7 @@ void Table::from_pop_instruction(Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
-    credence_assert(pop_size <= objects_->stack.size());
+    credence_assert(pop_size <= objects_->get_stack().size());
 }
 
 /**
@@ -590,9 +615,9 @@ void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
 void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
 {
     auto frame = objects_->get_stack_frame();
-    frame->temporary[lhs] = rhs;
+    frame->get_temporary()[lhs] = rhs;
     if (lhs.starts_with("_p"))
-        frame->locals.set_symbol_by_name(lhs, rhs);
+        frame->get_locals().set_symbol_by_name(lhs, rhs);
     if (type::is_rvalue_data_type(rhs)) {
         auto data_type = type::get_rvalue_datatype_from_string(rhs);
         insert_address_storage_rvalue(data_type);
@@ -642,7 +667,8 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
     auto type_checker = Type_Checker{ objects_, frame };
 
     auto rvalue = type::get_unary_rvalue_reference(lvalue);
-    if (!locals.is_defined(rvalue) and not frame->temporary.contains(rvalue))
+    if (!locals.is_defined(rvalue) and
+        not frame->get_temporary().contains(rvalue))
         throw_object_type_error(
             fmt::format(
                 "invalid numeric unary expression, lvalue symbol '{}' is "
@@ -651,13 +677,13 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                 rvalue),
             lvalue);
 
-    if (frame->temporary.contains(lvalue)) {
+    if (frame->get_temporary().contains(lvalue)) {
         auto temp_rvalue =
-            type::get_unary_rvalue_reference(frame->temporary[lvalue]);
+            type::get_unary_rvalue_reference(frame->get_temporary()[lvalue]);
         credence_assert(type::is_rvalue_data_type(temp_rvalue));
         auto rdt = type::get_rvalue_datatype_from_string(temp_rvalue);
         type_checker.assert_integral_unary_expression(
-            frame->temporary[lvalue], std::get<1>(rdt));
+            frame->get_temporary()[lvalue], std::get<1>(rdt));
         return rdt;
     } else {
         auto symbol = locals.get_symbol_by_name(rvalue);

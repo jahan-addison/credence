@@ -11,6 +11,36 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Memory and object accessors for code generation
+ *
+ * Provides access to the object table (globals, functions, vectors) and
+ * stack frame management during assembly code generation. Translates high-level
+ * B constructs into low-level memory operations.
+ *
+ * Example - accessing globals:
+ *
+ *   counter 0;
+ *
+ * Accessor retrieves global 'counter' from object table and emits:
+ *
+ *   .data
+ *   counter: .quad 0
+ *
+ * Example - function stack frames:
+ *
+ *   add(x, y) {
+ *     auto temp;
+ *     temp = x + y;
+ *     return(temp);
+ *   }
+ *
+ * Stack frame accessor manages local variables and parameters, generating
+ * proper stack offsets for 'temp', 'x', and 'y'.
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"
@@ -64,7 +94,7 @@ class Buffer_Accessor
     {
         auto lhs = type::from_lvalue_offset(lvalue);
         auto offset = type::from_decay_offset(lvalue);
-        auto& vectors = table_->vectors;
+        auto& vectors = table_->get_vectors();
         auto frame = stack_frame.get_stack_frame();
 
         if (lvalue == "RET")
@@ -81,7 +111,7 @@ class Buffer_Accessor
 
         if (is_global_vector(lhs)) {
             std::string key{};
-            auto vector = table_->vectors.at(lhs);
+            auto vector = table_->get_vectors().at(lhs);
             if (util::is_numeric(offset)) {
                 key = offset;
             } else {
@@ -90,12 +120,13 @@ class Buffer_Accessor
                 key =
                     std::string{ type::get_value_from_rvalue_data_type(index) };
             }
-            return type::get_size_from_rvalue_data_type(vector->data.at(key));
+            return type::get_size_from_rvalue_data_type(
+                vector->get_data().at(key));
         }
 
         if (is_vector_offset(lvalue)) {
             std::string key{};
-            auto vector = table_->vectors.at(lhs);
+            auto vector = table_->get_vectors().at(lhs);
             if (util::is_numeric(offset)) {
                 key = offset;
             } else {
@@ -104,7 +135,8 @@ class Buffer_Accessor
                 key =
                     std::string{ type::get_value_from_rvalue_data_type(index) };
             }
-            return type::get_size_from_rvalue_data_type(vector->data.at(key));
+            return type::get_size_from_rvalue_data_type(
+                vector->get_data().at(key));
         }
 
         if (is_immediate(lvalue))
@@ -140,37 +172,39 @@ class Buffer_Accessor
     }
     Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
         auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table_->vectors.contains(rvalue_reference) and
-               table_->globals.is_pointer(rvalue_reference);
+        return table_->get_vectors().contains(rvalue_reference) and
+               table_->get_globals().is_pointer(rvalue_reference);
     };
 
   private:
     Size get_size_of_return_string(Stack_Frame const& stack_frame)
     {
-        credence_assert(table_->functions.contains(stack_frame.tail));
-        auto tail_frame = table_->functions.at(stack_frame.tail);
-        auto return_rvalue = tail_frame->ret->second;
+        credence_assert(table_->get_functions().contains(stack_frame.tail));
+        auto tail_frame = table_->get_functions().at(stack_frame.tail);
+        auto return_rvalue = tail_frame->get_ret()->second;
         if (tail_frame->is_parameter(return_rvalue)) {
-            credence_assert(
-                table_->functions.contains(stack_frame.call_stack.back()));
+            credence_assert(table_->get_functions().contains(
+                stack_frame.call_stack.back()));
             auto last_stack_frame =
-                table_->functions.at(stack_frame.call_stack.back());
-            if (last_stack_frame->locals.is_pointer(tail_frame->ret->first)) {
+                table_->get_functions().at(stack_frame.call_stack.back());
+            if (last_stack_frame->get_locals().is_pointer(
+                    tail_frame->get_ret()->first)) {
                 return type::get_size_from_rvalue_data_type(
                     type::get_rvalue_datatype_from_string(
-                        last_stack_frame->locals.get_pointer_by_name(
-                            tail_frame->ret->first)));
+                        last_stack_frame->get_locals().get_pointer_by_name(
+                            tail_frame->get_ret()->first)));
             }
-            if (type::is_rvalue_data_type(tail_frame->ret->first))
+            if (type::is_rvalue_data_type(tail_frame->get_ret()->first))
                 return type::get_size_from_rvalue_data_type(
                     type::get_rvalue_datatype_from_string(
-                        tail_frame->ret->first));
+                        tail_frame->get_ret()->first));
             return type::get_size_from_rvalue_data_type(
-                last_stack_frame->locals.get_symbol_by_name(
-                    tail_frame->ret->first));
+                last_stack_frame->get_locals().get_symbol_by_name(
+                    tail_frame->get_ret()->first));
         }
         return type::get_size_from_rvalue_data_type(
-            type::get_rvalue_datatype_from_string(tail_frame->ret->first));
+            type::get_rvalue_datatype_from_string(
+                tail_frame->get_ret()->first));
     }
 
     Size get_size_in_local_address(LValue const& lvalue,
@@ -188,16 +222,17 @@ class Buffer_Accessor
         if (locals.is_pointer(lvalue)) {
             auto rvalue_address =
                 ir::object::get_rvalue_at_lvalue_object_storage(
-                    lvalue, frame, table_->vectors, __source__);
+                    lvalue, frame, table_->get_vectors(), __source__);
             return type::get_size_from_rvalue_data_type(rvalue_address);
         }
         auto local_symbol = locals.get_symbol_by_name(lvalue);
         auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
         if (local_rvalue == "RET") {
-            credence_assert(table_->functions.contains(stack_frame.tail));
-            auto tail_frame = table_->functions.at(stack_frame.tail);
+            credence_assert(table_->get_functions().contains(stack_frame.tail));
+            auto tail_frame = table_->get_functions().at(stack_frame.tail);
             return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(tail_frame->ret->first));
+                type::get_rvalue_datatype_from_string(
+                    tail_frame->get_ret()->first));
         }
         return type::get_size_from_rvalue_data_type(local_symbol);
     }
@@ -275,25 +310,25 @@ struct Table_Accessor
     bool is_ir_instruction_temporary()
     {
         return type::is_temporary(
-            std::get<1>(table_->ir_instructions->at(index)));
+            std::get<1>(table_->get_ir_instructions()->at(index)));
     }
     std::string get_ir_instruction_lvalue()
     {
-        return std::get<1>(table_->ir_instructions->at(index));
+        return std::get<1>(table_->get_ir_instructions()->at(index));
     }
     bool last_ir_instruction_is_assignment()
     {
         if (index < 1)
             return false;
-        auto last = table_->ir_instructions->at(index - 1);
+        auto last = table_->get_ir_instructions()->at(index - 1);
         return std::get<0>(last) == ir::Instruction::MOV and
                not type::is_temporary(std::get<1>(last));
     }
     bool next_ir_instruction_is_temporary()
     {
-        if (table_->ir_instructions->size() < index + 1)
+        if (table_->get_ir_instructions()->size() < index + 1)
             return false;
-        auto next = table_->ir_instructions->at(index + 1);
+        auto next = table_->get_ir_instructions()->at(index + 1);
         return std::get<0>(next) == ir::Instruction::MOV and
                type::is_temporary(std::get<1>(next));
     }
@@ -346,43 +381,45 @@ class Vector_Accessor
     {
         using namespace assembly;
         auto frame = table_->get_stack_frame();
-        auto& vectors = table_->vectors;
+        auto& vectors = table_->get_vectors();
         auto vector = type::from_lvalue_offset(lvalue);
         if (!is_vector_offset(lvalue))
             return std::make_pair(0UL,
                 get_size_from_vector_offset(
-                    table_->vectors.at(vector)->data.at("0")));
-        if (!table_->hoisted_symbols.has_key(offset) and
+                    table_->get_vectors().at(vector)->get_data().at("0")));
+        if (!table_->get_hoisted_symbols().has_key(offset) and
             not value::is_integer_string(offset))
             throw_compiletime_error(
                 fmt::format("Invalid index '{} on vector lvalue", offset),
                 vector);
-        if (table_->hoisted_symbols.has_key(offset)) {
+        if (table_->get_hoisted_symbols().has_key(offset)) {
             auto index = ir::object::get_rvalue_at_lvalue_object_storage(
                 offset, frame, vectors, __source__);
             auto key =
                 std::string{ type::get_value_from_rvalue_data_type(index) };
-            if (!vectors.at(vector)->data.contains(key))
+            if (!vectors.at(vector)->get_data().contains(key))
                 throw_compiletime_error(
                     fmt::format(
                         "Invalid out-of-range index '{}' on vector lvalue",
                         key),
                     vector);
-            return std::make_pair(vectors.at(vector)->offset.at(key),
-                get_size_from_vector_offset(vectors.at(vector)->data.at(key)));
+            return std::make_pair(vectors.at(vector)->get_offset().at(key),
+                get_size_from_vector_offset(
+                    vectors.at(vector)->get_data().at(key)));
         } else if (value::is_integer_string(offset)) {
-            if (!vectors.at(vector)->data.contains(offset))
+            if (!vectors.at(vector)->get_data().contains(offset))
                 throw_compiletime_error(
                     fmt::format(
                         "Invalid out-of-range index '{}' on vector lvalue",
                         offset),
                     vector);
-            return std::make_pair(vectors.at(vector)->offset.at(offset),
+            return std::make_pair(vectors.at(vector)->get_offset().at(offset),
                 get_size_from_vector_offset(
-                    vectors.at(vector)->data.at(offset)));
+                    vectors.at(vector)->get_data().at(offset)));
         } else
             return std::make_pair(0UL,
-                get_size_from_vector_offset(vectors.at(vector)->data.at("0")));
+                get_size_from_vector_offset(
+                    vectors.at(vector)->get_data().at("0")));
     }
 
   protected:
@@ -465,8 +502,10 @@ class Address_Accessor
             return type::get_type_from_rvalue_data_type(
                        type::get_rvalue_data_type_as_string(
                            ir::object::get_rvalue_at_lvalue_object_storage(
-                               lvalue, frame, table_->vectors, __source__))) ==
-                   type_check;
+                               lvalue,
+                               frame,
+                               table_->get_vectors(),
+                               __source__))) == type_check;
         } catch (...) {
             return false;
         }
@@ -474,12 +513,12 @@ class Address_Accessor
 
   protected:
     Operand_Lambda is_vector = [&](RValue const& rvalue) {
-        return table_->vectors.contains(type::from_lvalue_offset(rvalue));
+        return table_->get_vectors().contains(type::from_lvalue_offset(rvalue));
     };
     Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
         auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table_->vectors.contains(rvalue_reference) and
-               table_->globals.is_pointer(rvalue_reference);
+        return table_->get_vectors().contains(rvalue_reference) and
+               table_->get_globals().is_pointer(rvalue_reference);
     };
 
   public:

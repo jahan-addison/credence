@@ -11,6 +11,34 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Runtime support and standard library integration
+ *
+ * Manages program startup, argc/argv handling, and standard library function
+ * integration. The standard library is pre-compiled and doesn't depend on
+ * libc, providing functions like printf, print, and memory operations.
+ *
+ * Example - main with arguments:
+ *
+ *   main(argc, argv) {
+ *     if (argc > 1) {
+ *       printf("Hello, %s!*n", argv[1]);
+ *     }
+ *   }
+ *
+ * Runtime sets up:
+ *   - argc in appropriate location (stack/register)
+ *   - argv pointer to argument array
+ *   - Calls main
+ *   - Handles return value as exit code
+ *
+ * Example - standard library:
+ *
+ *   print("Hello*n");  // Pre-compiled stdlib function, no libc
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "stack_frame.h"        // for Locals

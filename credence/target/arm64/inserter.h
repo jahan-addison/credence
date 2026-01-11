@@ -11,6 +11,33 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64 Instruction Inserters
+ *
+ * Translates B language operations into ARM64 instruction sequences.
+ * Handles arithmetic, bitwise, relational operators, and assignments.
+ *
+ * Example - arithmetic operation:
+ *
+ *   B code:    z = x + y * 2;
+ *
+ * Inserter generates (locals in x9, x10, x11):
+ *   mov x8, x10             ; load y from x10 into accumulator
+ *   lsl x8, x8, #1          ; y * 2 (shift left)
+ *   add x8, x9, x8          ; x + (y * 2), x in x9
+ *   mov x11, x8             ; store to z in x11
+ *
+ * Example - comparison:
+ *
+ *   B code:    if (x > 10) { ... }
+ *
+ * Inserter generates (x in x9):
+ *   cmp x9, #10
+ *   b.gt ._L1__main
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                           // for Assignment_Operands

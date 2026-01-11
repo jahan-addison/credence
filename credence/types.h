@@ -11,6 +11,43 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Type system and semantic analysis
+ *
+ * B is strongly typed by type inference. Variables don't have declared
+ * types - their type is inferred from the value assigned. This module
+ * performs type checking, scope analysis, and semantic validation.
+ *
+ * Example - type inference:
+ *
+ *   main() {
+ *     auto x, y, z;
+ *     x = 42;           // x is inferred as int
+ *     y = 3.14;         // y is inferred as double
+ *     z = x + y;        // Error: cannot mix int and double without cast
+ *   }
+ *
+ * Array boundary checking:
+ *
+ *   main() {
+ *     extrn values;
+ *     print(values[0]);   // OK
+ *     print(values[10]);  // Compile-time error: out of range
+ *   }
+ *   values [3] 1, 2, 3;
+ *
+ * Function parameter validation:
+ *
+ *   add(x, y) { return(x + y); }
+ *
+ *   main() {
+ *     add(5, 10);      // OK: 2 arguments
+ *     add(5);          // Error: wrong number of arguments
+ *   }
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <concepts>          // for integral

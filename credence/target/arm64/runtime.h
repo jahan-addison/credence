@@ -11,6 +11,33 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64 Runtime and Standard Library Integration
+ *
+ * Handles function calls to the standard library and manages the ARM64 PCS
+ * calling convention. Arguments passed in registers: x0-x7, then stack.
+ * Return value in x0. x30 (lr) holds return address.
+ *
+ * Example - calling printf:
+ *
+ *   B code:    printf("Value: %d*n", x);
+ *
+ * Generates (x is local in x9):
+ *   adrp x0, ._L_str1__@PAGE       ; format string in x0
+ *   add x0, x0, ._L_str1__@PAGEOFF
+ *   mov x1, x9                      ; x from register x9
+ *   bl printf                       ; from stdlib
+ *
+ * Example - main with argc/argv:
+ *
+ *   B code:    main(argc, argv) { ... }
+ *
+ * Setup:
+ *   x0 contains argc, x1 contains argv pointer
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                           // for Register, Instructions

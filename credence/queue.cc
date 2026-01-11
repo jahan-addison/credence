@@ -11,6 +11,31 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Shunting-yard algorithm implementation
+ *
+ * Implements the classic shunting-yard algorithm for expression evaluation.
+ * Converts infix notation (what programmers write) to postfix notation
+ * (what's easier to evaluate), respecting operator precedence.
+ *
+ * Example - step-by-step conversion:
+ *
+ *   Input: 5 + 3 * 2
+ *
+ *   Step 1: Push 5 to output
+ *   Step 2: Push + to operator stack
+ *   Step 3: Push 3 to output
+ *   Step 4: * has higher precedence, push to operator stack
+ *   Step 5: Push 2 to output
+ *   Step 6: Pop * and + to output
+ *
+ *   Result: 5 3 2 * +
+ *
+ * This postfix form is then easy to evaluate: 3*2=6, then 5+6=11
+ *
+ *****************************************************************************/
+
 #include <credence/queue.h>
 
 #include <credence/operators.h> // for Operator, get_precedence, is_le...

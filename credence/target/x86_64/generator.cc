@@ -191,7 +191,7 @@ Directives Data_Emitter::get_instructions_from_directive_type(
 void Data_Emitter::set_data_strings()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& string : table->strings) {
+    for (auto const& string : table->get_strings()) {
         auto data_instruction = assembly::asciz(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             string);
@@ -207,7 +207,7 @@ void Data_Emitter::set_data_strings()
 void Data_Emitter::set_data_floats()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& floatz : table->floats) {
+    for (auto const& floatz : table->get_floats()) {
         auto data_instruction = assembly::floatz(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             floatz);
@@ -223,7 +223,7 @@ void Data_Emitter::set_data_floats()
 void Data_Emitter::set_data_doubles()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& doublez : table->doubles) {
+    for (auto const& doublez : table->get_doubles()) {
         auto data_instruction = assembly::doublez(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             doublez);
@@ -239,12 +239,12 @@ void Data_Emitter::set_data_doubles()
 void Data_Emitter::set_data_globals()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& global : table->globals.get_pointers()) {
-        credence_assert(table->vectors.contains(global));
-        auto& vector = table->vectors.at(global);
+    for (auto const& global : table->get_globals().get_pointers()) {
+        credence_assert(table->get_vectors().contains(global));
+        auto& vector = table->get_vectors().at(global);
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
-        for (auto const& item : vector->data) {
+        for (auto const& item : vector->get_data()) {
             auto directive =
                 assembly::get_data_directive_from_rvalue_type(item.second);
             auto data = type::get_value_from_rvalue_data_type(item.second);
@@ -390,16 +390,18 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 {
     auto& table = accessor_->table_accessor.table_;
     // function labels
-    if (table->hoisted_symbols.has_key(s) and
-        table->hoisted_symbols[s]["type"].to_string() ==
+    if (table->get_hoisted_symbols().has_key(s) and
+        table->get_hoisted_symbols()[s]["type"].to_string() ==
             "function_definition") {
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s)
             emit_function_epilogue(os);
         frame_ = s;
         if (set_label)
-            label_size_ = accessor_->table_accessor.table_->functions.at(s)
-                              ->labels.size();
+            label_size_ = accessor_->table_accessor.table_->get_functions()
+                              .at(s)
+                              ->get_labels()
+                              .size();
         if (s != "main")
             assembly::newline(os, 2);
         os << assembly::make_label(s) << ":";
@@ -411,7 +413,7 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
         branch_ = s;
         auto label = util::get_numbers_from_string(s);
         auto label_before_reserved =
-            table->functions.at(frame_)->label_before_reserved;
+            table->get_functions().at(frame_)->get_label_before_reserved();
         if (set_label and s == "_L1") {
             // In the IR, labels are linear until _L1 and then branching starts.
             // So as soon as _L1 would be emitted, add a jump to _L1 instead

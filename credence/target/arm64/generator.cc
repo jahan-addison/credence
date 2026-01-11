@@ -134,7 +134,7 @@ assembly::Directives Data_Emitter::get_instructions_from_directive_type(
 void Data_Emitter::set_data_strings()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& string : table->strings) {
+    for (auto const& string : table->get_strings()) {
         auto data_instruction = assembly::asciz(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             string);
@@ -150,7 +150,7 @@ void Data_Emitter::set_data_strings()
 void Data_Emitter::set_data_floats()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& floatz : table->floats) {
+    for (auto const& floatz : table->get_floats()) {
         auto data_instruction = assembly::floatz(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             floatz);
@@ -166,7 +166,7 @@ void Data_Emitter::set_data_floats()
 void Data_Emitter::set_data_doubles()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& doublez : table->doubles) {
+    for (auto const& doublez : table->get_doubles()) {
         auto data_instruction = assembly::doublez(
             &accessor_->address_accessor.buffer_accessor.constant_size_index,
             doublez);
@@ -182,12 +182,12 @@ void Data_Emitter::set_data_doubles()
 void Data_Emitter::set_data_globals()
 {
     auto& table = accessor_->table_accessor.table_;
-    for (auto const& global : table->globals.get_pointers()) {
-        credence_assert(table->vectors.contains(global));
-        auto& vector = table->vectors.at(global);
+    for (auto const& global : table->get_globals().get_pointers()) {
+        credence_assert(table->get_vectors().contains(global));
+        auto& vector = table->get_vectors().at(global);
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
-        for (auto const& item : vector->data) {
+        for (auto const& item : vector->get_data()) {
             auto directive =
                 assembly::get_data_directive_from_rvalue_type(item.second);
             auto data = type::get_value_from_rvalue_data_type(item.second);
@@ -310,10 +310,10 @@ std::string Storage_Emitter::get_storage_device_as_string(
     return m::match(storage)(
         m::pattern | m::as<assembly::Stack::Offset>(
                          s) = [&] { return emit_stack_storage(*s, flags); },
-        m::pattern | m::as<assembly::Register>(
+        m::pattern | m::as<Register>(
                          r) = [&] { return emit_register_storage(*r, flags); },
-        m::pattern | m::as<assembly::Immediate>(
-                         i) = [&] { return emit_immediate_storage(*i); });
+        m::pattern |
+            m::as<Immediate>(i) = [&] { return emit_immediate_storage(*i); });
 }
 
 /**
@@ -333,7 +333,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
         return [target_source](
                    auto argument) { return argument == target_source; };
     };
-
+    auto frame = accessor_->stack_frame.get_stack_frame();
     if (is_alignment_mnemonic(mnemonic)) {
         m::match(flags, source)(
 
@@ -341,8 +341,9 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                 m::ds(m::app(instruction_contains_flag(flag::Align), true),
                     m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
-                    operand = u32_int_immediate(
-                        stack->get_stack_frame_allocation_size());
+                    auto allocation =
+                        stack->get_stack_frame_allocation_size(frame);
+                    operand = u32_int_immediate(allocation);
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_S3_Folded),
@@ -350,23 +351,29 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                              m::app(operand_source_is(Source::s_3), true)) =
                 [&] {
                     operand = u32_int_immediate(
-                        stack->get_stack_frame_allocation_size());
+                        stack->get_stack_frame_allocation_size(frame));
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_Folded),
                                    true),
-                             m::app(operand_source_is(Source::s_2), true)) =
+                             m::app(operand_source_is(Source::s_1), true)) =
                 [&] {
-                    operand = u32_int_immediate(
-                        stack->get_stack_frame_allocation_size() - 16);
+                    fmt::println("hmm: {}, {}",
+                        frame->get_pointers().size(),
+                        stack->get_stack_frame_allocation_size(frame) -
+                            (frame->get_pointers().size() * 8));
+                    operand = direct_immediate(fmt::format("[sp, #{}]",
+                        stack->get_stack_frame_allocation_size(frame)));
                 },
             m::pattern |
                 m::ds(m::app(instruction_contains_flag(detail::flags::Align_SP),
                           true),
                     m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
-                    operand = direct_immediate(fmt::format("[sp, #-{}]!",
-                        stack->get_stack_frame_allocation_size()));
+                    auto allocation =
+                        stack->get_stack_frame_allocation_size(frame);
+                    operand = direct_immediate(
+                        fmt::format("[sp, #-{}]!", allocation));
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_SP_Folded),
@@ -374,7 +381,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                              m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
                     operand = direct_immediate(fmt::format("[sp, #{}]",
-                        stack->get_stack_frame_allocation_size() - 16));
+                        stack->get_stack_frame_allocation_size(frame)));
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_SP_Local),
@@ -382,7 +389,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                              m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
                     operand = direct_immediate(fmt::format("[sp, #-{}!]",
-                        stack->get_stack_frame_allocation_size() - 16));
+                        stack->get_stack_frame_allocation_size(frame)));
                 });
     }
 }
@@ -456,8 +463,8 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 {
     auto& table = accessor_->table_accessor.table_;
     // function labels
-    if (table->hoisted_symbols.has_key(s) and
-        table->hoisted_symbols[s]["type"].to_string() ==
+    if (table->get_hoisted_symbols().has_key(s) and
+        table->get_hoisted_symbols()[s]["type"].to_string() ==
             "function_definition") {
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
@@ -466,8 +473,10 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
         }
         frame_ = s;
         if (set_label)
-            label_size_ = accessor_->table_accessor.table_->functions.at(s)
-                              ->labels.size();
+            label_size_ = accessor_->table_accessor.table_->get_functions()
+                              .at(s)
+                              ->get_labels()
+                              .size();
         if (s != "main")
             assembly::newline(os, 2);
         os << assembly::make_label(s) << ":";
@@ -479,7 +488,7 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
         branch_ = s;
         auto label = util::get_numbers_from_string(s);
         auto label_before_reserved =
-            table->functions.at(frame_)->label_before_reserved;
+            table->get_functions().at(frame_)->get_label_before_reserved();
         if (set_label and s == "_L1") {
             // In the IR, labels are linear until _L1 and then branching starts.
             // So as soon as _L1 would be emitted, add a jump to _L1 instead
@@ -504,24 +513,24 @@ bool Text_Emitter::emit_callee_saved_registers_stp(Mnemonic mnemonic,
         accessor_->device_accessor.get_current_frame_name());
 
     if (flags & detail::flags::Callee_Saved)
-        if (!stack_frame->tokens.contains("x23") and
-            not stack_frame->tokens.contains("x26"))
+        if (!stack_frame->get_tokens().contains("x23") and
+            not stack_frame->get_tokens().contains("x26"))
             return false;
 
     if (flags & detail::flags::Callee_Saved and mnemonic == Mnemonic::stp) {
-        if (stack_frame->tokens.contains("x23") and
-            stack_frame->tokens.contains("x26")) {
+        if (stack_frame->get_tokens().contains("x23") and
+            stack_frame->get_tokens().contains("x26")) {
             // both true, let through
             return true;
         }
-        if (stack_frame->tokens.contains("x23") and
-            not stack_frame->tokens.contains("x26")) {
+        if (stack_frame->get_tokens().contains("x23") and
+            not stack_frame->get_tokens().contains("x26")) {
             os << assembly::tabwidth(4);
             os << "str x23, [sp, #16]" << std::endl;
             return false;
         }
-        if (stack_frame->tokens.contains("x26") and
-            not stack_frame->tokens.contains("x23")) {
+        if (stack_frame->get_tokens().contains("x26") and
+            not stack_frame->get_tokens().contains("x23")) {
             os << assembly::tabwidth(4);
             os << "str x26, [sp, #16]" << std::endl;
             return false;
@@ -529,19 +538,19 @@ bool Text_Emitter::emit_callee_saved_registers_stp(Mnemonic mnemonic,
     }
 
     if (flags & detail::flags::Callee_Saved and mnemonic == Mnemonic::ldp) {
-        if (stack_frame->tokens.contains("x23") and
-            stack_frame->tokens.contains("x26")) {
+        if (stack_frame->get_tokens().contains("x23") and
+            stack_frame->get_tokens().contains("x26")) {
             // both true, let through
             return true;
         }
-        if (stack_frame->tokens.contains("x23") and
-            not stack_frame->tokens.contains("x26")) {
+        if (stack_frame->get_tokens().contains("x23") and
+            not stack_frame->get_tokens().contains("x26")) {
             os << assembly::tabwidth(4);
             os << "ldr x23, [sp, #16]" << std::endl;
             return false;
         }
-        if (stack_frame->tokens.contains("x26") and
-            not stack_frame->tokens.contains("x23")) {
+        if (stack_frame->get_tokens().contains("x26") and
+            not stack_frame->get_tokens().contains("x23")) {
             os << assembly::tabwidth(4);
             os << "ldr x26, [sp, #16]" << std::endl;
             return false;

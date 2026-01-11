@@ -27,6 +27,21 @@
 #include <tuple>                // for tuple, get
 #include <variant>              // for visit
 
+/****************************************************************************
+ *  Type checker implementation for validating IR assignments. Ensures type
+ *  safety across scalars, vectors, and pointers with boundary checking.
+ *
+ *  Example checks:
+ *
+ *  auto x,
+ *  auto arr[5];
+ *  x = 10;          // scalar: type_safe_assign (OK)
+ *  arr[2] = x;      // vector: bounds check + type match (OK)
+ *  arr[10] = x;     // vector: out of bounds (ERROR)
+ *  x = arr[2];      // trivial vector: type match (OK)
+ *
+ ****************************************************************************/
+
 namespace credence::ir {
 
 namespace m = matchit;
@@ -43,8 +58,10 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
     if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue)) {
         locals.set_symbol_by_name(lvalue,
             type::get_rvalue_data_type_as_string(
-                get_rvalue_at_lvalue_object_storage(
-                    rvalue, stack_frame_, objects_->vectors, __source__)));
+                get_rvalue_at_lvalue_object_storage(rvalue,
+                    stack_frame_,
+                    objects_->get_vectors(),
+                    __source__)));
         return; // Ok
     }
     // pointer to address-of lvalue
@@ -53,7 +70,7 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
         auto data_of = get_rvalue_at_lvalue_object_storage(
             type::get_unary_rvalue_reference(rvalue),
             stack_frame_,
-            objects_->vectors,
+            objects_->get_vectors(),
             __source__);
         if (type::get_type_from_rvalue_data_type(data_of) == "string")
             throw_type_check_error(
@@ -68,7 +85,8 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
     // pointer to string literal
     if (locals.is_pointer(lvalue) and
         type::is_rvalue_data_type_string(rvalue)) {
-        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->get_strings().insert(
+            type::get_value_from_rvalue_data_type(rvalue));
         locals.set_symbol_by_name(lvalue, rvalue);
         return; // Ok
     }
@@ -76,7 +94,8 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
     if (locals.is_pointer(lvalue) and is_vector(rvalue)) {
         if (type::get_type_from_rvalue_data_type(
                 get_rvalue_at_lvalue_object_storage(
-                    rvalue, stack_frame_, objects_->vectors)) == "string") {
+                    rvalue, stack_frame_, objects_->get_vectors())) ==
+            "string") {
             locals.set_symbol_by_name(lvalue, rvalue);
             return; // Ok
         }
@@ -134,27 +153,30 @@ void Type_Checker::type_safe_assign_trivial_vector(LValue const& lvalue,
     Type_Check_Lambda local_contains =
         std::bind(&Type_Checker::local_contains_, this, std::placeholders::_1);
     auto& locals = get_stack_frame_locals();
-    auto& vectors = objects_->vectors;
+    auto& vectors = objects_->get_vectors();
     m::match(lvalue, rvalue)(
         m::pattern | m::ds(m::app(vector_contains, true),
                          m::app(vector_contains, true)) =
             [&] {
                 type_invalid_assignment_check(
                     vectors[lvalue], vectors[rvalue], "0");
-                vectors[lvalue]->data["0"] = vectors[rvalue]->data["0"];
+                vectors[lvalue]->get_data()["0"] =
+                    vectors[rvalue]->get_data()["0"];
             },
         m::pattern |
             m::ds(m::app(vector_contains, true), m::app(local_contains, true)) =
             [&] {
                 type_invalid_assignment_check(rvalue, vectors[lvalue], "0");
-                vectors[lvalue]->data["0"] = locals.get_symbol_by_name(rvalue);
+                vectors[lvalue]->get_data()["0"] =
+                    locals.get_symbol_by_name(rvalue);
             },
         m::pattern |
             m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
             [&] {
-                auto vector_rvalue = vectors[rvalue]->data.at("0");
+                auto vector_rvalue = vectors[rvalue]->get_data().at("0");
                 type_invalid_assignment_check(lvalue, vectors[rvalue], "0");
-                locals.set_symbol_by_name(lvalue, vectors[rvalue]->data["0"]);
+                locals.set_symbol_by_name(
+                    lvalue, vectors[rvalue]->get_data()["0"]);
             });
 }
 
@@ -194,30 +216,35 @@ void Type_Checker::type_safe_assign_vector(LValue const& lvalue,
         m::pattern | m::ds(m::app(vector_contains, true),
                          m::app(vector_contains, true)) =
             [&] {
-                type_invalid_assignment_check(objects_->vectors[lvalue_direct],
-                    objects_->vectors[rvalue_direct],
+                type_invalid_assignment_check(
+                    objects_->get_vectors()[lvalue_direct],
+                    objects_->get_vectors()[rvalue_direct],
                     lvalue_offset,
                     rvalue_offset);
-                objects_->vectors[lvalue_direct]->data[lvalue_offset] =
-                    objects_->vectors[rvalue_direct]->data[rvalue_offset];
+                objects_->get_vectors()[lvalue_direct]
+                    ->get_data()[lvalue_offset] =
+                    objects_->get_vectors()[rvalue_direct]
+                        ->get_data()[rvalue_offset];
             },
         m::pattern |
             m::ds(m::app(vector_contains, true), m::app(local_contains, true)) =
             [&] {
                 type_invalid_assignment_check(rvalue_direct,
-                    objects_->vectors[lvalue_direct],
+                    objects_->get_vectors()[lvalue_direct],
                     lvalue_offset);
-                objects_->vectors[lvalue_direct]->data[lvalue_offset] =
+                objects_->get_vectors()[lvalue_direct]
+                    ->get_data()[lvalue_offset] =
                     locals.get_symbol_by_name(rvalue_direct);
             },
         m::pattern |
             m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
             [&] {
                 type_invalid_assignment_check(lvalue_direct,
-                    objects_->vectors[rvalue_direct],
+                    objects_->get_vectors()[rvalue_direct],
                     rvalue_offset);
                 locals.set_symbol_by_name(lvalue_direct,
-                    objects_->vectors[rvalue_direct]->data.at(rvalue_offset));
+                    objects_->get_vectors()[rvalue_direct]->get_data().at(
+                        rvalue_offset));
             },
         m::pattern | m::_ = [&] { credence_error("unreachable"); });
 }
@@ -229,7 +256,7 @@ void Type_Checker::type_safe_assign_dereference(LValue const& lvalue,
     RValue const& rvalue)
 {
     auto& locals = get_stack_frame_locals();
-    auto& vectors = objects_->vectors;
+    auto& vectors = objects_->get_vectors();
 
     auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
     auto rhs_lvalue = type::get_unary_rvalue_reference(rvalue);
@@ -359,12 +386,12 @@ void Type_Checker::type_safe_assign_pointer_or_vector_lvalue(
 Type Type_Checker::get_type_from_rvalue_data_type(LValue const& lvalue)
 {
     auto& locals = get_stack_frame_locals();
-    auto& vectors = objects_->vectors;
+    auto& vectors = objects_->get_vectors();
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = type::from_lvalue_offset(lvalue);
         auto offset = type::from_decay_offset(lvalue);
-        return std::get<1>(vectors[lhs_lvalue]->data[offset]);
+        return std::get<1>(vectors[lhs_lvalue]->get_data()[offset]);
     }
     return std::get<1>(locals.get_symbol_by_name(lvalue));
 }
@@ -375,12 +402,12 @@ Type Type_Checker::get_type_from_rvalue_data_type(LValue const& lvalue)
 Size Type_Checker::get_size_from_local_lvalue(LValue const& lvalue)
 {
     auto& locals = get_stack_frame_locals();
-    auto& vectors = objects_->vectors;
+    auto& vectors = objects_->get_vectors();
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = type::from_lvalue_offset(lvalue);
         auto offset = type::from_decay_offset(lvalue);
-        return std::get<2>(vectors[lhs_lvalue]->data[offset]);
+        return std::get<2>(vectors[lhs_lvalue]->get_data()[offset]);
     }
     if (get_type_from_rvalue_data_type(lvalue) == "word" and
         locals.is_defined(type::get_unary_rvalue_reference(lvalue))) {
@@ -398,7 +425,7 @@ void Type_Checker::is_boundary_out_of_range(RValue const& rvalue)
 {
     credence_assert(util::contains(rvalue, "["));
     credence_assert(util::contains(rvalue, "]"));
-    auto& vectors = objects_->vectors;
+    auto& vectors = objects_->get_vectors();
     auto lvalue = type::from_lvalue_offset(rvalue);
     auto offset = type::from_decay_offset(rvalue);
     if (!vectors.contains(lvalue))
@@ -409,7 +436,7 @@ void Type_Checker::is_boundary_out_of_range(RValue const& rvalue)
                 lvalue),
             rvalue);
     if (util::is_numeric(offset)) {
-        auto global_symbol = objects_->hoisted_symbols[lvalue];
+        auto global_symbol = objects_->get_hoisted_symbols()[lvalue];
         auto ul_offset = std::stoul(offset);
         if (ul_offset > object::Vector::max_size)
             throw_type_check_error(
@@ -424,7 +451,7 @@ void Type_Checker::is_boundary_out_of_range(RValue const& rvalue)
                     "exist '{}'",
                     lvalue),
                 rvalue);
-        if (ul_offset > vectors[lvalue]->size - 1)
+        if (ul_offset > vectors[lvalue]->get_size() - 1)
             throw_type_check_error(
                 fmt::format("invalid out-of-range vector assignment '{}' at "
                             "index "
@@ -449,17 +476,17 @@ void Type_Checker::type_invalid_assignment_check(
     object::Vector_PTR const& vector_rhs,
     RValue const& index)
 {
-    auto vector_lvalue = vector_lhs->data.at(index);
-    auto vector_rvalue = vector_rhs->data.at(index);
+    auto vector_lvalue = vector_lhs->get_data().at(index);
+    auto vector_rvalue = vector_rhs->get_data().at(index);
     if (!lhs_rhs_type_is_equal(vector_lvalue, vector_rvalue))
         throw_type_check_error(
             fmt::format("invalid vector assignment, left-hand-side '{}' "
                         "with type '{}' "
                         "is not the same type ({})",
-                vector_lhs->symbol,
+                vector_lhs->get_symbol(),
                 type::get_type_from_rvalue_data_type(vector_lvalue),
                 type::get_type_from_rvalue_data_type(vector_rvalue)),
-            vector_rhs->symbol);
+            vector_rhs->get_symbol());
 }
 
 /**
@@ -471,8 +498,8 @@ void Type_Checker::type_invalid_assignment_check(
     RValue const& index_lhs,
     RValue const& index_rhs)
 {
-    auto vector_lvalue = vector_lhs->data.at(index_lhs);
-    auto vector_rvalue = vector_rhs->data.at(index_rhs);
+    auto vector_lvalue = vector_lhs->get_data().at(index_lhs);
+    auto vector_rvalue = vector_rhs->get_data().at(index_rhs);
 
     if (!lhs_rhs_type_is_equal(vector_lvalue, vector_rvalue))
         throw_type_check_error(
@@ -481,13 +508,13 @@ void Type_Checker::type_invalid_assignment_check(
                         "with type '{}' is not the same type as "
                         "right-hand-side vector "
                         "'{}' at index '{}' ({})",
-                vector_lhs->symbol,
+                vector_lhs->get_symbol(),
                 index_lhs,
                 type::get_type_from_rvalue_data_type(vector_lvalue),
-                vector_rhs->symbol,
+                vector_rhs->get_symbol(),
                 index_rhs,
                 type::get_type_from_rvalue_data_type(vector_rvalue)),
-            vector_lhs->symbol);
+            vector_lhs->get_symbol());
 }
 
 /**
@@ -518,7 +545,7 @@ void Type_Checker::type_invalid_assignment_check(LValue const& lvalue,
     object::Vector_PTR const& vector_rhs,
     RValue const& index)
 {
-    auto vector_rvalue = vector_rhs->data.at(index);
+    auto vector_rvalue = vector_rhs->get_data().at(index);
     if (get_type_from_rvalue_data_type(lvalue) != "null" and
         not lhs_rhs_type_is_equal(lvalue, vector_rvalue))
         throw_type_check_error(
@@ -529,7 +556,7 @@ void Type_Checker::type_invalid_assignment_check(LValue const& lvalue,
                 lvalue,
                 get_type_from_rvalue_data_type(lvalue),
                 type::get_type_from_rvalue_data_type(vector_rvalue)),
-            vector_rhs->symbol);
+            vector_rhs->get_symbol());
 }
 
 /**

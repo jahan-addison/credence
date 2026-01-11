@@ -27,6 +27,26 @@
 #include <string_view>          // for basic_string_view
 #include <tuple>                // for get, tuple
 
+/****************************************************************************
+ *  Type checker for the intermediate representation. Validates assignments
+ *  between scalars, vectors, pointers, and handles type conversions with
+ *  proper boundary and null checks.
+ *
+ *  Example type checking:
+ *
+ *  auto x, *p;
+ *  auto arr[10];
+ *  x = 5;           // scalar assignment
+ *  arr[0] = x;      // vector assignment with bounds check
+ *  p = &x;          // pointer assignment
+ *
+ *  Type_Checker validates:
+ *    - Type compatibility between lhs and rhs
+ *    - Vector boundary access (arr[0..9] valid, arr[10] error)
+ *    - Pointer targets (no &string[k] allowed)
+ *
+ ****************************************************************************/
+
 namespace credence::ir {
 
 /**
@@ -54,11 +74,11 @@ class Type_Checker
     using Type_Check_Lambda = std::function<bool(type::semantic::LValue)>;
     bool vector_contains_(type::semantic::LValue const& lvalue)
     {
-        return objects_->vectors.contains(lvalue);
+        return objects_->get_vectors().contains(lvalue);
     }
     bool local_contains_(type::semantic::LValue const& lvalue)
     {
-        const auto& locals = stack_frame_->locals;
+        const auto& locals = stack_frame_->get_locals();
         return locals.is_defined(lvalue) and
                not object::is_vector_lvalue(lvalue);
     }
@@ -108,10 +128,10 @@ class Type_Checker
     inline bool is_trivial_vector_assignment(LValue const& lhs,
         LValue const& rhs)
     {
-        return ((objects_->vectors.contains(lhs) and
-                    objects_->vectors[lhs]->data.size() == 1) or
-                (objects_->vectors.contains(rhs) and
-                    objects_->vectors[rhs]->data.size() == 1));
+        return ((objects_->get_vectors().contains(lhs) and
+                    objects_->get_vectors()[lhs]->get_data().size() == 1) or
+                (objects_->get_vectors().contains(rhs) and
+                    objects_->get_vectors()[rhs]->get_data().size() == 1));
     }
 
     inline bool is_vector(RValue const& rvalue)
@@ -119,11 +139,11 @@ class Type_Checker
         auto label = util::contains(rvalue, "[")
                          ? type::from_lvalue_offset(rvalue)
                          : rvalue;
-        return objects_->vectors.contains(label);
+        return objects_->get_vectors().contains(label);
     }
     inline bool is_pointer(RValue const& rvalue)
     {
-        return stack_frame_->locals.is_pointer(rvalue) or
+        return stack_frame_->get_locals().is_pointer(rvalue) or
                rvalue.starts_with("&") or
                type::is_rvalue_data_type_string(rvalue);
     }
@@ -132,9 +152,10 @@ class Type_Checker
         if (is_vector(lvalue))
             return false;
         if (is_pointer(lvalue))
-            return stack_frame_->locals.get_pointer_by_name(lvalue) == "NULL";
+            return stack_frame_->get_locals().get_pointer_by_name(lvalue) ==
+                   "NULL";
         return type::get_type_from_rvalue_data_type(
-                   stack_frame_->locals.get_symbol_by_name(
+                   stack_frame_->get_locals().get_symbol_by_name(
                        util::str_trim_ws(lvalue).data())) == "null";
     }
 
@@ -145,7 +166,10 @@ class Type_Checker
     }
 
   private:
-    type::Locals& get_stack_frame_locals() { return stack_frame_->locals; }
+    type::Locals& get_stack_frame_locals()
+    {
+        return stack_frame_->get_locals();
+    }
     /**
      * @brief Check that the type of an lvalue is an integral type
      */
@@ -193,8 +217,8 @@ class Type_Checker
             symbol,
             __source__,
             type_,
-            objects_->get_stack_frame()->symbol,
-            objects_->hoisted_symbols);
+            objects_->get_stack_frame()->get_symbol(),
+            objects_->get_hoisted_symbols());
     }
 
   private:

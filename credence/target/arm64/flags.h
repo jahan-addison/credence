@@ -11,6 +11,20 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64-specific Instruction Flags
+ *
+ * Additional instruction flags specific to ARM64 code generation.
+ * Extends common flags with ARM64-specific addressing modes and
+ * instruction variants.
+ *
+ * Used to mark instructions that need special handling for ARM64's
+ * load/store addressing modes, immediate encoding restrictions, and
+ * register pair operations.
+ *
+ *****************************************************************************/
+
 #include <credence/target/common/flags.h>
 
 #pragma once

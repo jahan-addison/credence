@@ -160,8 +160,9 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_globl_ita_instruction")
     auto table_pointer = make_table_with_frame(VECTOR_SYMBOLS);
     auto table = table_pointer.get_table_object();
 
-    table->vectors["mess"] = std::make_shared<credence::ir::object::Vector>(
-        credence::ir::object::Vector{ "mess", 10 });
+    table->get_vectors()["mess"] =
+        std::make_shared<credence::ir::object::Vector>(
+            credence::ir::object::Vector{ "mess", 10 });
     REQUIRE_THROWS(table_pointer.from_globl_ita_instruction("snide"));
     REQUIRE_NOTHROW(table_pointer.from_globl_ita_instruction("mess"));
 }
@@ -299,18 +300,22 @@ TEST_CASE_FIXTURE(Table_Fixture, "build_vector_definitions_from_globals")
         "\"node\" : \"program\",\n    \"root\" : \"definitions\"\n  }");
     auto table_pointer = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
     auto table = table_pointer.get_table_object();
-    auto& locals = table->functions["main"]->locals;
+    auto& locals = table->get_functions()["main"]->get_locals();
     locals.set_symbol_by_name("mess", credence::type::NULL_RVALUE_LITERAL);
     locals.set_symbol_by_name("putchar", credence::type::NULL_RVALUE_LITERAL);
     locals.set_symbol_by_name("unit", credence::type::NULL_RVALUE_LITERAL);
-    REQUIRE(table->vectors.size() == 4);
-    REQUIRE(table->vectors["mess"]->data.size() == 6);
-    REQUIRE(table->vectors["putchar"]->data.size() == 1);
-    REQUIRE(std::get<0>(table->vectors["putchar"]->data["0"]) == "puts");
-    REQUIRE(std::get<0>(table->vectors["unit"]->data["0"]) == "10");
-    REQUIRE(std::get<1>(table->vectors["unit"]->data["0"]) == "int");
-    REQUIRE(std::get<0>(table->vectors["mess"]->data["0"]) == "too bad");
-    REQUIRE(std::get<0>(table->vectors["mess"]->data["1"]) == "tough luck");
+    REQUIRE(table->get_vectors().size() == 4);
+    REQUIRE(table->get_vectors()["mess"]->get_data().size() == 6);
+    REQUIRE(table->get_vectors()["putchar"]->get_data().size() == 1);
+    REQUIRE(std::get<0>(table->get_vectors()["putchar"]->get_data()["0"]) ==
+            "puts");
+    REQUIRE(std::get<0>(table->get_vectors()["unit"]->get_data()["0"]) == "10");
+    REQUIRE(
+        std::get<1>(table->get_vectors()["unit"]->get_data()["0"]) == "int");
+    REQUIRE(std::get<0>(table->get_vectors()["mess"]->get_data()["0"]) ==
+            "too bad");
+    REQUIRE(std::get<0>(table->get_vectors()["mess"]->get_data()["1"]) ==
+            "tough luck");
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "from_call_ita_instruction")
@@ -331,8 +336,8 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_label_ita_instruction")
     };
     REQUIRE_NOTHROW(table_pointer.from_label_ita_instruction(test1));
     REQUIRE_THROWS(table_pointer.from_label_ita_instruction(test1));
-    REQUIRE(frame->labels.contains("_L1"));
-    REQUIRE(frame->label_address.addr_["_L1"] == 5UL);
+    REQUIRE(frame->get_labels().contains("_L1"));
+    REQUIRE(frame->get_label_address().addr_["_L1"] == 5UL);
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "from_mov_ita_instruction")
@@ -362,12 +367,16 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_mov_ita_instruction")
     REQUIRE_NOTHROW(table_pointer.from_mov_ita_instruction(test2));
     REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test3));
     REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test5));
-    table->functions["main"]->locals.addr_["mess"] = "NULL";
+    table->get_functions()["main"]->get_locals().addr_["mess"] = "NULL";
     REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test4));
-    table->functions["main"]->locals.table_["y"] = { "100", "int", 4UL };
+    table->get_functions()["main"]->get_locals().table_["y"] = {
+        "100", "int", 4UL
+    };
     REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test4));
     REQUIRE_THROWS(table_pointer.from_mov_ita_instruction(test5));
-    table->functions["main"]->locals.table_["z"] = { "100", "int", 4UL };
+    table->get_functions()["main"]->get_locals().table_["z"] = {
+        "100", "int", 4UL
+    };
     REQUIRE_NOTHROW(table_pointer.from_mov_ita_instruction(test5));
 }
 
@@ -387,22 +396,28 @@ TEST_CASE_FIXTURE(Table_Fixture, "vector and pointer-decay boundary checks")
     REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test2));
     REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test3));
     auto size = static_cast<std::size_t>(3);
-    table->vectors["mess"] = std::make_shared<credence::ir::object::Vector>(
-        credence::ir::object::Vector{ "mess", size });
-    table->functions["main"]->locals.table_["mess"] =
+    table->get_vectors()["mess"] =
+        std::make_shared<credence::ir::object::Vector>(
+            credence::ir::object::Vector{ "mess", size });
+    table->get_functions()["main"]->get_locals().table_["mess"] =
         credence::type::NULL_RVALUE_LITERAL;
-    table->vectors["mess"]->data["0"] = credence::type::NULL_RVALUE_LITERAL;
-    table->vectors["mess"]->data["1"] = credence::type::NULL_RVALUE_LITERAL;
-    table->vectors["mess"]->data["2"] = credence::type::NULL_RVALUE_LITERAL;
+    table->get_vectors()["mess"]->get_data()["0"] =
+        credence::type::NULL_RVALUE_LITERAL;
+    table->get_vectors()["mess"]->get_data()["1"] =
+        credence::type::NULL_RVALUE_LITERAL;
+    table->get_vectors()["mess"]->get_data()["2"] =
+        credence::type::NULL_RVALUE_LITERAL;
     REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test3));
-    table->functions["main"]->locals.table_["z"] = { "5", "int", 4UL };
+    table->get_functions()["main"]->get_locals().table_["z"] = {
+        "5", "int", 4UL
+    };
     REQUIRE_NOTHROW(type_checker.is_boundary_out_of_range(test3));
     REQUIRE_NOTHROW(type_checker.is_boundary_out_of_range(test4));
     REQUIRE_THROWS(type_checker.is_boundary_out_of_range(test5));
 
     REQUIRE_THROWS(
         table_pointer.from_pointer_or_vector_assignment(test7, test4));
-    table->vectors["mess"]->data["2"] = { "5", "int", 4UL };
+    table->get_vectors()["mess"]->get_data()["2"] = { "5", "int", 4UL };
     REQUIRE_NOTHROW(
         table_pointer.from_pointer_or_vector_assignment(test7, test4));
 
@@ -432,9 +447,9 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_func_start_ita_instruction")
     REQUIRE_THROWS(table_pointer.from_func_start_ita_instruction("__main()"));
     table_pointer.instruction_index = 10;
     table_pointer.from_func_start_ita_instruction("__convert(x,y,z)");
-    REQUIRE(table->get_stack_frame() == table->functions["convert"]);
-    REQUIRE(table->get_stack_frame()->parameters.size() == 3);
-    REQUIRE(table->get_stack_frame()->address_location[0] == 11);
+    REQUIRE(table->get_stack_frame() == table->get_functions()["convert"]);
+    REQUIRE(table->get_stack_frame()->get_parameters().size() == 3);
+    REQUIRE(table->get_stack_frame()->get_address_location()[0] == 11);
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "from_func_end_ita_instruction")
@@ -444,11 +459,13 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_func_end_ita_instruction")
     auto frame = table->get_stack_frame();
     auto& locals = table->get_stack_frame_symbols();
     table_pointer.instruction_index = 10;
-    table->functions["main"]->locals.table_["x"] = { "10", "int", 4UL };
+    table->get_functions()["main"]->get_locals().table_["x"] = {
+        "10", "int", 4UL
+    };
     table_pointer.instruction_index = 10;
-    frame->parameters.emplace_back("x");
+    frame->get_parameters().emplace_back("x");
     table_pointer.from_func_end_ita_instruction();
-    REQUIRE(table->functions["main"]->address_location[1] == 9);
+    REQUIRE(table->get_functions()["main"]->get_address_location()[1] == 9);
     REQUIRE(locals.table_.contains("x"));
 }
 
@@ -458,11 +475,11 @@ TEST_CASE_FIXTURE(Table_Fixture, "set_parameters_from_symbolic_label")
     auto table = table_pointer.get_table_object();
     auto frame = table->get_stack_frame();
     frame->set_parameters_from_symbolic_label("__main(x,y,z,j)");
-    REQUIRE(frame->parameters.size() == 4);
-    REQUIRE(frame->parameters[0] == "x");
-    REQUIRE(frame->parameters[1] == "y");
-    REQUIRE(frame->parameters[2] == "z");
-    REQUIRE(frame->parameters[3] == "j");
+    REQUIRE(frame->get_parameters().size() == 4);
+    REQUIRE(frame->get_parameters()[0] == "x");
+    REQUIRE(frame->get_parameters()[1] == "y");
+    REQUIRE(frame->get_parameters()[2] == "z");
+    REQUIRE(frame->get_parameters()[3] == "j");
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "from_push_instruction")
@@ -475,14 +492,14 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_push_instruction")
     auto push_instruction2 = credence::ir::Quadruple{
         credence::ir::Instruction::PUSH, "_p2", "", ""
     };
-    table->functions.at("main")->temporary["_p1"] = "_p1";
-    table->functions.at("main")->temporary["_p2"] = "_p2";
+    table->get_functions().at("main")->get_temporary()["_p1"] = "_p1";
+    table->get_functions().at("main")->get_temporary()["_p2"] = "_p2";
     table_pointer.from_push_instruction(push_instruction);
-    REQUIRE(table->stack.size() == 1);
-    REQUIRE(table->stack.back() == "_p1");
+    REQUIRE(table->get_stack().size() == 1);
+    REQUIRE(table->get_stack().back() == "_p1");
     table_pointer.from_push_instruction(push_instruction2);
-    REQUIRE(table->stack.size() == 2);
-    REQUIRE(table->stack.back() == "_p2");
+    REQUIRE(table->get_stack().size() == 2);
+    REQUIRE(table->get_stack().back() == "_p2");
 }
 
 TEST_CASE_FIXTURE(Table_Fixture, "from_rvalue_unary_expression")
@@ -491,9 +508,13 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_rvalue_unary_expression")
     auto table_pointer = make_table_with_frame(make_node());
     auto table = table_pointer.get_table_object();
     auto frame = table->get_stack_frame();
-    table->functions["main"]->locals.table_["a"] = { "5", "int", 4UL };
-    table->functions["main"]->locals.addr_["b"] = "a";
-    table->functions["main"]->locals.table_["c"] = { "5", "int", 4UL };
+    table->get_functions()["main"]->get_locals().table_["a"] = {
+        "5", "int", 4UL
+    };
+    table->get_functions()["main"]->get_locals().addr_["b"] = "a";
+    table->get_functions()["main"]->get_locals().table_["c"] = {
+        "5", "int", 4UL
+    };
     std::string test_rvalue = "~ 5";
     std::string test_pointer = "b";
     std::string test_pointer2 = "a";
@@ -533,12 +554,12 @@ TEST_CASE_FIXTURE(Table_Fixture, "lvalue_at_temporary_object_address")
     auto table_pointer = make_table_with_frame(make_node());
     auto table = table_pointer.get_table_object();
     auto frame = table->get_stack_frame();
-    table->get_stack_frame()->temporary["_t1"] = "100";
-    table->get_stack_frame()->temporary["_t2"] = "5";
-    table->get_stack_frame()->temporary["_t3"] = "_t2";
-    table->get_stack_frame()->temporary["_t4"] = "_t3";
-    table->get_stack_frame()->temporary["_t5"] = "10";
-    table->get_stack_frame()->temporary["_t6"] = "_t4 || _t5";
+    table->get_stack_frame()->get_temporary()["_t1"] = "100";
+    table->get_stack_frame()->get_temporary()["_t2"] = "5";
+    table->get_stack_frame()->get_temporary()["_t3"] = "_t2";
+    table->get_stack_frame()->get_temporary()["_t4"] = "_t3";
+    table->get_stack_frame()->get_temporary()["_t5"] = "10";
+    table->get_stack_frame()->get_temporary()["_t6"] = "_t4 || _t5";
     REQUIRE(table->lvalue_at_temporary_object_address("_t1", frame) == "100");
     REQUIRE(table->lvalue_at_temporary_object_address("_t4", frame) == "5");
     REQUIRE(table->lvalue_at_temporary_object_address("_t6", frame) ==
@@ -552,13 +573,13 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_temporary_reassignment")
     auto frame = table->get_stack_frame();
     auto& locals = table->get_stack_frame_symbols();
     REQUIRE_NOTHROW(table_pointer.from_temporary_reassignment("_t1", "~ _t2"));
-    table->get_stack_frame()->temporary["_t1"] = "100";
-    table->get_stack_frame()->temporary["_t2"] = "5";
+    table->get_stack_frame()->get_temporary()["_t1"] = "100";
+    table->get_stack_frame()->get_temporary()["_t2"] = "5";
     table_pointer.from_temporary_reassignment("_t1", "50");
     table_pointer.from_temporary_reassignment("_t2", "~ _t1");
     table_pointer.from_temporary_reassignment("_t3", "_t1");
     table_pointer.from_temporary_reassignment("_t4", "_t1 || _t2");
-    locals = table->functions["main"]->locals;
+    locals = table->get_functions()["main"]->get_locals();
     auto test = locals.get_symbol_by_name("_t1");
     auto test2 = locals.get_symbol_by_name("_t2");
     auto test3 = locals.get_symbol_by_name("_t4");

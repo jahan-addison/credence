@@ -11,6 +11,39 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Symbol table for variables, functions, and globals
+ *
+ * Maintains a mapping of identifiers to their types, values, and addresses.
+ * Handles local variables (auto), external globals (extrn), and vector
+ * (array) declarations. Symbol resolution respects scope rules.
+ *
+ * Example - symbol table entries:
+ *
+ *   main() {
+ *     auto x, y, *z;    // Local symbols: x, y, z
+ *     extrn numbers;    // External symbol reference
+ *     x = 10;
+ *     y = numbers[0];
+ *     z = &x;
+ *   }
+ *
+ *   add(a, b) {         // Function symbol with parameters
+ *     return(a + b);
+ *   }
+ *
+ *   numbers [5] 1, 2, 3, 4, 5;  // Global vector symbol
+ *
+ * Symbol table tracks:
+ * - Variable names and their inferred types
+ * - Function names and signatures
+ * - Array sizes and element types
+ * - Memory addresses for code generation
+ * - Scope information (local vs global)
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <algorithm>         // for any_of

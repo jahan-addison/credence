@@ -11,6 +11,46 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64 Assembly Code Generator
+ *
+ * Generates ARM64/AArch64 assembly for Linux and Darwin (macOS). Compliant
+ * with ARM64 Procedure Call Standard (PCS). Translates ITA intermediate
+ * representation into ARM64 machine code.
+ *
+ * Example - simple function:
+ *
+ *   B code:
+ *     add(x, y) {
+ *       return(x + y);
+ *     }
+ *
+ *   Generated ARM64:
+ *     add:
+ *         stp x29, x30, [sp, #-16]!
+ *         mov x29, sp
+ *         add x0, x0, x1      ; x in x0, y in x1
+ *         ldp x29, x30, [sp], #16
+ *         ret
+ *
+ * Example - globals and strings:
+ *
+ *   B code:
+ *     greeting "Hello, World!*n";
+ *     counter 0;
+ *
+ *   Generated:
+ *     .data
+ *     ._L_str1__:
+ *         .asciz "Hello, World!\n"
+ *     greeting:
+ *         .quad ._L_str1__
+ *     counter:
+ *         .quad 0
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                     // for Mnemonic, arm_mn, Directives
@@ -209,7 +249,8 @@ class Assembly_Emitter
     explicit Assembly_Emitter(memory::Memory_Access accessor)
         : accessor_(std::move(accessor))
     {
-        ir_instructions_ = *accessor_->table_accessor.table_->ir_instructions;
+        ir_instructions_ =
+            *accessor_->table_accessor.table_->get_ir_instructions();
     }
 
   public:

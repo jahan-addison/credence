@@ -11,6 +11,32 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Expression parser implementation
+ *
+ * Parses AST nodes from the Python frontend into strongly-typed expression
+ * structures. Uses pattern matching to handle different expression types
+ * and converts them into a form ready for intermediate representation.
+ *
+ * Example - parsing process:
+ *
+ *   B source:  x = 5 + 3 * 2
+ *
+ *   AST node:  {"node": "assignment",
+ *               "left": {"name": "x"},
+ *               "right": {"node": "binary_op", "op": "+", ...}}
+ *
+ *   Parsed:    Assignment(lvalue="x",
+ *                        rvalue=BinaryOp(ADD,
+ *                                       Literal(5),
+ *                                       BinaryOp(MUL, ...)))
+ *
+ * Handles function calls, array indexing, pointer operations, and all
+ * operators with correct precedence.
+ *
+ *****************************************************************************/
+
 #include <credence/expression.h>
 
 #include <algorithm>            // for __find, find

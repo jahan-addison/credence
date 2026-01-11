@@ -11,6 +11,16 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Instruction flags implementation
+ *
+ * Manages bit flags for instructions during code generation. Flags control
+ * addressing modes, alignment, and operand types. Multiple flags can be
+ * combined using bitwise OR.
+ *
+ *****************************************************************************/
+
 #include "flags.h"
 
 #include <credence/error.h>               // for credence_assert

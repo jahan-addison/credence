@@ -11,6 +11,28 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 Assembly Instructions and Mnemonics
+ *
+ * Defines all x86-64 instructions, registers, and mnemonics. Uses Intel
+ * syntax. Provides instruction formatting and operand helpers.
+ *
+ * Example registers:
+ *   64-bit: rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp, r8-r15
+ *   32-bit: eax, ebx, ecx, edx, esi, edi, ...
+ *   16-bit: ax, bx, cx, dx, ...
+ *   8-bit:  al, bl, cl, dl, ...
+ *
+ * Example instructions:
+ *   Data movement: mov, lea, push, pop
+ *   Arithmetic: add, sub, mul, imul, div, idiv
+ *   Bitwise: and, or, xor, not, shl, shr
+ *   Comparison: cmp, test
+ *   Control flow: jmp, je, jne, jg, jl, call, ret
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <credence/ir/object.h>              // for Label

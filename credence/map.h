@@ -11,6 +11,32 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Ordered map data structure
+ *
+ * A map that preserves insertion order, unlike std::map which orders by key.
+ * Used throughout the compiler where declaration order matters, such as
+ * maintaining the order of global variables and functions.
+ *
+ * Example - preserving declaration order:
+ *
+ *   first 10;
+ *   second 20;
+ *   third 30;
+ *
+ * These globals must be emitted in assembly in the same order they were
+ * declared. An ordered map ensures:
+ *
+ *   .data
+ *   first:  .quad 10
+ *   second: .quad 20
+ *   third:  .quad 30
+ *
+ * Used for symbol tables, instruction sequences, and label ordering.
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <cstddef> // for size_t

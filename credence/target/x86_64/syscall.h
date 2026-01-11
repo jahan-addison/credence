@@ -11,6 +11,30 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 System Call Interface
+ *
+ * Implements syscall invocation for x86-64 Linux and Darwin. Loads syscall
+ * number into rax and arguments into rdi, rsi, rdx, r10, r8, r9. Executes
+ * syscall instruction. Return value in rax.
+ *
+ * Example - exit syscall:
+ *
+ *   B code:    main() { return(0); }
+ *
+ * Generates (Linux):
+ *   mov rax, 60        ; exit syscall number
+ *   mov rdi, 0         ; exit code
+ *   syscall
+ *
+ * Generates (Darwin):
+ *   mov rax, 0x2000001 ; Darwin exit number
+ *   mov rdi, 0
+ *   syscall
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"  // for Instructions, Storage, Reg...

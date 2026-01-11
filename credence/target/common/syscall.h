@@ -11,6 +11,33 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * System call tables and kernel interface
+ *
+ * Maps system calls (write, read, exit, etc.) to their numbers and calling
+ * conventions for each platform: x86-64 Linux, x86-64 Darwin (macOS),
+ * ARM64 Linux, and ARM64 Darwin. Handles differences in syscall numbers
+ * and register usage across platforms.
+ *
+ * Example - exit syscall:
+ *
+ *   B code:    main() { return(42); }
+ *
+ *   x86-64 Linux:  mov rax, 60    ; exit syscall number
+ *                  mov rdi, 42    ; exit code
+ *                  syscall
+ *
+ *   x86-64 Darwin: mov rax, 0x2000001  ; Darwin exit
+ *                  mov rdi, 42
+ *                  syscall
+ *
+ *   ARM64 Linux:   mov x8, #93    ; exit syscall
+ *                  mov x0, #42
+ *                  svc #0
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"  // for Arch_Type

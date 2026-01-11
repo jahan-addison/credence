@@ -202,8 +202,8 @@ class Stack::Stack_IMPL
     {
         bool search{ false };
         auto vector_offset = get(lvalue).first;
-        return std::accumulate(vector.data.begin(),
-            vector.data.end(),
+        return std::accumulate(vector.get_data().begin(),
+            vector.get_data().end(),
             vector_offset,
             [&](type::semantic::Size offset,
                 ir::object::Vector::Entry const& entry) {
@@ -227,8 +227,8 @@ class Stack::Stack_IMPL
     {
         auto vector_size =
             size +
-            std::accumulate(vector.data.begin(),
-                vector.data.end(),
+            std::accumulate(vector.get_data().begin(),
+                vector.get_data().end(),
                 0UL,
                 [&](type::semantic::Size offset,
                     ir::object::Vector::Entry const& entry) {

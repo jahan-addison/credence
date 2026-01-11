@@ -11,6 +11,40 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Credence B Language Compiler - Main Entry Point
+ *
+ * The compiler works in 3 stages:
+ *
+ * 1. Lexer/Parser: LALR(1) grammar in Python (via pybind11) produces AST
+ * 2. IR Generation: Converts AST to ITA (Instruction Tuple Abstraction)
+ * 3. Code Generation: Emits x86-64 or ARM64 assembly from ITA
+ *
+ * Example usage:
+ *
+ *   $ credence --source-code program.b --target x86_64 --output program
+ *   $ as program.s -o program.o
+ *   $ ld program.o stdlib/x86_64/stdlib.o -o program
+ *   $ ./program
+ *
+ * Target options:
+ *   - ir: Output ITA intermediate representation (default)
+ *   - syntax: Output parse tree (debugging)
+ *   - ast: Output abstract syntax tree (debugging)
+ *   - x86_64: Generate x86-64 assembly for Linux/Darwin
+ *   - arm64: Generate ARM64 assembly for Linux/Darwin
+ *
+ * Example program:
+ *
+ *   main() {
+ *     auto x;
+ *     x = 42;
+ *     return(x);
+ *   }
+ *
+ *****************************************************************************/
+
 #include <credence/error.h>                   // for Credence_Exception
 #include <credence/ir/table.h>                // for emit
 #include <credence/target/arm64/generator.h>  // for emit

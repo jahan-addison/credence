@@ -11,6 +11,27 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64/AArch64 Assembly Instructions and Mnemonics
+ *
+ * Defines all ARM64 instructions, registers, and mnemonics. Provides
+ * instruction formatting and operand helpers for ARM64 ISA.
+ *
+ * Example registers:
+ *   64-bit: x0-x30 (general purpose), sp (stack), x29 (frame pointer)
+ *   32-bit: w0-w30 (lower 32 bits of x registers)
+ *   Special: x30/lr (link register), xzr/wzr (zero register)
+ *
+ * Example instructions:
+ *   Data movement: mov, ldr, str, ldp, stp
+ *   Arithmetic: add, sub, mul, sdiv, udiv
+ *   Bitwise: and, orr, eor, mvn, lsl, lsr
+ *   Comparison: cmp, tst
+ *   Control flow: b, b.eq, b.ne, b.gt, b.lt, bl, ret
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <credence/ir/object.h>              // for Size, Type, Label

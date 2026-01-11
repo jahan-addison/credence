@@ -11,6 +11,35 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 Instruction Inserters
+ *
+ * Translates B language operations into x86-64 instruction sequences.
+ * Handles arithmetic, bitwise, relational operators, and assignments.
+ *
+ * Example - arithmetic operation:
+ *
+ *   B code:    z = x + y * 2;
+ *
+ * Inserter generates:
+ *   mov rax, qword ptr [rbp - 16]  ; load y
+ *   imul rax, 2                     ; y * 2
+ *   mov rcx, qword ptr [rbp - 8]   ; load x
+ *   add rax, rcx                    ; x + (y * 2)
+ *   mov qword ptr [rbp - 24], rax  ; store to z
+ *
+ * Example - comparison:
+ *
+ *   B code:    if (x > 10) { ... }
+ *
+ * Inserter generates:
+ *   mov rax, qword ptr [rbp - 8]
+ *   cmp rax, 10
+ *   jg ._L1__main
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                           // for Assignment_Operands

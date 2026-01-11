@@ -11,6 +11,32 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 Runtime and Standard Library Integration
+ *
+ * Handles function calls to the standard library and manages the System V
+ * ABI calling convention. Arguments passed in registers: rdi, rsi, rdx,
+ * rcx, r8, r9, then stack. Return value in rax.
+ *
+ * Example - calling printf:
+ *
+ *   B code:    printf("Value: %d*n", x);
+ *
+ * Generates:
+ *   lea rdi, [rip + ._L_str1__]  ; format string in rdi
+ *   mov rsi, qword ptr [rbp - 8] ; x in rsi
+ *   call printf                   ; from stdlib
+ *
+ * Example - main with argc/argv:
+ *
+ *   B code:    main(argc, argv) { ... }
+ *
+ * Setup:
+ *   r15 points to stack with argc/argv (Darwin/Linux compatible)
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                           // for Register, Instructions

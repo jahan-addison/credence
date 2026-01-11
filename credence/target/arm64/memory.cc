@@ -160,9 +160,9 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
     m::match(lvalue)(
         m::pattern | m::app(is_global_vector, true) =
             [&] {
-                credence_assert(table_->vectors.contains(lhs));
-                auto vector = table_->vectors.at(lhs);
-                if (table_->globals.is_pointer(lhs)) {
+                credence_assert(table_->get_vectors().contains(lhs));
+                auto vector = table_->get_vectors().at(lhs);
+                if (table_->get_globals().is_pointer(lhs)) {
                     auto offset_storage =
                         vector_accessor.get_offset_address(lvalue, offset);
                     auto offset_arithmetic =
@@ -177,8 +177,8 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
             },
         m::pattern | m::app(is_vector_offset, true) =
             [&] {
-                credence_assert(table_->vectors.contains(lhs));
-                auto vector = table_->vectors.at(lhs);
+                credence_assert(table_->get_vectors().contains(lhs));
+                auto vector = table_->get_vectors().at(lhs);
                 instructions.first =
                     stack_->get_stack_offset_from_table_vector_index(
                         lhs, offset, *vector);
@@ -326,13 +326,13 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
 {
     auto& table_ = address_accessor_.table_;
     auto frame = stack_frame_.get_stack_frame();
-    credence_assert(frame->locals.is_defined(lvalue));
+    credence_assert(frame->get_locals().is_defined(lvalue));
 
     if (is_lvalue_allocated_in_memory(lvalue))
         return;
 
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
-        lvalue, frame, table_->vectors, DEBUG_SOURCE);
+        lvalue, frame, table_->get_vectors(), DEBUG_SOURCE);
     auto size = get_size_from_rvalue_data_type(lvalue, rvalue);
 
     credence_assert_message(assembly::is_valid_size(size), lvalue);
@@ -427,13 +427,13 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
                 else
                     return type::get_size_from_rvalue_data_type(
                         ir::object::get_rvalue_at_lvalue_object_storage(
-                            lvalue_reference, frame, table_->vectors));
+                            lvalue_reference, frame, table_->get_vectors()));
             },
         m::pattern | m::_ =
             [&] {
                 auto immediate =
                     ir::object::get_rvalue_at_lvalue_object_storage(
-                        lvalue, frame, table_->vectors);
+                        lvalue, frame, table_->get_vectors());
                 return type::get_size_from_rvalue_data_type(immediate);
             }
 

@@ -11,6 +11,30 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Assembly instruction representation and utilities
+ *
+ * Common abstractions for assembly instructions across x86-64 and ARM64.
+ * Defines immediate values, operands, directives, and architecture/OS types.
+ * Handles instruction formatting and operand representation.
+ *
+ * Example - emitting a comparison:
+ *
+ *   B code:    if (x > 10) { ... }  (x is local variable)
+ *
+ *   x86-64:    cmp rax, 10
+ *              jg  .L1
+ *
+ *   ARM64:     cmp x9, #10          ; x in register x9
+ *              b.gt .L1
+ *
+ * This module abstracts these differences, providing a unified interface
+ * for operand types (registers, immediates, memory addresses) that can
+ * be emitted in either ISA format.
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "matchit.h"        // for pattern, PatternHelper, Pattern...

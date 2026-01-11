@@ -11,6 +11,22 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Assembly utilities implementation
+ *
+ * Implements common assembly operations including relational expression
+ * evaluation and immediate value comparisons. Handles constant folding
+ * for compile-time evaluation of simple expressions.
+ *
+ * Example - constant folding:
+ *
+ *   B code:    if (5 > 3) { ... }
+ *
+ * Evaluates at compile-time, emitting only the true branch.
+ *
+ *****************************************************************************/
+
 #include "assembly.h"
 #include "types.h"          // for Immediate
 #include <credence/error.h> // for credence_error

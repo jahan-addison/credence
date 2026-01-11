@@ -11,6 +11,41 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * ARM64 Stack Management
+ *
+ * Manages the ARM64 PCS-compliant stack. Stack grows downward. Must maintain
+ * 16-byte alignment. ARM64 has many registers (x0-x30), so prioritizes
+ * register allocation before using stack. Callee-saved registers (x19-x28)
+ * are preserved on stack when used.
+ *
+ * Example - function with locals:
+ *
+ *   B code:
+ *     compute(a) {
+ *       auto x, y, z;
+ *       x = a * 2;
+ *       y = x + 10;
+ *       z = y - 5;
+ *       return(z);
+ *     }
+ *
+ * Register allocation (locals use x9-x18 first):
+ *   x0 = parameter 'a'
+ *   x9 = local 'x'
+ *   x10 = local 'y'
+ *   x11 = local 'z'
+ *
+ * Stack only used if >10 locals, or for saved x9-x18:
+ *   [sp + 24] saved x9 (before function calls)
+ *   [sp + 16] saved x10
+ *   [sp + 8]  saved x11
+ *
+ * ARM64 allocates stack space upfront: sub sp, sp, #32
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                     // for Operand_Size, Immediate
@@ -52,7 +87,7 @@ class Stack : public common::detail::base_stack_pointer
     Stack& operator=(Stack&&) noexcept;
 
   public:
-    using Entry = std::pair<Offset, assembly::Operand_Size>;
+    using Entry = std::pair<Offset, Operand_Size>;
 
   public:
     void clear();
@@ -67,24 +102,23 @@ class Stack : public common::detail::base_stack_pointer
 
     void set(Offset offset, Operand_Size size);
 
-    void allocate(assembly::Operand_Size operand);
+    void allocate(Operand_Size operand);
     void allocate(Size alloc);
     void deallocate(Size alloc);
 
-    assembly::Operand_Size get_operand_size_from_offset(Offset offset) const;
+    Operand_Size get_operand_size_from_offset(Offset offset) const;
 
     void set_address_from_immediate(LValue const& lvalue,
-        assembly::Immediate const& rvalue);
-    void set_address_from_accumulator(LValue const& lvalue,
-        assembly::Register acc);
+        Immediate const& rvalue);
+    void set_address_from_accumulator(LValue const& lvalue, Register acc);
     void set_address_from_type(LValue const& lvalue, Type type);
 
     void allocate_aligned_lvalue(LValue const& lvalue,
         Size value_size,
-        assembly::Operand_Size operand_size);
+        Operand_Size operand_size);
     void set_address_from_address(LValue const& lvalue);
 
-    Size get_stack_frame_allocation_size();
+    Size get_stack_frame_allocation_size(ir::object::Function_PTR& frame);
     Size get_stack_offset_from_table_vector_index(LValue const& lvalue,
         std::string const& key,
         ir::object::Vector const& vector);
@@ -93,11 +127,11 @@ class Stack : public common::detail::base_stack_pointer
 
     void set_address_from_size(LValue const& lvalue,
         Offset offset_address,
-        assembly::Operand_Size operand = assembly::Operand_Size::Word);
+        Operand_Size operand = Operand_Size::Word);
     void set_address_from_size(LValue const& lvalue,
-        assembly::Operand_Size operand = assembly::Operand_Size::Word);
+        Operand_Size operand = Operand_Size::Word);
 
-    void increment_pointer_count();
+    void allocate_pointer_on_stack();
     void add_address_location_to_stack(LValue const& lvalue);
 
     std::string get_lvalue_from_offset(Offset offset) const;

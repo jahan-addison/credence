@@ -11,6 +11,29 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 IR Visitor Implementation
+ *
+ * Visits ITA intermediate representation instructions and emits x86-64
+ * assembly. Implements the IR_Visitor interface for x86-64 ISA.
+ *
+ * Example - visiting assignment:
+ *
+ *   ITA:    x = 42;
+ *
+ * Visitor generates:
+ *   mov qword ptr [rbp - 8], 42
+ *
+ * Example - visiting function call:
+ *
+ *   ITA:    CALL add
+ *
+ * Visitor generates:
+ *   call add
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                       // for Instructions

@@ -11,6 +11,35 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * x86-64 Stack Management
+ *
+ * Manages the System V ABI-compliant stack for x86-64. Stack grows downward
+ * from high to low addresses. Must maintain 16-byte alignment before calls.
+ *
+ * Example - function with locals:
+ *
+ *   B code:
+ *     compute(a) {
+ *       auto x, y, z;
+ *       x = a * 2;
+ *       y = x + 10;
+ *       z = y - 5;
+ *       return(z);
+ *     }
+ *
+ * Stack layout:
+ *   [rbp + 16] parameter 'a'
+ *   [rbp + 8]  return address (pushed by call)
+ *   [rbp + 0]  saved rbp (pushed by function prologue)
+ *   [rbp - 8]  local 'x'
+ *   [rbp - 16] local 'y'
+ *   [rbp - 24] local 'z'
+ *   [rbp - 32] alignment padding (16-byte aligned)
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include "assembly.h"                     // for Operand_Size, Immediate

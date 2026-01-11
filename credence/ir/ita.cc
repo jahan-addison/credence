@@ -29,6 +29,27 @@
 #include <utility>                 // for get, pair, cmp_not_equal
 #include <variant>                 // for get, monostate, variant
 
+/****************************************************************************
+ *  ITA (Intermediate Tuple Assembly) code generation from AST. Converts
+ *  high-level B language constructs into linearized 3-address code format.
+ *
+ *  Example code generation:
+ *
+ *  snide(x) {
+ *    return x + 1;
+ *  }
+ *
+ *  Generates:
+ *
+ *  __snide(x):
+ *   BeginFunc ;
+ *    LOCL x;
+ *    _t1 = x + (1:int:4);
+ *    RETURN _t1;
+ *   EndFunc ;
+ *
+ ****************************************************************************/
+
 namespace credence {
 
 namespace ir {

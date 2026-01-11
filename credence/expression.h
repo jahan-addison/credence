@@ -11,6 +11,34 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+/****************************************************************************
+ *
+ * Expression parser - top-down LL(1) parser
+ *
+ * Parses AST nodes from the frontend into algebraic data structures that
+ * represent expressions. Handles operator precedence, associativity, and
+ * converts complex expressions into a form suitable for code generation.
+ *
+ * Example - parsing an expression:
+ *
+ *   main() {
+ *     auto x, y;
+ *     x = 5 * 5 + 10 / 2;     // Complex arithmetic expression
+ *     y = (x > 10) ? x : 0;   // Ternary expression
+ *   }
+ *
+ * The parser converts these into expression trees respecting operator
+ * precedence (multiplication before addition, etc.) and handles:
+ * - Binary operators: +, -, *, /, %, &, |, ^, <<, >>
+ * - Unary operators: -, +, ~, !, ++, --
+ * - Relational: ==, !=, <, >, <=, >=
+ * - Logical: &&, ||
+ * - Assignment and pointer indirection: =, *x = y
+ * - Array access: arr[i]
+ * - Function calls: func(a, b)
+ *
+ *****************************************************************************/
+
 #pragma once
 
 #include <array>             // for array
