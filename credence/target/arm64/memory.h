@@ -13,17 +13,17 @@
 
 #pragma once
 
-#include "credence/map.h"                       // for Ordered_Map
-#include "credence/util.h"                      // for SET_INLINE_DEBUG
+#include "assembly.h"                           // for Register, Operand_Size
+#include "stack.h"                              // for Stack
 #include <credence/ir/object.h>                 // for LValue, Size, RValue
-#include <credence/target/arm64/assembly.h>     // for Register, Operand_Size
-#include <credence/target/arm64/stack.h>        // for Stack
+#include <credence/map.h>                       // for Ordered_Map
 #include <credence/target/common/accessor.h>    // for Accumulator_Accessor
 #include <credence/target/common/flags.h>       // for Flag_Accessor
 #include <credence/target/common/memory.h>      // for Operand_Type, is_imm...
 #include <credence/target/common/stack_frame.h> // for Stack_Frame
 #include <credence/target/common/types.h>       // for Storage_T
 #include <credence/types.h>                     // for get_size_from_rvalue...
+#include <credence/util.h>                      // for SET_INLINE_DEBUG
 #include <cstddef>                              // for size_t
 #include <deque>                                // for deque
 #include <functional>                           // for function
@@ -31,37 +31,14 @@
 #include <set>                                  // for set
 #include <string>                               // for basic_string, string
 #include <utility>                              // for move
-namespace credence {
-namespace target {
-namespace arm64 {
-namespace memory {
+
+namespace credence::target::arm64::memory {
 class Memory_Accessor;
-}
-}
-}
-} // lines 37-37
-namespace credence {
-namespace target {
-namespace arm64 {
-namespace memory {
 namespace detail {
 class Device_Accessor;
-}
-}
-}
-}
-} // lines 127-127
-namespace credence {
-namespace target {
-namespace arm64 {
-namespace memory {
-namespace detail {
 struct Instruction_Accessor;
 }
 }
-}
-}
-} // lines 47-47
 
 namespace credence::target::arm64 {
 
@@ -220,15 +197,12 @@ struct Address_Accessor : public ARM64_Address_Accessor
     Address_Accessor::Address get_arm64_lvalue_and_insertion_instructions(
         LValue const& lvalue,
         Device_Accessor& device_accessor,
-        std::size_t instruction_index,
         SET_INLINE_DEBUG);
 
   private:
     Address_Accessor::Address get_lvalue_address_and_from_unary_and_vectors(
         Address& instructions,
-        LValue const& lvalue,
-        std::size_t instruction_index,
-        Device_Accessor& device_accessor);
+        LValue const& lvalue);
 
   private:
     Register_Accessor& register_accessor_;

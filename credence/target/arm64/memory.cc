@@ -151,25 +151,13 @@ Register Device_Accessor::get_second_register_for_binary_operand(
 Address_Accessor::Address
 Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
     Address& instructions,
-    LValue const& lvalue,
-    std::size_t instruction_index,
-    Device_Accessor& device_accessor)
+    LValue const& lvalue)
 {
     auto vector_accessor = Vector_Accessor{ table_ };
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
 
     m::match(lvalue)(
-        m::pattern | m::app(type::is_dereference_expression, true) =
-            [&] {
-                auto storage = device_accessor.get_device_by_lvalue(
-                    type::get_unary_rvalue_reference(lvalue));
-                arm64_add__asm(
-                    instructions.second, mov, Register::x26, storage);
-                flag_accessor_.set_instruction_flag(
-                    common::flag::Indirect, instruction_index + 1);
-                instructions.first = Register::x26;
-            },
         m::pattern | m::app(is_global_vector, true) =
             [&] {
                 credence_assert(table_->vectors.contains(lhs));
@@ -206,13 +194,11 @@ Address_Accessor::Address
 Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     LValue const& lvalue,
     Device_Accessor& device_accessor,
-    std::size_t instruction_index,
     INLINE_DEBUG)
 {
     Address instructions{ Register::wzr, {} };
 
-    get_lvalue_address_and_from_unary_and_vectors(
-        instructions, lvalue, instruction_index, device_accessor);
+    get_lvalue_address_and_from_unary_and_vectors(instructions, lvalue);
 
     if (std::get<Register>(instructions.first) == Register::wzr)
         instructions.first =

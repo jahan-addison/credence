@@ -1016,3 +1016,141 @@ _start:
 #endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("pointers_2", expected);
 }
+
+TEST_CASE("target/arm64: fixture: pointers_3.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x26, [sp, #16]
+    mov w10, #100
+    str w10, [sp, #24]
+    add x26, sp, #24
+    mov x9, x26
+    mov w8, #10
+    str w8, [x9]
+    ldr x26, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x26, [sp, #16]
+    mov w10, #100
+    str w10, [sp, #24]
+    add x26, sp, #24
+    mov x9, x26
+    mov w8, #10
+    str w8, [x9]
+    ldr x26, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("pointers_3", expected);
+}
+
+TEST_CASE("target/arm64: fixture: pointers_4.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x26, [sp, #16]
+    mov w10, #100
+    str w10, [sp, #24]
+    add x26, sp, #24
+    mov x9, x26
+    mov x8, x9
+    mov x11, x8
+    mov w8, #20
+    add w8, w8, #10
+    add w8, w8, #10
+    str w8, [x11]
+    ldr w8, [x9]
+    str w8, [x11]
+    mov w10, #5
+    str w10, [sp, #24]
+    ldr x26, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x26, [sp, #16]
+    mov w10, #100
+    str w10, [sp, #24]
+    add x26, sp, #24
+    mov x9, x26
+    mov x8, x9
+    mov x11, x8
+    mov w8, #20
+    add w8, w8, #10
+    add w8, w8, #10
+    str w8, [x11]
+    ldr w8, [x9]
+    str w8, [x11]
+    mov w10, #5
+    str w10, [sp, #24]
+    ldr x26, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("pointers_4", expected);
+}

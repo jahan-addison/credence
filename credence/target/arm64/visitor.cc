@@ -84,6 +84,7 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
 
     auto expression_inserter = Expression_Inserter{ accessor_ };
     auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
 
     auto is_global_vector = [&](RValue const& rvalue) {
         auto rvalue_reference = type::from_lvalue_offset(rvalue);
@@ -98,6 +99,22 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
                 expression_inserter.insert_lvalue_at_temporary_object_address(
                     lhs);
             },
+        m::pattern | m::ds(m::app(type::is_dereference_expression, true),
+                         m::app(type::is_dereference_expression, true)) =
+            [&] {
+                auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
+                unary_inserter.insert_from_unary_to_unary_assignment(lhs, rhs);
+            },
+        m::pattern | m::ds(m::app(type::is_dereference_expression, true),
+                         m::app(type::is_dereference_expression, false)) =
+            [&] {
+                auto lhs_s = accessor_->device_accessor.get_device_by_lvalue(
+                    type::get_unary_rvalue_reference(lhs));
+                auto rhs_s =
+                    accessor_->device_accessor.get_operand_rvalue_device(rhs);
+                unary_inserter.insert_from_unary_operator_operands(
+                    "*", rhs_s, lhs_s);
+            },
         m::pattern | m::ds(m::app(is_global_vector, true), m::_) =
             [&] {
                 expression_inserter.insert_from_global_vector_assignment(
@@ -111,9 +128,26 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
         m::pattern | m::_ =
             [&] { operand_inserter.insert_from_mnemonic_operand(lhs, rhs); });
 
+    if (accessor_->stack->is_allocated(lhs))
+        set_pointer_address_of_lvalue(lhs);
+
     if (!type::is_temporary(lhs) and
         not accessor_->register_accessor.stack.empty())
         accessor_->register_accessor.stack.clear();
+}
+
+/**
+ * @brief Update the address in the stack that holds the pointer of an lvalue
+ */
+void IR_Instruction_Visitor::set_pointer_address_of_lvalue(LValue const& lvalue)
+{
+    auto device_storage =
+        accessor_->device_accessor.get_device_by_lvalue(lvalue);
+    auto address_storage = accessor_->stack->get(lvalue).first;
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    accessor_->flag_accessor.set_instruction_flag(
+        common::flag::Indirect_Source, instructions.size());
+    arm64_add__asm(instructions, str, device_storage, address_storage);
 }
 
 /**
@@ -296,11 +330,10 @@ void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
     auto frame = stack_frame_.get_stack_frame();
     auto of_comparator = frame->temporary.at(of).substr(4);
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    auto of_rvalue_storage =
-        accessor_->address_accessor
-            .get_arm64_lvalue_and_insertion_instructions(
-                of_comparator, accessor_->device_accessor, instructions.size())
-            .first;
+    auto of_rvalue_storage = accessor_->address_accessor
+                                 .get_arm64_lvalue_and_insertion_instructions(
+                                     of_comparator, accessor_->device_accessor)
+                                 .first;
     auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
     auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
     auto comparator_instructions = assembly::r_eq(

@@ -108,7 +108,8 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
     if (lvalue_reference == "RET")
         return type::NULL_RVALUE_LITERAL;
     if (locals.is_pointer(lvalue_reference)) {
-        auto address_at = locals.get_pointer_by_name(lvalue, location);
+        auto address_at =
+            locals.get_pointer_by_name(lvalue_reference, location);
         if (address_at == "NULL")
             return type::NULL_RVALUE_LITERAL;
         return get_rvalue_at_lvalue_object_storage(

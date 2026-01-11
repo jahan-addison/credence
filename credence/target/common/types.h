@@ -69,7 +69,18 @@ struct is_variant<std::variant<Args...>> : std::true_type
 
 struct base_stack_pointer
 {
+    base_stack_pointer();
+    ~base_stack_pointer();
+    base_stack_pointer(base_stack_pointer const&) = delete;
+    base_stack_pointer& operator=(base_stack_pointer const&) = delete;
+    base_stack_pointer(base_stack_pointer&&) noexcept;
+    base_stack_pointer& operator=(base_stack_pointer&&) noexcept;
+
     using Offset = Stack_Offset;
+
+  private:
+    struct impl;
+    std::unique_ptr<impl> pimpl;
 };
 
 } // namespace detail

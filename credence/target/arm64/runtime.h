@@ -20,7 +20,6 @@
 #include <credence/target/common/runtime.h>     // for address_t, library_a...
 #include <credence/target/common/stack_frame.h> // for Locals
 #include <cstddef>                              // for size_t
-#include <fmt/format.h>                         // for format
 #include <initializer_list>                     // for initializer_list
 #include <string>                               // for basic_string
 #include <string_view>                          // for string_view

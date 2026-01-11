@@ -1001,6 +1001,32 @@ constexpr std::string tabwidth(unsigned int t)
     return tab;
 }
 
+/**
+ * @brief Checks if two storage devices of any type are equal
+ */
+constexpr bool is_equal_storage_devices(Storage const& lhs, Storage const& rhs)
+{
+    auto result{ false };
+    std::visit(util::overload{
+                   [&](std::monostate) {},
+                   [&](common::Stack_Offset const& s) {
+                       if (is_variant(common::Stack_Offset, rhs))
+                           result = s == std::get<common::Stack_Offset>(rhs);
+                   },
+                   [&](Register const& s) {
+                       if (is_variant(Register, rhs))
+                           result = s == std::get<Register>(rhs);
+                   },
+                   [&](Immediate const& s) {
+                       if (is_variant(Immediate, rhs))
+                           result = s == std::get<Immediate>(rhs);
+                   },
+               },
+        lhs);
+
+    return result;
+}
+
 constexpr std::string literal_type_to_string(Literal_Type const& literal)
 {
     std::string as_str{};

@@ -41,7 +41,10 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
     // pointer to pointer
     auto& locals = get_stack_frame_locals();
     if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue)) {
-        locals.set_symbol_by_name(lvalue, rvalue);
+        locals.set_symbol_by_name(lvalue,
+            type::get_rvalue_data_type_as_string(
+                get_rvalue_at_lvalue_object_storage(
+                    rvalue, stack_frame_, objects_->vectors, __source__)));
         return; // Ok
     }
     // pointer to address-of lvalue

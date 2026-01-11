@@ -103,7 +103,7 @@ using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
 using Table_Pointer = std::shared_ptr<ir::object::Object>;
-using Stack_Frame = target::common::memory::Stack_Frame;
+using Stack_Frame = common::memory::Stack_Frame;
 
 using X8664_Memory_Accessor = common::memory::Memory_Accessor;
 

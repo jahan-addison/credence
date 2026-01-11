@@ -174,6 +174,9 @@ struct Unary_Operator_Inserter : public ARM64_Unary_Operator_Inserter
     {
     }
 
+    void insert_from_unary_to_unary_assignment(LValue const& lhs,
+        LValue const& rhs);
+
     Operand_Size get_operand_size_from_lvalue_reference(LValue const& lvalue);
     void insert_from_unary_operator_operands(std::string const& op,
         Storage const& dest,

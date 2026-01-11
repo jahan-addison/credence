@@ -13,7 +13,7 @@ Each platform roughly inherits the same set of pure virtual classes, macros, and
 ## Memory
 #### Dynamic `Memory_Accessor` pointer that mediates available memory, stack, and registers and their runtime storage via the accessors.
 ## Stack
-#### A stack that represents the platform-dependent ISA stack pointer with memory-safe offset resolution
+#### A push-down stack that corresponds to the platform stack pointer with memory-safe offset resolution
 ## Flags
 #### Instruction flags, such as enforcing a word size or an address mode
 ## Syscall

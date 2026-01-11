@@ -53,6 +53,9 @@ class IR_Instruction_Visitor final : public ARM64_IR_Visitor
         iterator_index_ = index;
     }
 
+  private:
+    void set_pointer_address_of_lvalue(LValue const& lvalue);
+
   public:
     void from_locl_ita(ir::Quadruple const& inst) override;
     void from_pop_ita() override;
