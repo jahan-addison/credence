@@ -358,12 +358,18 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                                    true),
                              m::app(operand_source_is(Source::s_1), true)) =
                 [&] {
-                    fmt::println("hmm: {}, {}",
-                        frame->get_pointers().size(),
-                        stack->get_stack_frame_allocation_size(frame) -
-                            (frame->get_pointers().size() * 8));
-                    operand = direct_immediate(fmt::format("[sp, #{}]",
-                        stack->get_stack_frame_allocation_size(frame)));
+                    auto offset_index =
+                        frame->get_pointers().size() >= 2 ? 2 : 1;
+                    if (*address_pointer_index > 0UL) {
+                        auto offset =
+                            stack->get_stack_frame_allocation_size(frame) -
+                            ((frame->get_pointers().size() -
+                                 *address_pointer_index + offset_index) *
+                                8);
+                        operand =
+                            direct_immediate(fmt::format("[sp, #{}]", offset));
+                        (*address_pointer_index)--;
+                    }
                 },
             m::pattern |
                 m::ds(m::app(instruction_contains_flag(detail::flags::Align_SP),
@@ -380,8 +386,14 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                                    true),
                              m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
-                    operand = direct_immediate(fmt::format("[sp, #{}]",
-                        stack->get_stack_frame_allocation_size(frame)));
+                    auto offset_index =
+                        frame->get_pointers().size() >= 2 ? 1 : 0;
+                    auto offset =
+                        stack->get_stack_frame_allocation_size(frame) -
+                        ((frame->get_pointers().size() -
+                             *address_pointer_index + offset_index) *
+                            8);
+                    operand = direct_immediate(fmt::format("#{}", offset));
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_SP_Local),
@@ -472,6 +484,8 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             accessor_->device_accessor.set_current_frame_symbol(s);
         }
         frame_ = s;
+        address_pointer_index =
+            table->get_functions().at(s)->get_pointers().size();
         if (set_label)
             label_size_ = accessor_->table_accessor.table_->get_functions()
                               .at(s)
@@ -568,7 +582,8 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     Instruction const& s)
 {
     auto [mnemonic, src1, src2, src3, src4] = s;
-    auto storage_emitter = Storage_Emitter{ accessor_, index };
+    auto storage_emitter =
+        Storage_Emitter{ accessor_, index, &address_pointer_index };
 
     if (branch_ == "_L1" && label_size_ > 0) {
         return_instructions_.emplace_back(s);

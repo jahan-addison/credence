@@ -150,8 +150,7 @@ class Function
     int get_index_of_parameter(RValue const& parameter);
 
     // Getters
-    Return_RValue& get_ret();
-    Return_RValue const& get_ret() const;
+  public:
     Label& get_label_before_reserved();
     Label const& get_label_before_reserved() const;
     type::Parameters& get_parameters();
@@ -164,14 +163,18 @@ class Function
     std::array<type::semantic::Address, 2> const& get_address_location() const;
     type::semantic::Label& get_symbol();
     type::semantic::Label const& get_symbol() const;
+
+  public:
+    Return_RValue& get_ret();
+    Return_RValue const& get_ret() const;
     type::Labels& get_labels();
     type::Labels const& get_labels() const;
     type::Locals& get_locals();
     type::Locals const& get_locals() const;
     type::RValues& get_tokens();
     type::RValues const& get_tokens() const;
-    type::RValues& get_pointers();
-    type::RValues const& get_pointers() const;
+    type::Pointers& get_pointers();
+    type::Pointers const& get_pointers() const;
     unsigned int& get_allocation();
     unsigned int get_allocation() const;
 

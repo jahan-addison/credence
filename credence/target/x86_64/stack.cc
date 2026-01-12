@@ -195,8 +195,7 @@ class Stack::Stack_IMPL
      * The vector was allocated in a chunk and we allocate each index
      * downward
      */
-    constexpr Size get_stack_offset_from_table_vector_index(
-        LValue const& lvalue,
+    Size get_stack_offset_from_table_vector_index(LValue const& lvalue,
         std::string const& key,
         ir::object::Vector const& vector)
     {
@@ -222,8 +221,7 @@ class Stack::Stack_IMPL
      *
      * Memory align to multiples of 16 bytes per the ABI
      */
-    constexpr Size get_stack_size_from_table_vector(
-        ir::object::Vector const& vector)
+    Size get_stack_size_from_table_vector(ir::object::Vector const& vector)
     {
         auto vector_size =
             size +

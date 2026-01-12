@@ -210,7 +210,7 @@ class Stack::Stack_IMPL
     Size get_stack_frame_allocation_size(ir::object::Function_PTR& frame)
     {
         auto allocation_size = frame_size;
-        // check callee saved registers
+        // check callee saved special registers
         if (frame->get_tokens().contains("x23"))
             allocation_size += 8;
         if (frame->get_tokens().contains("x26"))
@@ -252,8 +252,7 @@ class Stack::Stack_IMPL
      *
      * Memory align to multiples of 16 bytes per the ABI
      */
-    constexpr Size get_stack_size_from_table_vector(
-        ir::object::Vector const& vector)
+    Size get_stack_size_from_table_vector(ir::object::Vector const& vector)
     {
         auto vector_size =
             size + std::accumulate(vector.get_data().begin(),

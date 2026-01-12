@@ -132,7 +132,7 @@ struct Function::Function_IMPL
     type::Labels labels{};
     type::Locals locals{};
     type::RValues tokens{};
-    type::RValues pointers{};
+    type::Pointers pointers{};
     unsigned int allocation = 0;
 };
 
@@ -287,14 +287,17 @@ type::RValues const& Function::get_tokens() const
 {
     return pimpl->tokens;
 }
-type::RValues& Function::get_pointers()
+
+type::Pointers& Function::get_pointers()
 {
     return pimpl->pointers;
 }
-type::RValues const& Function::get_pointers() const
+
+type::Pointers const& Function::get_pointers() const
 {
     return pimpl->pointers;
 }
+
 unsigned int& Function::get_allocation()
 {
     return pimpl->allocation;

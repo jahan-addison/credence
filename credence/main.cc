@@ -23,9 +23,10 @@
  *
  * Example usage:
  *
- *   $ credence --source-code program.b --target x86_64 --output program
- *   $ as program.s -o program.o
- *   $ ld program.o stdlib/x86_64/stdlib.o -o program
+ * Note: There is a frontend with a linker and assembler installed via the
+ * install.sh
+ *
+ *   $ credence --target x86_64 --output program program.b
  *   $ ./program
  *
  * Target options:

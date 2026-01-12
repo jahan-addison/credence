@@ -58,6 +58,7 @@
 #include <easyjson.h>        // for JSON
 #include <fmt/format.h>      // for format
 #include <initializer_list>  // for initializer_list
+#include <list>              // for list
 #include <memory>            // for allocator, make_shared
 #include <set>               // for set
 #include <source_location>   // for source_location
@@ -103,6 +104,7 @@ using RValue_Reference_Type = std::variant<semantic::RValue, Data_Type>;
 using Locals = Symbol_Table<Data_Type, semantic::LValue>;
 using Temporary = std::pair<semantic::LValue, semantic::RValue>;
 using Parameters = std::vector<semantic::RValue>;
+using Pointers = std::list<semantic::RValue>;
 
 constexpr auto unary_operators = { "++", "--", "*", "&", "-", "+", "~", "!" };
 constexpr auto arithmetic_unary_operators = { "++", "--", "-", "+" };

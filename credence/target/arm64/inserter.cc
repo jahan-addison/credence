@@ -309,7 +309,7 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
 common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
     RValue const& expr)
 {
-    auto instruction_accessor = accessor_->instruction_accessor;
+    auto& instruction_accessor = accessor_->instruction_accessor;
     auto& address_space = accessor_->address_accessor;
 
     credence_assert(type::is_unary_expression(expr));
@@ -320,10 +320,19 @@ common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
         accessor_->device_accessor.get_device_by_lvalue_reference(rvalue);
     address_space.address_ir_assignment = true;
     accessor_->stack->allocate_pointer_on_stack();
-    accessor_->stack_frame.get_stack_frame()->get_pointers().insert(rvalue);
+    accessor_->stack_frame.get_stack_frame()->get_pointers().emplace_back(
+        rvalue);
     accessor_->stack->add_address_location_to_stack(rvalue);
+
+    accessor_->flag_accessor.set_instruction_flag(
+        detail::flags::Align_Folded, instruction_accessor->size());
+
     insert_from_unary_operator_operands(
         op, offset, accessor_->stack->get(rvalue).first);
+
+    accessor_->flag_accessor.set_instruction_flag(
+        detail::flags::Align_SP_Folded, instruction_accessor->size());
+
     return accessor_->stack->get(rvalue).first;
 }
 
@@ -850,11 +859,16 @@ void Unary_Operator_Inserter::insert_from_unary_to_unary_assignment(
         Storage lhs_storage = devices.get_device_by_lvalue(lhs_lvalue);
         Storage rhs_storage = devices.get_device_by_lvalue(rhs_lvalue);
         accessor_->flag_accessor.set_instruction_flag(
-            detail::flags::Align_Folded, instruction_accessor->size());
-        arm64_add__asm(instructions, ldr, acc, lhs_storage);
-        accessor_->flag_accessor.set_instruction_flag(
-            detail::flags::Align_Folded, instruction_accessor->size());
-        arm64_add__asm(instructions, str, acc, rhs_storage);
+            common::flag::Indirect_Source, instruction_accessor->size());
+        arm64_add__asm(instructions, ldr, acc, rhs_storage);
+        if (is_variant(Register, lhs_storage))
+            accessor_->flag_accessor.set_instruction_flag(
+                common::flag::Indirect_Source, instruction_accessor->size());
+        else
+            accessor_->flag_accessor.set_instruction_flag(
+                detail::flags::Align_Folded, instruction_accessor->size());
+
+        arm64_add__asm(instructions, str, acc, lhs_storage);
     });
 }
 

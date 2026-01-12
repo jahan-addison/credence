@@ -102,9 +102,12 @@ class Assembly_Emitter;
 class Storage_Emitter
 {
   public:
-    explicit Storage_Emitter(memory::Memory_Access& accessor, std::size_t index)
+    explicit Storage_Emitter(memory::Memory_Access& accessor,
+        std::size_t index,
+        std::size_t* pointers_index)
         : accessor_(accessor)
         , instruction_index_(index)
+        , address_pointer_index(pointers_index)
     {
     }
 
@@ -144,6 +147,9 @@ class Storage_Emitter
   private:
     memory::Memory_Access accessor_;
     std::size_t instruction_index_;
+
+  private:
+    std::size_t* address_pointer_index{ 0 };
 };
 
 /**
@@ -188,6 +194,9 @@ class Text_Emitter
 
   private:
     memory::Memory_Access accessor_;
+
+  private:
+    std::size_t address_pointer_index{ 0 };
 
   private:
     memory::Instruction_Pointer instructions_;
