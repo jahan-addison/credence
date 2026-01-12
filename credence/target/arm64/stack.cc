@@ -27,6 +27,42 @@
 #include <string>                          // for basic_string, string, ope...
 #include <utility>                         // for pair
 
+/****************************************************************************
+ *
+ * ARM64 Stack
+ *
+ * The push-down stack that grows downward and maintains 16-byte alignment.
+ * Since ARM64 has so many registers (x0-x30), we prioritize register allocation
+ * before using the stack.
+ *
+ * NOTE: We save x9-x18 on the stack before calling a function via the
+ * Allocate, Access, Deallocate pattern
+ *
+ * Example - function with locals:
+ *
+ *   B code:
+ *     compute(a) {
+ *       auto x, y, z;
+ *       x = a * 2;
+ *       y = x + 10;
+ *       z = y - 5;
+ *       return(z);
+ *     }
+ *
+ * Note that in some cases we also use the
+ *
+ * Register allocation (locals use x9-x18 first):
+ *   w0 = parameter 'a'
+ *   w9 = local 'x'
+ *   w10 = local 'y'
+ *   w11 = local 'z'
+ *
+ *   [sp + 16] saved w9 (before function calls)
+ *   [sp + 12] saved w10
+ *   [sp + 8]  saved w11
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64::assembly {
 
 class Stack::Stack_IMPL

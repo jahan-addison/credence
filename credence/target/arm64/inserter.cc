@@ -37,6 +37,33 @@
 #include <tuple>                                // for get, tuple
 #include <variant>                              // for variant, get, operat...
 
+/****************************************************************************
+ *
+ * ARM64 Instruction Inserters
+ *
+ * Translates B language operations into ARM64 instruction sequences.
+ * Handles arithmetic, bitwise, relational operators, and assignments.
+ *
+ * Example - arithmetic operation:
+ *
+ *   B code:    z = x + y * 2;
+ *
+ * Inserter generates (locals in w9, w10, w11):
+ *   mov w8, w10             ; load y from w10 into accumulator
+ *   lsl w8, w8, #1          ; y * 2 (shift left)
+ *   add w8, w9, w8          ; x + (y * 2), x in w9
+ *   mov w11, w8             ; store to z in w11
+ *
+ * Example - comparison:
+ *
+ *   B code:    if (x > 10) { ... }
+ *
+ * Inserter generates (x in w9):
+ *   cmp w9, #10
+ *   b.gt ._L1__main
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64 {
 
 namespace m = matchit;
@@ -215,8 +242,6 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
 
 /**
  * @brief Setup the stack frame for a function during instruction insertion
- *
- *  Note: x28 is reserved for the argc address and argv offsets in memory
  */
 void Instruction_Inserter::setup_stack_frame_in_function(
     ir::Instructions const& ir_instructions,

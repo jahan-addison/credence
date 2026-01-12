@@ -11,34 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Expression parser - top-down LL(1) parser
- *
- * Parses AST nodes from the frontend into algebraic data structures that
- * represent expressions. Handles operator precedence, associativity, and
- * converts complex expressions into a form suitable for code generation.
- *
- * Example - parsing an expression:
- *
- *   main() {
- *     auto x, y;
- *     x = 5 * 5 + 10 / 2;     // Complex arithmetic expression
- *     y = (x > 10) ? x : 0;   // Ternary expression
- *   }
- *
- * The parser converts these into expression trees respecting operator
- * precedence (multiplication before addition, etc.) and handles:
- * - Binary operators: +, -, *, /, %, &, |, ^, <<, >>
- * - Unary operators: -, +, ~, !, ++, --
- * - Relational: ==, !=, <, >, <=, >=
- * - Logical: &&, ||
- * - Assignment and pointer indirection: =, *x = y
- * - Array access: arr[i]
- * - Function calls: func(a, b)
- *
- *****************************************************************************/
-
 #pragma once
 
 #include <array>             // for array
@@ -51,6 +23,28 @@
 #include <string>            // for basic_string, string
 #include <string_view>       // for string_view
 #include <vector>            // for vector
+
+/****************************************************************************
+ *
+ * Expressions - LL(1) parser
+ *
+ * Parses expression ast nodes and value category types from the frontend into
+ * algebraic symbols for semantic analysis in the IR.
+ *
+ * Note that statements and non-expression nodes are omitted here.
+ *
+ *   B source:  x = 5 + 3 * 2
+ *
+ *   ast node:  {"node": "assignment",
+ *               "left": {"name": "x"},
+ *               "right": {"node": "binary_op", "op": "+", ...}}
+ *
+ *   Example:    Assignment(lvalue="x",
+ *                        rvalue=BinaryOp(ADD,
+ *                                       Literal(5),
+ *                                       BinaryOp(MUL, ...)))
+ *
+ *****************************************************************************/
 
 namespace credence {
 

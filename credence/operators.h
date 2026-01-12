@@ -11,37 +11,18 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+#include <array>
+#include <credence/util.h>
+#include <map>
+#include <ostream>
+#include <sstream>
+#include <type_traits>
+#include <utility>
+
 /****************************************************************************
  *
  * Operator definitions and precedence
- *
- * Defines all operators in the B language with C-style precedence and
- * associativity rules. Logical and bitwise operators behave like C.
- *
- * Example - operator usage:
- *
- *   main() {
- *     auto x, y, result;
- *     x = 5;
- *     y = 3;
- *
- *     // Arithmetic
- *     result = x + y * 2;      // Precedence: y * 2 first, then + x
- *
- *     // Bitwise
- *     result = x & y | 0xFF;   // Bitwise AND, then OR
- *     result = ~x;             // Bitwise NOT
- *     result = x << 2;         // Left shift
- *
- *     // Relational and logical
- *     if (x > y && x < 10) {   // Logical AND
- *       result = x;
- *     }
- *
- *     // Increment/decrement
- *     x++;                     // Post-increment
- *     --y;                     // Pre-decrement
- *   }
  *
  * Operator categories:
  * - Arithmetic: +, -, *, /, %
@@ -54,15 +35,6 @@
  * - Ternary: ? :
  *
  *****************************************************************************/
-
-#pragma once
-#include <array>
-#include <credence/util.h>
-#include <map>
-#include <ostream>
-#include <sstream>
-#include <type_traits>
-#include <utility>
 
 namespace credence {
 

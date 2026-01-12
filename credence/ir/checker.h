@@ -28,6 +28,8 @@
 #include <tuple>                // for get, tuple
 
 /****************************************************************************
+ *  Type Checker
+ *
  *  Type checker for the intermediate representation. Validates assignments
  *  between scalars, vectors, pointers, and handles type conversions with
  *  proper boundary and null checks.
@@ -44,6 +46,11 @@
  *    - Type compatibility between lhs and rhs
  *    - Vector boundary access (arr[0..9] valid, arr[10] error)
  *    - Pointer targets (no &string[k] allowed)
+ *    - Null assignments
+ *    - Implicit conversions where safe
+ *    - Raises compile-time errors on violations
+ *    - Supports lvalue and rvalue type resolution
+ *    - and more.
  *
  ****************************************************************************/
 

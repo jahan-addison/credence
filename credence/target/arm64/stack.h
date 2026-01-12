@@ -11,14 +11,25 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"                     // for Operand_Size, Immediate
+#include "credence/ir/object.h"           // for LValue, Size, Vector (ptr ...
+#include <credence/target/common/types.h> // for base_stack_pointer
+#include <memory>                         // for unique_ptr
+#include <string>                         // for string
+#include <utility>                        // for pair
+
 /****************************************************************************
  *
- * ARM64 Stack Management
+ * ARM64 Stack
  *
- * Manages the ARM64 PCS-compliant stack. Stack grows downward. Must maintain
- * 16-byte alignment. ARM64 has many registers (x0-x30), so prioritizes
- * register allocation before using stack. Callee-saved registers (x19-x28)
- * are preserved on stack when used.
+ * The push-down stack that grows downward and maintains 16-byte alignment.
+ * Since ARM64 has so many registers (x0-x30), we prioritize register allocation
+ * before using the stack.
+ *
+ * NOTE: We save x9-x18 on the stack before calling a function via the
+ * Allocate, Access, Deallocate pattern
  *
  * Example - function with locals:
  *
@@ -31,29 +42,19 @@
  *       return(z);
  *     }
  *
+ * Note that in some cases we also use the
+ *
  * Register allocation (locals use x9-x18 first):
- *   x0 = parameter 'a'
- *   x9 = local 'x'
- *   x10 = local 'y'
- *   x11 = local 'z'
+ *   w0 = parameter 'a'
+ *   w9 = local 'x'
+ *   w10 = local 'y'
+ *   w11 = local 'z'
  *
- * Stack only used if >10 locals, or for saved x9-x18:
- *   [sp + 24] saved x9 (before function calls)
- *   [sp + 16] saved x10
- *   [sp + 8]  saved x11
- *
- * ARM64 allocates stack space upfront: sub sp, sp, #32
+ *   [sp + 16] saved w9 (before function calls)
+ *   [sp + 12] saved w10
+ *   [sp + 8]  saved w11
  *
  *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"                     // for Operand_Size, Immediate
-#include "credence/ir/object.h"           // for LValue, Size, Vector (ptr ...
-#include <credence/target/common/types.h> // for base_stack_pointer
-#include <memory>                         // for unique_ptr
-#include <string>                         // for string
-#include <utility>                        // for pair
 
 namespace credence::target::arm64::assembly {
 

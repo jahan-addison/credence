@@ -28,17 +28,29 @@
 #include <variant>              // for visit
 
 /****************************************************************************
- *  Type checker implementation for validating IR assignments. Ensures type
- *  safety across scalars, vectors, and pointers with boundary checking.
+ *  Type Checker
  *
- *  Example checks:
+ *  Type checker for the intermediate representation. Validates assignments
+ *  between scalars, vectors, pointers, and handles type conversions with
+ *  proper boundary and null checks.
  *
- *  auto x,
- *  auto arr[5];
- *  x = 10;          // scalar: type_safe_assign (OK)
- *  arr[2] = x;      // vector: bounds check + type match (OK)
- *  arr[10] = x;     // vector: out of bounds (ERROR)
- *  x = arr[2];      // trivial vector: type match (OK)
+ *  Example type checking:
+ *
+ *  auto x, *p;
+ *  auto arr[10];
+ *  x = 5;           // scalar assignment
+ *  arr[0] = x;      // vector assignment with bounds check
+ *  p = &x;          // pointer assignment
+ *
+ *  Type_Checker validates:
+ *    - Type compatibility between lhs and rhs
+ *    - Vector boundary access (arr[0..9] valid, arr[10] error)
+ *    - Pointer targets (no &string[k] allowed)
+ *    - Null assignments
+ *    - Implicit conversions where safe
+ *    - Raises compile-time errors on violations
+ *    - Supports lvalue and rvalue type resolution
+ *    - and more.
  *
  ****************************************************************************/
 

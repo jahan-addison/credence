@@ -15,6 +15,28 @@
 #include <credence/types.h> // for RValue, Label
 #include <matchit.h>        // for matchit
 
+/****************************************************************************
+ *
+ * x86-64 Assembly Constructors and Mnemonics
+ *
+ * x86-64 instructions, registers, and mnemonics in intel syntax. Provides
+ * instruction string formatting and operand constructors and macros.
+ *
+ * Example registers:
+ *   64-bit: rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp, r8-r15
+ *   32-bit: eax, ebx, ecx, edx, esi, edi, ...
+ *   16-bit: ax, bx, cx, dx, ...
+ *   8-bit:  al, bl, cl, dl, ...
+ *
+ * Example instructions:
+ *   Data movement: mov, lea, push, pop
+ *   Arithmetic: add, sub, mul, imul, div, idiv
+ *   Bitwise: and, or, xor, not, shl, shr
+ *   Comparison: cmp, test
+ *   Control flow: jmp, je, jne, jg, jl, call, ret
+ *
+ *****************************************************************************/
+
 namespace credence::target::x86_64::assembly {
 
 namespace m = matchit;

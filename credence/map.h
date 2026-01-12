@@ -11,12 +11,19 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include <cstddef> // for size_t
+#include <map>     // for map
+#include <utility> // for pair
+#include <vector>  // for vector
+
 /****************************************************************************
  *
- * Ordered map data structure
+ * Ordered Map
  *
  * A map that preserves insertion order, unlike std::map which orders by key.
- * Used throughout the compiler where declaration order matters, such as
+ * Used throughout translation phases where declaration order matters, such as
  * maintaining the order of global variables and functions.
  *
  * Example - preserving declaration order:
@@ -33,27 +40,10 @@
  *   second: .quad 20
  *   third:  .quad 30
  *
- * Used for symbol tables, instruction sequences, and label ordering.
- *
  *****************************************************************************/
-
-#pragma once
-
-#include <cstddef> // for size_t
-#include <map>     // for map
-#include <utility> // for pair
-#include <vector>  // for vector
-
-////////////////
-// Ordered_Map
-////////////////
 
 namespace credence {
 
-/**
- * @brief
- *  An ordered map that uses an std::vector to keep order of insertion
- */
 template<typename Key, typename Value>
 class Ordered_Map
 {

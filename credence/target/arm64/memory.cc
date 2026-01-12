@@ -33,6 +33,60 @@
 #include <utility>                           // for pair
 #include <variant>                           // for get, variant, monostate
 
+/****************************************************************************
+ *
+ * ARM64 Memory Accessors and Address Calculators
+ *
+ * Handles memory addressing modes for ARM64: register direct, base+offset,
+ * pre/post-indexed addressing. Leverages 32 general-purpose registers,
+ * keeping more values in registers before spilling to stack.
+ *
+ * Example - local variable access:
+ *
+ *   B code:    auto x; x = 10;
+ *
+ * Memory accessor uses w9-w18 for locals:
+ *   mov w9, #10             ; x in register w9 (first local)
+ *
+ * Or stack if w9-w18 exhausted:
+ *   mov w8, #10
+ *   str w8, [sp, #8]        ; x at [sp + 8]
+ *
+ * Example - array access (always on stack):
+ *
+ *   B code:    auto arr[5]; arr[2] = 42;
+ *
+ * Memory accessor generates:
+ *   mov w8, #42
+ *   str w8, [sp, #24]       ; arr[2] at base + 2*8
+ *
+ * Example - global access:
+ *
+ *   B code:    extrn value; x = value;
+ *
+ * Memory accessor generates:
+ *   adrp x8, value@PAGE
+ *   ldr x8, [x8, value@PAGEOFF]
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Special register usage conventions:
+ *
+ *   x26   = address-of temporary storage register
+ *   x23   = The multiplication register, arithmetic scratch register
+ *   x8    = The default "accumulator" register for expression expansion
+ *   x9 - x18 = Local scope variables, after which the stack is used
+ *
+ *  NOTE : we save x9-x18 on the stack before calling a function
+ *  via the Allocate, Access, Deallocate pattern
+ *
+ *   w0, x0 = Return results
+ *
+ *   Vectors and vector offsets will always be on the stack
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64::memory {
 
 namespace m = matchit;

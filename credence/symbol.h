@@ -11,39 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Symbol table for variables, functions, and globals
- *
- * Maintains a mapping of identifiers to their types, values, and addresses.
- * Handles local variables (auto), external globals (extrn), and vector
- * (array) declarations. Symbol resolution respects scope rules.
- *
- * Example - symbol table entries:
- *
- *   main() {
- *     auto x, y, *z;    // Local symbols: x, y, z
- *     extrn numbers;    // External symbol reference
- *     x = 10;
- *     y = numbers[0];
- *     z = &x;
- *   }
- *
- *   add(a, b) {         // Function symbol with parameters
- *     return(a + b);
- *   }
- *
- *   numbers [5] 1, 2, 3, 4, 5;  // Global vector symbol
- *
- * Symbol table tracks:
- * - Variable names and their inferred types
- * - Function names and signatures
- * - Array sizes and element types
- * - Memory addresses for code generation
- * - Scope information (local vs global)
- *
- *****************************************************************************/
-
 #pragma once
 
 #include <algorithm>         // for any_of
@@ -57,16 +24,33 @@
 #include <string>            // for basic_string, string
 #include <utility>           // for make_pair, move
 
+/****************************************************************************
+ *
+ * Symbol table
+ *
+ * A template to map Lvalues and addresses in memory to an internal data type.
+ * By default, the type value::Literal in values.h is used for symbols, and
+ * value::Array as a representation of contiguous blocks in memory.
+ *
+ * Note that in most use cases, two instances are used for "local" and "global"
+ * symbols.
+ *
+ * Example:
+ *
+ *   main() {
+ *     auto x, y, *z;    // local symbols: x, y, z
+ *     extrn numbers;    // external global symbol into local
+ *     x = 10;
+ *     y = numbers[0];
+ *     z = &x;           // z is now set as a pointer to x
+ *   }
+ *
+ *   numbers [5] 1, 2, 3, 4, 5;  // global vector symbol
+ *
+ *****************************************************************************/
+
 namespace credence {
 
-/**
- * @brief
- * Symbol table template class
- *
- * Constructs a symbol table from a template data structure
- * An example table may be a map to `std::array<std::string, 5>':
- *
- */
 template<typename Symbol = value::Literal, typename Pointer = value::Array>
 class Symbol_Table
 {

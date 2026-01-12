@@ -24,6 +24,35 @@
 #include <string>                         // for basic_string, string, oper...
 #include <utility>                        // for pair
 
+/****************************************************************************
+ *
+ * x86-64 Stack
+ *
+ * System V ABI-compliant stack for x86-64 which grows downward from high to low
+ * addresses. Maintains 16-byte alignment before function calls.
+ *
+ * Example - function with locals:
+ *
+ *   B code:
+ *     compute(a) {
+ *       auto x, y, z;
+ *       x = a * 2;
+ *       y = x + 10;
+ *       z = y - 5;
+ *       return(z);
+ *     }
+ *
+ * Stack layout:
+ *   [rbp + 16] parameter 'a'
+ *   [rbp + 8]  return address (pushed by call)
+ *   [rbp + 0]  saved rbp (pushed by function prologue)
+ *   [rbp - 4]  local 'x'
+ *   [rbp - 8] local 'y'
+ *   [rbp - 12] local 'z'
+ *   [rbp - 16] alignment padding (16-byte aligned)
+ *
+ *****************************************************************************/
+
 namespace credence::target::x86_64::assembly {
 
 class Stack::Stack_IMPL

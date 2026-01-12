@@ -37,17 +37,24 @@
 #include <vector>                // for vector
 
 /****************************************************************************
- *  Symbol table construction from ITA instructions. Processes each ITA
- *  instruction sequentially to build the Object table, validate types,
- *  and track function frames and vector storage.
+ * Table
  *
- *  Example processing:
+ * Table constructor for language objects. A visitor pattern on ITA instructions
+ * to construct the object table of a program, including function frames,
+ * vectors, locals, and globals and performs type checking on all assignments.
  *
- *  ITA:                         Table Action:
- *  __main():                 -> create function frame "main"
- *   LOCL x;                  -> add local symbol x = NULL
- *   MOV x (10:int:4);        -> assign x = (10:int:4), type check
- *   EndFunc ;                -> close frame, record end address
+ *  Example table construction:
+ *
+ *  main() {
+ *    auto x,
+ *    auto arr[3];
+ *    x = 10;
+ *    arr[0] = x;
+ *  }
+ *
+ *  Builds Object table:
+ *    functions["main"] -> { locals: {x: (10:int:4)} }
+ *    vectors["arr"]    -> { size: 3, data: {"0": (10:int:4)} }
  *
  ****************************************************************************/
 

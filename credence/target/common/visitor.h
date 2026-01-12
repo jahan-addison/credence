@@ -11,13 +11,19 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include <string>
+
 /****************************************************************************
  *
- * Pure virtual IR Visitor for code generation
+ * Pure Virtual IR Visitor for code generation
  *
  * Abstract interface for traversing ITA (Instruction Tuple Abstraction)
  * intermediate representation and generating platform-specific assembly.
  * Each architecture implements this visitor to emit its own ISA.
+ *
+ *  See ir/readme.md for details on the IR.
  *
  * Example - visiting ITA instructions:
  *
@@ -28,21 +34,17 @@
  *   1. from_mov_ita({lvalue: "x", rvalue: "5"})
  *   2. from_mov_ita({lvalue: "y", rvalue: "x + 10"})
  *
- * x86-64 emits:  mov qword ptr [rbp - 8], 5
- *                mov rax, qword ptr [rbp - 8]
- *                add rax, 10
- *                mov qword ptr [rbp - 16], rax
+ * x86-64 emits:  mov dword ptr [rbp - 4], 5
+ *                mov eax, dword ptr [rbp - 4]
+ *                add eax, 10
+ *                mov dword ptr [rbp - 8], eax
  *
- * ARM64 emits:   mov x9, #5           ; x in register x9
- *                mov x8, x9
- *                add x8, x8, #10
- *                mov x10, x8          ; y in register x10
+ * ARM64 emits:   mov w9, #5           ; x in register w9
+ *                mov w8, w9
+ *                add w8, w8, #10
+ *                mov w10, w8          ; y in register w10
  *
- *****************************************************************************/
-
-#pragma once
-
-#include <string>
+ ****************************************************************************/
 
 namespace credence::target::common {
 

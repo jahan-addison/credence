@@ -30,9 +30,14 @@
 #include <vector>            // for vector
 
 /****************************************************************************
- *  Intermediate Tuple Assembly (ITA) - A linearized 3-address code format
- *  that serves as the IR for the B compiler. Instructions are quadruples
- *  (instruction, operand1, operand2, operand3) that represent operations.
+ * ITA
+ *
+ * The intermediate representation (IR) is formalized as a linear four-tuple,
+ * named the Instruction Tuple Abstraction (ITA). The ITA comprises a collection
+ * of platform-independent  instructions that approximate the structure and
+ * semantics of a target machine language.
+ *
+ * See ir/readme.md for details.
  *
  *  Example transformation:
  *

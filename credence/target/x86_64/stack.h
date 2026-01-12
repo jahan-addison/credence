@@ -11,12 +11,21 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"                     // for Operand_Size, Immediate
+#include "credence/ir/object.h"           // for LValue, Size, Vector (ptr ...
+#include <credence/target/common/types.h> // for Stack_Offset, base_stack_p...
+#include <memory>                         // for unique_ptr
+#include <string>                         // for string
+#include <utility>                        // for pair
+
 /****************************************************************************
  *
- * x86-64 Stack Management
+ * x86-64 Stack
  *
- * Manages the System V ABI-compliant stack for x86-64. Stack grows downward
- * from high to low addresses. Must maintain 16-byte alignment before calls.
+ * System V ABI-compliant stack for x86-64 which grows downward from high to low
+ * addresses. Maintains 16-byte alignment before function calls.
  *
  * Example - function with locals:
  *
@@ -33,33 +42,19 @@
  *   [rbp + 16] parameter 'a'
  *   [rbp + 8]  return address (pushed by call)
  *   [rbp + 0]  saved rbp (pushed by function prologue)
- *   [rbp - 8]  local 'x'
- *   [rbp - 16] local 'y'
- *   [rbp - 24] local 'z'
- *   [rbp - 32] alignment padding (16-byte aligned)
+ *   [rbp - 4]  local 'x'
+ *   [rbp - 8] local 'y'
+ *   [rbp - 12] local 'z'
+ *   [rbp - 16] alignment padding (16-byte aligned)
  *
  *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"                     // for Operand_Size, Immediate
-#include "credence/ir/object.h"           // for LValue, Size, Vector (ptr ...
-#include <credence/target/common/types.h> // for Stack_Offset, base_stack_p...
-#include <memory>                         // for unique_ptr
-#include <string>                         // for string
-#include <utility>                        // for pair
 
 namespace credence::target::x86_64::assembly {
 
 /**
  * @brief
  * A push-down stack for the x86-64 architecture
- *
- * Provides a means to allocate, traverse, and verify offsets
- * that auto-align on the stack by lvalues and vice-versa.
- *
- * Uses the PIMPL (Pointer to Implementation) idiom to reduce compilation
- * dependencies and improve build times.
+ * Uses the PIMPL idiom to improve build times.
  */
 class Stack : public common::detail::base_stack_pointer
 {

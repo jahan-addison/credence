@@ -11,6 +11,20 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"  // for Instructions, Storage, Reg...
+#include "memory.h"    // for general_purpose, Stack_Frame
+#include <array>       // for array
+#include <cstddef>     // for size_t
+#include <deque>       // for deque
+#include <map>         // for map
+#include <string>      // for basic_string
+#include <string_view> // for basic_string_view, string_...
+
+#include <credence/target/common/assembly.h> // for make_numeric_immediate
+#include <credence/target/common/types.h>    // for get_first_of_enum_t
+
 /****************************************************************************
  *
  * x86-64 System Call Interface
@@ -34,20 +48,6 @@
  *   syscall
  *
  *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"  // for Instructions, Storage, Reg...
-#include "memory.h"    // for general_purpose, Stack_Frame
-#include <array>       // for array
-#include <cstddef>     // for size_t
-#include <deque>       // for deque
-#include <map>         // for map
-#include <string>      // for basic_string
-#include <string_view> // for basic_string_view, string_...
-
-#include <credence/target/common/assembly.h> // for make_numeric_immediate
-#include <credence/target/common/types.h>    // for get_first_of_enum_t
 
 namespace credence::target::x86_64::syscall_ns {
 

@@ -11,41 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Credence B Language Compiler - Main Entry Point
- *
- * The compiler works in 3 stages:
- *
- * 1. Lexer/Parser: LALR(1) grammar in Python (via pybind11) produces AST
- * 2. IR Generation: Converts AST to ITA (Instruction Tuple Abstraction)
- * 3. Code Generation: Emits x86-64 or ARM64 assembly from ITA
- *
- * Example usage:
- *
- * Note: There is a frontend with a linker and assembler installed via the
- * install.sh
- *
- *   $ credence --target x86_64 --output program program.b
- *   $ ./program
- *
- * Target options:
- *   - ir: Output ITA intermediate representation (default)
- *   - syntax: Output parse tree (debugging)
- *   - ast: Output abstract syntax tree (debugging)
- *   - x86_64: Generate x86-64 assembly for Linux/Darwin
- *   - arm64: Generate ARM64 assembly for Linux/Darwin
- *
- * Example program:
- *
- *   main() {
- *     auto x;
- *     x = 42;
- *     return(x);
- *   }
- *
- *****************************************************************************/
-
 #include <credence/error.h>                   // for Credence_Exception
 #include <credence/ir/table.h>                // for emit
 #include <credence/target/arm64/generator.h>  // for emit
@@ -66,6 +31,36 @@
 #include <sstream>                            // for basic_ostringstream
 #include <string>                             // for basic_string, char_traits
 #include <string_view>                        // for basic_string_view, str...
+
+/****************************************************************************
+ *
+ * Credence 🚂
+ *
+ * The compiler works in 3 stages:
+ *
+ * 1. Lexer/Parser: LALR(1) grammar in Python (via pybind11) produces AST
+ *      * Convert the ast into strongly typed algebraic data structures
+ * 2. IR Generation: Converts AST to ITA, see ir/readme.md for details
+ * 3. Code Generation: Emits x86-64 or ARM64 assembly from the IR
+ *      * See target/readme.md for details
+ *
+ * Example usage:
+ *
+ * Note: There is a frontend with a linker and assembler installed via the
+ * install.sh
+ *
+ *   $ credence --target x86_64 --output program program.b
+ *   $ ./program
+ *
+ * Example program:
+ *
+ *   main() {
+ *     auto x;
+ *     x = 42;
+ *     return(x);
+ *   }
+ *
+ *****************************************************************************/
 
 int main(int argc, const char* argv[])
 {

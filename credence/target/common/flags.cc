@@ -11,21 +11,21 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Instruction flags implementation
- *
- * Manages bit flags for instructions during code generation. Flags control
- * addressing modes, alignment, and operand types. Multiple flags can be
- * combined using bitwise OR.
- *
- *****************************************************************************/
-
 #include "flags.h"
 
 #include <credence/error.h>               // for credence_assert
 #include <credence/map.h>                 // for Ordered_Map
 #include <credence/target/common/types.h> // for Enum_T, Instructions
+
+/****************************************************************************
+ *
+ * Instruction representation flags
+ *
+ * Bit flags for instructions during code translation. Such as
+ * addressing modes, alignment, and operand types. Multiple flags can be
+ * combined using bitwise OR.
+ *
+ ****************************************************************************/
 
 namespace credence::target::common {
 

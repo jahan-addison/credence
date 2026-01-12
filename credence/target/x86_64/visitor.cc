@@ -38,6 +38,29 @@
 #include <utility>                          // for pair
 #include <variant>                          // for variant
 
+/****************************************************************************
+ *
+ * x86-64 IR Visitor
+ *
+ * Visits ITA intermediate representation instructions and emits x86_64
+ * assembly. Implements the IR_Visitor interface for x86_64 ISA.
+ *
+ * Example - visiting assignment:
+ *
+ *   ITA:    x = 42;
+ *
+ * Visitor generates:
+ *   mov dword ptr [rbp - 4], 42
+ *
+ * Example - visiting function call:
+ *
+ *   ITA:    CALL add
+ *
+ * Visitor generates:
+ *   call add
+ *
+ *****************************************************************************/
+
 namespace credence::target::x86_64 {
 
 namespace m = matchit;

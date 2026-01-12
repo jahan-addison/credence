@@ -11,22 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Runtime support implementation
- *
- * Implements program initialization, argc/argv setup, and standard library
- * function management. Handles differences between Linux and Darwin runtime
- * environments.
- *
- * Example - program startup:
- *
- *   B code:    main(argc, argv) { ... }
- *
- * Runtime initializes stack with argc/argv, calls main, handles return value.
- *
- *****************************************************************************/
-
 #include "runtime.h"
 
 #include "credence/ir/object.h" // for Function
@@ -41,23 +25,50 @@
 #include <credence/util.h>      // for AST_Node, AST, __source__
 #include <string>               // for basic_string, string, operator==
 #include <string_view>          // for basic_string_view
-namespace credence {
-namespace target {
-namespace common {
-namespace assembly {
+
+/****************************************************************************
+ *
+ *  | The Standard library |
+ *
+ *  The object file may be found in <root>/stdlib/<platform>/<os>/stdlib.o
+ *
+ * ------------------------------------------------------------------------
+ *
+ * printf(9):
+ *
+ *  A `printf' routine that takes a format string and up to 8 variadic arguments
+ *   Formatting:
+ *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
+ *   Warning:
+ *      Double and float specifiers "work" but not perfectly
+ *
+ * print(1):
+ *
+ *  A `print' routine that is type safe for buffer addresses and strings
+ *
+ *  The length of the buffer is resolved at compiletime
+ *
+ * putchar(1):
+ *
+ *  A `putchar' routine that writes to stdout for single byte characters
+ *
+ * getchar(1):
+ *
+ *  A `getchar' routine that reads from stdin for single byte characters
+ *
+ * Example - main with arguments:
+ *
+ *   main(argc, argv) {
+ *     if (argc > 1) {
+ *       printf("Hello, %s!\n", argv[1]);
+ *     }
+ *   }
+ *
+ ****************************************************************************/
+
+namespace credence::target::common::assembly {
 enum class Arch_Type;
-}
-}
-}
-}
-namespace credence {
-namespace target {
-namespace common {
-namespace assembly {
 enum class OS_Type;
-}
-}
-}
 }
 
 namespace credence::target::common::runtime {

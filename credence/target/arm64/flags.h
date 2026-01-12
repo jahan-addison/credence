@@ -11,6 +11,10 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#include <credence/target/common/flags.h>
+
+#pragma once
+
 /****************************************************************************
  *
  * ARM64-specific Instruction Flags
@@ -19,15 +23,11 @@
  * Extends common flags with ARM64-specific addressing modes and
  * instruction variants.
  *
- * Used to mark instructions that need special handling for ARM64's
+ * Used to mark instructions that need additional flags for ARM64's
  * load/store addressing modes, immediate encoding restrictions, and
  * register pair operations.
  *
  *****************************************************************************/
-
-#include <credence/target/common/flags.h>
-
-#pragma once
 
 #define set_alignment_flag_inline(flag_name, index) \
     flag_accessor.set_instruction_flag(arm64::detail::flags::flag_name, index)

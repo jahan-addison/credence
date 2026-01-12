@@ -44,6 +44,47 @@
 #include <variant>                           // for variant, visit, monostate
 #include <vector>                            // for vector
 
+/****************************************************************************
+ *
+ * x86-64 Assembly Code Generator and Emitter Types
+ *
+ * Generates Intel-syntax x86-64 assembly for Linux and Darwin (macOS).
+ * Compliant with System V ABI calling conventions. Translates ITA
+ * intermediate representation into optimized x86-64 machine code.
+ *
+ * Example - simple function:
+ *
+ *   B code:
+ *     add(x, y) {
+ *       return(x + y);
+ *     }
+ *
+ *   x86-64 (Intel syntax):
+ *     add:
+ *         push rbp
+ *         mov rbp, rsp
+ *         mov eax, edi        ; x in edi (1st arg)
+ *         add eax, esi        ; y in esi (2nd arg)
+ *         pop rbp
+ *         ret
+ *
+ * Example - globals and strings:
+ *
+ *   B code:
+ *     greeting "Hello, World!*n";
+ *     counter 0;
+ *
+ *   x86-64 (Intel syntax):
+ *     .data
+ *     ._L_str1__:
+ *         .asciz "Hello, World!\n"
+ *     greeting:
+ *         .quad ._L_str1__
+ *     counter:
+ *         .quad 0
+ *
+ *****************************************************************************/
+
 namespace credence::target::x86_64 {
 
 namespace m = matchit;

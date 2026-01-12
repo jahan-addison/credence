@@ -2,6 +2,8 @@
 
 Each platform roughly inherits the same set of pure virtual classes, macros, and templates below to `visit` each IR instruction and construct machine code for X8664, ARM64, on Linux and BSD (Darwin).
 
+Check out the test suites in `test/x86_64/generator.cc` and `test/arm64/generator.cc` to see what the machine code looks like for each platform.
+
 ## Accessor
 #### A set of pure virtual and template classes that enable platform-dependent memory access
 ## Inserter
@@ -22,8 +24,3 @@ Each platform roughly inherits the same set of pure virtual classes, macros, and
 #### Standard library and syscall function invocation, operand type checkers
 
 
----
-
-See `target/x86_64/generator.h`, and `target/arm64/generator.h` for details.
-
-Check out the test suites in `test/x86_64/generator.cc` and `test/arm64/generator.cc` to see what the machine code looks like for each platform.

@@ -11,17 +11,13 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#include "types.h"
+
 /****************************************************************************
  *
- * Common type implementation
+ * Common base_stack_pointer PIMPL
  *
- * Implements PIMPL for base_stack_pointer to reduce compilation dependencies
- * and improve build times. Base class for architecture-specific stack
- * implementations.
- *
- *****************************************************************************/
-
-#include "types.h"
+ ****************************************************************************/
 
 namespace credence::target::common::detail {
 

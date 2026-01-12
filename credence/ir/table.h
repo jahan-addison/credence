@@ -25,9 +25,11 @@
 #include <utility>              // for move
 
 /****************************************************************************
- *  Symbol table builder for the IR. Walks ITA instructions to construct
- *  the Object table with type information, function frames, vectors, and
- *  performs type checking on all assignments.
+ * Table
+ *
+ * Table constructor for language objects. A visitor pattern on ITA instructions
+ * to construct the object table of a program, including function frames,
+ * vectors, locals, and globals and performs type checking on all assignments.
  *
  *  Example table construction:
  *
@@ -50,10 +52,6 @@ void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast);
 
-/**
- * @brief
- * IR Instruction visitor to build the table object for type and storage data
- */
 class Table
 {
 

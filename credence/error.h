@@ -11,13 +11,24 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include <credence/util.h>
+#include <easyjson.h>
+#include <exception>
+#include <fmt/compile.h>
+#include <fmt/format.h>
+#include <source_location>
+#include <string_view>
+#include <type_traits>
+
 /****************************************************************************
  *
- * Compiler error handling and diagnostics
+ * Error handling and debugging diagnostics
  *
- * Provides compile-time error detection and reporting with clear messages.
- * Catches semantic errors, type mismatches, out-of-bounds array access,
- * undefined symbols, and other programming errors before code generation.
+ * Provides compile-time error detection and reporting, including semantic
+ * errors, type mismatches, out-of-bounds array access, undefined symbols, and
+ * other programming errors throughout translation phases.
  *
  * Example - compile-time boundary checking:
  *
@@ -47,17 +58,6 @@
  * All errors include source location (file, line, column) for easy debugging.
  *
  *****************************************************************************/
-
-#pragma once
-
-#include <credence/util.h>
-#include <easyjson.h>
-#include <exception>
-#include <fmt/compile.h>
-#include <fmt/format.h>
-#include <source_location>
-#include <string_view>
-#include <type_traits>
 
 #define credence_error(message) \
     (credence::detail::assert_fail(std::source_location::current(), message))

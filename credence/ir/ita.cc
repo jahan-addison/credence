@@ -30,22 +30,29 @@
 #include <variant>                 // for get, monostate, variant
 
 /****************************************************************************
- *  ITA (Intermediate Tuple Assembly) code generation from AST. Converts
- *  high-level B language constructs into linearized 3-address code format.
+ * ITA
  *
- *  Example code generation:
+ * The intermediate representation (IR) is formalized as a linear four-tuple,
+ * named the Instruction Tuple Abstraction (ITA). The ITA comprises a collection
+ * of platform-independent  instructions that approximate the structure and
+ * semantics of a target machine language.
  *
- *  snide(x) {
- *    return x + 1;
+ * See ir/readme.md for details.
+ *
+ *  Example transformation:
+ *
+ *  main() {
+ *    auto x;
+ *    x = 5 + 10;
  *  }
  *
- *  Generates:
+ *  Becomes:
  *
- *  __snide(x):
+ *  __main():
  *   BeginFunc ;
  *    LOCL x;
- *    _t1 = x + (1:int:4);
- *    RETURN _t1;
+ *    _t1 = (5:int:4) + (10:int:4);
+ *    MOV x _t1;
  *   EndFunc ;
  *
  ****************************************************************************/

@@ -11,22 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Assembly utilities implementation
- *
- * Implements common assembly operations including relational expression
- * evaluation and immediate value comparisons. Handles constant folding
- * for compile-time evaluation of simple expressions.
- *
- * Example - constant folding:
- *
- *   B code:    if (5 > 3) { ... }
- *
- * Evaluates at compile-time, emitting only the true branch.
- *
- *****************************************************************************/
-
 #include "assembly.h"
 #include "types.h"          // for Immediate
 #include <credence/error.h> // for credence_error
@@ -34,6 +18,26 @@
 #include <matchit.h>        // for match, MatchHelper
 #include <string>           // for basic_string, operator==, char_traits
 #include <string_view>      // for basic_string_view
+
+/****************************************************************************
+ *
+ * Common assembly instruction representation and utilities
+ *
+ * Common abstractions for assembly instructions across x86-64 and ARM64.
+ * Defines immediate values, operands, directives, and architecture/OS types.
+ * Handles instruction formatting and operand representation.
+ *
+ * Example - emitting a comparison:
+ *
+ *   B code:    if (x > 10) { ... }  (x is local variable)
+ *
+ *   x86-64:    cmp eax, 10
+ *              jg  .L1
+ *
+ *   ARM64:     cmp w9, #10          ; x in register x9
+ *              b.gt .L1
+ *
+ ****************************************************************************/
 
 namespace credence::target::common::assembly {
 

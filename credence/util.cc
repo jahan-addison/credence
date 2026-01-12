@@ -12,29 +12,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Utility function implementations
- *
- * Implements common file I/O operations and helper functions used throughout
- * the compiler. Handles reading B source files, writing output (assembly,
- * IR, AST), and various string manipulations.
- *
- * Example - compiler output:
- *
- *   // Reading input
- *   auto source = read_file_from_path("program.b");
- *
- *   // Writing output
- *   write_to_file_from_string_stream("output", assembly_stream, "s");
- *   // Creates: output.s
- *
- * Supports stdout output for piping:
- *
- *   $ credence --source-code program.b --output stdout > output.s
- *
- *****************************************************************************/
-
 #include <credence/util.h>
 
 #include <credence/error.h> // for credence_error
@@ -44,6 +21,19 @@
 #include <iostream>         // for cout
 #include <ostream>          // for operator<<, basic_ostream
 #include <sstream>          // for basic_ostringstream
+
+/****************************************************************************
+ *
+ * Utility functions and helpers
+ *
+ * Common utilities used including:
+ * > String manipulation (escaping, unescaping, case conversion)
+ * > File I/O operations
+ * > Type checking and variant helpers
+ * > AST node manipulation
+ * > Debugging and source location tracking
+ *
+ *****************************************************************************/
 
 namespace credence {
 

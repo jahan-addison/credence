@@ -11,9 +11,17 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "stack_frame.h"
+#include "types.h"
+
+#include <credence/types.h>
+#include <credence/util.h>
+#include <memory>
+#include <string>
+
 /****************************************************************************
- *
- * Memory alignment and operand helpers
  *
  * Utilities for memory alignment (stack, data sections) and operand type
  * classification during code generation. Ensures ABI compliance for both
@@ -26,22 +34,12 @@
  *     ...
  *   }
  *
- * Stack must be 16-byte aligned (both architectures):
+ * Stack must be 16-byte aligned
  *   - Calculate local variable space: 3 * 8 = 24 bytes
  *   - Align to 16: align_up_to(24, 16) = 32 bytes
  *   - Emit: sub rsp, 32 (x86-64) or sub sp, sp, #32 (ARM64)
  *
- *****************************************************************************/
-
-#pragma once
-
-#include "stack_frame.h"
-#include "types.h"
-
-#include <credence/types.h>
-#include <credence/util.h>
-#include <memory>
-#include <string>
+ ****************************************************************************/
 
 namespace credence::target::common::memory {
 

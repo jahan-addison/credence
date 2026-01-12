@@ -11,13 +11,30 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "accessor.h"
+#include "assembly.h"
+#include "flags.h"
+#include "memory.h"
+#include "stack_frame.h"
+#include "syscall.h"
+#include "types.h"
+
+#include <credence/ir/object.h>
+#include <credence/types.h>
+#include <credence/util.h>
+#include <matchit.h>
+#include <memory>
+#include <string>
+
 /****************************************************************************
  *
- * Instruction inserters for operations
+ * Common Instruction inserters
  *
- * Translates B language operations into sequences of assembly instructions.
- * Handles relational operators, binary operations, unary operations, and
- * complex expressions by inserting appropriate instruction sequences.
+ * Translates algebraic data type operations into sequences of assembly
+ * instructions. Including relational, binary, and unary operations;
+ * Breaks down complex expressions by inserting appropriate sub-sequences.
  *
  * Example - relational operator:
  *
@@ -37,24 +54,7 @@
  *   2. Add result to a
  *   3. Store in result
  *
- *****************************************************************************/
-
-#pragma once
-
-#include "accessor.h"
-#include "assembly.h"
-#include "flags.h"
-#include "memory.h"
-#include "stack_frame.h"
-#include "syscall.h"
-#include "types.h"
-
-#include <credence/ir/object.h>
-#include <credence/types.h>
-#include <credence/util.h>
-#include <matchit.h>
-#include <memory>
-#include <string>
+ ****************************************************************************/
 
 namespace credence::target::common::assembly {
 

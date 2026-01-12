@@ -11,6 +11,18 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"                     // for Instructions, Storage, Reg...
+#include "memory.h"                       // for Memory_Access, general_pur...
+#include <array>                          // for array
+#include <credence/target/common/types.h> // for get_first_of_enum_t
+#include <cstddef>                        // for size_t
+#include <deque>                          // for deque
+#include <map>                            // for map
+#include <string>                         // for basic_string
+#include <string_view>                    // for basic_string_view, string_...
+
 /****************************************************************************
  *
  * ARM64 System Call Interface
@@ -34,18 +46,6 @@
  *   svc #0x80
  *
  *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"                     // for Instructions, Storage, Reg...
-#include "memory.h"                       // for Memory_Access, general_pur...
-#include <array>                          // for array
-#include <credence/target/common/types.h> // for get_first_of_enum_t
-#include <cstddef>                        // for size_t
-#include <deque>                          // for deque
-#include <map>                            // for map
-#include <string>                         // for basic_string
-#include <string_view>                    // for basic_string_view, string_...
 
 namespace credence::target::arm64::syscall_ns {
 

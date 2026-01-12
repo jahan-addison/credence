@@ -29,19 +29,23 @@
 #include <tuple>             // for tuple, get
 
 /****************************************************************************
- *  Object table and type system implementation using the PIMPL idiom to
- *  reduce build times and hide implementation details. Manages vectors,
- *  functions, stack frames, and symbol tables.
+ * Objects
  *
- *  Example vector storage:
+ * Object table and storage system for the intermediate representation. This
+ * tracks vectors, functions, stack frames, and symbol tables throughout
+ * the backend.
  *
- *    auto arr 3;
- *    arr[0] = 10;
- *    arr[1] = 20;
+ *  Example:
  *
- *  Stored as:
- *    vectors["arr"] -> Vector { size: 3, data: {"0": (10:int:4), "1":
- * (20:int:4)} }
+ *  main() {
+ *    auto array[10];
+ *    array[5] = 42;
+ *  }
+ *
+ *  Creates an Object table with:
+ *    - Vector "array" with size 10
+ *    - Function frame "main" with locals
+ *    - Storage for array[5] = (42:int:4)
  *
  ****************************************************************************/
 

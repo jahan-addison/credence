@@ -11,36 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Memory and object accessors for code generation
- *
- * Provides access to the object table (globals, functions, vectors) and
- * stack frame management during assembly code generation. Translates high-level
- * B constructs into low-level memory operations.
- *
- * Example - accessing globals:
- *
- *   counter 0;
- *
- * Accessor retrieves global 'counter' from object table and emits:
- *
- *   .data
- *   counter: .quad 0
- *
- * Example - function stack frames:
- *
- *   add(x, y) {
- *     auto temp;
- *     temp = x + y;
- *     return(temp);
- *   }
- *
- * Stack frame accessor manages local variables and parameters, generating
- * proper stack offsets for 'temp', 'x', and 'y'.
- *
- *****************************************************************************/
-
 #pragma once
 
 #include "assembly.h"
@@ -56,6 +26,32 @@
 #include <matchit.h>
 #include <memory>
 #include <string>
+
+/****************************************************************************
+ *
+ * Pure virtual and template types for platform-specific memory accessors
+ *
+ * Provides access to the object table (globals, functions, vectors) and
+ * stack frame during assembly code generation.
+ *
+ * Example - accessing trivial global vectors:
+ *
+ *   counter 0;
+ *
+ * Accessor retrieves trivial vector 'counter' from object table and emits:
+ *
+ *   .data
+ *   counter: .quad 0
+ *
+ * Example - function stack frames:
+ *
+ *   add(x, y) {
+ *     auto temp;
+ *     temp = x + y;
+ *     return(temp);
+ *   }
+ *
+ ****************************************************************************/
 
 namespace credence::target::common::memory {
 
@@ -88,6 +84,9 @@ class Buffer_Accessor
     {
     }
 
+    /**
+     * @brief Get the size of a string in the object table at compile-time
+     */
   public:
     Size get_size_of_string_lvalue_buffer_address(LValue const& lvalue,
         Stack_Frame const& stack_frame)
@@ -148,6 +147,9 @@ class Buffer_Accessor
                     lvalue, frame, vectors, __source__));
     }
 
+    /**
+     * @brief Set a buffer size from an object in the cache maps
+     */
     void set_buffer_size_from_syscall(std::string_view routine,
         memory::Locals& argument_stack)
     {
@@ -163,7 +165,12 @@ class Buffer_Accessor
         });
     }
 
+    /**
+     * @brief Compile-time buffer storage for syscalls
+     */
+
     constexpr bool has_bytes() { return read_bytes_cache_ == 0UL; }
+
     constexpr std::size_t read_bytes()
     {
         auto read_bytes = read_bytes_cache_;
@@ -177,11 +184,15 @@ class Buffer_Accessor
     };
 
   private:
+    /**
+     * @brief Get the size of a string return from the object table
+     */
     Size get_size_of_return_string(Stack_Frame const& stack_frame)
     {
         credence_assert(table_->get_functions().contains(stack_frame.tail));
         auto tail_frame = table_->get_functions().at(stack_frame.tail);
         auto return_rvalue = tail_frame->get_ret()->second;
+
         if (tail_frame->is_parameter(return_rvalue)) {
             credence_assert(table_->get_functions().contains(
                 stack_frame.call_stack.back()));
@@ -207,6 +218,9 @@ class Buffer_Accessor
                 tail_frame->get_ret()->first));
     }
 
+    /**
+     * @brief Get the size of an lvalue in the local symbol table
+     */
     Size get_size_in_local_address(LValue const& lvalue,
         Stack_Frame const& stack_frame)
     {
@@ -293,8 +307,9 @@ class Buffer_Accessor
 };
 
 /**
- * @brief Table accessor for memory access to the table, type checker, and
- * current index in IR visitor iteration. Architecture-agnostic.
+ * @brief
+ * Table accessor for access to the table, type checker, and current
+ * index in the IR visitor during code translation.
  */
 struct Table_Accessor
 {
@@ -336,6 +351,9 @@ struct Table_Accessor
     unsigned int index{ 0 };
 };
 
+/**
+ * @brief Template machine code instruction accessor and storage
+ */
 template<Deque_T T>
 struct Instruction_Accessor
 {
@@ -377,49 +395,93 @@ class Vector_Accessor
   public:
     using Entry_Pair = std::pair<ir::object::Vector::Address, Entry>;
 
-    Entry_Pair get_offset_address(LValue const& lvalue, RValue const& offset)
+    /**
+     * @brief Get the offset address of a vector from its lvalue and rvalue
+     * offset
+     */
+    inline Entry_Pair get_offset_address(LValue const& lvalue,
+        RValue const& offset)
     {
-        using namespace assembly;
         auto frame = table_->get_stack_frame();
         auto& vectors = table_->get_vectors();
         auto vector = type::from_lvalue_offset(lvalue);
+
+        type_check_invalid_vector_symbol(vector, offset);
+
         if (!is_vector_offset(lvalue))
-            return std::make_pair(0UL,
-                get_size_from_vector_offset(
-                    table_->get_vectors().at(vector)->get_data().at("0")));
+            return get_offset_from_trivial_vector(vector);
+
+        if (table_->get_hoisted_symbols().has_key(offset))
+            return get_offset_from_hoisted_symbols(vector, offset);
+
+        if (value::is_integer_string(offset))
+            return get_offset_from_integer_rvalue(vector, offset);
+
+        return std::make_pair(0UL,
+            get_size_from_vector_offset(
+                vectors.at(vector)->get_data().at("0")));
+    }
+
+  private:
+    /**
+     * @brief Get the offset in vector from hoisted symbols
+     */
+    inline Entry_Pair get_offset_from_hoisted_symbols(LValue const& vector,
+        RValue const& offset)
+    {
+        auto frame = table_->get_stack_frame();
+        auto& vectors = table_->get_vectors();
+        auto index = ir::object::get_rvalue_at_lvalue_object_storage(
+            offset, frame, vectors, __source__);
+        auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
+        if (!vectors.at(vector)->get_data().contains(key))
+            throw_compiletime_error(
+                fmt::format(
+                    "Invalid out-of-range index '{}' on vector lvalue", key),
+                vector);
+        return std::make_pair(vectors.at(vector)->get_offset().at(key),
+            get_size_from_vector_offset(
+                vectors.at(vector)->get_data().at(key)));
+    }
+
+    /**
+     * @brief Type check invalid vector symbol or offset rvalue type
+     */
+    inline void type_check_invalid_vector_symbol(LValue const& vector,
+        RValue const& offset)
+    {
         if (!table_->get_hoisted_symbols().has_key(offset) and
             not value::is_integer_string(offset))
             throw_compiletime_error(
-                fmt::format("Invalid index '{} on vector lvalue", offset),
+                fmt::format("Invalid index '{}' on vector lvalue", offset),
                 vector);
-        if (table_->get_hoisted_symbols().has_key(offset)) {
-            auto index = ir::object::get_rvalue_at_lvalue_object_storage(
-                offset, frame, vectors, __source__);
-            auto key =
-                std::string{ type::get_value_from_rvalue_data_type(index) };
-            if (!vectors.at(vector)->get_data().contains(key))
-                throw_compiletime_error(
-                    fmt::format(
-                        "Invalid out-of-range index '{}' on vector lvalue",
-                        key),
-                    vector);
-            return std::make_pair(vectors.at(vector)->get_offset().at(key),
-                get_size_from_vector_offset(
-                    vectors.at(vector)->get_data().at(key)));
-        } else if (value::is_integer_string(offset)) {
-            if (!vectors.at(vector)->get_data().contains(offset))
-                throw_compiletime_error(
-                    fmt::format(
-                        "Invalid out-of-range index '{}' on vector lvalue",
-                        offset),
-                    vector);
-            return std::make_pair(vectors.at(vector)->get_offset().at(offset),
-                get_size_from_vector_offset(
-                    vectors.at(vector)->get_data().at(offset)));
-        } else
-            return std::make_pair(0UL,
-                get_size_from_vector_offset(
-                    vectors.at(vector)->get_data().at("0")));
+    }
+
+    /**
+     * @brief Get offset by valid integer rvalue
+     */
+    inline Entry_Pair get_offset_from_integer_rvalue(LValue const& vector,
+        RValue const& offset)
+    {
+        auto& vectors = table_->get_vectors();
+        if (!vectors.at(vector)->get_data().contains(offset))
+            throw_compiletime_error(
+                fmt::format(
+                    "Invalid out-of-range index '{}' on vector lvalue", offset),
+                vector);
+        return std::make_pair(vectors.at(vector)->get_offset().at(offset),
+            get_size_from_vector_offset(
+                vectors.at(vector)->get_data().at(offset)));
+    }
+
+    /**
+     * @brief Get offset by trivial vector with no indices
+     */
+    inline Entry_Pair get_offset_from_trivial_vector(LValue const& vector)
+    {
+        return std::make_pair(0UL,
+            get_size_from_vector_offset(
+                table_->get_vectors().at(vector)->get_data().at("0")));
     }
 
   protected:

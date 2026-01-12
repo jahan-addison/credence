@@ -11,33 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Value representation and type literals
- *
- * This module defines the internal representation of values and types in
- * the B language. Values can be literals (int, float, double, string),
- * arrays, or expressions. The type system uses type inference - variables
- * aren't declared with explicit types, their type is determined by the
- * value assigned to them.
- *
- * Example:
- *
- *   main() {
- *     auto x, y, *z;
- *     x = 42;        // x inferred as int
- *     y = 3.14f;     // y inferred as float
- *     z = &x;        // z is pointer to x
- *   }
- *
- * Vectors (arrays) may be non-homogeneous but their type is determined by
- * their initial values:
- *
- *   numbers [3] 10, 20, 30;     // array of ints
- *   mixed [2] 5, 2.5f;          // first element determines type
- *
- *****************************************************************************/
-
 #pragma once
 
 #include <credence/operators.h> // for Operator
@@ -50,6 +23,33 @@
 #include <utility>              // for pair, make_pair
 #include <variant>              // for get, monostate, variant
 #include <vector>               // for vector
+
+/****************************************************************************
+ *
+ * Language internal value representation
+ *
+ * The internal representation of values and types during code translation.
+ *
+ * We enforce strict typing via type inference by storing all data types
+ * assigned through a data structure called internally "Rvalue Data Type."
+ *
+ *  I.e. A tuple of ( Value : Type : Size )
+ *
+ *  Examples:
+ *
+ *  (10:int:4)
+ *  ("hello":string:5)
+ *  (55.5:float:4)
+ *  ('c':char:1)
+ *
+ *  ---
+ *
+ *   main() {
+ *     auto x, y, z;
+ *     x = 42;           // x is (42:int:4)
+ *     y = 3.14;         // y is (3.14:double:4)
+ *   }
+ *****************************************************************************/
 
 namespace credence {
 
@@ -103,7 +103,6 @@ using Array = std::vector<Literal>;
 struct Expression
 {
     explicit constexpr Expression() = default;
-
     using Pointer = std::shared_ptr<Expression>;
     using LValue = std::pair<std::string, Literal>;
     using Symbol = std::pair<LValue, Pointer>;

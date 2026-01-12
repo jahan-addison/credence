@@ -37,6 +37,29 @@
 #include <utility>                           // for pair
 #include <variant>                           // for variant
 
+/****************************************************************************
+ *
+ * ARM64 IR Visitor
+ *
+ * Visits ITA intermediate representation instructions and emits ARM64
+ * assembly. Implements the IR_Visitor interface for ARM64 ISA.
+ *
+ * Example - visiting assignment:
+ *
+ *   ITA:    x = 42;  (x is first local variable)
+ *
+ * Visitor generates:
+ *   mov w9, #42              ; x in register w9
+ *
+ * Example - visiting function call:
+ *
+ *   ITA:    CALL add
+ *
+ * Visitor generates:
+ *   bl add
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64 {
 
 namespace m = matchit;
@@ -62,6 +85,9 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     arm64_add__asm(instructions, stp, x26, x23, alignment__sp_integer(16));
 }
 
+/**
+ * @brief Reset available general purpose registers at end of frame
+ */
 void IR_Instruction_Visitor::from_func_end_ita()
 {
     accessor_->register_accessor.reset_available_registers();

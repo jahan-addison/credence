@@ -11,30 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Utility functions and helpers
- *
- * Common utilities used throughout the compiler including:
- * - String manipulation (escaping, unescaping, case conversion)
- * - File I/O operations
- * - Type checking and variant helpers
- * - AST node manipulation
- * - Debugging and source location tracking
- *
- * Example usage in compiler:
- *
- *   // Reading source file
- *   auto source = read_file_from_path("program.b");
- *
- *   // Working with AST nodes
- *   AST_Node node = parse_result["statements"];
- *
- *   // String utilities for identifiers
- *   auto escaped = unescape_string("hello\\nworld");
- *
- *****************************************************************************/
-
 #pragma once
 
 #include <algorithm>        // for all_of, find, any_of
@@ -54,6 +30,20 @@
 #include <system_error>     // for errc
 #include <tuple>            // for apply, tuple
 #include <type_traits>      // for is_same_v, is_convertible_v
+
+/****************************************************************************
+ *
+ * Utility functions and helpers
+ *
+ * Common utilities used including:
+ * > String manipulation (escaping, unescaping, case conversion)
+ * > File I/O operations
+ * > Type checking and variant helpers
+ * > AST node manipulation
+ * > Debugging and source location tracking
+ *
+ *****************************************************************************/
+
 namespace easyjson {
 class JSON;
 } // lines 41-41

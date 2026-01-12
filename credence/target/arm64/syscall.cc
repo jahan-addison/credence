@@ -22,6 +22,30 @@
 #include <utility>                           // for get
 #include <variant>                           // for variant
 
+/****************************************************************************
+ *
+ * ARM64 System Call Interface
+ *
+ * Implements syscall invocation for ARM64 Linux and Darwin. Loads syscall
+ * number into x8 (Linux) or x16 (Darwin) and arguments into x0-x7.
+ * Executes svc #0 instruction. Return value in x0.
+ *
+ * Example - exit syscall:
+ *
+ *   B code:    main() { return(0); }
+ *
+ * Generates (Linux):
+ *   mov x8, #93        ; exit syscall number
+ *   mov x0, #0         ; exit code
+ *   svc #0
+ *
+ * Generates (Darwin):
+ *   mov x16, #1        ; Darwin exit number
+ *   mov x0, #0
+ *   svc #0x80
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64::syscall_ns {
 /**
  * @brief Create instructions for a platform-independent exit syscall

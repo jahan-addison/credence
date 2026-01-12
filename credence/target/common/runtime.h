@@ -11,34 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Runtime support and standard library integration
- *
- * Manages program startup, argc/argv handling, and standard library function
- * integration. The standard library is pre-compiled and doesn't depend on
- * libc, providing functions like printf, print, and memory operations.
- *
- * Example - main with arguments:
- *
- *   main(argc, argv) {
- *     if (argc > 1) {
- *       printf("Hello, %s!*n", argv[1]);
- *     }
- *   }
- *
- * Runtime sets up:
- *   - argc in appropriate location (stack/register)
- *   - argv pointer to argument array
- *   - Calls main
- *   - Handles return value as exit code
- *
- * Example - standard library:
- *
- *   print("Hello*n");  // Pre-compiled stdlib function, no libc
- *
- *****************************************************************************/
-
 #pragma once
 
 #include "stack_frame.h"        // for Locals
@@ -58,34 +30,10 @@
 #include <string_view>          // for basic_string_view, string_view
 #include <utility>              // for pair
 #include <vector>               // for vector
-namespace credence {
-namespace target {
-namespace common {
-namespace assembly {
-enum class Arch_Type;
-}
-}
-}
-}
-namespace credence {
-namespace target {
-namespace common {
-namespace assembly {
-enum class OS_Type;
-}
-}
-}
-}
 
-namespace credence::target::common::runtime {
-
-using library_t = std::array<std::size_t, 1>;
-using library_list_t = std::map<std::string_view, library_t>;
-
-/**
- * @brief
+/****************************************************************************
  *
- *  The Standard library
+ *  | The Standard library |
  *
  *  The object file may be found in <root>/stdlib/<platform>/<os>/stdlib.o
  *
@@ -112,6 +60,31 @@ using library_list_t = std::map<std::string_view, library_t>;
  * getchar(1):
  *
  *  A `getchar' routine that reads from stdin for single byte characters
+ *
+ * Example - main with arguments:
+ *
+ *   main(argc, argv) {
+ *     if (argc > 1) {
+ *       printf("Hello, %s!\n", argv[1]);
+ *     }
+ *   }
+ *
+ ****************************************************************************/
+
+namespace credence::target::common::assembly {
+enum class Arch_Type;
+enum class OS_Type;
+}
+
+namespace credence::target::common::runtime {
+
+using library_t = std::array<std::size_t, 1>;
+using library_list_t = std::map<std::string_view, library_t>;
+
+/**
+ * @brief
+ *
+
  *
  * ------------------------------------------------------------------------
  */

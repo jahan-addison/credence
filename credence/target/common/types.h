@@ -11,30 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Common type definitions for code generation
- *
- * Shared type aliases and concepts used across both x86-64 and ARM64 code
- * generators. Defines labels, operands, immediates, and storage types that
- * abstract platform-specific details.
- *
- * Example - labels:
- *
- *   B code:    if (x > 0) { y = 5; }
- *
- * Generates labels:
- *   ._L1__main:  // if body
- *   ._L2__main:  // after if
- *
- * Example - immediate values:
- *
- *   B code:    x = 42;
- *
- * Immediate type represents literal 42 as operand to mov instruction.
- *
- *****************************************************************************/
-
 #pragma once
 
 #include <credence/ir/object.h>
@@ -48,6 +24,12 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+
+/****************************************************************************
+ *
+ * Common templates and type traits platform-agnostic code translation.
+ *
+ ****************************************************************************/
 
 namespace credence::target::common {
 

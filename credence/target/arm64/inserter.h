@@ -11,33 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * ARM64 Instruction Inserters
- *
- * Translates B language operations into ARM64 instruction sequences.
- * Handles arithmetic, bitwise, relational operators, and assignments.
- *
- * Example - arithmetic operation:
- *
- *   B code:    z = x + y * 2;
- *
- * Inserter generates (locals in x9, x10, x11):
- *   mov x8, x10             ; load y from x10 into accumulator
- *   lsl x8, x8, #1          ; y * 2 (shift left)
- *   add x8, x9, x8          ; x + (y * 2), x in x9
- *   mov x11, x8             ; store to z in x11
- *
- * Example - comparison:
- *
- *   B code:    if (x > 10) { ... }
- *
- * Inserter generates (x in x9):
- *   cmp x9, #10
- *   b.gt ._L1__main
- *
- *****************************************************************************/
-
 #pragma once
 
 #include "assembly.h"                           // for Assignment_Operands
@@ -52,6 +25,33 @@
 #include <string>                               // for basic_string, string
 #include <string_view>                          // for string_view
 #include <utility>                              // for make_pair
+
+/****************************************************************************
+ *
+ * ARM64 Instruction Inserters
+ *
+ * Translates B language operations into ARM64 instruction sequences.
+ * Handles arithmetic, bitwise, relational operators, and assignments.
+ *
+ * Example - arithmetic operation:
+ *
+ *   B code:    z = x + y * 2;
+ *
+ * Inserter generates (locals in w9, w10, w11):
+ *   mov w8, w10             ; load y from w10 into accumulator
+ *   lsl w8, w8, #1          ; y * 2 (shift left)
+ *   add w8, w9, w8          ; x + (y * 2), x in w9
+ *   mov w11, w8             ; store to z in w11
+ *
+ * Example - comparison:
+ *
+ *   B code:    if (x > 10) { ... }
+ *
+ * Inserter generates (x in w9):
+ *   cmp w9, #10
+ *   b.gt ._L1__main
+ *
+ *****************************************************************************/
 
 namespace credence::target::arm64 {
 

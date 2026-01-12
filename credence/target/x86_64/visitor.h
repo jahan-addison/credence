@@ -11,19 +11,28 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"                       // for Instructions
+#include "credence/ir/ita.h"                // for Quadruple
+#include "memory.h"                         // for Memory_Access, Memory_Ac...
+#include <credence/ir/object.h>             // for Label
+#include <credence/target/common/visitor.h> // for IR_Visitor
+#include <cstddef>                          // for size_t
+
 /****************************************************************************
  *
- * x86-64 IR Visitor Implementation
+ * x86-64 IR Visitor
  *
- * Visits ITA intermediate representation instructions and emits x86-64
- * assembly. Implements the IR_Visitor interface for x86-64 ISA.
+ * Visits ITA intermediate representation instructions and emits x86_64
+ * assembly. Implements the IR_Visitor interface for x86_64 ISA.
  *
  * Example - visiting assignment:
  *
  *   ITA:    x = 42;
  *
  * Visitor generates:
- *   mov qword ptr [rbp - 8], 42
+ *   mov dword ptr [rbp - 4], 42
  *
  * Example - visiting function call:
  *
@@ -34,29 +43,13 @@
  *
  *****************************************************************************/
 
-#pragma once
-
-#include "assembly.h"                       // for Instructions
-#include "credence/ir/ita.h"                // for Quadruple
-#include "memory.h"                         // for Memory_Access, Memory_Ac...
-#include <credence/ir/object.h>             // for Label
-#include <credence/target/common/visitor.h> // for IR_Visitor
-#include <cstddef>                          // for size_t
-
 namespace credence::target::x86_64 {
 
 using X8664_IR_Visitor =
     common::IR_Visitor<ir::Quadruple, assembly::Instructions>;
 
 /**
- * @brief IR Visitor for the x86-64 architecture and ISA
- *
- * The Storage_Container is defined in assembly.h, and
- * each intermediate instruction is a quadruple defined in ita.h.
- *
- * Macros and helpers to compose mnemonics, registers, and immediate
- * values instructions are defined in assembly.h.
- *
+ * @brief IR Visitor for the x86-64 architecture ISA
  */
 class IR_Instruction_Visitor final : public X8664_IR_Visitor
 {

@@ -11,32 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Expression parser implementation
- *
- * Parses AST nodes from the Python frontend into strongly-typed expression
- * structures. Uses pattern matching to handle different expression types
- * and converts them into a form ready for intermediate representation.
- *
- * Example - parsing process:
- *
- *   B source:  x = 5 + 3 * 2
- *
- *   AST node:  {"node": "assignment",
- *               "left": {"name": "x"},
- *               "right": {"node": "binary_op", "op": "+", ...}}
- *
- *   Parsed:    Assignment(lvalue="x",
- *                        rvalue=BinaryOp(ADD,
- *                                       Literal(5),
- *                                       BinaryOp(MUL, ...)))
- *
- * Handles function calls, array indexing, pointer operations, and all
- * operators with correct precedence.
- *
- *****************************************************************************/
-
 #include <credence/expression.h>
 
 #include <algorithm>            // for __find, find
@@ -54,6 +28,28 @@
 #include <string_view>          // for basic_string_view
 #include <utility>              // for make_pair, pair, move
 #include <variant>              // for variant
+
+/****************************************************************************
+ *
+ * Expressions - LL(1) parser
+ *
+ * Parses expression ast nodes and value category types from the frontend into
+ * algebraic symbols for semantic analysis in the IR.
+ *
+ * Note that statements and non-expression nodes are omitted here.
+ *
+ *   B source:  x = 5 + 3 * 2
+ *
+ *   ast node:  {"node": "assignment",
+ *               "left": {"name": "x"},
+ *               "right": {"node": "binary_op", "op": "+", ...}}
+ *
+ *   Example:    Assignment(lvalue="x",
+ *                        rvalue=BinaryOp(ADD,
+ *                                       Literal(5),
+ *                                       BinaryOp(MUL, ...)))
+ *
+ *****************************************************************************/
 
 namespace credence {
 

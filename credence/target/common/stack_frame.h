@@ -11,12 +11,19 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include <credence/ir/object.h>
+#include <credence/ir/table.h>
+#include <memory>
+#include <string>
+
 /****************************************************************************
  *
- * Stack frame management for function calls
+ * Stack frame
  *
- * Tracks local variables, parameters, and call stack for each function.
- * Manages stack offsets for variable access during code generation.
+ * Local variables, parameters, and call stack for each function.
+ * Manages stack offsets for variable access during code translation.
  *
  * Example - function with locals:
  *
@@ -32,18 +39,11 @@
  *   [rbp + 16] parameter 'b'
  *   [rbp + 8]  parameter 'a'
  *   [rbp + 0]  saved base pointer
- *   [rbp - 8]  local 'x'
- *   [rbp - 16] local 'y'
- *   [rbp - 24] local 'z'
+ *   [rbp - 4]  local 'x'
+ *   [rbp - 8] local 'y'
+ *   [rbp - 12] local 'z'
  *
- *****************************************************************************/
-
-#pragma once
-
-#include <credence/ir/object.h>
-#include <credence/ir/table.h>
-#include <memory>
-#include <string>
+ ****************************************************************************/
 
 namespace credence::target::common::memory {
 

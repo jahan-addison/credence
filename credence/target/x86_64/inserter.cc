@@ -36,6 +36,35 @@
 #include <tuple>                                // for get, tuple
 #include <variant>                              // for variant, get, operat...
 
+/****************************************************************************
+ *
+ * x86-64 Instruction Inserters Implementation
+ *
+ * Translates B language operations into x86-64 instruction sequences.
+ * Handles arithmetic, bitwise, relational operators, and assignments.
+ *
+ * Example - arithmetic operation:
+ *
+ *   B code:    z = x + y * 2;
+ *
+ * Inserter generates:
+ *   mov eax, qword ptr [rbp - 8]  ; load y
+ *   imul rax, 2                     ; y * 2
+ *   mov ecx, dword ptr [rbp - 4]   ; load x
+ *   add eax, ecx                    ; x + (y * 2)
+ *   mov dword ptr [rbp - 12], eax  ; store to z
+ *
+ * Example - comparison:
+ *
+ *   B code:    if (x > 10) { ... }
+ *
+ * Inserter generates:
+ *   mov eax, dword ptr [rbp - 4]
+ *   cmp eax, 10
+ *   jg ._L1__main
+ *
+ *****************************************************************************/
+
 namespace credence::target::x86_64 {
 
 namespace m = matchit;

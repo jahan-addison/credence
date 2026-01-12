@@ -11,6 +11,20 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"                           // for Register, Instructions
+#include "memory.h"                             // for Memory_Access, Stack...
+#include "stack.h"                              // for Stack
+#include <credence/ir/object.h>                 // for Object_PTR
+#include <credence/target/common/runtime.h>     // for address_t, library_a...
+#include <credence/target/common/stack_frame.h> // for Locals
+#include <cstddef>                              // for size_t
+#include <fmt/format.h>                         // for format
+#include <string>                               // for basic_string
+#include <string_view>                          // for string_view
+#include <utility>                              // for pair
+
 /****************************************************************************
  *
  * x86-64 Runtime and Standard Library Integration
@@ -21,7 +35,7 @@
  *
  * Example - calling printf:
  *
- *   B code:    printf("Value: %d*n", x);
+ *   B code:    printf("Value: %d\n", x);
  *
  * Generates:
  *   lea rdi, [rip + ._L_str1__]  ; format string in rdi
@@ -36,20 +50,6 @@
  *   r15 points to stack with argc/argv (Darwin/Linux compatible)
  *
  *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"                           // for Register, Instructions
-#include "memory.h"                             // for Memory_Access, Stack...
-#include "stack.h"                              // for Stack
-#include <credence/ir/object.h>                 // for Object_PTR
-#include <credence/target/common/runtime.h>     // for address_t, library_a...
-#include <credence/target/common/stack_frame.h> // for Locals
-#include <cstddef>                              // for size_t
-#include <fmt/format.h>                         // for format
-#include <string>                               // for basic_string
-#include <string_view>                          // for string_view
-#include <utility>                              // for pair
 
 namespace credence::target::x86_64::runtime {
 

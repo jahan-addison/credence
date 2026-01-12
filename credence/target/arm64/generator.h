@@ -11,13 +11,29 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"                     // for Mnemonic, arm_mn, Directives
+#include "memory.h"                       // for Memory_Access, Mnemonic
+#include "stack.h"                        // for Stack
+#include <credence/ir/ita.h>              // for Instructions
+#include <credence/ir/object.h>           // for Label, Object, RValue
+#include <credence/target/common/flags.h> // for flags
+#include <credence/util.h>                // for AST_Node, CREDENCE_PRIVATE...
+#include <cstddef>                        // for size_t
+#include <deque>                          // for deque
+#include <ostream>                        // for ostream
+#include <string>                         // for basic_string, string
+#include <utility>                        // for move
+#include <variant>                        // for variant
+
 /****************************************************************************
  *
- * ARM64 Assembly Code Generator
+ * ARM64 Assembly Code Generator and Emitter Types
  *
  * Generates ARM64/AArch64 assembly for Linux and Darwin (macOS). Compliant
  * with ARM64 Procedure Call Standard (PCS). Translates ITA intermediate
- * representation into ARM64 machine code.
+ * representation into machine code.
  *
  * Example - simple function:
  *
@@ -50,22 +66,6 @@
  *         .quad 0
  *
  *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"                     // for Mnemonic, arm_mn, Directives
-#include "memory.h"                       // for Memory_Access, Mnemonic
-#include "stack.h"                        // for Stack
-#include <credence/ir/ita.h>              // for Instructions
-#include <credence/ir/object.h>           // for Label, Object, RValue
-#include <credence/target/common/flags.h> // for flags
-#include <credence/util.h>                // for AST_Node, CREDENCE_PRIVATE...
-#include <cstddef>                        // for size_t
-#include <deque>                          // for deque
-#include <ostream>                        // for ostream
-#include <string>                         // for basic_string, string
-#include <utility>                        // for move
-#include <variant>                        // for variant
 
 namespace credence::target::arm64 {
 

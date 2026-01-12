@@ -11,6 +11,20 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
+#pragma once
+
+#include "assembly.h"  // for Arch_Type
+#include "types.h"     // for Storage_T, Enum_T
+#include <array>       // for array
+#include <cstddef>     // for size_t
+#include <deque>       // for deque
+#include <map>         // for map
+#include <matchit.h>   // for match
+#include <stdint.h>    // for uint32_t
+#include <string>      // for string
+#include <string_view> // for basic_string_view, string_view
+#include <vector>      // for vector
+
 /****************************************************************************
  *
  * System call tables and kernel interface
@@ -36,21 +50,7 @@
  *                  mov x0, #42
  *                  svc #0
  *
- *****************************************************************************/
-
-#pragma once
-
-#include "assembly.h"  // for Arch_Type
-#include "types.h"     // for Storage_T, Enum_T
-#include <array>       // for array
-#include <cstddef>     // for size_t
-#include <deque>       // for deque
-#include <map>         // for map
-#include <matchit.h>   // for match
-#include <stdint.h>    // for uint32_t
-#include <string>      // for string
-#include <string_view> // for basic_string_view, string_view
-#include <vector>      // for vector
+ ****************************************************************************/
 
 namespace credence::target::common::syscall_ns {
 

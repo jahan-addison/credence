@@ -11,25 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * Value representation implementation
- *
- * Implements string conversion and manipulation of literal values.
- * Handles the internal representation of B language literals including
- * integers, floats, doubles, and pointers.
- *
- * Example - literal string representation:
- *
- *   42     → "(42:int:4)"
- *   3.14f  → "(3.14:float:4)"
- *   3.14   → "(3.14:double:8)"
- *
- * Used throughout the compiler for debug output, type tracking, and
- * generating intermediate representation.
- *
- *****************************************************************************/
-
 #include <credence/values.h>
 
 #include <credence/operators.h> // for Operator
@@ -41,6 +22,33 @@
 #include <utility>              // for pair, get, move, make_pair
 #include <variant>              // for get, monostate, variant, visit
 #include <vector>               // for vector
+
+/****************************************************************************
+ *
+ * Language internal value representation
+ *
+ * The internal representation of values and types during code translation.
+ *
+ * We enforce strict typing via type inference by storing all data types
+ * assigned through a data structure called internally "Rvalue Data Type."
+ *
+ *  I.e. A tuple of ( Value : Type : Size )
+ *
+ *  Examples:
+ *
+ *  (10:int:4)
+ *  ("hello":string:5)
+ *  (55.5:float:4)
+ *  ('c':char:1)
+ *
+ *  ---
+ *
+ *   main() {
+ *     auto x, y, z;
+ *     x = 42;           // x is (42:int:4)
+ *     y = 3.14;         // y is (3.14:double:4)
+ *   }
+ *****************************************************************************/
 
 namespace credence::value {
 

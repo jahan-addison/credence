@@ -27,9 +27,12 @@
 #include <vector>               // for vector
 
 /****************************************************************************
- *  A set of algorithms that construct temporary lvalues "_tX" that aid in
- *  breaking expressions into 3- or 4- tuples for linear instructions. The
- *  rvalue stack should be ordered by operator precedence.
+ * Temporary LValue Constructor
+ *
+ * A set of algorithms that construct temporary lvalues "_tX" that aid in
+ * breaking expressions into 3- or 4- tuples for linear instructions. Uses the
+ * rvalue queue from queue.h of expressions, which should be ordered by
+ * operator preedence.
  *
  *  Example:
  *

@@ -11,36 +11,6 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-/****************************************************************************
- *
- * x86-64 Memory Accessor and Address Calculation
- *
- * Handles memory addressing modes for x86-64: register direct, register
- * indirect, base+offset, RIP-relative. Manages variable and array access.
- *
- * Example - local variable access:
- *
- *   B code:    auto x; x = 10;
- *
- * Memory accessor generates:
- *   mov qword ptr [rbp - 8], 10    ; x at [rbp - 8]
- *
- * Example - array access:
- *
- *   B code:    auto arr[5]; arr[2] = 42;
- *
- * Memory accessor generates:
- *   mov qword ptr [rbp - 48], 42   ; arr[2] at base + 2*8
- *
- * Example - global access:
- *
- *   B code:    extrn value; x = value;
- *
- * Memory accessor generates:
- *   mov rax, qword ptr [rip + value]  ; RIP-relative
- *
- *****************************************************************************/
-
 #pragma once
 
 #include "assembly.h"                           // for Register, Operand_Size
@@ -58,6 +28,36 @@
 #include <memory>                               // for shared_ptr, make_shared
 #include <string>                               // for basic_string, string
 #include <utility>                              // for move
+
+/****************************************************************************
+ *
+ * x86-64 Memory Accessors and Address Calculators
+ *
+ * Handles memory addressing modes for x86-64: register direct, register
+ * indirect, base+offset, RIP-relative. Manages variable and array access.
+ *
+ * Example - local variable access:
+ *
+ *   B code:    auto x; x = 10;
+ *
+ * Memory accessor generates:
+ *   mov dword ptr [rbp - 4], 10    ; x at [rbp - 4]
+ *
+ * Example - array access:
+ *
+ *   B code:    auto arr[5]; arr[2] = 42;
+ *
+ * Memory accessor generates:
+ *   mov qword ptr [rbp - 24], 42   ; arr[2] at base + 2*4
+ *
+ * Example - global access:
+ *
+ *   B code:    extrn value; x = value;
+ *
+ * Memory accessor generates:
+ *   mov rax, qword ptr [rip + value]  ; RIP-relative
+ *
+ *****************************************************************************/
 
 namespace credence::target::x86_64::memory {
 class Memory_Accessor;
