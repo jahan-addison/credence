@@ -1227,3 +1227,81 @@ _start:
 #endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("pointers_5", expected);
 }
+
+TEST_CASE("target/arm64: fixture: string_1.b")
+{
+    SETUP_ARM64_FIXTURE_SHOULD_THROW_FROM_AST("string_2");
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x26, [sp, #16]
+    adrp x26, ._L_str1__@PAGE
+    add x26, x26, ._L_str1__@PAGEOFF
+    mov x9, x26
+    adrp x26, ._L_str2__@PAGE
+    add x26, x26, ._L_str2__@PAGEOFF
+    mov x10, x26
+    adrp x26, ._L_str1__@PAGE
+    add x26, x26, ._L_str1__@PAGEOFF
+    mov x11, x26
+    ldr x26, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "hello"
+
+._L_str2__:
+    .asciz "world"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str x26, [sp, #16]
+    adrp x26, ._L_str1__@PAGE
+    add x26, x26, ._L_str1__@PAGEOFF
+    mov x9, x26
+    adrp x26, ._L_str2__@PAGE
+    add x26, x26, ._L_str2__@PAGEOFF
+    mov x10, x26
+    adrp x26, ._L_str1__@PAGE
+    add x26, x26, ._L_str1__@PAGEOFF
+    mov x11, x26
+    ldr x26, [sp, #16]
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "hello"
+
+._L_str2__:
+    .asciz "world"
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("string_1", expected);
+}

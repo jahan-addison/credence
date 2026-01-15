@@ -80,7 +80,7 @@ struct Library_Call_Inserter : public ARM64_Library_Call_Inserter
     {
         word_registers_ = assembly::WORD_REGISTER;
         dword_registers_ = assembly::DOUBLEWORD_REGISTER;
-        float_registers_ = assembly::FLOAT_REGISTER;
+        vector_registers_ = assembly::VECTOR_REGISTER;
     }
 
     assembly::Register get_available_standard_library_register(
@@ -108,7 +108,7 @@ struct Library_Call_Inserter : public ARM64_Library_Call_Inserter
     memory::Stack_Frame stack_frame_;
     library_register_t word_registers_;
     library_register_t dword_registers_;
-    library_register_t float_registers_;
+    library_register_t vector_registers_;
 };
 
 } // namespace credence::target::arm64::runtime

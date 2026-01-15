@@ -53,7 +53,7 @@
  * Example - globals and strings:
  *
  *   B code:
- *     greeting "Hello, World!*n";
+ *     greeting "Hello, World!\n";
  *     counter 0;
  *
  *   Generated:

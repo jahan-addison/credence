@@ -999,9 +999,6 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
     auto is_address = [&](RValue const& rvalue) {
         return accessor_->device_accessor.is_lvalue_allocated_in_memory(rvalue);
     };
-    auto is_stack = [&](Storage const& st) {
-        return is_variant(assembly::Stack::Offset, st);
-    };
 
     m::match(rhs)(
         // Translate from an immediate value assignment
@@ -1013,17 +1010,14 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                         .get_arm64_lvalue_and_insertion_instructions(
                             lhs, devices);
                 assembly::inserter(instructions, storage_inst);
-                if (is_stack(lhs_storage)) {
-                    auto size = get_operand_size_from_storage(
-                        lhs_storage, accessor_->stack);
-                    auto work = size == Operand_Size::Doubleword
-                                    ? assembly::Register::x8
-                                    : assembly::Register::w8;
-                    arm64_add__asm(instructions, mov, work, imm);
-                    arm64_add__asm(instructions, str, work, lhs_storage);
-                } else {
+                if (type::get_type_from_rvalue_data_type(imm) == "string")
+                    insert_from_string_address_operand(lhs, lhs_storage, rhs);
+                else if (type::get_type_from_rvalue_data_type(imm) == "float")
+                    insert_from_float_address_operand(lhs, lhs_storage, rhs);
+                else if (type::get_type_from_rvalue_data_type(imm) == "double")
+                    insert_from_double_address_operand(lhs, lhs_storage, rhs);
+                else
                     arm64_add__asm(instructions, mov, lhs_storage, imm);
-                }
             },
         m::pattern | m::app(type::is_binary_expression, true) =
             [&] {
@@ -1465,23 +1459,60 @@ void Operand_Inserter::insert_from_double_address_operand(
 {
 }
 
+/**
+ * @brief Insert into a device from the page address of a string
+ */
 void Operand_Inserter::insert_from_string_address_operand(
     [[maybe_unused]] LValue const& lhs,
-    [[maybe_unused]] Storage const& storage,
-    [[maybe_unused]] RValue const& rhs)
+    Storage const& storage,
+    RValue const& rhs)
 {
+    auto instruction_accessor = accessor_->instruction_accessor;
+    auto& instructions = instruction_accessor->get_instructions();
+    auto expression_inserter = Expression_Inserter{ accessor_ };
+    auto imm = type::get_rvalue_datatype_from_string(rhs);
+    expression_inserter.insert_from_string(
+        type::get_value_from_rvalue_data_type(imm));
+    if (is_variant(assembly::Stack::Offset, storage)) {
+        auto offset = std::get<assembly::Stack::Offset>(storage);
+        accessor_->stack->set(offset, Operand_Size::Doubleword);
+    }
+    accessor_->stack_frame.get_stack_frame()->get_tokens().insert("x26");
+    arm64_add__asm(instructions, mov, storage, x26);
 }
 
-void Expression_Inserter::insert_from_string([[maybe_unused]] RValue const& str)
+/**
+ * @brief Expression inserter of a string in the data section
+ */
+void Expression_Inserter::insert_from_string(RValue const& str)
 {
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    credence_assert(
+        accessor_->address_accessor.buffer_accessor.is_allocated_string(str));
+    auto immediate =
+        accessor_->address_accessor.buffer_accessor.get_string_address_offset(
+            str);
+    auto imm_1 = direct_immediate(fmt::format("{}@PAGE", immediate));
+    arm64_add__asm(instructions, adrp, x26, imm_1);
+    auto imm_2 = direct_immediate(fmt::format("{}@PAGEOFF", immediate));
+    arm64_add__asm(instructions, add, x26, x26, imm_2);
 }
 
-void Expression_Inserter::insert_from_float([[maybe_unused]] RValue const& str)
+/**
+ * @brief Expression inserter from a string in the data section
+ */
+void Expression_Inserter::insert_from_float(RValue const& str)
 {
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto immediate = direct_immediate(fmt::format("={}", str));
+    arm64_add__asm(instructions, ldr, s26, immediate);
 }
 
-void Expression_Inserter::insert_from_double([[maybe_unused]] RValue const& str)
+void Expression_Inserter::insert_from_double(RValue const& str)
 {
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto immediate = direct_immediate(fmt::format("={}", str));
+    arm64_add__asm(instructions, ldr, d26, immediate);
 }
 
 } // namespace credence::target::arm64

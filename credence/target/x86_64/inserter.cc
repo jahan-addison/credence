@@ -38,7 +38,7 @@
 
 /****************************************************************************
  *
- * x86-64 Instruction Inserters Implementation
+ * x86-64 Instruction Inserters
  *
  * Translates B language operations into x86-64 instruction sequences.
  * Handles arithmetic, bitwise, relational operators, and assignments.
@@ -48,9 +48,9 @@
  *   B code:    z = x + y * 2;
  *
  * Inserter generates:
- *   mov eax, qword ptr [rbp - 8]  ; load y
+ *   mov eax, dword ptr [rbp - 4]  ; load y
  *   imul rax, 2                     ; y * 2
- *   mov ecx, dword ptr [rbp - 4]   ; load x
+ *   mov ecx, dword ptr [rbp - 8]   ; load x
  *   add eax, ecx                    ; x + (y * 2)
  *   mov dword ptr [rbp - 12], eax  ; store to z
  *
@@ -740,9 +740,7 @@ Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
 }
 
 /**
- * @brief Expression inserter from string rvalue to an .asciz directive
- *
- * The buffer_accessor holds the %rip offset in the data section
+ * @brief Expression inserter of a string in the data section
  */
 void Expression_Inserter::insert_from_string(RValue const& str)
 {
@@ -756,10 +754,9 @@ void Expression_Inserter::insert_from_string(RValue const& str)
 }
 
 /**
- * @brief Expression inserter from float rvalue to a .float directive
- *
- * The buffer_accessor holds the %rip offset in the data section
+ * @brief Expression inserter of a float in the data section
  */
+
 void Expression_Inserter::insert_from_float(RValue const& str)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
@@ -772,9 +769,7 @@ void Expression_Inserter::insert_from_float(RValue const& str)
 }
 
 /**
- * @brief Expression inserter from double rvalue to a .double directive
- *
- * The buffer_accessor holds the %rip offset in the data section
+ * @brief Expression inserter of a double in the data section
  */
 void Expression_Inserter::insert_from_double(RValue const& str)
 {

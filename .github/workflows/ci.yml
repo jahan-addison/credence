@@ -44,7 +44,7 @@ jobs:
       - name: cmake
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '3.16.x'
+          cmake-version: '4.x.x'
 
       - name: setup python
         uses: actions/setup-python@v6
@@ -93,7 +93,7 @@ jobs:
       - name: build
         run: cmake --build build
 
-      - name: prepare for test
+      - name: setup assembler
         run: |
           export CREDENCE_ENV_HOME="$(pwd)"
           echo "$(pwd)" > $HOME/.credence
@@ -103,44 +103,16 @@ jobs:
       - name: test x86_64
         if: matrix.platform.arch == 'x86_64'
         run: |
-          ./build/test_suite
-          ./bin/credence -t x86_64 -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
-          ./bin/credence -t x86_64 -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
-          ./bin/credence -t x86_64 -o stdlib_putchar_test $(pwd)/test/fixtures/platform/stdlib/putchar_1.b
-          ./bin/credence -t x86_64 -o stdlib_getchar_test $(pwd)/test/fixtures/platform/stdlib/getchar_1.b
-          ./bin/credence -t x86_64 -o call_test_1 $(pwd)/test/fixtures/platform/call_1.b
-          ./bin/credence -t x86_64 -o if_1 $(pwd)/test/fixtures/platform/relational/if_1.b
-          ./bin/credence -t x86_64 -o while_1 $(pwd)/test/fixtures/platform/relational/while_1.b
-          ./bin/credence -t x86_64 -o switch_1 $(pwd)/test/fixtures/platform/relational/switch_1.b
-          ./bin/credence -t x86_64 -o call_test_2 $(pwd)/test/fixtures/platform/call_2.b
-          ./bin/credence -t x86_64 -o stdlib_printf_test $(pwd)/test/fixtures/platform/stdlib/printf_1.b
-          ./bin/credence -t x86_64 -o argc_argv $(pwd)/test/fixtures/platform/argc_argv.b
-          ./test/compiled-test.sh syscall_test
-          ./test/compiled-test.sh stdlib_test
-          ./test/compiled-test.sh call_test_1
-          ./test/compiled-test.sh if_1
-          ./test/compiled-test.sh while_1
-          ./test/compiled-test.sh switch_1
-          ./test/compiled-test.sh call_test_2
-          ./test/compiled-test.sh stdlib_putchar_test
-          ./test/compiled-test.sh stdin stdlib_getchar_test
-          ./test/compiled-test.sh argc argc_argv
-          ./test/compiled-test.sh stdlib_printf_test
+          ./test/run-tests.sh -a x86_64 -d .
 
       - name: test arm64
         if: matrix.platform.arch == 'arm64'
         run: |
-          ./build/test_suite
-          ./bin/credence -t arm64 -o arm64_constant_1 $(pwd)/test/fixtures/platform/math_constant_8.b
-          ./test/compiled-test.sh arm64_constant_1
+          ./test/run-tests.sh -a arm64 -d .
 
       - name: memcheck
         if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
         run: |
-          ./bin/credence -t ${{ matrix.platform.arch }} -o syscall_test $(pwd)/test/fixtures/platform/stdlib/write.b
-          ./bin/credence -t ${{ matrix.platform.arch }} -o stdlib_test $(pwd)/test/fixtures/platform/stdlib/print.b
-          valgrind --leak-check=full --show-leak-kinds=all ./syscall_test
-          valgrind --leak-check=full --show-leak-kinds=all ./stdlib_test
           valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
 
       - name: build coverage

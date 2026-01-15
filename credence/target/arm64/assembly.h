@@ -263,6 +263,10 @@ enum class Register
     wsp,
     wzr,
 
+    // special float and double registers
+    s26,
+    d26,
+
     // vector registers (for floating point)
     v0,
     v1,
@@ -367,7 +371,7 @@ constexpr const auto WORD_REGISTER = {
     Register::wsp,
 };
 
-constexpr const auto FLOAT_REGISTER = { Register::v0,
+constexpr const auto VECTOR_REGISTER = { Register::v0,
     Register::v1,
     Register::v2,
     Register::v3,
@@ -496,9 +500,9 @@ constexpr bool is_word_register(Register r)
 {
     return util::range_contains(r, WORD_REGISTER);
 }
-constexpr bool is_float_register(Register r)
+constexpr bool is_vector_register(Register r)
 {
-    return util::range_contains(r, FLOAT_REGISTER);
+    return util::range_contains(r, VECTOR_REGISTER);
 }
 
 /**
@@ -586,7 +590,7 @@ constexpr Operand_Size get_operand_size_from_register(Register acc)
         return Operand_Size::Doubleword;
     } else if (is_word_register(acc)) {
         return Operand_Size::Word;
-    } else if (is_float_register(acc)) {
+    } else if (is_vector_register(acc)) {
         return Operand_Size::Halfword;
     } else {
         return Operand_Size::Empty;
@@ -775,6 +779,9 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         ARM64_REGISTER_OSTREAM(v29);
         ARM64_REGISTER_OSTREAM(v30);
         ARM64_REGISTER_OSTREAM(v31);
+
+        ARM64_REGISTER_OSTREAM(s26);
+        ARM64_REGISTER_OSTREAM(d26);
     }
     return os;
 }
@@ -883,6 +890,9 @@ constexpr std::string register_as_string(Register reg)
         ARM64_REGISTER_STRING(v29);
         ARM64_REGISTER_STRING(v30);
         ARM64_REGISTER_STRING(v31);
+
+        ARM64_REGISTER_STRING(s26);
+        ARM64_REGISTER_STRING(d26);
     }
     return "x0";
 }
@@ -1120,7 +1130,7 @@ inline arm64::assembly::Immediate make_asciz_immediate(std::string_view address)
 }
 
 /**
- * @brief Check if relative address ofset (label reference)
+ * @brief Check if relative address offset (label reference)
  */
 constexpr bool is_immediate_relative_address(Storage const& immediate)
 {

@@ -35,11 +35,7 @@
 
 /****************************************************************************
  *
- * ARM64 Memory Accessors and Address Calculators
- *
- * Handles memory addressing modes for ARM64: register direct, base+offset,
- * pre/post-indexed addressing. Leverages 32 general-purpose registers,
- * keeping more values in registers before spilling to stack.
+ * ARM64 Memory and Address Accessors
  *
  * Example - local variable access:
  *
@@ -60,21 +56,15 @@
  *   mov w8, #42
  *   str w8, [sp, #24]       ; arr[2] at base + 2*8
  *
- * Example - global access:
- *
- *   B code:    extrn value; x = value;
- *
- * Memory accessor generates:
- *   adrp x8, value@PAGE
- *   ldr x8, [x8, value@PAGEOFF]
- *
  *****************************************************************************/
 
 /****************************************************************************
  * Special register usage conventions:
  *
- *   x26   = address-of temporary storage register
- *   x23   = The multiplication register, arithmetic scratch register
+ *   x26   = intermediate scratch and data section register
+ *      s26  = floating point
+ *      d26  = double
+ *      v26  = SIMD
  *   x8    = The default "accumulator" register for expression expansion
  *   x9 - x18 = Local scope variables, after which the stack is used
  *

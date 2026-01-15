@@ -29,11 +29,9 @@
 #include <tuple>             // for tuple, get
 
 /****************************************************************************
- * Objects
  *
- * Object table and storage system for the intermediate representation. This
- * tracks vectors, functions, stack frames, and symbol tables throughout
- * the backend.
+ * Object storage system for the intermediate representation. Including vectors,
+ * functions, stack frames, and symbol tables throughout the backend phases.
  *
  *  Example:
  *

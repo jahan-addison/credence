@@ -41,7 +41,7 @@
  *
  * Example - calling printf:
  *
- *   B code:    printf("Value: %d*n", x);
+ *   B code:    printf("Value: %d\n", x);
  *
  * Generates (x is local in x9):
  *   adrp x0, ._L_str1__@PAGE       ; format string in x0
@@ -121,8 +121,8 @@ Library_Call_Inserter::get_available_standard_library_register(
                 argument_stack.at(index), "float") or
             address_accessor.is_lvalue_storage_type(
                 argument_stack.at(index), "double")) {
-            storage = float_registers_.back();
-            float_registers_.pop_back();
+            storage = vector_registers_.back();
+            vector_registers_.pop_back();
         } else {
             storage = available_registers.back();
         }
@@ -222,7 +222,7 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
                 ? type::get_type_from_rvalue_data_type(locals.at(i))
                 : "";
 
-        auto float_size = float_registers_.size();
+        auto float_size = vector_registers_.size();
 
         if (accessor_->device_accessor.is_doubleword_storage_size(arg))
             storage = get_available_standard_library_register(
@@ -233,7 +233,7 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
 
         insert_argument_instructions_standard_library_function(
             storage, instructions, arg_type, arg);
-        if (float_size == float_registers_.size()) {
+        if (float_size == vector_registers_.size()) {
             doubleword_storage.pop_back();
             word_storage.pop_back();
         }

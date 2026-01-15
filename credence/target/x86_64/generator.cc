@@ -71,7 +71,7 @@
  * Example - globals and strings:
  *
  *   B code:
- *     greeting "Hello, World!*n";
+ *     greeting "Hello, World!\n";
  *     counter 0;
  *
  *   x86-64 (Intel syntax):
