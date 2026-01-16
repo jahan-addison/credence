@@ -77,7 +77,7 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
     auto frame = table->get_functions()[name];
-    accessor_->stack->allocate(16);
+    // accessor_->stack->allocate(16);
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
     arm64_add__asm(instructions, mov, x29, sp);
@@ -170,6 +170,8 @@ void IR_Instruction_Visitor::set_pointer_address_of_lvalue(LValue const& lvalue)
     auto device_storage =
         accessor_->device_accessor.get_device_by_lvalue(lvalue);
     auto address_storage = accessor_->stack->get(lvalue).first;
+    if (!stack_frame_.get_stack_frame()->get_tokens().empty())
+        address_storage += 16;
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     accessor_->flag_accessor.set_instruction_flag(
         common::flag::Indirect_Source, instructions.size());
@@ -356,10 +358,11 @@ void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
     auto frame = stack_frame_.get_stack_frame();
     auto of_comparator = frame->get_temporary().at(of).substr(4);
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    auto of_rvalue_storage = accessor_->address_accessor
-                                 .get_arm64_lvalue_and_insertion_instructions(
-                                     of_comparator, accessor_->device_accessor)
-                                 .first;
+    auto of_rvalue_storage =
+        accessor_->address_accessor
+            .get_arm64_lvalue_and_insertion_instructions(
+                of_comparator, instructions.size(), accessor_->device_accessor)
+            .first;
     auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
     auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
     auto comparator_instructions = assembly::r_eq(

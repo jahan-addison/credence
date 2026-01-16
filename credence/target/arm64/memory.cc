@@ -17,6 +17,7 @@
 #include "credence/target/common/flags.h"    // for Flag_Accessor, Instruct...
 #include "credence/target/common/memory.h"   // for align_up_to, is_vector_...
 #include "credence/target/common/types.h"    // for Stack_Offset, Table_Poi...
+#include "flags.h"                           // for flags
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for credence_assert, creden...
 #include <credence/ir/object.h>              // for LValue, Object, get_rva...
@@ -82,15 +83,82 @@ namespace credence::target::arm64::memory {
 namespace m = matchit;
 
 /**
+ * @brief Get a second register for a binary operand based on size
+ */
+Register get_second_register_for_binary_operand(assembly::Operand_Size size)
+{
+    if (size == assembly::Operand_Size::Doubleword)
+        return Register::x23;
+    else
+        return Register::w23;
+}
+
+Register get_scratch_register(assembly::Operand_Size size)
+{
+    if (size == assembly::Operand_Size::Doubleword)
+        return Register::x8;
+    else
+        return Register::w8;
+}
+
+/**
+ * @brief Get the operand size (word size) of a storage device
+ */
+assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
+    memory::Stack_Pointer& stack)
+{
+    namespace m = matchit;
+    m::Id<assembly::Stack::Offset> s;
+    m::Id<Immediate> i;
+    m::Id<Register> r;
+    return m::match(storage)(
+        m::pattern | m::as<assembly::Stack::Offset>(s) =
+            [&] { return stack->get_operand_size_from_offset(*s); },
+        m::pattern | m::as<Immediate>(i) =
+            [&] { return assembly::get_operand_size_from_rvalue_datatype(*i); },
+        m::pattern | m::as<Register>(r) =
+            [&] { return assembly::get_operand_size_from_register(*r); },
+        m::pattern | m::_ = [&] { return assembly::Operand_Size::Empty; });
+}
+
+/**
+ * @brief Check if the storage size is a doubleword
+ */
+
+bool is_doubleword_storage_size(assembly::Storage const& storage,
+    Stack_Pointer& stack,
+    Stack_Frame& stack_frame)
+{
+    auto result{ false };
+    auto frame = stack_frame.get_stack_frame();
+    std::visit(util::overload{
+                   [&](std::monostate) {},
+                   [&](common::Stack_Offset const& s) {
+                       result = stack->get_operand_size_from_offset(s) ==
+                                assembly::Operand_Size::Doubleword;
+                   },
+                   [&](Register const& s) {
+                       result = assembly::is_doubleword_register(s);
+                   },
+                   [&](Immediate const& s) {
+                       result = type::is_rvalue_data_type_string(s) or
+                                assembly::is_immediate_relative_address(s);
+                   },
+               },
+        storage);
+    return result;
+}
+
+/**
  * @brief Get a general purpose accumulator including during temporary expansion
  */
 Register Memory_Accessor::get_accumulator_with_rvalue_context(
     Storage const& device)
 {
-    auto size = device_accessor.get_word_size_from_storage(device);
+    auto size = get_word_size_from_storage(device, stack, stack_frame);
     return table_accessor.next_ir_instruction_is_temporary() and
                    not table_accessor.last_ir_instruction_is_assignment()
-               ? device_accessor.get_second_register_for_binary_operand(size)
+               ? get_second_register_for_binary_operand(size)
                : accumulator_accessor.get_accumulator_register_from_size(size);
 }
 
@@ -99,7 +167,7 @@ Register Memory_Accessor::get_accumulator_with_rvalue_context(
 {
     return table_accessor.next_ir_instruction_is_temporary() and
                    not table_accessor.last_ir_instruction_is_assignment()
-               ? device_accessor.get_second_register_for_binary_operand(size)
+               ? get_second_register_for_binary_operand(size)
                : accumulator_accessor.get_accumulator_register_from_size(size);
 }
 
@@ -177,25 +245,14 @@ Device_Accessor::Device Device_Accessor::get_operand_rvalue_device(
 }
 
 /**
- * @brief Gets the second register for a binary operand based on size
- */
-Register Device_Accessor::get_second_register_for_binary_operand(
-    Operand_Size size)
-{
-    if (size == Operand_Size::Doubleword)
-        return Register::x23;
-    else
-        return Register::w23;
-}
-
-/**
- * @brief Gets the address and instructions for an lvalue from unary and vector
+ * @brief Get the address and instructions for an lvalue from unary and vector
  * expressions
  */
 Address_Accessor::Address
 Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
     Address& instructions,
-    LValue const& lvalue)
+    LValue const& lvalue,
+    std::size_t instruction_index)
 {
     auto vector_accessor = Vector_Accessor{ table_ };
     auto lhs = type::from_lvalue_offset(lvalue);
@@ -223,49 +280,57 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
             [&] {
                 credence_assert(table_->get_vectors().contains(lhs));
                 auto vector = table_->get_vectors().at(lhs);
-                instructions.first =
+                auto vector_s =
                     stack_->get_stack_offset_from_table_vector_index(
                         lhs, offset, *vector);
+                auto temp = Register::x15;
+                auto offset_immediate = u32_int_immediate(vector_s);
+                arm64_add__asm(
+                    instructions.second, add, temp, sp, offset_immediate);
+                instructions.first = temp;
+                flag_accessor_.set_instruction_flag(
+                    arm64::detail::flags::Vector_Storage,
+                    instruction_index + 1);
             });
 
     return instructions;
 }
 
 /**
- * @brief Gets the ARM64 lvalue address and insertion instructions
+ * @brief Get the ARM64 lvalue address and insertion instructions
  */
 Address_Accessor::Address
 Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     LValue const& lvalue,
-    Device_Accessor& device_accessor,
-    INLINE_DEBUG)
+    std::size_t instruction_index,
+    Device_Accessor& device_accessor)
 {
-    Address instructions{ Register::wzr, {} };
+    Address instructions{ assembly::O_NUL, {} };
 
-    get_lvalue_address_and_from_unary_and_vectors(instructions, lvalue);
+    get_lvalue_address_and_from_unary_and_vectors(
+        instructions, lvalue, instruction_index);
 
-    if (std::get<Register>(instructions.first) == Register::wzr)
-        instructions.first =
-            device_accessor.get_device_by_lvalue(lvalue, source);
+    if (instructions.first == assembly::O_NUL)
+        instructions.first = device_accessor.get_device_by_lvalue(lvalue);
 
     return instructions;
 }
 
 /**
- * @brief Calculates the total size of the address table
+ * @brief Calculate the total size of the address table
  */
 Size Device_Accessor::get_size_of_address_table()
 {
     auto size = 0UL;
     for (auto const& device : address_table) {
-        size +=
-            static_cast<std::size_t>(get_word_size_from_storage(device.second));
+        size += static_cast<std::size_t>(
+            get_word_size_from_storage(device.second, stack_, stack_frame_));
     }
     return size;
 }
 
 /**
- * @brief Saves registers to the stack before an instruction jump
+ * @brief Save registers to the stack before an instruction jump
  */
 void Device_Accessor::save_and_allocate_before_instruction_jump(
     assembly::Instructions& instructions)
@@ -282,7 +347,7 @@ void Device_Accessor::save_and_allocate_before_instruction_jump(
 }
 
 /**
- * @brief Restores registers from the stack after an instruction jump
+ * @brief Restore registers from the stack after an instruction jump
  */
 void Device_Accessor::restore_and_deallocate_after_instruction_jump(
     assembly::Instructions& instructions)
@@ -299,7 +364,7 @@ void Device_Accessor::restore_and_deallocate_after_instruction_jump(
 }
 
 /**
- * @brief Gets an available register for temporary storage
+ * @brief Get an available register for temporary storage
  */
 Register Device_Accessor::get_available_storage_register(
     assembly::Operand_Size size)
@@ -314,7 +379,7 @@ Register Device_Accessor::get_available_storage_register(
 }
 
 /**
- * @brief Allocates a word or doubleword register for an lvalue
+ * @brief Allocate a word or doubleword register for an lvalue
  */
 void Device_Accessor::set_word_or_doubleword_register(LValue const& lvalue,
     assembly::Operand_Size size)
@@ -328,19 +393,19 @@ void Device_Accessor::set_word_or_doubleword_register(LValue const& lvalue,
 }
 
 /**
- * @brief Gets the storage device for an lvalue
+ * @brief Get the storage device for an lvalue
  */
 Device_Accessor::Device Device_Accessor::get_device_by_lvalue(
-    LValue const& lvalue,
-    INLINE_DEBUG)
+    LValue const& lvalue)
 {
-    credence_assert_message_trace(
-        is_lvalue_allocated_in_memory(lvalue), lvalue, source);
-    return address_table.at(lvalue);
+    if (is_lvalue_allocated_in_memory(lvalue))
+        return address_table.at(lvalue);
+    else
+        return stack_->get(lvalue).first;
 }
 
 /**
- * @brief Allocates a register or stack space for a given lvalue
+ * @brief Allocate a register or stack space for a given lvalue
  */
 void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     Operand_Size size)
@@ -401,7 +466,7 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
 }
 
 /**
- * @brief Allocates storage space for a vector offset
+ * @brief Allocate storage space for a vector offset
  */
 void Device_Accessor::set_vector_offset_to_storage_space(LValue const& lvalue)
 {
@@ -411,7 +476,7 @@ void Device_Accessor::set_vector_offset_to_storage_space(LValue const& lvalue)
 }
 
 /**
- * @brief Gets the size of an rvalue reference from its type or storage device
+ * @brief Get the size of an rvalue reference from its type or storage device
  */
 Size Device_Accessor::get_size_from_rvalue_reference(RValue const& rvalue)
 {
@@ -437,7 +502,7 @@ Size Device_Accessor::get_size_from_rvalue_reference(RValue const& rvalue)
 }
 
 /**
- * @brief Gets the size of a temporary or binary temporary rvalue data type
+ * @brief Get the size of a temporary or binary temporary rvalue data type
  */
 Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
     Immediate const& rvalue)
@@ -485,38 +550,11 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
 }
 
 /**
- * @brief Checks if an lvalue is allocated in a register or on the stack
+ * @brief Check if an lvalue is allocated in a register or on the stack
  */
 bool Device_Accessor::is_lvalue_allocated_in_memory(LValue const& lvalue)
 {
     return address_table.contains(lvalue) or stack_->is_allocated(lvalue);
-}
-
-/**
- * @brief Checks if the storage size is a doubleword
- */
-bool Device_Accessor::is_doubleword_storage_size(
-    assembly::Storage const& storage)
-{
-    auto result{ false };
-    auto frame = stack_frame_.get_stack_frame();
-    std::visit(util::overload{
-                   [&](std::monostate) {},
-                   [&](common::Stack_Offset const& s) {
-                       result = stack_->get_operand_size_from_offset(s) ==
-                                assembly::Operand_Size::Doubleword;
-                   },
-                   [&](Register const& s) {
-                       result = assembly::is_doubleword_register(s);
-                   },
-                   [&](Immediate const& s) {
-                       result = type::is_rvalue_data_type_string(s) or
-                                assembly::is_immediate_relative_address(s);
-                   },
-               },
-        storage);
-
-    return result;
 }
 
 } // namespace detail

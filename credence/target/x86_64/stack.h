@@ -24,8 +24,8 @@
  *
  * x86-64 Stack
  *
- * System V ABI-compliant stack for x86-64 which grows downward from high to low
- * addresses. Maintains 16-byte alignment before function calls.
+ * A System V ABI-compliant stack for x86-64 which grows downward from high to
+ * low addresses and maintains 16-byte alignment before function calls.
  *
  * Example - function with locals:
  *
@@ -53,8 +53,7 @@ namespace credence::target::x86_64::assembly {
 
 /**
  * @brief
- * A push-down stack for the x86-64 architecture
- * Uses the PIMPL idiom to improve build times.
+ * Uses the PIMPL to improve build times.
  */
 class Stack : public common::detail::base_stack_pointer
 {

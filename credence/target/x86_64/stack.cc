@@ -28,8 +28,8 @@
  *
  * x86-64 Stack
  *
- * System V ABI-compliant stack for x86-64 which grows downward from high to low
- * addresses. Maintains 16-byte alignment before function calls.
+ * A System V ABI-compliant stack for x86-64 which grows downward from high to
+ * low addresses and maintains 16-byte alignment before function calls.
  *
  * Example - function with locals:
  *

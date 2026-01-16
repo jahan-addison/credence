@@ -261,22 +261,17 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
     };
 
     m::match(lhs, rhs)(
-        // Parameters are prepared in the table, so skip parameter
-        // lvalues
         m::pattern | m::ds(m::app(is_parameter, true), m::_) = [] {},
-        // Translate an rvalue from a mutual-recursive temporary lvalue
         m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
             [&] {
                 expression_inserter.insert_lvalue_at_temporary_object_address(
                     lhs);
             },
-        // Translate a unary-to-unary rvalue reference
         m::pattern | m::ds(m::app(type::is_unary_expression, true),
                          m::app(type::is_unary_expression, true)) =
             [&] {
                 unary_inserter.insert_from_unary_to_unary_assignment(lhs, rhs);
             },
-        // Translate from a vector in global scope
         m::pattern | m::ds(m::app(is_global_vector, true), m::_) =
             [&] {
                 expression_inserter.insert_from_global_vector_assignment(
@@ -287,7 +282,6 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
                 expression_inserter.insert_from_global_vector_assignment(
                     lhs, rhs);
             },
-        // Direct operand to mnemonic translation
         m::pattern | m::_ =
             [&] { operand_inserter.insert_from_mnemonic_operand(lhs, rhs); });
 }

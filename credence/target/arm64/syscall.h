@@ -70,7 +70,7 @@ void syscall_operands_to_instructions(assembly::Instructions& instructions,
     memory::Memory_Access* accessor = nullptr);
 
 inline Register get_storage_register_from_safe_address(
-    assembly::Storage& argument,
+    assembly::Storage const& argument,
     memory::registers::general_purpose const& w_registers,
     memory::registers::general_purpose const& d_registers,
     memory::Memory_Access const* accessor = nullptr)
@@ -78,7 +78,8 @@ inline Register get_storage_register_from_safe_address(
     Register storage = common::get_first_of_enum_t<Register>();
     if (accessor != nullptr) {
         auto accessor_ = *accessor;
-        if (accessor_->device_accessor.is_doubleword_storage_size(argument)) {
+        if (memory::is_doubleword_storage_size(
+                argument, accessor_->stack, accessor_->stack_frame)) {
             storage = w_registers.back();
         } else {
             storage = d_registers.back();

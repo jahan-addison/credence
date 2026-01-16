@@ -143,6 +143,25 @@ using Stack_Pointer = std::shared_ptr<assembly::Stack>;
 using Table_Pointer = std::shared_ptr<ir::object::Object>;
 using Stack_Frame = target::common::memory::Stack_Frame;
 
+Register get_second_register_for_binary_operand(assembly::Operand_Size size);
+
+bool is_doubleword_storage_size(assembly::Storage const& storage,
+    Stack_Pointer& stack,
+    Stack_Frame& stack_frame);
+
+inline assembly::Operand_Size get_word_size_from_storage(
+    assembly::Storage const& storage,
+    Stack_Pointer& stack,
+    Stack_Frame& stack_frame)
+{
+    return is_doubleword_storage_size(storage, stack, stack_frame)
+               ? assembly::Operand_Size::Doubleword
+               : assembly::Operand_Size::Word;
+}
+
+assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
+    memory::Stack_Pointer& stack);
+
 using ARM64_Memory_Accessor = common::memory::Memory_Accessor;
 
 namespace detail {
@@ -234,13 +253,14 @@ struct Address_Accessor : public ARM64_Address_Accessor
 
     Address_Accessor::Address get_arm64_lvalue_and_insertion_instructions(
         LValue const& lvalue,
-        Device_Accessor& device_accessor,
-        SET_INLINE_DEBUG);
+        std::size_t instruction_index,
+        Device_Accessor& device_accessor);
 
   private:
     Address_Accessor::Address get_lvalue_address_and_from_unary_and_vectors(
         Address& instructions,
-        LValue const& lvalue);
+        LValue const& lvalue,
+        std::size_t instruction_index);
 
   private:
     Register_Accessor& register_accessor_;
@@ -262,6 +282,8 @@ class Device_Accessor
     {
     }
 
+    friend struct Address_Accessor;
+
     using Operand_Size = assembly::Operand_Size;
 
     void reset_storage_devices()
@@ -271,11 +293,9 @@ class Device_Accessor
     }
 
   public:
-    bool is_doubleword_storage_size(assembly::Storage const& storage);
     bool is_lvalue_allocated_in_memory(LValue const& lvalue);
     Device get_operand_rvalue_device(RValue const& rvalue);
-    Register get_second_register_for_binary_operand(Operand_Size size);
-    Device get_device_by_lvalue(LValue const& lvalue, SET_INLINE_DEBUG);
+    Device get_device_by_lvalue(LValue const& lvalue);
     inline Device get_device_by_lvalue_reference(RValue const& rvalue)
     {
         return get_device_by_lvalue(rvalue);
@@ -293,16 +313,10 @@ class Device_Accessor
         assembly::Instructions& instructions);
 
   public:
-    inline Operand_Size get_word_size_from_storage(
-        assembly::Storage const& storage)
-    {
-        return is_doubleword_storage_size(storage) ? Operand_Size::Doubleword
-                                                   : Operand_Size::Word;
-    }
-
     inline Operand_Size get_word_size_from_lvalue(LValue const& lvalue)
     {
-        return get_word_size_from_storage(get_device_by_lvalue(lvalue));
+        return get_word_size_from_storage(
+            get_device_by_lvalue(lvalue), stack_, stack_frame_);
     }
 
   public:

@@ -1305,3 +1305,145 @@ _start:
 #endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("string_1", expected);
 }
+
+TEST_CASE("target/arm64: fixture: vector_1.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    add x15, sp, #28
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #24
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #20
+    mov w8, #2
+    str w8, [x15]
+    mov w9, #10
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    add x15, sp, #28
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #24
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #20
+    mov w8, #2
+    str w8, [x15]
+    mov w9, #10
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("vector_1", expected);
+}
+
+TEST_CASE("target/arm64: fixture: vector_2.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    add x15, sp, #36
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #32
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #28
+    mov w8, #2
+    str w8, [x15]
+    add x15, sp, #24
+    mov w8, #3
+    str w8, [x15]
+    add x15, sp, #20
+    mov w8, #4
+    str w8, [x15]
+    mov w9, #10
+    ldp x29, x30, [sp], #48
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    add x15, sp, #36
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #32
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #28
+    mov w8, #2
+    str w8, [x15]
+    add x15, sp, #24
+    mov w8, #3
+    str w8, [x15]
+    add x15, sp, #20
+    mov w8, #4
+    str w8, [x15]
+    mov w9, #10
+    ldp x29, x30, [sp], #48
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("vector_2", expected);
+}

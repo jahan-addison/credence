@@ -177,6 +177,9 @@ class Text_Emitter
     void emit_assembly_instruction(std::ostream& os,
         std::size_t index,
         Instruction const& s);
+    void emit_vector_storage_instruction(std::ostream& os,
+        std::size_t index,
+        Storage const& operand);
     void emit_assembly_label(std::ostream& os,
         Label const& s,
         bool set_label = true);

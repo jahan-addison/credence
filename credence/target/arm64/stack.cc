@@ -31,11 +31,12 @@
  *
  * ARM64 Stack
  *
- * The push-down stack that grows downward and maintains 16-byte alignment.
+ * A push-down stack that grows downward and maintains 16-byte alignment.
  * Since ARM64 has so many registers (x0-x30), we prioritize register allocation
- * before using the stack.
+ * before using the stack. Vectors and their elements will always be allocated
+ * in whole on the stack.
  *
- * NOTE: We save x9-x18 on the stack before calling a function via the
+ * NOTE: We store x9-x18 on the stack before calling a function via the
  * Allocate, Access, Deallocate pattern
  *
  * Example - function with locals:
@@ -48,8 +49,6 @@
  *       z = y - 5;
  *       return(z);
  *     }
- *
- * Note that in some cases we also use the
  *
  * Register allocation (locals use x9-x18 first):
  *   w0 = parameter 'a'
@@ -228,8 +227,6 @@ class Stack::Stack_IMPL
 
     /**
      * @brief Set and allocate an address from another address (pointer)
-     *
-     * Memory align to multiples of 8 bytes per the ABI
      */
     constexpr void set_address_from_address(LValue const& lvalue)
     {
@@ -263,7 +260,8 @@ class Stack::Stack_IMPL
      * The vector was allocated in a chunk and we allocate each index
      * downward
      */
-    Size get_stack_offset_from_table_vector_index(LValue const& lvalue,
+    common::Stack_Offset get_stack_offset_from_table_vector_index(
+        LValue const& lvalue,
         std::string const& key,
         ir::object::Vector const& vector)
     {
@@ -284,24 +282,19 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the size of a vector (array)
-     *
-     * Memory align to multiples of 16 bytes per the ABI
+     * @brief Get the size of a vector
      */
     Size get_stack_size_from_table_vector(ir::object::Vector const& vector)
     {
-        auto vector_size =
-            size + std::accumulate(vector.get_data().begin(),
-                       vector.get_data().end(),
-                       0UL,
-                       [&](type::semantic::Size offset,
-                           ir::object::Vector::Entry const& entry) {
-                           return offset +
-                                  assembly::get_size_from_rvalue_datatype(
-                                      entry.second);
-                       });
-
-        return util::align_up_to_16(vector_size);
+        return 16UL + std::accumulate(vector.get_data().begin(),
+                          vector.get_data().end(),
+                          0UL,
+                          [&](type::semantic::Size offset,
+                              ir::object::Vector::Entry const& entry) {
+                              return offset +
+                                     assembly::get_size_from_rvalue_datatype(
+                                         entry.second);
+                          });
     }
 
     constexpr Size get_offset_from_pushdown_stack()
@@ -325,8 +318,8 @@ class Stack::Stack_IMPL
         if (stack_address[lvalue].second != Operand_Size::Empty)
             return;
         allocate(offset_address);
-        size -= offset_address;
         stack_address.insert(lvalue, { size, operand });
+        size -= offset_address;
     }
 
     /**
@@ -453,7 +446,8 @@ Size Stack::get_stack_frame_allocation_size(ir::object::Function_PTR& frame)
 {
     return pimpl->get_stack_frame_allocation_size(frame);
 }
-Size Stack::get_stack_offset_from_table_vector_index(LValue const& lvalue,
+common::Stack_Offset Stack::get_stack_offset_from_table_vector_index(
+    LValue const& lvalue,
     std::string const& key,
     ir::object::Vector const& vector)
 {

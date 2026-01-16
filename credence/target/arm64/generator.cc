@@ -518,6 +518,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
     if (table->get_hoisted_symbols().has_key(s) and
         table->get_hoisted_symbols()[s]["type"].to_string() ==
             "function_definition") {
+        // callee saved registers are saved as "tokens" on the frame object
+        if (!accessor_->stack_frame.get_stack_frame(s)->get_tokens().empty())
+            accessor_->stack->allocate(16);
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
             emit_function_epilogue(os);
@@ -615,6 +618,35 @@ bool Text_Emitter::emit_callee_saved_registers_stp(Mnemonic mnemonic,
 }
 
 /**
+ * @brief Emit the instructions to store a vector offset in a local address
+ */
+void Text_Emitter::emit_vector_storage_instruction(std::ostream& os,
+    std::size_t index,
+    Storage const& operand)
+{
+    auto mnemonic = assembly::Mnemonic::mov;
+    auto storage_emitter =
+        Storage_Emitter{ accessor_, index, &address_pointer_index };
+    auto size =
+        memory::get_operand_size_from_storage(operand, accessor_->stack);
+    if (size == Operand_Size::Doubleword) {
+        storage_emitter.emit(
+            os, Register::x8, mnemonic, Storage_Emitter::Source::s_0);
+        storage_emitter.emit(
+            os, operand, mnemonic, Storage_Emitter::Source::s_1);
+        assembly::newline(os, 1);
+        os << assembly::tabwidth(4) << "str x8, [x15]" << std::endl;
+    } else {
+        storage_emitter.emit(
+            os, Register::w8, mnemonic, Storage_Emitter::Source::s_0);
+        storage_emitter.emit(
+            os, operand, mnemonic, Storage_Emitter::Source::s_1);
+        assembly::newline(os, 1);
+        os << assembly::tabwidth(4) << "str w8, [x15]" << std::endl;
+    }
+}
+
+/**
  * @brief Emit a mnemonic and its possible operands in the text section
  */
 void Text_Emitter::emit_assembly_instruction(std::ostream& os,
@@ -633,6 +665,12 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
         return;
 
     os << assembly::tabwidth(4) << mnemonic;
+
+    if (accessor_->flag_accessor.get_instruction_flags_at_index(index) &
+        detail::flags::Vector_Storage) {
+        emit_vector_storage_instruction(os, index, src2);
+        return;
+    }
 
     storage_emitter.emit(os, src1, mnemonic, Storage_Emitter::Source::s_0);
     storage_emitter.emit(os, src2, mnemonic, Storage_Emitter::Source::s_1);

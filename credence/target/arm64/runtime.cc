@@ -224,7 +224,8 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
 
         auto float_size = vector_registers_.size();
 
-        if (accessor_->device_accessor.is_doubleword_storage_size(arg))
+        if (memory::is_doubleword_storage_size(
+                arg, accessor_->stack, stack_frame_))
             storage = get_available_standard_library_register(
                 doubleword_storage, locals, i);
         else

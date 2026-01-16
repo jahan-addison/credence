@@ -24,11 +24,12 @@
  *
  * ARM64 Stack
  *
- * The push-down stack that grows downward and maintains 16-byte alignment.
+ * A push-down stack that grows downward and maintains 16-byte alignment.
  * Since ARM64 has so many registers (x0-x30), we prioritize register allocation
- * before using the stack.
+ * before using the stack. Vectors and their elements will always be allocated
+ * in whole on the stack.
  *
- * NOTE: We save x9-x18 on the stack before calling a function via the
+ * NOTE: We store x9-x18 on the stack before calling a function via the
  * Allocate, Access, Deallocate pattern
  *
  * Example - function with locals:
@@ -41,8 +42,6 @@
  *       z = y - 5;
  *       return(z);
  *     }
- *
- * Note that in some cases we also use the
  *
  * Register allocation (locals use x9-x18 first):
  *   w0 = parameter 'a'
@@ -60,22 +59,7 @@ namespace credence::target::arm64::assembly {
 
 /**
  * @brief
- * A push-down stack for the arm64 architecture
- *
- * Since there are so many more registers available, we use as many as possible
- * before allocating on the stack. Then and only then do we grow the stack frame
- * allocation size.
- *
- * Vectors, both global and local, will use the stack.
- *
- * Designated callee-saved registers are saved on the stack
- *
- * This stack type works different from the x86864 one, in that you must
- * allocate the amount you need from a stack frame upfront, and then offsets
- * push downwards.
- *
- * Uses the PIMPL (Pointer to Implementation) idiom to reduce compilation
- * dependencies and improve build times.
+ * Uses the PIMPL to improve build times.
  */
 class Stack : public common::detail::base_stack_pointer
 {
@@ -120,7 +104,8 @@ class Stack : public common::detail::base_stack_pointer
     void set_address_from_address(LValue const& lvalue);
 
     Size get_stack_frame_allocation_size(ir::object::Function_PTR& frame);
-    Size get_stack_offset_from_table_vector_index(LValue const& lvalue,
+    common::Stack_Offset get_stack_offset_from_table_vector_index(
+        LValue const& lvalue,
         std::string const& key,
         ir::object::Vector const& vector);
     Size get_stack_size_from_table_vector(ir::object::Vector const& vector);
