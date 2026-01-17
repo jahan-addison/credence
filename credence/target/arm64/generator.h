@@ -232,9 +232,9 @@ class Data_Emitter
 
     inline void set_data_section()
     {
-        set_data_globals();
         set_data_strings();
         set_data_floats();
+        set_data_globals();
         set_data_doubles();
     }
 
@@ -261,7 +261,7 @@ class Assembly_Emitter
         : accessor_(std::move(accessor))
     {
         ir_instructions_ =
-            *accessor_->table_accessor.table_->get_ir_instructions();
+            *accessor_->table_accessor.get_table()->get_ir_instructions();
     }
 
   public:

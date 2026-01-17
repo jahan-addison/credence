@@ -71,7 +71,7 @@ namespace m = matchit;
 void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     credence_assert(table->get_functions().contains(name));
     accessor_->stack->clear();
     stack_frame_.symbol = name;
@@ -82,8 +82,8 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     x8664_add__asm(inst, push, rbp);
     x8664_add__asm(inst, mov_, rbp, rsp);
     // align %rbp if there's a CALL in this stack frame
-    if (table->stack_frame_contains_call_instruction(
-            name, *accessor_->table_accessor.table_->get_ir_instructions())) {
+    if (table->stack_frame_contains_call_instruction(name,
+            *accessor_->table_accessor.get_table()->get_ir_instructions())) {
         auto imm = u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
             common::flag::Align, instruction_accessor->size());
@@ -97,10 +97,10 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
 void IR_Instruction_Visitor::from_func_end_ita()
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto frame = stack_frame_.get_stack_frame();
     if (table->stack_frame_contains_call_instruction(frame->get_symbol(),
-            *accessor_->table_accessor.table_->get_ir_instructions())) {
+            *accessor_->table_accessor.get_table()->get_ir_instructions())) {
         auto imm = u32_int_immediate(0);
         accessor_->flag_accessor.set_instruction_flag(
             common::flag::Align, instruction_accessor->size());
@@ -117,12 +117,13 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
 {
     auto locl_lvalue = std::get<1>(inst);
     auto frame = stack_frame_.get_stack_frame();
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& stack = accessor_->stack;
-    auto& locals = accessor_->table_accessor.table_->get_stack_frame_symbols();
+    auto& locals =
+        accessor_->table_accessor.get_table()->get_stack_frame_symbols();
 
     auto type_checker =
-        ir::Type_Checker{ accessor_->table_accessor.table_, frame };
+        ir::Type_Checker{ accessor_->table_accessor.get_table(), frame };
 
     // The storage of an immediate (and, really, all) relational
     // expressions will be the `al` register, 1 for true, 0 for false
@@ -171,7 +172,7 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
  */
 void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto frame = stack_frame_.get_stack_frame();
     stack_frame_.argument_stack.emplace_front(
         table->lvalue_at_temporary_object_address(std::get<1>(inst), frame));
@@ -246,7 +247,7 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
  */
 void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto lhs = ir::get_lvalue_from_mov_qaudruple(inst);
     auto rhs = ir::get_rvalue_from_mov_qaudruple(inst).first;
 
@@ -335,8 +336,8 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
 void IR_Instruction_Visitor::from_return_ita()
 {
     auto inserter = Expression_Inserter{ accessor_ };
-    auto frame =
-        accessor_->table_accessor.table_->get_functions()[stack_frame_.symbol];
+    auto frame = accessor_->table_accessor.get_table()
+                     ->get_functions()[stack_frame_.symbol];
     if (frame->get_ret().has_value())
         inserter.insert_from_return_rvalue(frame->get_ret());
 }
@@ -349,9 +350,10 @@ void IR_Instruction_Visitor::from_leave_ita()
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     // care must be taken in the main function during function epilogue
     if (stack_frame_.symbol == "main") {
-        if (accessor_->table_accessor.table_
+        if (accessor_->table_accessor.get_table()
                 ->stack_frame_contains_call_instruction(stack_frame_.symbol,
-                    *accessor_->table_accessor.table_->get_ir_instructions())) {
+                    *accessor_->table_accessor.get_table()
+                        ->get_ir_instructions())) {
             auto size = u32_int_immediate(
                 accessor_->stack->get_stack_frame_allocation_size());
             x8664_add__asm(accessor_->instruction_accessor->get_instructions(),

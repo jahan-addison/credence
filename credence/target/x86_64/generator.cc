@@ -231,11 +231,12 @@ Directives Data_Emitter::get_instructions_from_directive_type(
  */
 void Data_Emitter::set_data_strings()
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     for (auto const& string : table->get_strings()) {
-        auto data_instruction = assembly::asciz(
-            &accessor_->address_accessor.buffer_accessor.constant_size_index,
-            string);
+        auto data_instruction =
+            assembly::asciz(accessor_->address_accessor.buffer_accessor
+                                .get_constant_size_index(),
+                string);
         accessor_->address_accessor.buffer_accessor.insert_string_literal(
             string, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
@@ -247,11 +248,12 @@ void Data_Emitter::set_data_strings()
  */
 void Data_Emitter::set_data_floats()
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     for (auto const& floatz : table->get_floats()) {
-        auto data_instruction = assembly::floatz(
-            &accessor_->address_accessor.buffer_accessor.constant_size_index,
-            floatz);
+        auto data_instruction =
+            assembly::floatz(accessor_->address_accessor.buffer_accessor
+                                 .get_constant_size_index(),
+                floatz);
         accessor_->address_accessor.buffer_accessor.insert_float_literal(
             floatz, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
@@ -263,11 +265,12 @@ void Data_Emitter::set_data_floats()
  */
 void Data_Emitter::set_data_doubles()
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     for (auto const& doublez : table->get_doubles()) {
-        auto data_instruction = assembly::doublez(
-            &accessor_->address_accessor.buffer_accessor.constant_size_index,
-            doublez);
+        auto data_instruction =
+            assembly::doublez(accessor_->address_accessor.buffer_accessor
+                                  .get_constant_size_index(),
+                doublez);
         accessor_->address_accessor.buffer_accessor.insert_double_literal(
             doublez, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
@@ -279,7 +282,7 @@ void Data_Emitter::set_data_doubles()
  */
 void Data_Emitter::set_data_globals()
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     for (auto const& global : table->get_globals().get_pointers()) {
         credence_assert(table->get_vectors().contains(global));
         auto& vector = table->get_vectors().at(global);
@@ -429,7 +432,7 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
     Label const& s,
     bool set_label)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     // function labels
     if (table->get_hoisted_symbols().has_key(s) and
         table->get_hoisted_symbols()[s]["type"].to_string() ==
@@ -439,7 +442,8 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             emit_function_epilogue(os);
         frame_ = s;
         if (set_label)
-            label_size_ = accessor_->table_accessor.table_->get_functions()
+            label_size_ = accessor_->table_accessor.get_table()
+                              ->get_functions()
                               .at(s)
                               ->get_labels()
                               .size();

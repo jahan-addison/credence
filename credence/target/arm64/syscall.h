@@ -79,7 +79,7 @@ inline Register get_storage_register_from_safe_address(
     if (accessor != nullptr) {
         auto accessor_ = *accessor;
         if (memory::is_doubleword_storage_size(
-                argument, accessor_->stack, accessor_->stack_frame)) {
+                argument, accessor_->stack, accessor_->get_frame_in_memory())) {
             storage = w_registers.back();
         } else {
             storage = d_registers.back();

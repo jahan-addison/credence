@@ -203,8 +203,7 @@ struct Address_Accessor : public X8664_Address_Accessor
         : X8664_Address_Accessor(table, stack, flag_accessor)
     {
     }
-    bool is_qword_storage_size(assembly::Storage const& storage,
-        memory::Stack_Frame& stack_frame);
+    bool is_qword_storage_size(assembly::Storage const& storage) const;
 
     Address_Accessor::Address get_lvalue_address_and_insertion_instructions(
         LValue const& lvalue,

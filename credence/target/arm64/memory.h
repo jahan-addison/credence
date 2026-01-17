@@ -413,7 +413,7 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
         flag_accessor,
         register_accessor };
     detail::Device_Accessor device_accessor{ address_accessor,
-        stack_frame,
+        get_frame_in_memory(),
         stack };
     Instruction_Pointer instruction_accessor{};
 };

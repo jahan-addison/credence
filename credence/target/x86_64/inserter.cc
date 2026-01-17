@@ -99,7 +99,7 @@ void Instruction_Inserter::setup_stack_frame_in_function(
     IR_Instruction_Visitor& visitor,
     int index)
 {
-    auto stack_frame = accessor_->stack_frame;
+    auto stack_frame = accessor_->get_frame_in_memory();
     auto symbol = std::get<1>(ir_instructions.at(index - 1));
     auto name = type::get_label_as_human_readable(symbol);
     stack_frame.set_stack_frame(name);
@@ -171,7 +171,7 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
     Operand_Inserter operands{ accessor_ };
     syscall_ns::syscall_arguments_t arguments{};
     auto caller_frame = stack_frame_.get_stack_frame();
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     for (auto const& rvalue : stack_frame_.argument_stack) {
         if (rvalue == "RET") {
             credence_assert(table->get_functions().contains(stack_frame_.tail));
@@ -291,8 +291,8 @@ inline Storage Operand_Inserter::get_operand_storage_from_stack(
  */
 inline Storage Operand_Inserter::get_operand_storage_from_return()
 {
-    auto& tail_call =
-        accessor_->table_accessor.table_->get_functions()[stack_frame_.tail];
+    auto& tail_call = accessor_->table_accessor.get_table()
+                          ->get_functions()[stack_frame_.tail];
     if (tail_call->get_locals().is_pointer(tail_call->get_ret()->first) or
         type::is_rvalue_data_type_string(tail_call->get_ret()->first))
         return Register::rax;
@@ -459,7 +459,7 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -492,7 +492,7 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -691,7 +691,7 @@ Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
     auto is_vector = [&](RValue const& rvalue) {
-        return table_accessor.table_->get_vectors().contains(
+        return table_accessor.get_table()->get_vectors().contains(
             type::from_lvalue_offset(rvalue));
     };
 
@@ -947,8 +947,8 @@ void Operand_Inserter::insert_from_binary_operands(
     } else if (type::is_relation_binary_operator(op)) {
         auto relational = Relational_Operator_Inserter{ accessor_ };
         auto& ir_instructions =
-            accessor_->table_accessor.table_->get_ir_instructions();
-        auto ir_index = accessor_->table_accessor.index;
+            accessor_->table_accessor.get_table()->get_ir_instructions();
+        auto ir_index = accessor_->table_accessor.get_index();
         if (ir_instructions->size() > ir_index and
             std::get<0>(ir_instructions->at(ir_index + 1)) ==
                 ir::Instruction::IF) {
@@ -978,7 +978,7 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
     LValue const& lvalue)
 {
     auto frame = stack_frame_.get_stack_frame();
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto temporary = table->lvalue_at_temporary_object_address(lvalue, frame);
     insert_from_rvalue(temporary);
 }
@@ -1041,7 +1041,7 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
 void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& instructions = instruction_accessor->get_instructions();
 
     auto binary_inserter = Binary_Operator_Inserter{ accessor_ };
@@ -1182,7 +1182,7 @@ void Unary_Operator_Inserter::insert_from_unary_to_unary_assignment(
     auto& stack = accessor_->stack;
     auto registers = accessor_->register_accessor;
 
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto lhs_op = type::get_unary_operator(lhs);
     auto rhs_op = type::get_unary_operator(rhs);
 
@@ -1310,10 +1310,8 @@ Relational_Operator_Inserter::from_relational_expression_operands(
     Label const& jump_label)
 {
     auto register_storage = Register::eax;
-    if (accessor_->address_accessor.is_qword_storage_size(
-            operands.first, stack_frame_) or
-        accessor_->address_accessor.is_qword_storage_size(
-            operands.second, stack_frame_)) {
+    if (accessor_->address_accessor.is_qword_storage_size(operands.first) or
+        accessor_->address_accessor.is_qword_storage_size(operands.second)) {
         register_storage = Register::rax;
     }
 

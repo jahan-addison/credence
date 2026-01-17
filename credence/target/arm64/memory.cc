@@ -158,7 +158,8 @@ bool is_doubleword_storage_size(assembly::Storage const& storage,
 Register Memory_Accessor::get_accumulator_with_rvalue_context(
     Storage const& device)
 {
-    auto size = get_word_size_from_storage(device, stack, stack_frame);
+    auto size =
+        get_word_size_from_storage(device, stack, get_frame_in_memory());
     return table_accessor.next_ir_instruction_is_temporary() and
                    not table_accessor.last_ir_instruction_is_assignment()
                ? get_second_register_for_binary_operand(size)
@@ -267,6 +268,7 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
                 credence_assert(table_->get_vectors().contains(lhs));
                 auto vector = table_->get_vectors().at(lhs);
                 if (table_->get_globals().is_pointer(lhs)) {
+                    fmt::println("offset: {}", offset);
                     auto offset_storage =
                         vector_accessor.get_offset_address(lvalue, offset);
                     auto offset_arithmetic =
@@ -456,11 +458,7 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
 
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->get_vectors(), DEBUG_SOURCE);
-    auto size = get_size_from_rvalue_data_type(lvalue, rvalue);
-
-    credence_assert_message(assembly::is_valid_size(size), lvalue);
-
-    auto operand = static_cast<assembly::Operand_Size>(size);
+    auto operand = assembly::get_operand_size_from_rvalue_datatype(rvalue);
 
     switch (operand) {
         case assembly::Operand_Size::Empty:

@@ -69,14 +69,13 @@ inline Register get_storage_register_from_safe_address(
     assembly::Storage const& argument,
     memory::registers::general_purpose const& w_registers,
     memory::registers::general_purpose const& d_registers,
-    memory::Stack_Frame* stack_frame = nullptr,
+    memory::Stack_Frame const* stack_frame = nullptr,
     memory::Memory_Accessor const* accessor = nullptr)
 {
     Register storage = target::common::get_first_of_enum_t<Register>();
     if (accessor != nullptr and stack_frame != nullptr) {
-        auto accessor_ = *accessor;
-        if (accessor_.address_accessor.is_qword_storage_size(
-                argument, *stack_frame)) {
+        auto& accessor_ = *accessor;
+        if (accessor_.address_accessor.is_qword_storage_size(argument)) {
             storage = w_registers.back();
         } else {
             storage = d_registers.back();

@@ -12,20 +12,22 @@
  ****************************************************************************/
 
 #include "runtime.h"
-#include "assembly.h"                        // for Register, operator<<
-#include "stack.h"                           // for Stack
-#include <array>                             // for get, array
-#include <credence/error.h>                  // for credence_assert
-#include <credence/target/common/assembly.h> // for get_storage_as_string
-#include <credence/target/common/types.h>    // for Stack_Offset
-#include <credence/target/x86_64/memory.h>   // for Register, Address_Accessor
-#include <credence/types.h>                  // for get_type_from_rvalue_da...
-#include <credence/util.h>                   // for contains, __source__
-#include <deque>                             // for deque
-#include <fmt/format.h>                      // for format
-#include <initializer_list>                  // for initializer_list
-#include <stdexcept>                         // for out_of_range
-#include <variant>                           // for get, monostate, visit
+#include "assembly.h"                           // for Register, operator<<
+#include "memory.h"                             // for Register, Address_Ac...
+#include "stack.h"                              // for Stack
+#include <array>                                // for get, array
+#include <credence/error.h>                     // for credence_assert
+#include <credence/ir/object.h>                 // for get_rvalue_at_lvalue...
+#include <credence/target/common/assembly.h>    // for get_storage_as_string
+#include <credence/target/common/runtime.h>     // for library_list
+#include <credence/target/common/stack_frame.h> // for Locals
+#include <credence/target/common/types.h>       // for Stack_Offset
+#include <credence/types.h>                     // for get_type_from_rvalue...
+#include <credence/util.h>                      // for contains, __source__
+#include <deque>                                // for deque
+#include <fmt/format.h>                         // for format
+#include <stdexcept>                            // for out_of_range
+#include <variant>                              // for get, monostate, visit
 
 /****************************************************************************
  *
@@ -108,7 +110,7 @@ Library_Call_Inserter::get_available_standard_library_register(
     std::size_t index)
 {
     Register storage = Register::eax;
-    auto address_accessor = accessor_->address_accessor;
+    auto& address_accessor = accessor_->address_accessor;
     try {
         if (address_accessor.is_lvalue_storage_type(
                 argument_stack.at(index), "float") or
@@ -202,7 +204,7 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
     credence_assert(common::runtime::library_list.contains(syscall_function));
     auto [arg_size] = common::runtime::library_list.at(syscall_function);
 
-    auto address_space = accessor_->address_accessor;
+    auto& address_space = accessor_->address_accessor;
 
     library_call_argument_check(syscall_function, arguments, arg_size);
 
@@ -218,7 +220,7 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
                 : "";
 
         auto float_size = xmm_registers_.size();
-        if (address_space.is_qword_storage_size(arg, stack_frame_))
+        if (address_space.is_qword_storage_size(arg))
             storage = get_available_standard_library_register(
                 qword_storage, locals, i);
         else

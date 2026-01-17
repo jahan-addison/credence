@@ -71,7 +71,7 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     credence_assert(table->get_functions().contains(name));
     accessor_->device_accessor.reset_storage_devices();
     stack_frame_.symbol = name;
@@ -102,7 +102,7 @@ void IR_Instruction_Visitor::from_cmp_ita(
  */
 void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto lhs = ir::get_lvalue_from_mov_qaudruple(inst);
     auto rhs = ir::get_rvalue_from_mov_qaudruple(inst).first;
 
@@ -182,7 +182,7 @@ void IR_Instruction_Visitor::set_pointer_address_of_lvalue(LValue const& lvalue)
 void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto frame = stack_frame_.get_stack_frame();
     stack_frame_.argument_stack.emplace_front(
         table->lvalue_at_temporary_object_address(std::get<1>(inst), frame));
@@ -194,8 +194,8 @@ void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 void IR_Instruction_Visitor::from_return_ita()
 {
     auto inserter = Expression_Inserter{ accessor_ };
-    auto frame =
-        accessor_->table_accessor.table_->get_functions()[stack_frame_.symbol];
+    auto frame = accessor_->table_accessor.get_table()
+                     ->get_functions()[stack_frame_.symbol];
     if (frame->get_ret().has_value())
         inserter.insert_from_return_rvalue(frame->get_ret());
 }
@@ -318,7 +318,7 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
 void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
 {
     auto locl_lvalue = std::get<1>(inst);
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& stack = accessor_->stack;
     auto is_vector = [&](RValue const& rvalue) {
         return table->get_vectors().contains(type::from_lvalue_offset(rvalue));

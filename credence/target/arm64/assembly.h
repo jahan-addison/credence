@@ -508,9 +508,6 @@ constexpr bool is_vector_register(Register r)
 /**
  * @brief Get the dword (32-bit) register corresponding to a qword (64-bit)
  * register
- *
- * ARM64 uses x0-x30 for 64-bit registers and w0-w30 for 32-bit registers.
- * This function maps xN -> wN
  */
 constexpr Register get_word_register_from_doubleword(Register r)
 {
@@ -608,7 +605,7 @@ constexpr Operand_Size get_operand_size_from_rvalue_datatype(
             [&] { return Operand_Size::Doubleword; },
         m::pattern | T{ "float" } = [&] { return Operand_Size::Word; },
         m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
-        m::pattern | T{ "string" } = [&] { return Operand_Size::Word; },
+        m::pattern | T{ "string" } = [&] { return Operand_Size::Doubleword; },
         m::pattern | m::_ = [&] { return Operand_Size::Word; });
 }
 
@@ -621,7 +618,7 @@ constexpr Operand_Size get_operand_size_from_type(type::semantic::Type type)
             [&] { return Operand_Size::Doubleword; },
         m::pattern | T{ "float" } = [&] { return Operand_Size::Word; },
         m::pattern | T{ "char" } = [&] { return Operand_Size::Byte; },
-        m::pattern | T{ "string" } = [&] { return Operand_Size::Word; },
+        m::pattern | T{ "string" } = [&] { return Operand_Size::Doubleword; },
         m::pattern | m::_ = [&] { return Operand_Size::Word; });
 }
 

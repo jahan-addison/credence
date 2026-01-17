@@ -12,15 +12,17 @@
  ****************************************************************************/
 
 #include "syscall.h"
-#include "assembly.h"                        // for Instructions, arm_add_a...
+#include "assembly.h"                        // for Mnemonic, arm64_add__asm
 #include "memory.h"                          // for Memory_Access, Memory_A...
-#include "runtime.h"                         // for get_argument_general_pu..
+#include "runtime.h"                         // for get_argument_general_pu...
 #include <credence/error.h>                  // for assert_equal_impl, cred...
 #include <credence/target/common/assembly.h> // for make_numeric_immediate
-#include <credence/target/common/syscall.h>  // for get_syscall_list
-#include <string>                            // for basic_string
+#include <credence/target/common/syscall.h>  // for get_syscall_list, sysca...
+#include <credence/types.h>                  // for get_value_from_rvalue_d...
+#include <fmt/format.h>                      // for format
+#include <string>                            // for basic_string, char_traits
 #include <utility>                           // for get
-#include <variant>                           // for variant
+#include <variant>                           // for get, variant
 
 /****************************************************************************
  *

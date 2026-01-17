@@ -15,17 +15,18 @@
 
 #include "assembly.h"                           // for Register, operator<<
 #include "credence/ir/object.h"                 // for get_rvalue_at_lvalue...
+#include "credence/target/common/flags.h"       // for Instruction_Flag
 #include "credence/target/common/runtime.h"     // for library_list
 #include "credence/target/common/stack_frame.h" // for Locals
 #include "matchit.h"                            // for Or, Wildcard, pattern
+#include "memory.h"                             // for Register, Address_Ac...
 #include "stack.h"                              // for Stack
 #include <array>                                // for get, array
 #include <credence/error.h>                     // for credence_assert
-#include <credence/target/arm64/memory.h>       // for Register, Address_Ac...
 #include <credence/target/common/assembly.h>    // for get_storage_as_string
-#include <credence/target/common/types.h>       // for Immediate, Stack_Offset
+#include <credence/target/common/types.h>       // for Stack_Offset, Immediate
 #include <credence/types.h>                     // for get_type_from_rvalue...
-#include <credence/util.h>                      // for contains, sv, __sour...
+#include <credence/util.h>                      // for contains, sv, is_var...
 #include <deque>                                // for deque
 #include <fmt/format.h>                         // for format
 #include <stdexcept>                            // for out_of_range
@@ -114,7 +115,7 @@ Library_Call_Inserter::get_available_standard_library_register(
     common::memory::Locals& argument_stack,
     std::size_t index)
 {
-    auto address_accessor = accessor_->address_accessor;
+    auto& address_accessor = accessor_->address_accessor;
     Register storage = Register::w0;
     try {
         if (address_accessor.is_lvalue_storage_type(

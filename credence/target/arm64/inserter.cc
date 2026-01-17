@@ -75,8 +75,8 @@ void Bitwise_Operator_Inserter::get_operand_stack_from_temporary_lvalue(
     LValue const& lvalue,
     Operand_Stack& stack)
 {
-    auto& table = accessor_->table_accessor.table_;
-    auto stack_frame = accessor_->stack_frame;
+    auto& table = accessor_->table_accessor.get_table();
+    auto stack_frame = accessor_->get_frame_in_memory();
     auto frame = stack_frame.get_stack_frame();
     auto rvalue = table->lvalue_at_temporary_object_address(lvalue, frame);
     auto& locals = frame->get_locals();
@@ -111,7 +111,7 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
     RValue const& rvalue)
 {
     credence_assert(type::is_binary_expression(rvalue));
-    auto frame = accessor_->stack_frame.get_stack_frame();
+    auto frame = accessor_->get_frame_in_memory().get_stack_frame();
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto& immediate_stack = accessor_->address_accessor.immediate_stack;
     auto& devices = accessor_->device_accessor;
@@ -149,7 +149,7 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
             m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
             [&] {
                 auto size = assembly::get_operand_size_from_size(
-                    accessor_->table_accessor.table_
+                    accessor_->table_accessor.get_table()
                         ->lvalue_size_at_temporary_object_address(lhs, frame));
                 if (!immediate_stack.empty()) {
                     lhs_s = devices.get_operand_rvalue_device(lhs);
@@ -208,7 +208,7 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
         if (is_variant(Immediate, lhs_s)) {
             auto intermediate = memory::get_second_register_for_binary_operand(
                 memory::get_word_size_from_storage(
-                    lhs_s, accessor_->stack, accessor_->stack_frame));
+                    lhs_s, accessor_->stack, accessor_->get_frame_in_memory()));
             arm64_add__asm(instructions, mov, intermediate, lhs_s);
             lhs_s = intermediate;
         }
@@ -226,7 +226,7 @@ void Instruction_Inserter::setup_stack_frame_in_function(
     IR_Instruction_Visitor& visitor,
     int index)
 {
-    auto stack_frame = accessor_->stack_frame;
+    auto stack_frame = accessor_->get_frame_in_memory();
     auto symbol = std::get<1>(ir_instructions.at(index - 1));
     auto name = type::get_label_as_human_readable(symbol);
     stack_frame.set_stack_frame(name);
@@ -253,7 +253,7 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -287,7 +287,7 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -323,8 +323,10 @@ common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
         accessor_->device_accessor.get_device_by_lvalue_reference(rvalue);
     address_space.address_ir_assignment = true;
     accessor_->stack->allocate_pointer_on_stack();
-    accessor_->stack_frame.get_stack_frame()->get_pointers().emplace_back(
-        rvalue);
+    accessor_->get_frame_in_memory()
+        .get_stack_frame()
+        ->get_pointers()
+        .emplace_back(rvalue);
 
     accessor_->stack->add_address_location_to_stack(rvalue);
 
@@ -460,8 +462,9 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                 rhs_s = devices.get_operand_rvalue_device(rhs);
 
                 if (table_accessor.last_ir_instruction_is_assignment()) {
-                    auto size = memory::get_word_size_from_storage(
-                        lhs_s, accessor_->stack, accessor_->stack_frame);
+                    auto size = memory::get_word_size_from_storage(lhs_s,
+                        accessor_->stack,
+                        accessor_->get_frame_in_memory());
                     auto acc =
                         accumulator.get_accumulator_register_from_size(size);
                     arm64_add__asm(instructions, mov, acc, lhs_s);
@@ -503,16 +506,18 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
             [&] {
                 rhs_s = devices.get_operand_rvalue_device(rhs);
                 lhs_s = accumulator.get_accumulator_register_from_size(
-                    memory::get_word_size_from_storage(
-                        rhs_s, accessor_->stack, accessor_->stack_frame));
+                    memory::get_word_size_from_storage(rhs_s,
+                        accessor_->stack,
+                        accessor_->get_frame_in_memory()));
             },
         m::pattern |
             m::ds(m::app(is_temporary, false), m::app(is_temporary, true)) =
             [&] {
                 lhs_s = devices.get_operand_rvalue_device(lhs);
                 rhs_s = accumulator.get_accumulator_register_from_size(
-                    memory::get_word_size_from_storage(
-                        lhs_s, accessor_->stack, accessor_->stack_frame));
+                    memory::get_word_size_from_storage(lhs_s,
+                        accessor_->stack,
+                        accessor_->get_frame_in_memory()));
             },
         m::pattern | m::ds(m::_, m::_) =
             [&] {
@@ -532,7 +537,7 @@ Operand_Size Unary_Operator_Inserter::get_operand_size_from_lvalue_reference(
     auto& device_accessor = accessor_->device_accessor;
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto is_vector = [&](RValue const& rvalue) {
-        return accessor_->table_accessor.table_->get_vectors().contains(
+        return accessor_->table_accessor.get_table()->get_vectors().contains(
             type::from_lvalue_offset(rvalue));
     };
     auto is_address = [&](RValue const& rvalue) {
@@ -563,7 +568,7 @@ Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
     RValue const& rvalue)
 {
     auto size = get_operand_size_from_lvalue_reference(rvalue);
-    auto frame = accessor_->table_accessor.table_->get_stack_frame();
+    auto frame = accessor_->table_accessor.get_table()->get_stack_frame();
     auto acc = accessor_->get_accumulator_with_rvalue_context(size);
     return acc;
 }
@@ -585,7 +590,7 @@ Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
     auto op = type::get_unary_operator(expr);
     RValue rvalue = type::get_unary_rvalue_reference(expr);
     auto is_vector = [&](RValue const& rvalue) {
-        return accessor_->table_accessor.table_->get_vectors().contains(
+        return accessor_->table_accessor.get_table()->get_vectors().contains(
             type::from_lvalue_offset(rvalue));
     };
     auto is_address = [&](RValue const& rvalue) {
@@ -632,7 +637,7 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto& table_accessor = accessor_->table_accessor;
-    auto frame = accessor_->table_accessor.table_->get_stack_frame();
+    auto frame = accessor_->table_accessor.get_table()->get_stack_frame();
     auto index = accessor_->instruction_accessor->size();
 
     m::match(op)(
@@ -647,7 +652,7 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
         m::pattern | std::string{ "~" } =
             [&] {
                 auto size = memory::get_word_size_from_storage(
-                    dest, accessor_->stack, accessor_->stack_frame);
+                    dest, accessor_->stack, accessor_->get_frame_in_memory());
                 if (table_accessor.is_ir_instruction_temporary() and
                     table_accessor.next_ir_instruction_is_temporary()) {
                     auto acc =
@@ -670,7 +675,7 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
         m::pattern | std::string{ "*" } =
             [&] {
                 auto size = memory::get_word_size_from_storage(
-                    dest, accessor_->stack, accessor_->stack_frame);
+                    dest, accessor_->stack, accessor_->get_frame_in_memory());
                 auto acc = accessor_->get_accumulator_with_rvalue_context(size);
                 if (!assembly::is_equal_storage_devices(acc, dest)) {
                     arm64_add__asm(instructions, mov, acc, dest);
@@ -698,7 +703,7 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
     LValue const& lvalue)
 {
     auto frame = stack_frame_.get_stack_frame();
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto temporary = table->lvalue_at_temporary_object_address(lvalue, frame);
 
     insert_from_temporary_rvalue(temporary);
@@ -719,7 +724,7 @@ void Expression_Inserter::insert_from_return_rvalue(
     auto immediate =
         operand_inserter.get_operand_storage_from_rvalue(ret->second);
     if (memory::is_doubleword_storage_size(
-            immediate, accessor_->stack, accessor_->stack_frame))
+            immediate, accessor_->stack, accessor_->get_frame_in_memory()))
         arm64_add__asm(instructions, mov, x0, immediate);
     else
         arm64_add__asm(instructions, mov, w0, immediate);
@@ -731,7 +736,7 @@ void Expression_Inserter::insert_from_return_rvalue(
 void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     auto& instructions = instruction_accessor->get_instructions();
 
     auto binary_inserter = Binary_Operator_Inserter{ accessor_ };
@@ -855,7 +860,7 @@ void Unary_Operator_Inserter::insert_from_unary_to_unary_assignment(
         type::get_unary_operator(rhs))(m::pattern | m::ds("*", "*") = [&] {
         auto frame = stack_frame_.get_stack_frame();
         auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
-            lhs, frame, accessor_->table_accessor.table_->get_vectors());
+            lhs, frame, accessor_->table_accessor.get_table()->get_vectors());
         auto size = assembly::get_operand_size_from_size(
             devices.get_size_from_rvalue_data_type(lhs, rvalue));
         auto acc =
@@ -903,9 +908,9 @@ void Operand_Inserter::insert_from_binary_operands(
         m::pattern | m::app(type::is_binary_arithmetic_operator, true) =
             [&] {
                 auto relational = Relational_Operator_Inserter{ accessor_ };
-                auto& ir_instructions =
-                    accessor_->table_accessor.table_->get_ir_instructions();
-                auto ir_index = accessor_->table_accessor.index;
+                auto& ir_instructions = accessor_->table_accessor.get_table()
+                                            ->get_ir_instructions();
+                auto ir_index = accessor_->table_accessor.get_index();
                 if (ir_instructions->size() > ir_index and
                     std::get<0>(ir_instructions->at(ir_index + 1)) ==
                         ir::Instruction::IF) {
@@ -1029,7 +1034,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 } else {
                     auto frame = stack_frame_.get_stack_frame();
                     auto size = assembly::get_operand_size_from_size(
-                        accessor_->table_accessor.table_
+                        accessor_->table_accessor.get_table()
                             ->lvalue_size_at_temporary_object_address(
                                 rhs, frame));
                     auto acc =
@@ -1082,8 +1087,8 @@ inline Storage Operand_Inserter::get_operand_storage_from_stack(
  */
 inline Storage Operand_Inserter::get_operand_storage_from_return()
 {
-    auto& tail_call =
-        accessor_->table_accessor.table_->get_functions()[stack_frame_.tail];
+    auto& tail_call = accessor_->table_accessor.get_table()
+                          ->get_functions()[stack_frame_.tail];
     if (tail_call->get_locals().is_pointer(tail_call->get_ret()->first) or
         type::is_rvalue_data_type_string(tail_call->get_ret()->first))
         return Register::x8;
@@ -1210,7 +1215,7 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
     Operand_Inserter operands{ accessor_ };
     syscall_ns::syscall_arguments_t arguments{};
     auto caller_frame = stack_frame_.get_stack_frame();
-    auto& table = accessor_->table_accessor.table_;
+    auto& table = accessor_->table_accessor.get_table();
     for (auto const& rvalue : stack_frame_.argument_stack) {
         if (rvalue == "RET") {
             credence_assert(table->get_functions().contains(stack_frame_.tail));
@@ -1309,7 +1314,7 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
     assembly::Assignment_Operands const& operands,
     std::string const& binary_op)
 {
-    auto frame = accessor_->table_accessor.table_->get_stack_frame();
+    auto frame = accessor_->table_accessor.get_table()->get_stack_frame();
     Instruction_Pair instructions{ Register::w8, {} };
     m::match(binary_op)(
         m::pattern | std::string{ "*" } =
@@ -1366,10 +1371,12 @@ Instructions Relational_Operator_Inserter::from_relational_expression_operands(
     Label const& jump_label)
 {
     auto register_storage = Register::w8;
-    if (memory::is_doubleword_storage_size(
-            operands.first, accessor_->stack, accessor_->stack_frame) or
-        memory::is_doubleword_storage_size(
-            operands.second, accessor_->stack, accessor_->stack_frame)) {
+    if (memory::is_doubleword_storage_size(operands.first,
+            accessor_->stack,
+            accessor_->get_frame_in_memory()) or
+        memory::is_doubleword_storage_size(operands.second,
+            accessor_->stack,
+            accessor_->get_frame_in_memory())) {
         register_storage = Register::x8;
     }
 

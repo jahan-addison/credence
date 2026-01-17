@@ -79,14 +79,13 @@ assembly::Register get_storage_register_from_safe_address(
     assembly::Storage argument,
     std::deque<assembly::Register>& qword_registers,
     std::deque<assembly::Register>& dword_registers,
-    memory::Stack_Frame* stack_frame,
+    [[maybe_unused]] memory::Stack_Frame* stack_frame,
     memory::Memory_Access* accessor)
 {
     Register storage = Register::rdi;
     if (accessor != nullptr) {
         auto accessor_ = *accessor;
-        if (accessor_->address_accessor.is_qword_storage_size(
-                argument, *stack_frame)) {
+        if (accessor_->address_accessor.is_qword_storage_size(argument)) {
             storage = qword_registers.back();
         } else {
             storage = dword_registers.back();

@@ -56,7 +56,7 @@ class IR_Instruction_Visitor final : public X8664_IR_Visitor
   public:
     explicit IR_Instruction_Visitor(memory::Memory_Access& accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
 

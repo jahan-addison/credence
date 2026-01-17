@@ -13,19 +13,24 @@
 
 #pragma once
 
-#include "assembly.h"
-#include "flags.h"
-#include "memory.h"
-#include "stack_frame.h"
-#include "types.h"
+#include "stack_frame.h"        // for Locals
+#include "types.h"              // for RValue, LValue, Stack_Pointer, Table...
+#include <concepts>             // for derived_from
+#include <credence/ir/object.h> // for Object, get_rvalue_at_lvalue_object_...
+#include <credence/symbol.h>    // for Symbol_Table
+#include <credence/types.h>     // for from_lvalue_offset, get_rvalue_data_...
+#include <credence/util.h>      // for __source__, overload
+#include <cstddef>              // for size_t
+#include <deque>                // for deque
+#include <memory>               // for shared_ptr, unique_ptr
+#include <string>               // for basic_string, char_traits, string
+#include <string_view>          // for basic_string_view, operator==, strin...
+#include <utility>              // for pair
+#include <variant>              // for monostate, visit
 
-#include <concepts>
-#include <credence/ir/object.h>
-#include <credence/types.h>
-#include <credence/util.h>
-#include <matchit.h>
-#include <memory>
-#include <string>
+namespace credence::target::common {
+struct Flag_Accessor;
+}
 
 /****************************************************************************
  *
@@ -34,23 +39,6 @@
  * Provides access to the object table (globals, functions, vectors) and
  * stack frame during assembly code generation.
  *
- * Example - accessing trivial global vectors:
- *
- *   counter 0;
- *
- * Accessor retrieves trivial vector 'counter' from object table and emits:
- *
- *   .data
- *   counter: .quad 0
- *
- * Example - function stack frames:
- *
- *   add(x, y) {
- *     auto temp;
- *     temp = x + y;
- *     return(temp);
- *   }
- *
  ****************************************************************************/
 
 namespace credence::target::common::memory {
@@ -58,13 +46,17 @@ namespace credence::target::common::memory {
 class Memory_Accessor
 {
   public:
-    explicit Memory_Accessor(std::shared_ptr<ir::object::Object> objects)
-        : stack_frame(objects)
-    {
-    }
+    explicit Memory_Accessor(std::shared_ptr<ir::object::Object> objects);
+    ~Memory_Accessor();
+    Memory_Accessor(const Memory_Accessor&) = delete;
+    Memory_Accessor& operator=(const Memory_Accessor&) = delete;
 
-  public:
-    Stack_Frame stack_frame;
+    Stack_Frame& get_frame_in_memory();
+    const Stack_Frame& get_frame_in_memory() const;
+
+  private:
+    struct impl;
+    std::unique_ptr<impl> pimpl;
 };
 
 template<typename T>
@@ -79,276 +71,71 @@ class Address_Accessor;
 class Buffer_Accessor
 {
   public:
-    explicit Buffer_Accessor(Table_Pointer& table)
-        : table_(table)
-    {
-    }
+    explicit Buffer_Accessor(Table_Pointer& table);
+    ~Buffer_Accessor();
 
-    /**
-     * @brief Get the size of a string in the object table at compile-time
-     */
-  public:
+    Buffer_Accessor(const Buffer_Accessor&) = delete;
+    Buffer_Accessor& operator=(const Buffer_Accessor&) = delete;
+
     Size get_size_of_string_lvalue_buffer_address(LValue const& lvalue,
-        Stack_Frame const& stack_frame)
-    {
-        auto lhs = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_decay_offset(lvalue);
-        auto& vectors = table_->get_vectors();
-        auto frame = stack_frame.get_stack_frame();
+        Stack_Frame const& stack_frame);
 
-        if (lvalue == "RET")
-            return get_size_of_return_string(stack_frame);
-
-        if (table_->get_stack_frame_symbols().is_defined(lvalue))
-            return get_size_in_local_address(lvalue, stack_frame);
-
-        if (type::is_dereference_expression(lvalue)) {
-            return type::get_size_from_rvalue_data_type(
-                ir::object::get_rvalue_at_lvalue_object_storage(
-                    type::get_unary_rvalue_reference(lvalue), frame, vectors));
-        }
-
-        if (is_global_vector(lhs)) {
-            std::string key{};
-            auto vector = table_->get_vectors().at(lhs);
-            if (util::is_numeric(offset)) {
-                key = offset;
-            } else {
-                auto index = ir::object::get_rvalue_at_lvalue_object_storage(
-                    offset, frame, vectors, __source__);
-                key =
-                    std::string{ type::get_value_from_rvalue_data_type(index) };
-            }
-            return type::get_size_from_rvalue_data_type(
-                vector->get_data().at(key));
-        }
-
-        if (is_vector_offset(lvalue)) {
-            std::string key{};
-            auto vector = table_->get_vectors().at(lhs);
-            if (util::is_numeric(offset)) {
-                key = offset;
-            } else {
-                auto index = ir::object::get_rvalue_at_lvalue_object_storage(
-                    offset, frame, vectors, __source__);
-                key =
-                    std::string{ type::get_value_from_rvalue_data_type(index) };
-            }
-            return type::get_size_from_rvalue_data_type(
-                vector->get_data().at(key));
-        }
-
-        if (is_immediate(lvalue))
-            return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(lvalue));
-        else
-            return type::get_size_from_rvalue_data_type(
-                ir::object::get_rvalue_at_lvalue_object_storage(
-                    lvalue, frame, vectors, __source__));
-    }
-
-    /**
-     * @brief Set a buffer size from an object in the cache maps
-     */
     void set_buffer_size_from_syscall(std::string_view routine,
-        memory::Locals& argument_stack)
-    {
-        credence_assert(!argument_stack.empty());
-        namespace m = matchit;
-        m::match(routine)(m::pattern | m::or_(sv("read")) = [&] {
-            auto argument = argument_stack.back();
-            if (credence::util::is_numeric(argument))
-                read_bytes_cache_ = std::stoul(argument);
-            else if (type::is_rvalue_data_type_a_type(argument, "int"))
-                read_bytes_cache_ =
-                    std::stoul(type::get_value_from_rvalue_data_type(argument));
-        });
-    }
+        memory::Locals& argument_stack);
 
-    /**
-     * @brief Compile-time buffer storage for syscalls
-     */
+    bool has_bytes();
 
-    constexpr bool has_bytes() { return read_bytes_cache_ == 0UL; }
+    std::size_t read_bytes();
+    void insert_string_literal(RValue const& key, Label const& asciz_address);
+    void insert_float_literal(RValue const& key, Label const& floatz_address);
+    void insert_double_literal(RValue const& key, Label const& doublez_address);
+    RValue get_string_address_offset(RValue const& string);
 
-    constexpr std::size_t read_bytes()
-    {
-        auto read_bytes = read_bytes_cache_;
-        read_bytes_cache_ = 0;
-        return read_bytes;
-    }
-    Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
-        auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table_->get_vectors().contains(rvalue_reference) and
-               table_->get_globals().is_pointer(rvalue_reference);
-    };
+    RValue get_float_address_offset(RValue const& string);
+    RValue get_double_address_offset(RValue const& string);
+    bool is_allocated_string(RValue const& rvalue);
+    bool is_allocated_float(RValue const& rvalue);
+    bool is_allocated_double(RValue const& rvalue);
+
+    std::size_t* get_constant_size_index();
+    void set_constant_size_index(std::size_t index);
 
   private:
-    /**
-     * @brief Get the size of a string return from the object table
-     */
-    Size get_size_of_return_string(Stack_Frame const& stack_frame)
-    {
-        credence_assert(table_->get_functions().contains(stack_frame.tail));
-        auto tail_frame = table_->get_functions().at(stack_frame.tail);
-        auto return_rvalue = tail_frame->get_ret()->second;
-
-        if (tail_frame->is_parameter(return_rvalue)) {
-            credence_assert(table_->get_functions().contains(
-                stack_frame.call_stack.back()));
-            auto last_stack_frame =
-                table_->get_functions().at(stack_frame.call_stack.back());
-            if (last_stack_frame->get_locals().is_pointer(
-                    tail_frame->get_ret()->first)) {
-                return type::get_size_from_rvalue_data_type(
-                    type::get_rvalue_datatype_from_string(
-                        last_stack_frame->get_locals().get_pointer_by_name(
-                            tail_frame->get_ret()->first)));
-            }
-            if (type::is_rvalue_data_type(tail_frame->get_ret()->first))
-                return type::get_size_from_rvalue_data_type(
-                    type::get_rvalue_datatype_from_string(
-                        tail_frame->get_ret()->first));
-            return type::get_size_from_rvalue_data_type(
-                last_stack_frame->get_locals().get_symbol_by_name(
-                    tail_frame->get_ret()->first));
-        }
-        return type::get_size_from_rvalue_data_type(
-            type::get_rvalue_datatype_from_string(
-                tail_frame->get_ret()->first));
-    }
-
-    /**
-     * @brief Get the size of an lvalue in the local symbol table
-     */
     Size get_size_in_local_address(LValue const& lvalue,
-        Stack_Frame const& stack_frame)
-    {
-        auto frame = stack_frame.get_stack_frame();
-        auto& locals = table_->get_stack_frame_symbols();
-        if (locals.is_pointer(lvalue) and
-            type::is_rvalue_data_type_string(
-                locals.get_pointer_by_name(lvalue))) {
-            return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(
-                    locals.get_pointer_by_name(lvalue)));
-        }
-        if (locals.is_pointer(lvalue)) {
-            auto rvalue_address =
-                ir::object::get_rvalue_at_lvalue_object_storage(
-                    lvalue, frame, table_->get_vectors(), __source__);
-            return type::get_size_from_rvalue_data_type(rvalue_address);
-        }
-        auto local_symbol = locals.get_symbol_by_name(lvalue);
-        auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
-        if (local_rvalue == "RET") {
-            credence_assert(table_->get_functions().contains(stack_frame.tail));
-            auto tail_frame = table_->get_functions().at(stack_frame.tail);
-            return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(
-                    tail_frame->get_ret()->first));
-        }
-        return type::get_size_from_rvalue_data_type(local_symbol);
-    }
-
-  public:
-    void insert_string_literal(RValue const& key, Label const& asciz_address)
-    {
-        string_cache_.insert_or_assign(key, asciz_address);
-    }
-    void insert_float_literal(RValue const& key, Label const& floatz_address)
-    {
-        float_cache_.insert_or_assign(key, floatz_address);
-    }
-    void insert_double_literal(RValue const& key, Label const& doublez_address)
-    {
-        double_cache_.insert_or_assign(key, doublez_address);
-    }
-    RValue get_string_address_offset(RValue const& string)
-    {
-        credence_assert(is_allocated_string(string));
-        return string_cache_.at(string);
-    }
-
-    RValue get_float_address_offset(RValue const& string)
-    {
-        credence_assert(is_allocated_float(string));
-        return float_cache_.at(string);
-    }
-    RValue get_double_address_offset(RValue const& string)
-    {
-        credence_assert(is_allocated_double(string));
-        return double_cache_.at(string);
-    }
-    bool is_allocated_string(RValue const& rvalue)
-    {
-        return string_cache_.contains(rvalue);
-    }
-    bool is_allocated_float(RValue const& rvalue)
-    {
-        return float_cache_.contains(rvalue);
-    }
-    bool is_allocated_double(RValue const& rvalue)
-    {
-        return double_cache_.contains(rvalue);
-    }
+        Stack_Frame const& stack_frame);
+    Size get_size_of_return_string(Stack_Frame const& stack_frame);
 
   private:
-    Table_Pointer& table_;
-
-  public:
-    std::size_t constant_size_index{ 0 };
-
-  private:
-    std::map<std::string, RValue> string_cache_{};
-    std::map<std::string, RValue> float_cache_{};
-    std::map<std::string, RValue> double_cache_{};
-    std::size_t read_bytes_cache_{ 0 };
+    struct impl;
+    std::unique_ptr<impl> pimpl;
 };
 
 /**
  * @brief
- * Table accessor for access to the table, type checker, and current
- * index in the IR visitor during code translation.
+ * Table accessor for access to the object table and type checker
  */
 struct Table_Accessor
 {
     Table_Accessor() = delete;
-    explicit Table_Accessor(Table_Pointer& table)
-        : table_(table)
-    {
-    }
-    constexpr void set_ir_iterator_index(unsigned int index_)
-    {
-        index = index_;
-    }
-    bool is_ir_instruction_temporary()
-    {
-        return type::is_temporary(
-            std::get<1>(table_->get_ir_instructions()->at(index)));
-    }
-    std::string get_ir_instruction_lvalue()
-    {
-        return std::get<1>(table_->get_ir_instructions()->at(index));
-    }
-    bool last_ir_instruction_is_assignment()
-    {
-        if (index < 1)
-            return false;
-        auto last = table_->get_ir_instructions()->at(index - 1);
-        return std::get<0>(last) == ir::Instruction::MOV and
-               not type::is_temporary(std::get<1>(last));
-    }
-    bool next_ir_instruction_is_temporary()
-    {
-        if (table_->get_ir_instructions()->size() < index + 1)
-            return false;
-        auto next = table_->get_ir_instructions()->at(index + 1);
-        return std::get<0>(next) == ir::Instruction::MOV and
-               type::is_temporary(std::get<1>(next));
-    }
-    Table_Pointer& table_;
-    unsigned int index{ 0 };
+    explicit Table_Accessor(Table_Pointer& table);
+    ~Table_Accessor();
+
+    Table_Accessor(const Table_Accessor&) = delete;
+    Table_Accessor& operator=(const Table_Accessor&) = delete;
+
+    void set_ir_iterator_index(unsigned int index_);
+    bool is_ir_instruction_temporary();
+    std::string get_ir_instruction_lvalue();
+    bool last_ir_instruction_is_assignment();
+    bool next_ir_instruction_is_temporary();
+
+    Table_Pointer& get_table();
+    const Table_Pointer& get_table() const;
+    unsigned int get_index() const;
+
+  private:
+    struct impl;
+    std::unique_ptr<impl> pimpl;
 };
 
 /**
@@ -399,90 +186,31 @@ class Vector_Accessor
      * @brief Get the offset address of a vector from its lvalue and rvalue
      * offset
      */
-    inline Entry_Pair get_offset_address(LValue const& lvalue,
-        RValue const& offset)
-    {
-        auto frame = table_->get_stack_frame();
-        auto& vectors = table_->get_vectors();
-        auto vector = type::from_lvalue_offset(lvalue);
-
-        type_check_invalid_vector_symbol(vector, offset);
-
-        if (!is_vector_offset(lvalue))
-            return get_offset_from_trivial_vector(vector);
-
-        if (table_->get_hoisted_symbols().has_key(offset))
-            return get_offset_from_hoisted_symbols(vector, offset);
-
-        if (value::is_integer_string(offset))
-            return get_offset_from_integer_rvalue(vector, offset);
-
-        return std::make_pair(0UL,
-            get_size_from_vector_offset(
-                vectors.at(vector)->get_data().at("0")));
-    }
+    Entry_Pair get_offset_address(LValue const& lvalue, RValue const& offset);
 
   private:
     /**
      * @brief Get the offset in vector from hoisted symbols
      */
-    inline Entry_Pair get_offset_from_hoisted_symbols(LValue const& vector,
-        RValue const& offset)
-    {
-        auto frame = table_->get_stack_frame();
-        auto& vectors = table_->get_vectors();
-        auto index = ir::object::get_rvalue_at_lvalue_object_storage(
-            offset, frame, vectors, __source__);
-        auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
-        if (!vectors.at(vector)->get_data().contains(key))
-            throw_compiletime_error(
-                fmt::format(
-                    "Invalid out-of-range index '{}' on vector lvalue", key),
-                vector);
-        return std::make_pair(vectors.at(vector)->get_offset().at(key),
-            get_size_from_vector_offset(
-                vectors.at(vector)->get_data().at(key)));
-    }
+    Entry_Pair get_offset_from_hoisted_symbols(LValue const& vector,
+        RValue const& offset);
 
     /**
      * @brief Type check invalid vector symbol or offset rvalue type
      */
-    inline void type_check_invalid_vector_symbol(LValue const& vector,
-        RValue const& offset)
-    {
-        if (!table_->get_hoisted_symbols().has_key(offset) and
-            not value::is_integer_string(offset))
-            throw_compiletime_error(
-                fmt::format("Invalid index '{}' on vector lvalue", offset),
-                vector);
-    }
+    void type_check_invalid_vector_symbol(LValue const& vector,
+        RValue const& offset);
 
     /**
      * @brief Get offset by valid integer rvalue
      */
-    inline Entry_Pair get_offset_from_integer_rvalue(LValue const& vector,
-        RValue const& offset)
-    {
-        auto& vectors = table_->get_vectors();
-        if (!vectors.at(vector)->get_data().contains(offset))
-            throw_compiletime_error(
-                fmt::format(
-                    "Invalid out-of-range index '{}' on vector lvalue", offset),
-                vector);
-        return std::make_pair(vectors.at(vector)->get_offset().at(offset),
-            get_size_from_vector_offset(
-                vectors.at(vector)->get_data().at(offset)));
-    }
+    Entry_Pair get_offset_from_integer_rvalue(LValue const& vector,
+        RValue const& offset);
 
     /**
      * @brief Get offset by trivial vector with no indices
      */
-    inline Entry_Pair get_offset_from_trivial_vector(LValue const& vector)
-    {
-        return std::make_pair(0UL,
-            get_size_from_vector_offset(
-                table_->get_vectors().at(vector)->get_data().at("0")));
-    }
+    Entry_Pair get_offset_from_trivial_vector(LValue const& vector);
 
   protected:
     Table_Pointer& table_;
@@ -612,4 +340,4 @@ struct Register_Accessor
     std::deque<Register> w_size_registers;
 };
 
-} // namespace memory
+} // namespace credence::target::common::memory

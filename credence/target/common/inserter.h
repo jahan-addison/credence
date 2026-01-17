@@ -70,7 +70,7 @@ struct Relational_Operator_Inserter
     explicit Relational_Operator_Inserter(
         memory::Memory_Access<Accessor> accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
     virtual Instructions from_relational_expression_operands(
@@ -116,7 +116,7 @@ struct Invocation_Inserter
     virtual ~Invocation_Inserter() = default;
     explicit Invocation_Inserter(memory::Memory_Access<Accessor> accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
 
@@ -172,7 +172,7 @@ struct Binary_Operator_Inserter
     virtual ~Binary_Operator_Inserter() = default;
     explicit Binary_Operator_Inserter(memory::Memory_Access<Accessor> accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
 
@@ -192,7 +192,7 @@ struct Unary_Operator_Inserter
     virtual ~Unary_Operator_Inserter() = default;
     explicit Unary_Operator_Inserter(memory::Memory_Access<Accessor> accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
 
@@ -221,7 +221,7 @@ struct Expression_Inserter
     virtual ~Expression_Inserter() = default;
     explicit Expression_Inserter(memory::Memory_Access<Accessor> accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
     virtual void insert_from_string(RValue const& str) = 0;
@@ -274,7 +274,7 @@ class Operand_Inserter
     virtual ~Operand_Inserter() = default;
     explicit Operand_Inserter(memory::Memory_Access<Accessor> accessor)
         : accessor_(accessor)
-        , stack_frame_(accessor_->stack_frame)
+        , stack_frame_(accessor_->get_frame_in_memory())
     {
     }
 
