@@ -86,23 +86,33 @@ class Stack::Stack_IMPL
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
 
+    constexpr void set_aad_local_size(Size alloc) { aad_local_size = alloc; }
+    constexpr Size get_aad_local_size() { return aad_local_size; }
+
     /**
      * @brief Get the stack location offset and size from an lvalue
      */
-    constexpr Entry get(LValue const& lvalue) { return stack_address[lvalue]; }
+    Entry get(LValue const& lvalue)
+    {
+
+        auto address = stack_address[lvalue];
+        address.first += aad_local_size;
+        return address;
+    }
 
     /**
      * @brief Get the stack location lvalue and size from an offset
      */
-    constexpr Entry get(Offset offset) const
+    Entry get(Offset offset) const
     {
         auto find = std::find_if(stack_address.begin(),
             stack_address.end(),
             [&](Pair const& entry) { return entry.second.first == offset; });
+
         if (find == stack_address.end())
             return { 0, Operand_Size::Empty };
-        else
-            return find->second;
+
+        return { find->second.first + aad_local_size, find->second.second };
     }
 
     /**
@@ -240,14 +250,9 @@ class Stack::Stack_IMPL
      * @brief Get the allocation size of the current frame, aligned up to 16
      * bytes
      */
-    Size get_stack_frame_allocation_size(ir::object::Function_PTR& frame)
+    Size get_stack_frame_allocation_size()
     {
         auto allocation_size = frame_size;
-        // check callee saved special registers
-        if (frame->get_tokens().contains("x23"))
-            allocation_size += 8;
-        if (frame->get_tokens().contains("x26"))
-            allocation_size += 8;
         if (allocation_size < 16)
             return 16UL;
         else
@@ -275,8 +280,7 @@ class Stack::Stack_IMPL
                 if (entry.first == key)
                     search = true;
                 if (!search)
-                    offset -=
-                        assembly::get_size_from_rvalue_datatype(entry.second);
+                    offset -= 8UL;
                 return offset;
             });
     }
@@ -290,11 +294,8 @@ class Stack::Stack_IMPL
                           vector.get_data().end(),
                           0UL,
                           [&](type::semantic::Size offset,
-                              ir::object::Vector::Entry const& entry) {
-                              return offset +
-                                     assembly::get_size_from_rvalue_datatype(
-                                         entry.second);
-                          });
+                              [[maybe_unused]] ir::object::Vector::Entry const&
+                                  entry) { return offset + 8UL; });
     }
 
     constexpr Size get_offset_from_pushdown_stack()
@@ -333,6 +334,7 @@ class Stack::Stack_IMPL
         if (stack_address[lvalue].second != Operand_Size::Empty)
             return;
         auto offset_address = static_cast<std::size_t>(operand);
+
         allocate(offset_address);
         stack_address.insert(lvalue, { size, operand });
         size -= static_cast<std::size_t>(offset_address);
@@ -358,6 +360,9 @@ class Stack::Stack_IMPL
         else
             return "";
     }
+
+  private:
+    Size aad_local_size{ 0 };
 
   private:
     int vectors{ 0 };
@@ -438,13 +443,21 @@ void Stack::allocate_aligned_lvalue(LValue const& lvalue,
 {
     pimpl->allocate_aligned_lvalue(lvalue, value_size, operand_size);
 }
+void Stack::set_aad_local_size(Size local_size)
+{
+    pimpl->set_aad_local_size(local_size);
+}
+Size Stack::get_aad_local_size()
+{
+    return pimpl->get_aad_local_size();
+}
 void Stack::set_address_from_address(LValue const& lvalue)
 {
     pimpl->set_address_from_address(lvalue);
 }
-Size Stack::get_stack_frame_allocation_size(ir::object::Function_PTR& frame)
+Size Stack::get_stack_frame_allocation_size()
 {
-    return pimpl->get_stack_frame_allocation_size(frame);
+    return pimpl->get_stack_frame_allocation_size();
 }
 common::Stack_Offset Stack::get_stack_offset_from_table_vector_index(
     LValue const& lvalue,

@@ -70,6 +70,13 @@ struct Flag_Accessor
             return false;
         return instruction_flag.at(index) & flag;
     }
+    constexpr bool index_contains_flag(unsigned int index,
+        unsigned int flag_check)
+    {
+        if (!instruction_flag.contains(index))
+            return false;
+        return instruction_flag.at(index) & flag_check;
+    }
     flag::flags get_instruction_flags_at_index(unsigned int index)
     {
         if (!instruction_flag.contains(index))

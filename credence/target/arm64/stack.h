@@ -91,6 +91,9 @@ class Stack : public common::detail::base_stack_pointer
     void allocate(Size alloc);
     void deallocate(Size alloc);
 
+    void set_aad_local_size(Size alloc);
+    Size get_aad_local_size();
+
     Operand_Size get_operand_size_from_offset(Offset offset) const;
 
     void set_address_from_immediate(LValue const& lvalue,
@@ -103,7 +106,7 @@ class Stack : public common::detail::base_stack_pointer
         Operand_Size operand_size);
     void set_address_from_address(LValue const& lvalue);
 
-    Size get_stack_frame_allocation_size(ir::object::Function_PTR& frame);
+    Size get_stack_frame_allocation_size();
     common::Stack_Offset get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,

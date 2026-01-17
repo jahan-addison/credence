@@ -60,10 +60,11 @@
 /****************************************************************************
  * Special register usage conventions:
  *
- *   x26   = intermediate scratch and data section register
- *      s26  = floating point
- *      d26  = double
- *      v26  = SIMD
+ *   x6   = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x7    = multiplication scratch register
  *   x8    = The default "accumulator" register for expression expansion
  *   x9 - x18 = Local scope variables, after which the stack is used
  *
@@ -342,7 +343,6 @@ class Device_Accessor
   private:
     Label frame_symbol{ "main" };
     Ordered_Map<LValue, Storage> address_table{};
-    Size local_size{ 0 };
     std::set<unsigned int> register_id{};
     unsigned int id_index{ 0 };
 

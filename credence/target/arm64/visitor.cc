@@ -81,8 +81,6 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
     arm64_add__asm(instructions, mov, x29, sp);
-    set_alignment_flag(Callee_Saved);
-    arm64_add__asm(instructions, stp, x26, x23, alignment__sp_integer(16));
 }
 
 /**
@@ -210,9 +208,6 @@ void IR_Instruction_Visitor::from_leave_ita()
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
 
-    set_alignment_flag(Callee_Saved);
-    arm64_add__asm(instructions, ldp, x26, x23, alignment__sp_integer(16));
-
     auto sp_imm = direct_immediate("[sp]");
     set_alignment_flag(Align_S3_Folded);
     arm64_add__asm(instructions, ldp, x29, x30, sp_imm, alignment__integer());
@@ -250,7 +245,8 @@ void IR_Instruction_Visitor::from_pop_ita()
 void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto inserter = Invocation_Inserter{ accessor_ };
+    auto inserter = Invocation_Inserter{ accessor_,
+        instruction_accessor->get_instructions().size() };
     auto& instructions = instruction_accessor->get_instructions();
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
 

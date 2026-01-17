@@ -103,19 +103,17 @@ TEST_CASE("target/arm64: fixture: math_constant.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
     add w8, w8, w9
-    mov w23, #10
-    mul w8, w8, w23
+    mov w7, #10
+    mul w8, w8, w7
     mov w9, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -132,19 +130,17 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
     add w8, w8, w9
-    mov w23, #10
-    mul w8, w8, w23
+    mov w7, #10
+    mul w8, w8, w7
     mov w9, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -168,16 +164,15 @@ TEST_CASE("target/arm64: fixture: math_constant_8.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
     add w8, w8, w9
-    mov w23, #10
-    mul w8, w8, w23
+    mov w7, #10
+    mul w8, w8, w7
     mov w9, w8
     sub sp, sp, #16
     str w9, [sp, #0]
@@ -186,11 +181,10 @@ _start:
     add x0, x0, ._L_str1__@PAGEOFF
     mov w1, w9
     bl printf
-    str w9, [sp, #0]
-    str w10, [sp, #4]
+    ldr w9, [sp, #0]
+    ldr w10, [sp, #4]
     add sp, sp, #16
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -209,16 +203,15 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     mov w9, #1
     mov w10, #5
     mov w8, w10
     sub w8, w8, #0
     add w8, w8, w9
-    mov w23, #10
-    mul w8, w8, w23
+    mov w7, #10
+    mul w8, w8, w7
     mov w9, w8
     sub sp, sp, #16
     str w9, [sp, #0]
@@ -227,11 +220,10 @@ _start:
     add x0, x0, ._L_str1__@PAGEOFF
     mov w1, w9
     bl _printf
-    str w9, [sp, #0]
-    str w10, [sp, #4]
+    ldr w9, [sp, #0]
+    ldr w10, [sp, #4]
     add sp, sp, #16
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -625,21 +617,19 @@ TEST_CASE("target/arm64: fixture: bitwise_constant_1.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     movn w8, #10
     mov w9, w8
-    mov w23, #10
-    eor w8, w23, w9
+    mov w6, #10
+    eor w8, w6, w9
     orr w8, w8, #1
     mov w10, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -656,21 +646,19 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     movn w8, #10
     mov w9, w8
-    mov w23, #10
-    eor w8, w23, w9
+    mov w6, #10
+    eor w8, w6, w9
     orr w8, w8, #1
     mov w10, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -694,22 +682,20 @@ TEST_CASE("target/arm64: fixture: bitwise_2.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     movn w8, #10
     mov w9, w8
     mov w10, #5
     eor w8, w9, w10
-    lsr w23, w10, #5
-    orr w8, w8, w23
+    lsr w6, w10, #5
+    orr w8, w8, w6
     mov w11, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -726,22 +712,20 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     movn w8, #10
     mov w9, w8
     mov w10, #5
     eor w8, w9, w10
-    lsr w23, w10, #5
-    orr w8, w8, w23
+    lsr w6, w10, #5
+    orr w8, w8, w6
     mov w11, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -765,22 +749,20 @@ TEST_CASE("target/arm64: fixture: bitwise_3.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     movn w8, #10
     mov w9, w8
     mov w10, #5
     eor w8, w9, w10
-    lsr w23, w10, w9
-    orr w8, w8, w23
+    lsr w6, w10, w9
+    orr w8, w8, w6
     mov w11, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -797,22 +779,20 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x23, [sp, #16]
     movn w8, #10
     mov w9, w8
     mov w10, #5
     eor w8, w9, w10
-    lsr w23, w10, w9
-    orr w8, w8, w23
+    lsr w6, w10, w9
+    orr w8, w8, w6
     mov w11, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
-    ldr x23, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -845,8 +825,8 @@ _start:
     orr w8, w8, #15
     mov w11, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov x0, #0
@@ -874,8 +854,8 @@ _start:
     orr w8, w8, #15
     mov w11, w8
     mvn w8, w9
-    mvn w23, w10
-    and w8, w8, w23
+    mvn w6, w10
+    and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov x0, #0
@@ -901,16 +881,14 @@ TEST_CASE("target/arm64: fixture: pointers_1.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #5
-    str w10, [sp, #24]
-    add x26, sp, #24
-    mov x9, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
     mov w11, #10
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -927,16 +905,14 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #5
-    str w10, [sp, #24]
-    add x26, sp, #24
-    mov x9, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
     mov w11, #10
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -960,9 +936,8 @@ TEST_CASE("target/arm64: fixture: pointers_2.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w9, #10
     mov w10, #100
     mov w11, #6
@@ -970,11 +945,10 @@ _start:
     mov w12, w8
     mov w8, w10
     mov w13, w8
-    str w12, [sp, #24]
-    add x26, sp, #24
-    mov x14, x26
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    str w12, [sp, #8]
+    add x6, sp, #8
+    mov x14, x6
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -991,9 +965,8 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w9, #10
     mov w10, #100
     mov w11, #6
@@ -1001,11 +974,10 @@ _start:
     mov w12, w8
     mov w8, w10
     mov w13, w8
-    str w12, [sp, #24]
-    add x26, sp, #24
-    mov x14, x26
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    str w12, [sp, #8]
+    add x6, sp, #8
+    mov x14, x6
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1029,17 +1001,15 @@ TEST_CASE("target/arm64: fixture: pointers_3.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #100
-    str w10, [sp, #24]
-    add x26, sp, #24
-    mov x9, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
     mov w8, #10
     str w8, [x9]
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1056,17 +1026,15 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #100
-    str w10, [sp, #24]
-    add x26, sp, #24
-    mov x9, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
     mov w8, #10
     str w8, [x9]
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1090,13 +1058,12 @@ TEST_CASE("target/arm64: fixture: pointers_4.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #100
-    str w10, [sp, #24]
-    add x26, sp, #24
-    mov x9, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
     mov x8, x9
     mov x11, x8
     mov w8, #20
@@ -1106,9 +1073,8 @@ _start:
     ldr w8, [x11]
     str w8, [x9]
     mov w10, #5
-    str w10, [sp, #24]
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    str w10, [sp, #8]
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1125,13 +1091,12 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #100
-    str w10, [sp, #24]
-    add x26, sp, #24
-    mov x9, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
     mov x8, x9
     mov x11, x8
     mov w8, #20
@@ -1141,9 +1106,8 @@ _start:
     ldr w8, [x11]
     str w8, [x9]
     mov w10, #5
-    str w10, [sp, #24]
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    str w10, [sp, #8]
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1167,23 +1131,21 @@ TEST_CASE("target/arm64: fixture: pointers_5.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #100
     mov w12, #50
-    str w10, [sp, #32]
-    add x26, sp, #32
-    mov x9, x26
-    str w12, [sp, #24]
-    add x26, sp, #24
-    mov x11, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
+    str w12, [sp, #0]
+    add x6, sp, #0
+    mov x11, x6
     mov w8, #10
     str w8, [x11]
     ldr w8, [x11]
     str w8, [x9]
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1200,23 +1162,21 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
     mov w10, #100
     mov w12, #50
-    str w10, [sp, #32]
-    add x26, sp, #32
-    mov x9, x26
-    str w12, [sp, #24]
-    add x26, sp, #24
-    mov x11, x26
+    str w10, [sp, #8]
+    add x6, sp, #8
+    mov x9, x6
+    str w12, [sp, #0]
+    add x6, sp, #0
+    mov x11, x6
     mov w8, #10
     str w8, [x11]
     ldr w8, [x11]
     str w8, [x9]
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1241,20 +1201,18 @@ TEST_CASE("target/arm64: fixture: string_1.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
-    adrp x26, ._L_str1__@PAGE
-    add x26, x26, ._L_str1__@PAGEOFF
-    mov x9, x26
-    adrp x26, ._L_str2__@PAGE
-    add x26, x26, ._L_str2__@PAGEOFF
-    mov x10, x26
-    adrp x26, ._L_str1__@PAGE
-    add x26, x26, ._L_str1__@PAGEOFF
-    mov x11, x26
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x9, x6
+    adrp x6, ._L_str2__@PAGE
+    add x6, x6, ._L_str2__@PAGEOFF
+    mov x10, x6
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x11, x6
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1276,20 +1234,18 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    str x26, [sp, #16]
-    adrp x26, ._L_str1__@PAGE
-    add x26, x26, ._L_str1__@PAGEOFF
-    mov x9, x26
-    adrp x26, ._L_str2__@PAGE
-    add x26, x26, ._L_str2__@PAGEOFF
-    mov x10, x26
-    adrp x26, ._L_str1__@PAGE
-    add x26, x26, ._L_str1__@PAGEOFF
-    mov x11, x26
-    ldr x26, [sp, #16]
-    ldp x29, x30, [sp], #32
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x9, x6
+    adrp x6, ._L_str2__@PAGE
+    add x6, x6, ._L_str2__@PAGEOFF
+    mov x10, x6
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x11, x6
+    ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1318,19 +1274,19 @@ TEST_CASE("target/arm64: fixture: vector_1.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-48]!
     mov x29, sp
-    add x15, sp, #28
+    add x15, sp, #40
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #24
+    add x15, sp, #32
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #20
+    add x15, sp, #24
     mov w8, #2
     str w8, [x15]
     mov w9, #10
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #48
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1347,19 +1303,19 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-48]!
     mov x29, sp
-    add x15, sp, #28
+    add x15, sp, #40
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #24
+    add x15, sp, #32
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #20
+    add x15, sp, #24
     mov w8, #2
     str w8, [x15]
     mov w9, #10
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #48
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1383,25 +1339,25 @@ TEST_CASE("target/arm64: fixture: vector_2.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-64]!
     mov x29, sp
-    add x15, sp, #36
+    add x15, sp, #56
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #32
+    add x15, sp, #48
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #28
+    add x15, sp, #40
     mov w8, #2
     str w8, [x15]
-    add x15, sp, #24
+    add x15, sp, #32
     mov w8, #3
     str w8, [x15]
-    add x15, sp, #20
+    add x15, sp, #24
     mov w8, #4
     str w8, [x15]
     mov w9, #10
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #64
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1418,25 +1374,25 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-64]!
     mov x29, sp
-    add x15, sp, #36
+    add x15, sp, #56
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #32
+    add x15, sp, #48
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #28
+    add x15, sp, #40
     mov w8, #2
     str w8, [x15]
-    add x15, sp, #24
+    add x15, sp, #32
     mov w8, #3
     str w8, [x15]
-    add x15, sp, #20
+    add x15, sp, #24
     mov w8, #4
     str w8, [x15]
     mov w9, #10
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #64
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1446,4 +1402,114 @@ _start:
 )arm";
 #endif
     SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("vector_2", expected);
+}
+
+TEST_CASE("target/arm64: fixture: vector_4.b")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-64]!
+    mov x29, sp
+    add x15, sp, #56
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #48
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #40
+    mov w8, #2
+    str w8, [x15]
+    add x15, sp, #32
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    str x6, [x15]
+    mov x15, x6
+    add x15, sp, #24
+    adrp x6, ._L_str2__@PAGE
+    add x6, x6, ._L_str2__@PAGEOFF
+    str x6, [x15]
+    mov x15, x6
+    mov w9, #10
+    sub sp, sp, #16
+    str w9, [sp, #0]
+    ldr x0, [sp, #48]
+    mov w1, #14
+    bl print
+    ldr w9, [sp, #0]
+    add sp, sp, #16
+    ldp x29, x30, [sp], #64
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good morning"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-64]!
+    mov x29, sp
+    add x15, sp, #56
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #48
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #40
+    mov w8, #2
+    str w8, [x15]
+    add x15, sp, #32
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    str x6, [x15]
+    mov x15, x6
+    add x15, sp, #24
+    adrp x6, ._L_str2__@PAGE
+    add x6, x6, ._L_str2__@PAGEOFF
+    str x6, [x15]
+    mov x15, x6
+    mov w9, #10
+    sub sp, sp, #16
+    str w9, [sp, #0]
+    ldr x0, [sp, #48]
+    mov w1, #14
+    bl _print
+    ldr w9, [sp, #0]
+    add sp, sp, #16
+    ldp x29, x30, [sp], #64
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good morning"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "vector_4", expected, true);
 }

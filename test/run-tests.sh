@@ -70,11 +70,13 @@ send_message "Running compiled tests ..."
 if [[ "$ARCH" == "arm64" ]] ; then
   send_message "Building arm64 tests ..."
 
-  # "$CREDENCE_BINARY" -t arm64 -o syscall_test ./test/fixtures/platform/stdlib/write.b
-  # "$CREDENCE_BINARY" -t arm64 -o stdlib_test ./test/fixtures/platform/stdlib/print.b
   "$CREDENCE_BINARY" -t arm64 -o arm64_constant_1 ./test/fixtures/platform/math_constant_8.b
+  "$CREDENCE_BINARY" -t arm64 -o vector_4 ./test/fixtures/platform/vector_4.b
+
   send_message "Running arm64 tests ..."
+
   ./test/compiled-test.sh arm64_constant_1
+  ./test/compiled-test.sh vector_4
 else
   send_message "Building x86_64 tests ..."
 

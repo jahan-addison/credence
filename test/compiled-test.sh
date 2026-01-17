@@ -31,18 +31,18 @@ fi
 if [[ "$1" == "switch_1" ]]; then
   printf -v expected_output '%s' "should say 1: 1"
 fi
-
 if [[ "$1" == "stdlib_putchar_test" ]]; then
   printf -v expected_output '%s' "lol"
 fi
 if [[ "$1" == "stdlib_printf_test" ]]; then
   printf -v expected_output '%s' "hello 5 5.200000 x 1"
 fi
-
+if [[ "$1" == "vector_4" ]]; then
+  printf -v expected_output '%s' "good afternoon"
+fi
 if [[ "$1" == "arm64_constant_1" ]]; then
   printf -v expected_output '%s' "m is 60"
 fi
-
 
 program_name=$1
 

@@ -169,10 +169,6 @@ class Text_Emitter
     void emit_text_directives(std::ostream& os);
     void emit_text_section(std::ostream& os);
 
-    bool emit_callee_saved_registers_stp(Mnemonic mnemonic,
-        std::ostream& os,
-        std::size_t index);
-
   private:
     void emit_assembly_instruction(std::ostream& os,
         std::size_t index,
@@ -200,6 +196,9 @@ class Text_Emitter
 
   private:
     std::size_t address_pointer_index{ 0 };
+
+  private:
+    std::deque<std::string> str_instructions{};
 
   private:
     memory::Instruction_Pointer instructions_;

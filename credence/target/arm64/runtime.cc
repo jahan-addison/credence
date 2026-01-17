@@ -157,14 +157,19 @@ void Library_Call_Inserter::
             },
         m::pattern | m::_ =
             [&] {
-                if (storage == assembly::Register::x26 and
-                    *signal_register == assembly::Register::x26) {
+                accessor_->flag_accessor.set_instruction_flag(
+                    common::flag::Argument, instructions.size());
+                if (storage == assembly::Register::x6 and
+                    *signal_register == assembly::Register::x6) {
                     *signal_register = assembly::Register::w0;
-                    arm64_add__asm(instructions, mov, storage, x26);
+                    arm64_add__asm(instructions, mov, storage, x6);
                     return;
                 }
-                if (is_variant(Register, argument) and
-                    assembly::is_word_register(std::get<Register>(argument))) {
+                if (is_variant(common::Stack_Offset, argument))
+                    arm64_add__asm(instructions, ldr, storage, argument);
+                else if (is_variant(Register, argument) and
+                         assembly::is_word_register(
+                             std::get<Register>(argument))) {
                     auto storage_dword =
                         assembly::get_word_register_from_doubleword(storage);
                     arm64_add__asm(instructions, mov, storage_dword, argument);
@@ -234,6 +239,7 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
 
         insert_argument_instructions_standard_library_function(
             storage, instructions, arg_type, arg);
+
         if (float_size == vector_registers_.size()) {
             doubleword_storage.pop_back();
             word_storage.pop_back();

@@ -121,9 +121,9 @@ bool check_signal_register_from_safe_address(Instructions& instructions,
     if (accessor != nullptr) {
         auto accessor_ = *accessor;
         auto* address_of = accessor_->register_accessor.signal_register;
-        if (storage == arm_rr(x26) and *address_of == Register::x26) {
+        if (storage == arm_rr(x6) and *address_of == Register::x6) {
             accessor_->set_signal_register(Register::w0);
-            arm64_add__asm(instructions, mov, storage, arm_rr(x26));
+            arm64_add__asm(instructions, mov, storage, arm_rr(x6));
             return false;
         }
     }

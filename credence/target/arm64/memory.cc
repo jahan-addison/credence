@@ -62,10 +62,11 @@
 /****************************************************************************
  * Special register usage conventions:
  *
- *   x26   = intermediate scratch and data section register
- *      s26  = floating point
- *      d26  = double
- *      v26  = SIMD
+ *   x6   = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x7    = multiplication scratch register
  *   x8    = The default "accumulator" register for expression expansion
  *   x9 - x18 = Local scope variables, after which the stack is used
  *
@@ -88,9 +89,9 @@ namespace m = matchit;
 Register get_second_register_for_binary_operand(assembly::Operand_Size size)
 {
     if (size == assembly::Operand_Size::Doubleword)
-        return Register::x23;
+        return Register::x6;
     else
-        return Register::w23;
+        return Register::w6;
 }
 
 Register get_scratch_register(assembly::Operand_Size size)
@@ -111,6 +112,8 @@ assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
     m::Id<assembly::Stack::Offset> s;
     m::Id<Immediate> i;
     m::Id<Register> r;
+    if (assembly::is_immediate_relative_address(storage))
+        return assembly::Operand_Size::Doubleword;
     return m::match(storage)(
         m::pattern | m::as<assembly::Stack::Offset>(s) =
             [&] { return stack->get_operand_size_from_offset(*s); },
@@ -283,11 +286,22 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
                 auto vector_s =
                     stack_->get_stack_offset_from_table_vector_index(
                         lhs, offset, *vector);
-                auto temp = Register::x15;
                 auto offset_immediate = u32_int_immediate(vector_s);
-                arm64_add__asm(
-                    instructions.second, add, temp, sp, offset_immediate);
-                instructions.first = temp;
+                auto vector_type = type::get_type_from_rvalue_data_type(
+                    vector->get_data().at(offset));
+                auto size = vector_type == "string"
+                                ? assembly::Operand_Size::Doubleword
+                                : assembly::Operand_Size::Word;
+                stack_->set(vector_s, size);
+                if (stack_->get_aad_local_size() == 0UL) {
+                    arm64_add__asm(instructions.second,
+                        add,
+                        Register::x15,
+                        sp,
+                        offset_immediate);
+                    instructions.first = Register::x15;
+                } else
+                    instructions.first = vector_s;
                 flag_accessor_.set_instruction_flag(
                     arm64::detail::flags::Vector_Storage,
                     instruction_index + 1);
@@ -306,13 +320,10 @@ Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     Device_Accessor& device_accessor)
 {
     Address instructions{ assembly::O_NUL, {} };
-
     get_lvalue_address_and_from_unary_and_vectors(
         instructions, lvalue, instruction_index);
-
     if (instructions.first == assembly::O_NUL)
         instructions.first = device_accessor.get_device_by_lvalue(lvalue);
-
     return instructions;
 }
 
@@ -335,7 +346,9 @@ Size Device_Accessor::get_size_of_address_table()
 void Device_Accessor::save_and_allocate_before_instruction_jump(
     assembly::Instructions& instructions)
 {
-    local_size = common::memory::align_up_to(get_size_of_address_table(), 16);
+    auto local_size =
+        common::memory::align_up_to(get_size_of_address_table(), 16);
+    stack_->set_aad_local_size(local_size);
     arm64_add__asm(instructions, sub, sp, sp, u32_int_immediate(local_size));
     Size size_at = 0;
     for (auto const& device : address_table) {
@@ -355,12 +368,13 @@ void Device_Accessor::restore_and_deallocate_after_instruction_jump(
     Size size_at = 0;
     for (auto const& device : address_table) {
         auto stack_offset = direct_immediate(fmt::format("[sp, #{}]", size_at));
-        arm64_add__asm(instructions, str, device.second, stack_offset);
+        arm64_add__asm(instructions, ldr, device.second, stack_offset);
         size_at +=
             assembly::get_size_from_register(std::get<Register>(device.second));
     }
-    arm64_add__asm(instructions, add, sp, sp, u32_int_immediate(local_size));
-    local_size = 0;
+    auto sp_local_size = u32_int_immediate(stack_->get_aad_local_size());
+    arm64_add__asm(instructions, add, sp, sp, sp_local_size);
+    stack_->set_aad_local_size(0UL);
 }
 
 /**

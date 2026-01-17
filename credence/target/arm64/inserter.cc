@@ -205,10 +205,6 @@ void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
         auto bitwise = Bitwise_Operator_Inserter{ accessor_ };
         auto acc = accessor_->get_accumulator_with_rvalue_context(lhs_s);
         registers.stack.emplace_back(acc);
-        if (acc == Register::x23 or acc == Register::w23 or
-            is_variant(Immediate, lhs_s)) {
-            frame->get_tokens().insert("x23");
-        }
         if (is_variant(Immediate, lhs_s)) {
             auto intermediate = memory::get_second_register_for_binary_operand(
                 memory::get_word_size_from_storage(
@@ -329,6 +325,7 @@ common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
     accessor_->stack->allocate_pointer_on_stack();
     accessor_->stack_frame.get_stack_frame()->get_pointers().emplace_back(
         rvalue);
+
     accessor_->stack->add_address_location_to_stack(rvalue);
 
     accessor_->flag_accessor.set_instruction_flag(
@@ -568,8 +565,6 @@ Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
     auto size = get_operand_size_from_lvalue_reference(rvalue);
     auto frame = accessor_->table_accessor.table_->get_stack_frame();
     auto acc = accessor_->get_accumulator_with_rvalue_context(size);
-    if (acc == Register::x23 or acc == Register::w23)
-        frame->get_tokens().insert("x23");
     return acc;
 }
 
@@ -757,11 +752,10 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
             [&] {
                 if (type::is_address_of_expression(rvalue)) {
                     auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
-                    stack_frame_.get_stack_frame()->get_tokens().insert("x26");
                     auto rhs_s = u32_int_immediate(
                         unary_inserter.from_lvalue_address_of_expression(
                             rvalue));
-                    arm64_add__asm(instructions, add, x26, sp, rhs_s);
+                    arm64_add__asm(instructions, add, x6, sp, rhs_s);
                     return;
                 }
 
@@ -1031,7 +1025,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                         address_storage
                             .get_arm64_lvalue_and_insertion_instructions(
                                 lhs, instructions.size(), devices);
-                    arm64_add__asm(instructions, mov, lhs_storage, x26);
+                    arm64_add__asm(instructions, mov, lhs_storage, x6);
                 } else {
                     auto frame = stack_frame_.get_stack_frame();
                     auto size = assembly::get_operand_size_from_size(
@@ -1062,22 +1056,6 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                 assembly::inserter(instructions, rhs_inst);
                 auto acc = accumulator.get_accumulator_register_from_size(
                     devices.get_word_size_from_lvalue(rhs));
-                // if (is_variant(common::Stack_Offset, rhs_storage)) {
-                //     auto intermediate =
-                //         devices.get_second_register_for_binary_operand(
-                //             devices.get_word_size_from_storage(rhs_storage));
-                //     arm64_add__asm(
-                //         instructions, str, intermediate, rhs_storage);
-                //     rhs_storage = intermediate;
-                // }
-                // if (is_variant(common::Stack_Offset, lhs_storage)) {
-                //     auto intermediate =
-                //         devices.get_second_register_for_binary_operand(
-                //             devices.get_word_size_from_storage(rhs_storage));
-                //     arm64_add__asm(
-                //         instructions, str, intermediate, rhs_storage);
-                //     rhs_storage = intermediate;
-                // }
 
                 arm64_add__asm(instructions, mov, acc, rhs_storage);
                 arm64_add__asm(instructions, mov, lhs_storage, acc);
@@ -1288,8 +1266,7 @@ void Invocation_Inserter::insert_from_user_defined_function(
         }
         if (size == Operand_Size::Doubleword)
             accessor_->flag_accessor.set_instruction_flag(
-                common::flag::Argument,
-                accessor_->instruction_accessor->size());
+                common::flag::Argument, instruction_index + i);
         arm64_add__asm(instructions, mov, arg_register, operand);
     }
     arm64_add__asm(instructions, bl, direct_immediate(routine));
@@ -1337,14 +1314,10 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
     m::match(binary_op)(
         m::pattern | std::string{ "*" } =
             [&] {
-                if (is_variant(Immediate, operands.second))
-                    frame->get_tokens().insert("x23");
                 instructions = assembly::mul(operands.first, operands.second);
             },
         m::pattern | std::string{ "/" } =
             [&] {
-                if (is_variant(Immediate, operands.second))
-                    frame->get_tokens().insert("x23");
                 instructions = assembly::div(operands.first, operands.second);
             },
         m::pattern | std::string{ "-" } =
@@ -1357,8 +1330,6 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
             },
         m::pattern | std::string{ "%" } =
             [&] {
-                if (is_variant(Immediate, operands.second))
-                    frame->get_tokens().insert("x23");
                 instructions = assembly::mod(operands.first, operands.second);
             });
     return instructions;
@@ -1482,8 +1453,7 @@ void Operand_Inserter::insert_from_string_address_operand(
         auto offset = std::get<assembly::Stack::Offset>(storage);
         accessor_->stack->set(offset, Operand_Size::Doubleword);
     }
-    accessor_->stack_frame.get_stack_frame()->get_tokens().insert("x26");
-    arm64_add__asm(instructions, mov, storage, x26);
+    arm64_add__asm(instructions, mov, storage, x6);
 }
 
 /**
@@ -1498,9 +1468,9 @@ void Expression_Inserter::insert_from_string(RValue const& str)
         accessor_->address_accessor.buffer_accessor.get_string_address_offset(
             str);
     auto imm_1 = direct_immediate(fmt::format("{}@PAGE", immediate));
-    arm64_add__asm(instructions, adrp, x26, imm_1);
+    arm64_add__asm(instructions, adrp, x6, imm_1);
     auto imm_2 = direct_immediate(fmt::format("{}@PAGEOFF", immediate));
-    arm64_add__asm(instructions, add, x26, x26, imm_2);
+    arm64_add__asm(instructions, add, x6, x6, imm_2);
 }
 
 /**
@@ -1510,14 +1480,14 @@ void Expression_Inserter::insert_from_float(RValue const& str)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto immediate = direct_immediate(fmt::format("={}", str));
-    arm64_add__asm(instructions, ldr, s26, immediate);
+    arm64_add__asm(instructions, ldr, s6, immediate);
 }
 
 void Expression_Inserter::insert_from_double(RValue const& str)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto immediate = direct_immediate(fmt::format("={}", str));
-    arm64_add__asm(instructions, ldr, d26, immediate);
+    arm64_add__asm(instructions, ldr, d6, immediate);
 }
 
 } // namespace credence::target::arm64

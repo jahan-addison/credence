@@ -381,8 +381,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                 m::ds(m::app(instruction_contains_flag(flag::Align), true),
                     m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
-                    auto allocation =
-                        stack->get_stack_frame_allocation_size(frame);
+                    auto allocation = stack->get_stack_frame_allocation_size();
                     operand = u32_int_immediate(allocation);
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
@@ -391,7 +390,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                              m::app(operand_source_is(Source::s_3), true)) =
                 [&] {
                     operand = u32_int_immediate(
-                        stack->get_stack_frame_allocation_size(frame));
+                        stack->get_stack_frame_allocation_size());
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_Folded),
@@ -399,10 +398,10 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                              m::app(operand_source_is(Source::s_1), true)) =
                 [&] {
                     auto offset_index =
-                        frame->get_pointers().size() >= 2 ? 2 : 1;
+                        frame->get_pointers().size() >= 1 ? 1 : 0;
                     if (*address_pointer_index > 0UL) {
                         auto offset =
-                            stack->get_stack_frame_allocation_size(frame) -
+                            stack->get_stack_frame_allocation_size() -
                             ((frame->get_pointers().size() -
                                  *address_pointer_index + offset_index) *
                                 8);
@@ -416,8 +415,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                           true),
                     m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
-                    auto allocation =
-                        stack->get_stack_frame_allocation_size(frame);
+                    auto allocation = stack->get_stack_frame_allocation_size();
                     operand = direct_immediate(
                         fmt::format("[sp, #-{}]!", allocation));
                 },
@@ -426,13 +424,10 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                                    true),
                              m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
-                    auto offset_index =
-                        frame->get_pointers().size() >= 2 ? 1 : 0;
-                    auto offset =
-                        stack->get_stack_frame_allocation_size(frame) -
-                        ((frame->get_pointers().size() -
-                             *address_pointer_index + offset_index) *
-                            8);
+                    auto offset = stack->get_stack_frame_allocation_size() -
+                                  ((frame->get_pointers().size() -
+                                       *address_pointer_index) *
+                                      8);
                     operand = direct_immediate(fmt::format("#{}", offset));
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
@@ -441,7 +436,7 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                              m::app(operand_source_is(Source::s_2), true)) =
                 [&] {
                     operand = direct_immediate(fmt::format("[sp, #-{}!]",
-                        stack->get_stack_frame_allocation_size(frame)));
+                        stack->get_stack_frame_allocation_size()));
                 });
     }
 }
@@ -558,66 +553,6 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 }
 
 /**
- * @brief Do we need to save the callee-saved registers on the stack?
- *
- */
-bool Text_Emitter::emit_callee_saved_registers_stp(Mnemonic mnemonic,
-    std::ostream& os,
-    std::size_t index)
-{
-    auto flags = accessor_->flag_accessor.get_instruction_flags_at_index(index);
-    auto stack_frame = accessor_->table_accessor.table_->get_stack_frame(
-        accessor_->device_accessor.get_current_frame_name());
-
-    if (flags & detail::flags::Callee_Saved)
-        if (!stack_frame->get_tokens().contains("x23") and
-            not stack_frame->get_tokens().contains("x26"))
-            return false;
-
-    if (flags & detail::flags::Callee_Saved and mnemonic == Mnemonic::stp) {
-        if (stack_frame->get_tokens().contains("x23") and
-            stack_frame->get_tokens().contains("x26")) {
-            // both true, let through
-            return true;
-        }
-        if (stack_frame->get_tokens().contains("x23") and
-            not stack_frame->get_tokens().contains("x26")) {
-            os << assembly::tabwidth(4);
-            os << "str x23, [sp, #16]" << std::endl;
-            return false;
-        }
-        if (stack_frame->get_tokens().contains("x26") and
-            not stack_frame->get_tokens().contains("x23")) {
-            os << assembly::tabwidth(4);
-            os << "str x26, [sp, #16]" << std::endl;
-            return false;
-        }
-    }
-
-    if (flags & detail::flags::Callee_Saved and mnemonic == Mnemonic::ldp) {
-        if (stack_frame->get_tokens().contains("x23") and
-            stack_frame->get_tokens().contains("x26")) {
-            // both true, let through
-            return true;
-        }
-        if (stack_frame->get_tokens().contains("x23") and
-            not stack_frame->get_tokens().contains("x26")) {
-            os << assembly::tabwidth(4);
-            os << "ldr x23, [sp, #16]" << std::endl;
-            return false;
-        }
-        if (stack_frame->get_tokens().contains("x26") and
-            not stack_frame->get_tokens().contains("x23")) {
-            os << assembly::tabwidth(4);
-            os << "ldr x26, [sp, #16]" << std::endl;
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/**
  * @brief Emit the instructions to store a vector offset in a local address
  */
 void Text_Emitter::emit_vector_storage_instruction(std::ostream& os,
@@ -629,6 +564,17 @@ void Text_Emitter::emit_vector_storage_instruction(std::ostream& os,
         Storage_Emitter{ accessor_, index, &address_pointer_index };
     auto size =
         memory::get_operand_size_from_storage(operand, accessor_->stack);
+
+    if (assembly::is_immediate_relative_address(operand)) {
+        storage_emitter.emit(
+            os, Register::x6, mnemonic, Storage_Emitter::Source::s_0);
+        storage_emitter.emit(
+            os, operand, mnemonic, Storage_Emitter::Source::s_1);
+        assembly::newline(os, 1);
+        str_instructions.emplace_back("str x6, [x15]");
+        return;
+    }
+
     if (size == Operand_Size::Doubleword) {
         storage_emitter.emit(
             os, Register::x8, mnemonic, Storage_Emitter::Source::s_0);
@@ -653,6 +599,7 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     std::size_t index,
     Instruction const& s)
 {
+    auto& flags = accessor_->flag_accessor;
     auto [mnemonic, src1, src2, src3, src4] = s;
     auto storage_emitter =
         Storage_Emitter{ accessor_, index, &address_pointer_index };
@@ -661,23 +608,29 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
         return_instructions_.emplace_back(s);
         return;
     }
-    if (!emit_callee_saved_registers_stp(mnemonic, os, index))
-        return;
+    if (flags.index_contains_flag(index, detail::flags::Vector_Storage)) {
+        if (!flags.index_contains_flag(index, common::flag::Argument)) {
+            os << assembly::tabwidth(4) << mnemonic;
+            emit_vector_storage_instruction(os, index, src2);
+            return;
+        }
+    }
 
     os << assembly::tabwidth(4) << mnemonic;
-
-    if (accessor_->flag_accessor.get_instruction_flags_at_index(index) &
-        detail::flags::Vector_Storage) {
-        emit_vector_storage_instruction(os, index, src2);
-        return;
-    }
 
     storage_emitter.emit(os, src1, mnemonic, Storage_Emitter::Source::s_0);
     storage_emitter.emit(os, src2, mnemonic, Storage_Emitter::Source::s_1);
     storage_emitter.emit(os, src3, mnemonic, Storage_Emitter::Source::s_2);
     storage_emitter.emit(os, src4, mnemonic, Storage_Emitter::Source::s_3);
 
-    assembly::newline(os, 1);
+    if (mnemonic == Mnemonic::add and
+        assembly::is_immediate_relative_address(src3) and
+        not str_instructions.empty()) {
+        assembly::newline(os, 1);
+        os << assembly::tabwidth(4) << str_instructions.back() << std::endl;
+        str_instructions.pop_back();
+    } else
+        assembly::newline(os, 1);
 }
 
 /**

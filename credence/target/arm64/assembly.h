@@ -123,12 +123,12 @@ enum class Register;
             auto size = get_operand_size_from_rvalue_datatype( \
                 std::get<Immediate>(s1));                      \
             if (size == Operand_Size::Doubleword) {            \
-                arm64_add__asm(inst, mov, x23, s1);            \
-                arm64_add__asm(inst, op, s0, s0, x23);         \
+                arm64_add__asm(inst, mov, x7, s1);             \
+                arm64_add__asm(inst, op, s0, s0, x7);          \
                 return { s0, inst };                           \
             } else {                                           \
-                arm64_add__asm(inst, mov, w23, s1);            \
-                arm64_add__asm(inst, op, s0, s0, w23);         \
+                arm64_add__asm(inst, mov, w7, s1);             \
+                arm64_add__asm(inst, op, s0, s0, w7);          \
                 return { s0, inst };                           \
             }                                                  \
         } else                                                 \
@@ -264,8 +264,8 @@ enum class Register
     wzr,
 
     // special float and double registers
-    s26,
-    d26,
+    s6,
+    d6,
 
     // vector registers (for floating point)
     v0,
@@ -780,8 +780,8 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         ARM64_REGISTER_OSTREAM(v30);
         ARM64_REGISTER_OSTREAM(v31);
 
-        ARM64_REGISTER_OSTREAM(s26);
-        ARM64_REGISTER_OSTREAM(d26);
+        ARM64_REGISTER_OSTREAM(s6);
+        ARM64_REGISTER_OSTREAM(d6);
     }
     return os;
 }
@@ -891,8 +891,8 @@ constexpr std::string register_as_string(Register reg)
         ARM64_REGISTER_STRING(v30);
         ARM64_REGISTER_STRING(v31);
 
-        ARM64_REGISTER_STRING(s26);
-        ARM64_REGISTER_STRING(d26);
+        ARM64_REGISTER_STRING(s6);
+        ARM64_REGISTER_STRING(d6);
     }
     return "x0";
 }
