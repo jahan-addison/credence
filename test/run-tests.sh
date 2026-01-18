@@ -65,15 +65,18 @@ send_message "Running test suite ..."
 
 CREDENCE_BINARY="$DIRECTORY/bin/credence"
 
-send_message "Running compiled tests ..."
+send_message "!!! RUNNING EXPECTED MACHINE CODE OUTPUT TESTS !!!"
 
 if [[ "$ARCH" == "arm64" ]] ; then
+
   send_message "Building arm64 tests ..."
 
   "$CREDENCE_BINARY" -t arm64 -o arm64_constant_1 ./test/fixtures/platform/math_constant_8.b
   "$CREDENCE_BINARY" -t arm64 -o vector_4 ./test/fixtures/platform/vector_4.b
   "$CREDENCE_BINARY" -t arm64 -o globals_3 ./test/fixtures/platform/globals_3.b
   "$CREDENCE_BINARY" -t arm64 -o call_test_1 ./test/fixtures/platform/call_1.b
+  "$CREDENCE_BINARY" -t arm64 -o call_test_2 ./test/fixtures/platform/call_2.b
+  "$CREDENCE_BINARY" -t arm64 -o stdlib_putchar_test ./test/fixtures/platform/stdlib/putchar_1.b
 
   send_message "Running arm64 tests ..."
 
@@ -81,6 +84,8 @@ if [[ "$ARCH" == "arm64" ]] ; then
   ./test/compiled-test.sh vector_4
   ./test/compiled-test.sh globals_3
   ./test/compiled-test.sh call_test_1
+  ./test/compiled-test.sh call_test_2
+  ./test/compiled-test.sh stdlib_putchar_test
 
 else
 

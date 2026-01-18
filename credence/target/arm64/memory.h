@@ -33,45 +33,18 @@
 #include <utility>                              // for move
 
 /****************************************************************************
- *
- * ARM64 Memory and Address Accessors
- *
- * Example - local variable access:
- *
- *   B code:    auto x; x = 10;
- *
- * Memory accessor uses w9-w18 for locals:
- *   mov w9, #10             ; x in register w9 (first local)
- *
- * Or stack if w9-w18 exhausted:
- *   mov w8, #10
- *   str w8, [sp, #8]        ; x at [sp + 8]
- *
- * Example - array access (always on stack):
- *
- *   B code:    auto arr[5]; arr[2] = 42;
- *
- * Memory accessor generates:
- *   mov w8, #42
- *   str w8, [sp, #24]       ; arr[2] at base + 2*8
- *
- *****************************************************************************/
-
-/****************************************************************************
  * Special register usage conventions:
  *
- *   x6   = intermediate scratch and data section register
+ *   x6  = intermediate scratch and data section register
  *      s6  = floating point
  *      d6  = double
  *      v6  = SIMD
- *   x7    = multiplication scratch register
- *   x8    = The default "accumulator" register for expression expansion
- *   x9 - x18 = Local scope variables, after which the stack is used
- *
- *  NOTE : we save x9-x18 on the stack before calling a function
- *  via the Allocate, Access, Deallocate pattern
- *
- *   w0, x0 = Return results
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -240,6 +213,8 @@ struct Register_Accessor : public ARM64_Register_Accessor
         w_size_registers = registers::available_word;
     }
 
+    Storage get_available_register(assembly::Operand_Size size);
+
     inline registers::general_purpose get_register_list_by_size(
         assembly::Operand_Size size)
     {
@@ -327,11 +302,6 @@ class Device_Accessor
     constexpr Label get_current_frame_name() { return frame_symbol; }
 
   public:
-    void save_and_allocate_before_instruction_jump(
-        assembly::Instructions& instructions);
-    void restore_and_deallocate_after_instruction_jump(
-        assembly::Instructions& instructions);
-
   public:
     inline Operand_Size get_word_size_from_lvalue(LValue const& lvalue)
     {

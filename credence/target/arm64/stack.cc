@@ -32,12 +32,6 @@
  * ARM64 Stack
  *
  * A push-down stack that grows downward and maintains 16-byte alignment.
- * Since ARM64 has so many registers (x0-x30), we prioritize register allocation
- * before using the stack. Vectors and their elements will always be allocated
- * in whole on the stack.
- *
- * NOTE: We store x9-x18 on the stack before calling a function via the
- * Allocate, Access, Deallocate pattern
  *
  * Example - function with locals:
  *
@@ -50,7 +44,7 @@
  *       return(z);
  *     }
  *
- * Register allocation (locals use x9-x18 first):
+ * Register allocation (if no call jumps):
  *   w0 = parameter 'a'
  *   w9 = local 'x'
  *   w10 = local 'y'
@@ -59,6 +53,24 @@
  *   [sp + 16] saved w9 (before function calls)
  *   [sp + 12] saved w10
  *   [sp + 8]  saved w11
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Special register usage conventions:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
  *
  *****************************************************************************/
 
@@ -71,7 +83,12 @@ class Stack::Stack_IMPL
     using Pair = std::pair<LValue, Entry>;
     using Local = Ordered_Map<LValue, Entry>;
 
-    constexpr void clear() { stack_address.clear(); }
+    constexpr void clear()
+    {
+        size = 0;
+        frame_size = 0;
+        stack_address.clear();
+    }
 
     constexpr bool empty_at(LValue const& lvalue)
     {
@@ -131,19 +148,21 @@ class Stack::Stack_IMPL
      *
      * See assembly.h for details
      */
-    constexpr void allocate(Operand_Size operand)
+    constexpr Offset allocate(Operand_Size operand)
     {
         auto alloc = get_size_from_operand_size(operand);
         frame_size += alloc;
         size += alloc;
         set(size, operand);
+        return size;
     }
 
-    constexpr void allocate(Size alloc)
+    constexpr Offset allocate(Size alloc)
     {
         frame_size += alloc;
         size += alloc;
         set(size, assembly::get_operand_size_from_size(alloc));
+        return size;
     }
 
     /**
@@ -320,7 +339,6 @@ class Stack::Stack_IMPL
             return;
         allocate(offset_address);
         stack_address.insert(lvalue, { size, operand });
-        size -= offset_address;
     }
 
     /**
@@ -337,14 +355,13 @@ class Stack::Stack_IMPL
 
         allocate(offset_address);
         stack_address.insert(lvalue, { size, operand });
-        size -= static_cast<std::size_t>(offset_address);
     }
 
     constexpr void add_address_location_to_stack(LValue const& lvalue)
     {
         if (stack_address[lvalue].second != Operand_Size::Empty)
             return;
-        stack_address.insert(lvalue, { frame_size, Operand_Size::Doubleword });
+        stack_address.insert(lvalue, { size, Operand_Size::Doubleword });
     }
 
     /**
@@ -407,13 +424,13 @@ void Stack::set(Offset offset, Operand_Size size)
 {
     pimpl->set(offset, size);
 }
-void Stack::allocate(Operand_Size operand)
+Stack::Offset Stack::allocate(Operand_Size operand)
 {
-    pimpl->allocate(operand);
+    return pimpl->allocate(operand);
 }
-void Stack::allocate(Size alloc)
+Stack::Offset Stack::allocate(Size alloc)
 {
-    pimpl->allocate(alloc);
+    return pimpl->allocate(alloc);
 }
 void Stack::deallocate(Size alloc)
 {

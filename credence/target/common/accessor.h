@@ -124,9 +124,11 @@ struct Table_Accessor
     Table_Accessor& operator=(const Table_Accessor&) = delete;
 
     void set_ir_iterator_index(unsigned int index_);
+    LValue get_last_lvalue_assignment(unsigned int index_);
     bool is_ir_instruction_temporary();
-    std::string get_ir_instruction_lvalue();
+    LValue get_ir_instruction_lvalue();
     bool last_ir_instruction_is_assignment();
+    bool next_ir_instruction_is_assignment();
     bool next_ir_instruction_is_temporary();
 
     Table_Pointer& get_table();

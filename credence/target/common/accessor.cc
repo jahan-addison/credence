@@ -332,6 +332,21 @@ bool Table_Accessor::is_ir_instruction_temporary()
     return type::is_temporary(
         std::get<1>(pimpl->table_->get_ir_instructions()->at(pimpl->index)));
 }
+
+LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_)
+{
+    for (; index_ > 0; index_--) {
+        auto ir_inst = pimpl->table_->get_ir_instructions()->at(index_);
+        auto lvalue = std::get<1>(ir_inst);
+        if (std::get<0>(ir_inst) == ir::Instruction::MOV and
+            pimpl->table_->local_contains(lvalue) and
+            not lvalue.starts_with("_p") and not lvalue.starts_with("_t")) {
+            return lvalue;
+        }
+    }
+    return "";
+}
+
 std::string Table_Accessor::get_ir_instruction_lvalue()
 {
     return std::get<1>(pimpl->table_->get_ir_instructions()->at(pimpl->index));
@@ -351,6 +366,14 @@ bool Table_Accessor::next_ir_instruction_is_temporary()
     auto next = pimpl->table_->get_ir_instructions()->at(pimpl->index + 1);
     return std::get<0>(next) == ir::Instruction::MOV and
            type::is_temporary(std::get<1>(next));
+}
+bool Table_Accessor::next_ir_instruction_is_assignment()
+{
+    if (pimpl->table_->get_ir_instructions()->size() < pimpl->index + 1)
+        return false;
+    auto last = pimpl->table_->get_ir_instructions()->at(pimpl->index + 1);
+    return std::get<0>(last) == ir::Instruction::MOV and
+           not type::is_temporary(std::get<1>(last));
 }
 Table_Pointer& Table_Accessor::get_table()
 {

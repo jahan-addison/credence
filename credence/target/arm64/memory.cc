@@ -35,45 +35,18 @@
 #include <variant>                           // for get, variant, monostate
 
 /****************************************************************************
- *
- * ARM64 Memory and Address Accessors
- *
- * Example - local variable access:
- *
- *   B code:    auto x; x = 10;
- *
- * Memory accessor uses w9-w18 for locals:
- *   mov w9, #10             ; x in register w9 (first local)
- *
- * Or stack if w9-w18 exhausted:
- *   mov w8, #10
- *   str w8, [sp, #8]        ; x at [sp + 8]
- *
- * Example - array access (always on stack):
- *
- *   B code:    auto arr[5]; arr[2] = 42;
- *
- * Memory accessor generates:
- *   mov w8, #42
- *   str w8, [sp, #24]       ; arr[2] at base + 2*8
- *
- *****************************************************************************/
-
-/****************************************************************************
  * Special register usage conventions:
  *
- *   x6   = intermediate scratch and data section register
+ *   x6  = intermediate scratch and data section register
  *      s6  = floating point
  *      d6  = double
  *      v6  = SIMD
- *   x7    = multiplication scratch register
- *   x8    = The default "accumulator" register for expression expansion
- *   x9 - x18 = Local scope variables, after which the stack is used
- *
- *  NOTE : we save x9-x18 on the stack before calling a function
- *  via the Allocate, Access, Deallocate pattern
- *
- *   w0, x0 = Return results
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -325,6 +298,12 @@ Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
         instructions, lvalue, instruction_index);
     if (instructions.first == assembly::O_NUL)
         instructions.first = device_accessor.get_device_by_lvalue(lvalue);
+    if (is_variant(common::Stack_Offset, instructions.first)) {
+        auto str_r = register_accessor_.get_available_register(
+            device_accessor.get_word_size_from_lvalue(lvalue));
+        arm64_add__asm(instructions.second, ldr, str_r, instructions.first);
+        instructions.first = str_r;
+    }
     return instructions;
 }
 
@@ -339,43 +318,6 @@ Size Device_Accessor::get_size_of_address_table()
             get_word_size_from_storage(device.second, stack_, stack_frame_));
     }
     return size;
-}
-
-/**
- * @brief Save registers to the stack before an instruction jump
- */
-void Device_Accessor::save_and_allocate_before_instruction_jump(
-    assembly::Instructions& instructions)
-{
-    auto local_size =
-        common::memory::align_up_to(get_size_of_address_table(), 16);
-    stack_->set_aad_local_size(local_size);
-    arm64_add__asm(instructions, sub, sp, sp, u32_int_immediate(local_size));
-    Size size_at = 0;
-    for (auto const& device : address_table) {
-        auto stack_offset = direct_immediate(fmt::format("[sp, #{}]", size_at));
-        arm64_add__asm(instructions, str, device.second, stack_offset);
-        size_at +=
-            assembly::get_size_from_register(std::get<Register>(device.second));
-    }
-}
-
-/**
- * @brief Restore registers from the stack after an instruction jump
- */
-void Device_Accessor::restore_and_deallocate_after_instruction_jump(
-    assembly::Instructions& instructions)
-{
-    Size size_at = 0;
-    for (auto const& device : address_table) {
-        auto stack_offset = direct_immediate(fmt::format("[sp, #{}]", size_at));
-        arm64_add__asm(instructions, ldr, device.second, stack_offset);
-        size_at +=
-            assembly::get_size_from_register(std::get<Register>(device.second));
-    }
-    auto sp_local_size = u32_int_immediate(stack_->get_aad_local_size());
-    arm64_add__asm(instructions, add, sp, sp, sp_local_size);
-    stack_->set_aad_local_size(0UL);
 }
 
 /**
@@ -413,10 +355,23 @@ void Device_Accessor::set_word_or_doubleword_register(LValue const& lvalue,
 Device_Accessor::Device Device_Accessor::get_device_by_lvalue(
     LValue const& lvalue)
 {
-    if (is_lvalue_allocated_in_memory(lvalue))
-        return address_table.at(lvalue);
-    else
+    if (lvalue == "argc")
         return stack_->get(lvalue).first;
+    else if (stack_->is_allocated(lvalue))
+        return stack_->get(lvalue).first;
+    else
+        return address_table.at(lvalue);
+}
+
+/**
+ * @brief Get an available register storage device, use the stack if none
+ * available
+ */
+assembly::Storage Register_Accessor::get_available_register(
+    assembly::Operand_Size size)
+{
+    return size == assembly::Operand_Size::Doubleword ? Register::x10
+                                                      : Register::w10;
 }
 
 /**
@@ -427,7 +382,9 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
 {
     if (is_lvalue_allocated_in_memory(lvalue))
         return;
-
+    auto& table_ = address_accessor_.table_;
+    auto stack_frame_has_jump = table_->stack_frame_contains_call_instruction(
+        stack_frame_.symbol, *table_->get_ir_instructions());
     switch (size) {
         case assembly::Operand_Size::Empty:
         case assembly::Operand_Size::Byte:
@@ -436,7 +393,7 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
             break;
         case assembly::Operand_Size::Word:
         case assembly::Operand_Size::Doubleword: {
-            if (register_id.size() == 9) {
+            if (stack_frame_has_jump or register_id.size() == 9) {
                 stack_->set_address_from_size(lvalue, size);
                 address_table.insert(lvalue, stack_->get(lvalue).first);
             } else
@@ -455,6 +412,8 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     if (is_lvalue_allocated_in_memory(lvalue))
         return;
 
+    auto stack_frame_has_jump = table_->stack_frame_contains_call_instruction(
+        stack_frame_.symbol, *table_->get_ir_instructions());
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->get_vectors(), DEBUG_SOURCE);
     auto operand = assembly::get_operand_size_from_rvalue_datatype(rvalue);
@@ -467,7 +426,7 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
             break;
         case assembly::Operand_Size::Word:
         case assembly::Operand_Size::Doubleword: {
-            if (register_id.size() == 9) {
+            if (stack_frame_has_jump or register_id.size() == 9) {
                 stack_->set_address_from_size(lvalue, operand);
                 address_table.insert(lvalue, stack_->get(lvalue).first);
             } else

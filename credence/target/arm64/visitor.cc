@@ -77,10 +77,30 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
     auto frame = table->get_functions()[name];
+    if (table->stack_frame_contains_call_instruction(
+            name, *table->get_ir_instructions())) {
+        accessor_->stack->allocate(16);
+    }
     table->reset_frame_calls();
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
     arm64_add__asm(instructions, mov, x29, sp);
+    // setup argc and argv for the main function
+    if (name == "main") {
+        auto argc_argv =
+            common::runtime::argc_argv_kernel_runtime_access(stack_frame_);
+        if (argc_argv.first) {
+            accessor_->stack->set_address_from_size("argc");
+            arm64_add__asm(
+                instructions, str, w0, accessor_->stack->get("argc").first);
+        }
+        if (argc_argv.second) {
+            accessor_->stack->set_address_from_size(
+                "argv", Operand_Size::Doubleword);
+            arm64_add__asm(
+                instructions, str, x1, accessor_->stack->get("argv").first);
+        }
+    }
 }
 
 /**
@@ -152,8 +172,15 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
         m::pattern | m::_ =
             [&] { operand_inserter.insert_from_mnemonic_operand(lhs, rhs); });
 
-    if (accessor_->stack->is_allocated(lhs))
-        set_pointer_address_of_lvalue(lhs);
+    if (accessor_->stack->is_allocated(lhs)) {
+        auto& instructions =
+            accessor_->instruction_accessor->get_instructions();
+        auto stack_register =
+            accessor_->register_accessor.get_available_register(
+                accessor_->device_accessor.get_word_size_from_lvalue(lhs));
+        auto stack_address = accessor_->stack->get(lhs).first;
+        arm64_add__asm(instructions, str, stack_register, stack_address);
+    }
 
     if (!type::is_temporary(lhs) and
         not accessor_->register_accessor.stack.empty())
@@ -254,7 +281,7 @@ bool IR_Instruction_Visitor::parameters_in_return_stack(Label const& label)
 
     auto parameter_stack = parameters.back();
     auto last_stack = parameters.at(parameters.size() - 2);
-    for (std::size_t j = 0UL; j++; j < parameter_stack.size()) {
+    for (std::size_t j = 0UL; j < parameter_stack.size(); j++) {
         if (parameter_stack.at(j) != last_stack.at(j))
             return false;
     }
@@ -276,11 +303,9 @@ unsigned int* IR_Instruction_Visitor::get_function_frame_calls(
 void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.get_table();
     auto inserter = Invocation_Inserter{ accessor_ };
-    auto& instructions = instruction_accessor->get_instructions();
+
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
-    auto& parameters = table->get_ir_parameters(function_name);
 
     auto is_syscall_function = [&](Label const& label) {
 #if defined(__linux__)
@@ -308,40 +333,26 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 
 #endif
     };
-
-    if ((table->function_contains(function_name) and
-            *get_function_frame_calls(function_name) == 0) or
-        not parameters_in_return_stack(function_name))
-        accessor_->device_accessor.save_and_allocate_before_instruction_jump(
-            instructions);
     m::match(function_name)(
         m::pattern | m::app(is_syscall_function, true) =
             [&] {
                 inserter.insert_from_syscall_function(
-                    function_name, instructions);
+                    function_name, instruction_accessor->get_instructions());
             },
         m::pattern | m::app(is_stdlib_function, true) =
             [&] {
                 inserter.insert_from_standard_library_function(
-                    function_name, instructions);
+                    function_name, instruction_accessor->get_instructions());
             },
         m::pattern | m::_ =
             [&] {
                 inserter.insert_from_user_defined_function(
-                    function_name, instructions);
+                    function_name, instruction_accessor->get_instructions());
             });
+
     stack_frame_.call_stack.emplace_back(
         accessor_->get_frame_in_memory().symbol);
     stack_frame_.tail = function_name;
-
-    if (table->function_contains(function_name))
-        ++(*get_function_frame_calls(function_name));
-
-    if ((table->function_contains(function_name) and
-            *get_function_frame_calls(function_name) == parameters.size()) or
-        not parameters_in_return_stack(function_name))
-        accessor_->device_accessor
-            .restore_and_deallocate_after_instruction_jump(instructions);
 }
 
 /**

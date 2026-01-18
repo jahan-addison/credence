@@ -164,27 +164,30 @@ TEST_CASE("target/arm64: fixture: math_constant_8.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
-    mov w9, #1
+    ldr w10, [sp, #20]
+    mov w10, #1
+    str w10, [sp, #20]
+    ldr w10, [sp, #24]
     mov w10, #5
+    str w10, [sp, #24]
+    ldr w10, [sp, #24]
     mov w8, w10
     sub w8, w8, #0
-    add w8, w8, w9
+    ldr w10, [sp, #20]
+    ldr w10, [sp, #20]
+    add w8, w8, w10
     mov w7, #10
     mul w8, w8, w7
-    mov w9, w8
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str w10, [sp, #4]
+    ldr w10, [sp, #20]
+    mov w10, w8
+    str w10, [sp, #20]
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    mov w1, w9
+    mov w1, w10
     bl printf
-    ldr w9, [sp, #0]
-    ldr w10, [sp, #4]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -203,27 +206,30 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
-    mov w9, #1
+    ldr w10, [sp, #20]
+    mov w10, #1
+    str w10, [sp, #20]
+    ldr w10, [sp, #24]
     mov w10, #5
+    str w10, [sp, #24]
+    ldr w10, [sp, #24]
     mov w8, w10
     sub w8, w8, #0
-    add w8, w8, w9
+    ldr w10, [sp, #20]
+    ldr w10, [sp, #20]
+    add w8, w8, w10
     mov w7, #10
     mul w8, w8, w7
-    mov w9, w8
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str w10, [sp, #4]
+    ldr w10, [sp, #20]
+    mov w10, w8
+    str w10, [sp, #20]
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    mov w1, w9
+    mov w1, w10
     bl _printf
-    ldr w9, [sp, #0]
-    ldr w10, [sp, #4]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1072,8 +1078,9 @@ _start:
     str w8, [x11]
     ldr w8, [x11]
     str w8, [x9]
-    mov w10, #5
-    str w10, [sp, #8]
+    ldr x10, [sp, #16]
+    mov x10, #5
+    str x10, [sp, #16]
     ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
@@ -1105,8 +1112,9 @@ _start:
     str w8, [x11]
     ldr w8, [x11]
     str w8, [x9]
-    mov w10, #5
-    str w10, [sp, #8]
+    ldr x10, [sp, #16]
+    mov x10, #5
+    str x10, [sp, #16]
     ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
@@ -1131,21 +1139,21 @@ TEST_CASE("target/arm64: fixture: pointers_5.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
     mov w10, #100
     mov w12, #50
-    str w10, [sp, #8]
-    add x6, sp, #8
+    str w10, [sp, #24]
+    add x6, sp, #24
     mov x9, x6
-    str w12, [sp, #0]
-    add x6, sp, #0
+    str w12, [sp, #16]
+    add x6, sp, #16
     mov x11, x6
     mov w8, #10
     str w8, [x11]
     ldr w8, [x11]
     str w8, [x9]
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1162,21 +1170,21 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
     mov w10, #100
     mov w12, #50
-    str w10, [sp, #8]
-    add x6, sp, #8
+    str w10, [sp, #24]
+    add x6, sp, #24
     mov x9, x6
-    str w12, [sp, #0]
-    add x6, sp, #0
+    str w12, [sp, #16]
+    add x6, sp, #16
     mov x11, x6
     mov w8, #10
     str w8, [x11]
     ldr w8, [x11]
     str w8, [x9]
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1416,36 +1424,35 @@ TEST_CASE("target/arm64: fixture: vector_4.b")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-64]!
+    stp x29, x30, [sp, #-80]!
     mov x29, sp
-    add x15, sp, #56
+    add x15, sp, #72
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #48
+    add x15, sp, #64
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #40
+    add x15, sp, #56
     mov w8, #2
     str w8, [x15]
-    add x15, sp, #32
+    add x15, sp, #48
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
     str x6, [x15]
     mov x15, x6
-    add x15, sp, #24
+    add x15, sp, #40
     adrp x6, ._L_str2__@PAGE
     add x6, x6, ._L_str2__@PAGEOFF
     str x6, [x15]
     mov x15, x6
-    mov w9, #10
-    sub sp, sp, #16
-    str w9, [sp, #0]
+    ldr w10, [sp, #76]
+    mov w10, #10
+    str w10, [sp, #76]
+    add x15, sp, #48
     ldr x0, [sp, #48]
     mov w1, #14
     bl print
-    ldr w9, [sp, #0]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #64
+    ldp x29, x30, [sp], #80
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1467,36 +1474,35 @@ _start:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-64]!
+    stp x29, x30, [sp, #-80]!
     mov x29, sp
-    add x15, sp, #56
+    add x15, sp, #72
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #48
+    add x15, sp, #64
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #40
+    add x15, sp, #56
     mov w8, #2
     str w8, [x15]
-    add x15, sp, #32
+    add x15, sp, #48
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
     str x6, [x15]
     mov x15, x6
-    add x15, sp, #24
+    add x15, sp, #40
     adrp x6, ._L_str2__@PAGE
     add x6, x6, ._L_str2__@PAGEOFF
     str x6, [x15]
     mov x15, x6
-    mov w9, #10
-    sub sp, sp, #16
-    str w9, [sp, #0]
+    ldr w10, [sp, #76]
+    mov w10, #10
+    str w10, [sp, #76]
+    add x15, sp, #48
     ldr x0, [sp, #48]
     mov w1, #14
     bl _print
-    ldr w9, [sp, #0]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #64
+    ldp x29, x30, [sp], #80
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1630,24 +1636,22 @@ TEST_CASE("target/arm64: fixture: globals 3")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #20]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
-    ldr w9, [x6]
+    ldr w10, [x6]
+    str w10, [sp, #20]
+    ldr x10, [sp, #28]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    str x10, [sp, #28]
     mov x0, x10
     mov w1, #10
     bl print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1686,24 +1690,22 @@ unit:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #20]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
-    ldr w9, [x6]
+    ldr w10, [x6]
+    str w10, [sp, #20]
+    ldr x10, [sp, #28]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    str x10, [sp, #28]
     mov x0, x10
     mov w1, #10
     bl _print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1752,33 +1754,37 @@ TEST_CASE("target/arm64: fixture: syscall kernel write")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #20]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
-    ldr w9, [x6]
+    ldr w10, [x6]
+    str w10, [sp, #20]
+    ldr x10, [sp, #28]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
+    str x10, [sp, #28]
     mov w0, #1
     mov x1, x10
     mov w2, #6
-    mov x16, #4
-    svc #0x80
+    mov x8, #4
+    svc #0
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     mov w0, #1
     ldr x1, [x6, #8]
     mov w2, #6
-    mov x16, #4
-    svc #0x80
+    mov x8, #4
+    svc #0
     mov w0, #1
     adrp x1, ._L_str2__@PAGE
     add x1, x1, ._L_str2__@PAGEOFF
     mov w2, #21
-    mov x16, #4
-    svc #0x80
-    ldp x29, x30, [sp], #16
+    mov x8, #4
+    svc #0
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1815,14 +1821,18 @@ unit:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #20]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
-    ldr w9, [x6]
+    ldr w10, [x6]
+    str w10, [sp, #20]
+    ldr x10, [sp, #28]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
+    str x10, [sp, #28]
     mov w0, #1
     mov x1, x10
     mov w2, #6
@@ -1841,7 +1851,7 @@ _start:
     mov w2, #21
     mov x16, #4
     svc #0x80
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -1888,39 +1898,37 @@ TEST_CASE("target/arm64: fixture: stdlib print")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #20]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
-    ldr w9, [x6]
+    ldr w10, [x6]
+    str w10, [sp, #20]
+    ldr x10, [sp, #28]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
+    str x10, [sp, #28]
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
-    bl _print
+    bl print
     mov x0, x10
     mov w1, #6
-    bl _print
+    bl print
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x0, [x6, #8]
     mov w1, #7
-    bl _print
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    bl print
     mov w0, #1
     adrp x1, ._L_str3__@PAGE
     add x1, x1, ._L_str3__@PAGEOFF
     mov w2, #21
-    mov x16, #4
-    svc #0x80
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    mov x8, #4
+    svc #0
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
@@ -1960,14 +1968,18 @@ unit:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #20]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
-    ldr w9, [x6]
+    ldr w10, [x6]
+    str w10, [sp, #20]
+    ldr x10, [sp, #28]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
+    str x10, [sp, #28]
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
@@ -1980,19 +1992,13 @@ _start:
     ldr x0, [x6, #8]
     mov w1, #7
     bl _print
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     mov w0, #1
     adrp x1, ._L_str3__@PAGE
     add x1, x1, ._L_str3__@PAGEOFF
     mov w2, #21
     mov x16, #4
     svc #0x80
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
@@ -2030,9 +2036,8 @@ unit:
         "stdlib/print", expected, true);
 }
 
-TEST_CASE("target/arm64: fixture: stdlib print")
+TEST_CASE("target/arm64: fixture: call_1")
 {
-    SETUP_ARM64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/print_2");
 #if defined(__linux__)
     std::string expected = R"arm(
 .text
@@ -2042,39 +2047,33 @@ TEST_CASE("target/arm64: fixture: stdlib print")
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr x10, [sp, #24]
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
-    mov x9, x6
-    sub sp, sp, #16
-    str x9, [sp, #0]
-    mov x0, x9
+    mov x10, x6
+    str x10, [sp, #24]
+    mov x0, x10
     bl identity
     mov x0, x0
     bl identity
     mov x0, x0
     bl identity
-    ldr x9, [sp, #0]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str x9, [sp, #0]
-    mov x0, x0
+    ldr x0, [sp, #24]
     mov w1, #18
-    bl _print
-    ldr x9, [sp, #0]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    bl print
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x8, #1
     svc #0
 
 
 identity:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     ret
 
 .data
@@ -2091,39 +2090,33 @@ identity:
     .global _start
 
 _start:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr x10, [sp, #24]
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
-    mov x9, x6
-    sub sp, sp, #16
-    str x9, [sp, #0]
-    mov x0, x9
+    mov x10, x6
+    str x10, [sp, #24]
+    mov x0, x10
     bl identity
     mov x0, x0
     bl identity
     mov x0, x0
     bl identity
-    ldr x9, [sp, #0]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str x9, [sp, #0]
-    mov x0, x0
+    ldr x0, [sp, #24]
     mov w1, #18
     bl _print
-    ldr x9, [sp, #0]
-    add sp, sp, #16
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     mov x0, #0
     mov x16, #1
     svc #0x80
 
 
 identity:
-    stp x29, x30, [sp, #-16]!
+    stp x29, x30, [sp, #-32]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #16
+    ldp x29, x30, [sp], #32
     ret
 
 .section	__TEXT,__cstring,cstring_literals
@@ -2134,4 +2127,316 @@ identity:
 #endif
     SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "call_1", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: call_2")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    bl test
+    ldr x10, [sp, #24]
+    mov x10, x0
+    str x10, [sp, #24]
+    mov x0, x8
+    bl test
+    ldr x0, [sp, #24]
+    mov w1, #11
+    bl print
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+
+test:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #32
+    ret
+
+.data
+
+._L_str1__:
+    .asciz "hello world"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    bl test
+    ldr x10, [sp, #24]
+    mov x10, x0
+    str x10, [sp, #24]
+    mov x0, x8
+    bl test
+    ldr x0, [sp, #24]
+    mov w1, #11
+    bl _print
+    ldp x29, x30, [sp], #32
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+
+test:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #32
+    ret
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "hello world"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "call_2", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: call_2")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    str w0, [sp, #20]
+    str x1, [sp, #28]
+    ldr x10, [sp, #36]
+    adrp x6, ._L_str4__@PAGE
+    add x6, x6, ._L_str4__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #36]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #1
+    b.gt ._L4__main
+._L3__main:
+    b ._L1__main
+._L4__main:
+    mov x0, x10
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    bl identity
+    ldr x0, [sp, #36]
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #8]
+    bl printf
+    adrp x6, strings@PAGE
+    add x6, x6, strings@PAGEOFF
+    ldr x0, [x6]
+    mov w1, #14
+    bl print
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #0
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+
+identity:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #48
+    ret
+
+.data
+
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good evening"
+
+._L_str3__:
+    .asciz "good morning"
+
+._L_str4__:
+    .asciz "hello, how are you, %s\n"
+
+.align 3
+
+strings:
+    .xword ._L_str1__
+
+    .xword ._L_str3__
+
+    .xword ._L_str2__
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    str w0, [sp, #20]
+    str x1, [sp, #28]
+    ldr x10, [sp, #36]
+    adrp x6, ._L_str4__@PAGE
+    add x6, x6, ._L_str4__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #36]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #1
+    b.gt ._L4__main
+._L3__main:
+    b ._L1__main
+._L4__main:
+    mov x0, x10
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    bl identity
+    ldr x0, [sp, #36]
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #8]
+    bl _printf
+    adrp x6, strings@PAGE
+    add x6, x6, strings@PAGEOFF
+    ldr x0, [x6]
+    mov w1, #14
+    bl _print
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #0
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+
+identity:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #48
+    ret
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good evening"
+
+._L_str3__:
+    .asciz "good morning"
+
+._L_str4__:
+    .asciz "hello, how are you, %s\n"
+
+.section __DATA,__data
+
+.p2align 3
+
+strings:
+    .xword ._L_str1__
+
+    .xword ._L_str3__
+
+    .xword ._L_str2__
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "readme_2", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: stdlib putchar")
+{
+    SETUP_ARM64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/putchar_2");
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    mov w0, 108
+    bl putchar
+    mov w0, 111
+    bl putchar
+    mov w0, 108
+    bl putchar
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    mov w0, 108
+    bl _putchar
+    mov w0, 111
+    bl _putchar
+    mov w0, 108
+    bl _putchar
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "stdlib/putchar_1", expected, false);
 }

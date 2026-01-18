@@ -37,12 +37,10 @@ if(MSVC)
 else()
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -Werror -Wpedantic -Wno-unused-comparison -DDEBUG"
-    )
+        "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -Werror -Wpedantic -DDEBUG")
   else()
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-comparison -Wpedantic -O2 -march=native"
-    )
+        "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -O2 -march=native")
   endif()
 endif()
 

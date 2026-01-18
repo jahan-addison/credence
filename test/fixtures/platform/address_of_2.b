@@ -7,5 +7,4 @@ main() {
   print(z);
 }
 
-
 strings [3] "one", "two", "three";

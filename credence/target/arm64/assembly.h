@@ -65,6 +65,9 @@ enum class Register;
 #define arm_rr(n) arm64::assembly::Register::n
 #define arm_dd(n) arm64::assembly::Directive::n
 
+#define get_arm64_storage_as_string(str) \
+    common::assembly::get_storage_as_string<arm64::assembly::Register>(str)
+
 #define ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)              \
     arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s0, \
         arm64::assembly::Storage const& s1)
@@ -502,10 +505,78 @@ constexpr bool is_vector_register(Register r)
     return util::range_contains(r, VECTOR_REGISTER);
 }
 
-/**
- * @brief Get the dword (32-bit) register corresponding to a qword (64-bit)
- * register
- */
+constexpr Register get_doubleword_register_from_word(Register r)
+{
+    switch (r) {
+        case Register::w0:
+            return Register::x0;
+        case Register::w1:
+            return Register::x1;
+        case Register::w2:
+            return Register::x2;
+        case Register::w3:
+            return Register::x3;
+        case Register::w4:
+            return Register::x4;
+        case Register::w5:
+            return Register::x5;
+        case Register::w6:
+            return Register::x6;
+        case Register::w7:
+            return Register::x7;
+        case Register::w8:
+            return Register::x8;
+        case Register::w9:
+            return Register::x9;
+        case Register::w10:
+            return Register::x10;
+        case Register::w11:
+            return Register::x11;
+        case Register::w12:
+            return Register::x12;
+        case Register::w13:
+            return Register::x13;
+        case Register::w14:
+            return Register::x14;
+        case Register::w15:
+            return Register::x15;
+        case Register::w16:
+            return Register::x16;
+        case Register::w17:
+            return Register::x17;
+        case Register::w18:
+            return Register::x18;
+        case Register::w19:
+            return Register::x19;
+        case Register::w20:
+            return Register::x20;
+        case Register::w21:
+            return Register::x21;
+        case Register::w22:
+            return Register::x22;
+        case Register::w23:
+            return Register::x23;
+        case Register::w24:
+            return Register::x24;
+        case Register::w25:
+            return Register::x25;
+        case Register::w26:
+            return Register::x26;
+        case Register::w27:
+            return Register::x27;
+        case Register::w28:
+            return Register::x28;
+        case Register::w29:
+            return Register::x29;
+        case Register::w30:
+            return Register::x30;
+        case Register::wsp:
+            return Register::sp;
+        default:
+            return r; // Already a dword or unmapped
+    }
+}
+
 constexpr Register get_word_register_from_doubleword(Register r)
 {
     switch (r) {
@@ -1154,21 +1225,13 @@ constexpr bool is_immediate_pc_address_offset(Storage const& immediate)
 /**
  * @brief Check if argv address offset
  */
-constexpr bool is_immediate_x28_address_offset(Storage const& immediate)
+constexpr bool is_immediate_x1_address_offset(Storage const& immediate)
 {
     if (is_variant(Immediate, immediate))
         return util::contains(
-            std::get<0>(std::get<Immediate>(immediate)), "[x28");
+            std::get<0>(std::get<Immediate>(immediate)), "[x1");
     else
         return false;
-}
-
-/**
- * @brief Legacy alias for compatibility
- */
-constexpr bool is_immediate_r15_address_offset(Storage const& immediate)
-{
-    return is_immediate_x28_address_offset(immediate);
 }
 
 /**

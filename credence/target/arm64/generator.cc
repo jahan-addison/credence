@@ -545,6 +545,7 @@ void Storage_Emitter::emit(std::ostream& os,
     auto operand = storage;
 
     apply_stack_alignment(operand, mnemonic, source, flags);
+
     if (flags & flag::Indirect_Source and source == Source::s_1)
         flag_accessor.set_instruction_flag(flag::Indirect, instruction_index_);
     emit_mnemonic_operand(os, operand, mnemonic, source, flags);

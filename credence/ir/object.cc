@@ -722,7 +722,7 @@ Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
     }
     if (rvalue == "RET")
         return 8UL;
-    credence_error("unreachable");
+    credence_error(fmt::format("undefined object: {}", rvalue));
     return 0UL;
 }
 

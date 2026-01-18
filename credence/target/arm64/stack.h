@@ -14,7 +14,7 @@
 #pragma once
 
 #include "assembly.h"                     // for Operand_Size, Immediate
-#include "credence/ir/object.h"           // for LValue, Size, Vector (ptr ...
+#include <credence/ir/object.h>           // for LValue, Size, Vector (ptr ...
 #include <credence/target/common/types.h> // for base_stack_pointer
 #include <memory>                         // for unique_ptr
 #include <string>                         // for string
@@ -25,12 +25,6 @@
  * ARM64 Stack
  *
  * A push-down stack that grows downward and maintains 16-byte alignment.
- * Since ARM64 has so many registers (x0-x30), we prioritize register allocation
- * before using the stack. Vectors and their elements will always be allocated
- * in whole on the stack.
- *
- * NOTE: We store x9-x18 on the stack before calling a function via the
- * Allocate, Access, Deallocate pattern
  *
  * Example - function with locals:
  *
@@ -43,7 +37,7 @@
  *       return(z);
  *     }
  *
- * Register allocation (locals use x9-x18 first):
+ * Register allocation (if no call jumps):
  *   w0 = parameter 'a'
  *   w9 = local 'x'
  *   w10 = local 'y'
@@ -52,6 +46,24 @@
  *   [sp + 16] saved w9 (before function calls)
  *   [sp + 12] saved w10
  *   [sp + 8]  saved w11
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Special register usage conventions:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
  *
  *****************************************************************************/
 
@@ -87,8 +99,8 @@ class Stack : public common::detail::base_stack_pointer
 
     void set(Offset offset, Operand_Size size);
 
-    void allocate(Operand_Size operand);
-    void allocate(Size alloc);
+    Offset allocate(Operand_Size operand);
+    Offset allocate(Size alloc);
     void deallocate(Size alloc);
 
     void set_aad_local_size(Size alloc);

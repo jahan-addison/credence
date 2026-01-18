@@ -34,28 +34,20 @@
 
 /****************************************************************************
  *
- * ARM64 Runtime and Standard Library Integration Implementation
+ * ARM64 Runtime and Standard Library
  *
  * Handles function calls to the standard library and manages the ARM64 PCS
- * calling convention. Arguments passed in registers: x0-x7, then stack.
- * Return value in x0. x30 (lr) holds return address.
+ * calling convention. Arguments passed in registers: x0-x7, then uses the
+ * stack. Return value in x0. x30 (lr) holds return address.
  *
  * Example - calling printf:
  *
  *   B code:    printf("Value: %d\n", x);
  *
- * Generates (x is local in x9):
  *   adrp x0, ._L_str1__@PAGE       ; format string in x0
  *   add x0, x0, ._L_str1__@PAGEOFF
  *   mov x1, x9                      ; x from register x9
  *   bl printf                       ; from stdlib
- *
- * Example - main with argc/argv:
- *
- *   B code:    main(argc, argv) { ... }
- *
- * Setup:
- *   x0 contains argc, x1 contains argv pointer
  *
  *****************************************************************************/
 
@@ -144,6 +136,7 @@ void Library_Call_Inserter::
 {
     auto* signal_register = accessor_->register_accessor.signal_register;
     namespace m = matchit;
+
     m::match(arg_type)(
         m::pattern | m::or_(sv("string"), sv("float"), sv("double")) =
             [&] {
@@ -206,6 +199,35 @@ get_argument_general_purpose_registers()
 }
 
 /**
+ * @brief Load the rvalue address from the offset in argv
+ */
+bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
+    Instructions& instructions,
+    common::memory::Locals& locals,
+    Register argument_storage,
+    unsigned int index)
+{
+    try {
+        if (stack_frame_.symbol == "main" and
+            type::from_lvalue_offset(locals.at(index)) == "argv") {
+            auto offset = type::from_decay_offset(locals.at(index));
+            auto argv_address = accessor_->stack->get("argv").first;
+            auto offset_integer = type::integral_from_type_ulint(offset);
+            auto argv_offset =
+                direct_immediate(fmt::format("[x10, #{}]", 8 * offset_integer));
+            arm64_add__asm(instructions, ldr, x10, argv_address);
+            auto storage =
+                assembly::get_doubleword_register_from_word(argument_storage);
+            arm64_add__asm(instructions, ldr, storage, argv_offset);
+            return true;
+        }
+    } catch ([[maybe_unused]] std::out_of_range const& e) {
+        return false;
+    }
+    return false;
+}
+
+/**
  * @brief Create the instructions for a standard library call
  */
 void Library_Call_Inserter::make_library_call(Instructions& instructions,
@@ -239,8 +261,26 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
             storage = get_available_standard_library_register(
                 word_storage, locals, i);
 
-        insert_argument_instructions_standard_library_function(
-            storage, instructions, arg_type, arg);
+        if (try_insert_operand_from_argv_rvalue(
+                instructions, locals, storage, i)) {
+            if (float_size == vector_registers_.size()) {
+                doubleword_storage.pop_back();
+                word_storage.pop_back();
+            }
+            continue;
+        }
+
+        if (is_variant(Register, arg) and
+            (std::get<Register>(arg) == Register::x0 or
+                std::get<Register>(arg) == Register::w0)) {
+            auto lvalue = accessor_->table_accessor.get_last_lvalue_assignment(
+                accessor_->table_accessor.get_index());
+            auto stack_address = accessor_->stack->get(lvalue).first;
+            arm64_add__asm(instructions, ldr, storage, stack_address);
+        } else {
+            insert_argument_instructions_standard_library_function(
+                storage, instructions, arg_type, arg);
+        }
 
         if (float_size == vector_registers_.size()) {
             doubleword_storage.pop_back();

@@ -53,6 +53,24 @@
  *
  *****************************************************************************/
 
+/****************************************************************************
+ * Special register usage conventions:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64 {
 
 namespace {
@@ -234,6 +252,8 @@ struct Expression_Inserter : public ARM64_Expression_Inserter
     void insert_from_return_rvalue(
         ir::object::Function::Return_RValue const& ret) override;
 
+    void insert_from_address_of_rvalue(RValue const& rvalue);
+
   private:
     std::deque<LValue> stack{};
 };
@@ -261,6 +281,8 @@ class Operand_Inserter : public ARM64_Operand_Inserter
 
   public:
     Storage get_operand_storage_from_rvalue(RValue const& rvalue) override;
+    Storage get_operand_storage_from_rvalue_no_instructions(
+        RValue const& rvalue);
 
   public:
     void insert_from_immediate_rvalues(Immediate const& lhs,
@@ -273,7 +295,11 @@ class Operand_Inserter : public ARM64_Operand_Inserter
 
   private:
     Storage get_operand_storage_from_parameter(RValue const& rvalue) override;
-    Storage get_operand_storage_from_stack(RValue const& rvalue) override;
+    Storage get_operand_storage_from_stack(
+        [[maybe_unused]] RValue const& rvalue) override
+    {
+        return assembly::O_NUL;
+    }
     Storage get_operand_storage_from_return() override;
     Storage get_operand_storage_from_immediate(RValue const& rvalue) override;
 

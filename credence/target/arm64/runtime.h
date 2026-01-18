@@ -27,28 +27,20 @@
 
 /****************************************************************************
  *
- * ARM64 Runtime and Standard Library Integration
+ * ARM64 Runtime and Standard Library
  *
  * Handles function calls to the standard library and manages the ARM64 PCS
- * calling convention. Arguments passed in registers: x0-x7, then stack.
- * Return value in x0. x30 (lr) holds return address.
+ * calling convention. Arguments passed in registers: x0-x7, then uses the
+ * stack. Return value in x0. x30 (lr) holds return address.
  *
  * Example - calling printf:
  *
  *   B code:    printf("Value: %d\n", x);
  *
- * Generates (x is local in x9):
  *   adrp x0, ._L_str1__@PAGE       ; format string in x0
  *   add x0, x0, ._L_str1__@PAGEOFF
- *   mov w1, w9                      ; x from register w9
+ *   mov x1, x9                      ; x from register x9
  *   bl printf                       ; from stdlib
- *
- * Example - main with argc/argv:
- *
- *   B code:    main(argc, argv) { ... }
- *
- * Setup:
- *   x0 contains argc, x1 contains argv pointer
  *
  *****************************************************************************/
 
@@ -82,6 +74,11 @@ struct Library_Call_Inserter : public ARM64_Library_Call_Inserter
         dword_registers_ = assembly::DOUBLEWORD_REGISTER;
         vector_registers_ = assembly::VECTOR_REGISTER;
     }
+
+    bool try_insert_operand_from_argv_rvalue(Instructions& instructions,
+        common::memory::Locals& locals,
+        Register argument_storage,
+        unsigned int index);
 
     assembly::Register get_available_standard_library_register(
         std::deque<assembly::Register>& available_registers,
