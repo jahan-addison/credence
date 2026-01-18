@@ -125,7 +125,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -198,7 +198,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -271,7 +271,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -337,7 +337,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -403,7 +403,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -461,7 +461,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -523,7 +523,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -582,7 +582,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -641,7 +641,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -707,7 +707,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -774,7 +774,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -840,7 +840,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -900,7 +900,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -960,7 +960,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1021,7 +1021,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1086,7 +1086,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1157,7 +1157,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1229,7 +1229,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1298,7 +1298,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1369,7 +1369,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1462,7 +1462,7 @@ _start:
     std::string expected = R"arm(
 .section	__TEXT,__text,regular,pure_instructions
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -1512,4 +1512,230 @@ _start:
 #endif
     SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "vector_4", expected, true);
+}
+
+TEST_CASE("target/arm64: fixture: globals 1, 2")
+{
+    SETUP_ARM64_FIXTURE_SHOULD_THROW_FROM_AST("globals_2");
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adrp x6, unit@PAGE
+    add x6, x6, unit@PAGEOFF
+    ldr w9, [x6]
+    adrp x6, mess@PAGE
+    add x6, x6, mess@PAGEOFF
+    ldr x10, [x6, #8]
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+.align 3
+
+mess:
+    .xword ._L_str2__
+
+    .xword ._L_str3__
+
+    .xword ._L_str1__
+
+.align 2
+
+unit:
+    .long 1
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adrp x6, unit@PAGE
+    add x6, x6, unit@PAGEOFF
+    ldr w9, [x6]
+    adrp x6, mess@PAGE
+    add x6, x6, mess@PAGEOFF
+    ldr x10, [x6, #8]
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+.section __DATA,__data
+
+.p2align 3
+
+mess:
+    .xword ._L_str2__
+
+    .xword ._L_str3__
+
+    .xword ._L_str1__
+
+.p2align 2
+
+unit:
+    .long 1
+)arm";
+#endif
+    SETUP_ARM64_FIXTURE_AND_TEST_FROM_AST("globals_1", expected);
+}
+
+TEST_CASE("target/arm64: fixture: globals 3")
+{
+
+#if defined(__linux__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adrp x6, unit@PAGE
+    add x6, x6, unit@PAGEOFF
+    ldr w9, [x6]
+    adrp x6, mess@PAGE
+    add x6, x6, mess@PAGEOFF
+    ldr x10, [x6, #8]
+    sub sp, sp, #16
+    str w9, [sp, #0]
+    str x10, [sp, #4]
+    mov x0, x10
+    mov w1, #10
+    bl _print
+    ldr w9, [sp, #0]
+    ldr x10, [sp, #4]
+    add sp, sp, #16
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+.align 3
+
+mess:
+    .xword ._L_str2__
+
+    .xword ._L_str3__
+
+    .xword ._L_str1__
+
+.align 2
+
+unit:
+    .long 1
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adrp x6, unit@PAGE
+    add x6, x6, unit@PAGEOFF
+    ldr w9, [x6]
+    adrp x6, mess@PAGE
+    add x6, x6, mess@PAGEOFF
+    ldr x10, [x6, #8]
+    sub sp, sp, #16
+    str w9, [sp, #0]
+    str x10, [sp, #4]
+    mov x0, x10
+    mov w1, #10
+    bl _print
+    ldr w9, [sp, #0]
+    ldr x10, [sp, #4]
+    add sp, sp, #16
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+.section __DATA,__data
+
+.p2align 3
+
+mess:
+    .xword ._L_str2__
+
+    .xword ._L_str3__
+
+    .xword ._L_str1__
+
+.p2align 2
+
+unit:
+    .long 1
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "globals_3", expected, true);
 }

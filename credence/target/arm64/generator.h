@@ -92,7 +92,12 @@ constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
 constexpr std::string emit_register_storage(assembly::Register device,
     common::flag::flags flags);
 
-void emit_arm64_assembly_prologue(std::ostream& os);
+void emit_arm64_alignment_directive(std::ostream& os,
+    std::size_t align = 3,
+    std::size_t newline = 2);
+
+void insert_arm64_alignment_directive(assembly::Directives& instructions,
+    std::size_t align = 3);
 
 class Assembly_Emitter;
 
@@ -229,14 +234,7 @@ class Data_Emitter
     void set_data_strings();
     void set_data_floats();
     void set_data_doubles();
-
-    inline void set_data_section()
-    {
-        set_data_strings();
-        set_data_floats();
-        set_data_globals();
-        set_data_doubles();
-    }
+    void set_data_section();
 
   private:
     assembly::Directives get_instructions_from_directive_type(
@@ -245,9 +243,10 @@ class Data_Emitter
 
   private:
     memory::Memory_Access accessor_;
+    assembly::Directives instructions_;
 
   private:
-    assembly::Directives instructions_;
+    std::size_t index_after_strings{ 0 };
 };
 
 /**

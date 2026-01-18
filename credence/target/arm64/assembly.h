@@ -467,8 +467,10 @@ enum class Directive
     string,
     space,
     align,
+    p2align,
     float_,
     double_,
+    long_,
     start,
     extern_,
 };
@@ -665,8 +667,10 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
         ARM64_DIRECTIVE_OSTREAM(string);
         ARM64_DIRECTIVE_OSTREAM(space);
         ARM64_DIRECTIVE_OSTREAM(align);
+        ARM64_DIRECTIVE_OSTREAM(p2align);
         ARM64_DIRECTIVE_OSTREAM(float_);
         ARM64_DIRECTIVE_OSTREAM(double_);
+        ARM64_DIRECTIVE_OSTREAM(long_);
         ARM64_DIRECTIVE_OSTREAM(extern_);
     }
     return os;
@@ -1096,7 +1100,7 @@ constexpr Directive get_data_directive_from_rvalue_type(
     return m::match(type)(
         m::pattern | T{ "double" } = [&] { return Directive::double_; },
         m::pattern |
-            m::or_(T{ "int" }, T{ "long" }) = [&] { return Directive::word; },
+            m::or_(T{ "int" }, T{ "long" }) = [&] { return Directive::long_; },
         m::pattern | T{ "float" } = [&] { return Directive::float_; },
         m::pattern | T{ "char" } = [&] { return Directive::string; },
         m::pattern | T{ "string" } = [&] { return Directive::xword; },
@@ -1179,8 +1183,10 @@ ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(word);
 ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(hword);
 ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(zero);
 ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(align);
+ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(p2align);
 ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(float_);
 ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(double_);
+ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_FROM_TEMPLATE(long_);
 
 // arithmetic
 ARM64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(inc);

@@ -261,24 +261,27 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
     auto vector_accessor = Vector_Accessor{ table_ };
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
-
+    auto& inst = instructions.second;
     m::match(lvalue)(
         m::pattern | m::app(is_global_vector, true) =
             [&] {
                 credence_assert(table_->get_vectors().contains(lhs));
                 auto vector = table_->get_vectors().at(lhs);
                 if (table_->get_globals().is_pointer(lhs)) {
-                    fmt::println("offset: {}", offset);
                     auto offset_storage =
                         vector_accessor.get_offset_address(lvalue, offset);
-                    auto offset_arithmetic =
-                        offset_storage.first == 0UL
-                            ? lhs
-                            : fmt::format("{}+{}", lhs, offset_storage.first);
-                    offset_arithmetic =
-                        fmt::format("[sp, {}]", offset_arithmetic);
-                    instructions.first = common::assembly::make_array_immediate(
-                        offset_arithmetic);
+                    auto global_offset =
+                        direct_immediate(fmt::format("{}@PAGE", lhs));
+                    auto global_offset_page =
+                        direct_immediate(fmt::format("{}@PAGEOFF", lhs));
+                    auto vector_offset = direct_immediate(
+                        fmt::format("[x6, #{}]", offset_storage.first));
+                    auto address_offset = offset_storage.first == 0UL
+                                              ? direct_immediate("[x6]")
+                                              : vector_offset;
+                    arm64_add__asm(inst, adrp, x6, global_offset);
+                    arm64_add__asm(inst, add, x6, x6, global_offset_page);
+                    instructions.first = address_offset;
                 }
             },
         m::pattern | m::app(is_vector_offset, true) =
@@ -296,11 +299,7 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
                                 : assembly::Operand_Size::Word;
                 stack_->set(vector_s, size);
                 if (stack_->get_aad_local_size() == 0UL) {
-                    arm64_add__asm(instructions.second,
-                        add,
-                        Register::x15,
-                        sp,
-                        offset_immediate);
+                    arm64_add__asm(inst, add, x15, sp, offset_immediate);
                     instructions.first = Register::x15;
                 } else
                     instructions.first = vector_s;

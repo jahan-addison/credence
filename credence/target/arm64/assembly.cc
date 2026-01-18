@@ -109,6 +109,13 @@ Directives align(type::semantic::RValue const& rvalue)
     return directives;
 }
 
+Directives p2align(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::p2align, rvalue });
+    return directives;
+}
+
 Directives float_(type::semantic::RValue const& rvalue)
 {
     auto directives = make_directives();
@@ -120,6 +127,13 @@ Directives double_(type::semantic::RValue const& rvalue)
 {
     auto directives = make_directives();
     directives.emplace_back(Data_Pair{ Directive::double_, rvalue });
+    return directives;
+}
+
+Directives long_(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::long_, rvalue });
     return directives;
 }
 

@@ -72,16 +72,19 @@ if [[ "$ARCH" == "arm64" ]] ; then
 
   "$CREDENCE_BINARY" -t arm64 -o arm64_constant_1 ./test/fixtures/platform/math_constant_8.b
   "$CREDENCE_BINARY" -t arm64 -o vector_4 ./test/fixtures/platform/vector_4.b
+  "$CREDENCE_BINARY" -t arm64 -o globals_3 ./test/fixtures/platform/globals_3.b
 
   send_message "Running arm64 tests ..."
 
   ./test/compiled-test.sh arm64_constant_1
   ./test/compiled-test.sh vector_4
+  ./test/compiled-test.sh globals_3
 else
   send_message "Building x86_64 tests ..."
 
   "$CREDENCE_BINARY" -t x86_64 -o syscall_test ./test/fixtures/platform/stdlib/write.b
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_test ./test/fixtures/platform/stdlib/print.b
+  "$CREDENCE_BINARY" -t x86_64 -o globals_3 ./test/fixtures/platform/globals_3.b
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_putchar_test ./test/fixtures/platform/stdlib/putchar_1.b
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_getchar_test ./test/fixtures/platform/stdlib/getchar_1.b
   "$CREDENCE_BINARY" -t x86_64 -o call_test_1 ./test/fixtures/platform/call_1.b
@@ -96,6 +99,7 @@ else
 
   ./test/compiled-test.sh syscall_test
   ./test/compiled-test.sh stdlib_test
+  ./test/compiled-test.sh globals_3
   ./test/compiled-test.sh call_test_1
   ./test/compiled-test.sh if_1
   ./test/compiled-test.sh while_1

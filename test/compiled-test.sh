@@ -10,6 +10,18 @@
 ## for the full text of these licenses.
 #####################################################################################
 
+send_error() {
+    local COLOR='\033[1;31m'
+    local RESET='\033[0m'
+    printf "${COLOR}%s${RESET}\n" "$*"
+}
+
+send_message() {
+    local COLOR='\033[1;32m'
+    local RESET='\033[0m'
+    printf "${COLOR}%s${RESET}\n" "$*"
+}
+
 if [[ "$1" == "syscall_test" ]]; then
   printf -v expected_output '%s\n%s' "hello world" "how cool is this man"
 fi
@@ -40,6 +52,9 @@ fi
 if [[ "$1" == "vector_4" ]]; then
   printf -v expected_output '%s' "good afternoon"
 fi
+if [[ "$1" == "globals_3" ]]; then
+  printf -v expected_output '%s' "tough luck"
+fi
 if [[ "$1" == "arm64_constant_1" ]]; then
   printf -v expected_output '%s' "m is 60"
 fi
@@ -67,10 +82,10 @@ fi
 
 
 if [[ "$program_output" == "$expected_output" ]]; then
-  printf 'Source code compiled SUCCESSFULLY for "%s" on %s with: %s\n' "$program_name" "$(uname -s)" "$(uname -a)"
+  printf 'Source code compiled %s for "%s" on %s with: %s\n' "$(send_message 'SUCCESSFULLY')"  "$program_name" "$(uname -s)" "$(uname -a)"
   exit 0
 else
-  printf 'Source code compiled FAILED for "%s" on %s with: %s\n' "$program_name" "$(uname -s)" "$(uname -a)"
+  printf 'Source code compiled %s for "%s" on %s with: %s\n' "$(send_error 'FAILED')"  "$program_name" "$(uname -s)" "$(uname -a)"
   echo "--- Expected Output ---"
   echo "$expected_output"
   echo "--- Actual Output ---"

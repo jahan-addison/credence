@@ -834,11 +834,9 @@ void Expression_Inserter::insert_from_global_vector_assignment(
         accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
             rhs, instructions.size(), accessor_->device_accessor);
     assembly::inserter(instructions, rhs_storage_inst);
-    auto acc =
-        accessor_->accumulator_accessor.get_accumulator_register_from_storage(
-            lhs_storage, accessor_->stack);
-    arm64_add__asm(instructions, ldr, acc, rhs_storage);
-    arm64_add__asm(instructions, str, acc, lhs_storage);
+    accessor_->flag_accessor.set_instruction_flag(
+        common::flag::Indirect_Source, instructions.size());
+    arm64_add__asm(instructions, ldr, lhs_storage, rhs_storage);
 }
 
 /**
@@ -986,7 +984,6 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
     };
 
     m::match(rhs)(
-        // Translate from an immediate value assignment
         m::pattern | m::app(is_immediate, true) =
             [&] {
                 auto imm = type::get_rvalue_datatype_from_string(rhs);

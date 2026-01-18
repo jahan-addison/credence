@@ -163,6 +163,7 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
     }
     auto local_symbol = locals.get_symbol_by_name(lvalue);
     auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
+
     if (local_rvalue == "RET") {
         credence_assert(
             pimpl->table->get_functions().contains(stack_frame.tail));

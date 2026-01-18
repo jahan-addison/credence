@@ -208,6 +208,7 @@ void Type_Checker::type_safe_assign_vector(LValue const& lvalue,
         std::bind(&Type_Checker::vector_contains_, this, std::placeholders::_1);
     Type_Check_Lambda local_contains =
         std::bind(&Type_Checker::local_contains_, this, std::placeholders::_1);
+
     auto lvalue_direct = m::match(lvalue)(
         m::pattern | m::app(object::is_vector_lvalue, true) =
             [&] {
@@ -251,6 +252,15 @@ void Type_Checker::type_safe_assign_vector(LValue const& lvalue,
         m::pattern |
             m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
             [&] {
+                if (locals.is_defined(rvalue_offset)) {
+                    rvalue_offset = type::get_value_from_rvalue_data_type(
+                        ir::object::get_rvalue_at_lvalue_object_storage(
+                            rvalue_offset,
+                            stack_frame_,
+                            objects_->get_vectors()));
+                    is_boundary_out_of_range(
+                        fmt::format("{}[{}]", rvalue_direct, rvalue_offset));
+                }
                 type_invalid_assignment_check(lvalue_direct,
                     objects_->get_vectors()[rvalue_direct],
                     rvalue_offset);

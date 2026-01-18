@@ -130,6 +130,7 @@ assembly::Directives Data_Emitter::get_instructions_from_directive_type(
     m::match(directive)(
         m::pattern | d::dword = [&] { instructions = assembly::xword(rvalue); },
         m::pattern | d::word = [&] { instructions = assembly::word(rvalue); },
+        m::pattern | d::long_ = [&] { instructions = assembly::long_(rvalue); },
         m::pattern | m::or_(d::string, d::xword) =
             [&] {
                 credence_assert(
@@ -160,10 +161,23 @@ assembly::Directives Data_Emitter::get_instructions_from_directive_type(
         m::pattern | d::align = [&] { instructions = assembly::align(rvalue); },
         m::pattern | m::_ =
             [&] {
-                credence_error(fmt::format("unhandled directive type '{}'",
+                credence_error(fmt::format("unsupported directive type '{}'",
                     static_cast<int>(directive)));
             });
     return instructions;
+}
+
+std::size_t get_alignment_size_from_rvalue_data_type(
+    type::semantic::Type const& type)
+{
+    using T = type::semantic::Type;
+    return m::match(type)(
+        m::pattern |
+            m::or_(T{ "int" }, T{ "float" }, T{ "double" }, T{ "long" }) =
+            [&] { return 2UL; },
+        m::pattern | T{ "char" } = [&] { return 1UL; },
+        m::pattern | T{ "string" } = [&] { return 3UL; },
+        m::pattern | m::_ = [&] { return 3UL; });
 }
 
 /**
@@ -181,6 +195,8 @@ void Data_Emitter::set_data_strings()
             string, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
     }
+
+    index_after_strings = instructions_.size();
 }
 
 /**
@@ -223,9 +239,19 @@ void Data_Emitter::set_data_doubles()
 void Data_Emitter::set_data_globals()
 {
     auto& table = accessor_->table_accessor.get_table();
+
     for (auto const& global : table->get_globals().get_pointers()) {
         credence_assert(table->get_vectors().contains(global));
         auto& vector = table->get_vectors().at(global);
+        if (vector->get_size() == 1) {
+            auto align = get_alignment_size_from_rvalue_data_type(
+                type::get_type_from_rvalue_data_type(
+                    vector->get_data().at("0")));
+            insert_arm64_alignment_directive(instructions_, align);
+        }
+
+        else
+            insert_arm64_alignment_directive(instructions_, 3);
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
         for (auto const& item : vector->get_data()) {
@@ -233,12 +259,12 @@ void Data_Emitter::set_data_globals()
                 assembly::get_data_directive_from_rvalue_type(item.second);
             auto data = type::get_value_from_rvalue_data_type(item.second);
             vector->set_address_offset(item.first, address);
+            auto type = type::get_type_from_rvalue_data_type(item.second);
             address += assembly::get_size_from_operand_size(
                 assembly::get_operand_size_from_rvalue_datatype(item.second));
 
             auto instructions =
                 get_instructions_from_directive_type(directive, data);
-
             assembly::inserter(instructions_, instructions);
         }
     }
@@ -262,11 +288,21 @@ void Data_Emitter::emit_data_section(std::ostream& os)
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
             auto data_item = instructions_[index];
+            if (index == index_after_strings) {
+#if defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+                os << ".section __DATA,__data";
+                assembly::newline(os, 2);
+#endif
+            }
             std::visit(
                 util::overload{
                     [&](Label const& s) { os << s << ":" << std::endl; },
                     [&](assembly::Data_Pair const& s) {
-                        os << assembly::tabwidth(4) << s.first;
+                        if (s.first != Directive::align and
+                            s.first != Directive::p2align)
+                            os << assembly::tabwidth(4) << s.first;
+                        else
+                            os << s.first;
                         if (s.first == assembly::Directive::asciz)
                             os << " " << "\""
                                << assembly::literal_type_to_string(s.second)
@@ -330,11 +366,36 @@ constexpr std::string emit_register_storage(Register device,
 }
 
 /**
- * @brief Emit the ARM64 assembly prologue
+ * @brief Emit the alignment directive
  */
-void emit_arm64_assembly_prologue(std::ostream& os)
+void emit_arm64_alignment_directive(std::ostream& os,
+    std::size_t align,
+    std::size_t newline)
 {
-    os << ".align 3" << std::endl << std::endl;
+#if defined(__linux__)
+    os << assembly::tabwidth(4) << ".align " << align;
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+    os << assembly::tabwidth(4) << ".p2align " << align;
+#endif
+    assembly::newline(os, newline);
+}
+
+void insert_arm64_alignment_directive(assembly::Directives& instructions,
+    std::size_t align)
+{
+#if defined(__linux__)
+    assembly::inserter(instructions, assembly::align(std::to_string(align)));
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+    assembly::inserter(instructions, assembly::p2align(std::to_string(align)));
+#endif
+}
+
+void Data_Emitter::set_data_section()
+{
+    set_data_strings();
+    set_data_floats();
+    set_data_doubles();
+    set_data_globals();
 }
 
 /**
@@ -705,8 +766,7 @@ void Text_Emitter::emit_text_directives(std::ostream& os)
     os << ".section	__TEXT,__text,regular,pure_instructions" << std::endl;
 #endif
     assembly::newline(os, 1);
-    os << assembly::tabwidth(4);
-    emit_arm64_assembly_prologue(os);
+    emit_arm64_alignment_directive(os, 3, 2);
     os << assembly::tabwidth(4) << assembly::Directive::start;
     assembly::newline(os, 1);
     emit_stdlib_externs(os);
