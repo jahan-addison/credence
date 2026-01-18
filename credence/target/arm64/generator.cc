@@ -278,10 +278,8 @@ void Data_Emitter::emit_data_section(std::ostream& os)
     assembly::newline(os, 1);
 #if defined(__linux__)
     os << assembly::Directive::data;
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
-
+#elif defined(__APPLE__) || defined(__bsdi__)
     os << ".section	__TEXT,__cstring,cstring_literals";
-
 #endif
     assembly::newline(os, 2);
 
@@ -289,7 +287,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
         for (std::size_t index = 0; index < instructions_.size(); index++) {
             auto data_item = instructions_[index];
             if (index == index_after_strings) {
-#if defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#if defined(__APPLE__) || defined(__bsdi__)
                 os << ".section __DATA,__data";
                 assembly::newline(os, 2);
 #endif
@@ -374,7 +372,7 @@ void emit_arm64_alignment_directive(std::ostream& os,
 {
 #if defined(__linux__)
     os << assembly::tabwidth(4) << ".align " << align;
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     os << assembly::tabwidth(4) << ".p2align " << align;
 #endif
     assembly::newline(os, newline);
@@ -385,7 +383,7 @@ void insert_arm64_alignment_directive(assembly::Directives& instructions,
 {
 #if defined(__linux__)
     assembly::inserter(instructions, assembly::align(std::to_string(align)));
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     assembly::inserter(instructions, assembly::p2align(std::to_string(align)));
 #endif
 }
@@ -762,7 +760,7 @@ void Text_Emitter::emit_text_directives(std::ostream& os)
     assembly::newline(os, 1);
 #if defined(__linux__)
     os << assembly::Directive::text << std::endl;
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     os << ".section	__TEXT,__text,regular,pure_instructions" << std::endl;
 #endif
     assembly::newline(os, 1);

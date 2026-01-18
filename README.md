@@ -53,7 +53,7 @@ Machine code generated for each ISA is compliant with the Application Binary Int
 
 * #### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
 
-* #### ARM64 _(Linux, BSD (Darwin))_ : In Progress 🚂 (80%)
+* #### ARM64 _(Linux, BSD (Darwin))_ : In Progress 🚂 (95%)
 
 
 

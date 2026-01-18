@@ -136,6 +136,25 @@ const general_purpose available_word = {
     Register::w18,
 };
 
+const general_purpose available_doubleword_argument = { Register::x0,
+    Register::x1,
+    Register::x2,
+    Register::x3,
+    Register::x4,
+    Register::x5,
+    Register::x6,
+    Register::x7,
+    Register::x8 };
+const general_purpose available_word_argument = { Register::w0,
+    Register::w1,
+    Register::w2,
+    Register::w3,
+    Register::w4,
+    Register::w5,
+    Register::w6,
+    Register::w7,
+    Register::x8 };
+
 } // namespace registers
 
 using Memory_Access = std::shared_ptr<Memory_Accessor>;

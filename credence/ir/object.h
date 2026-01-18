@@ -120,8 +120,6 @@ struct Vector
 
 /**
  * @brief Function and function frame storage data for the object table
- *
- * Uses the PIMPL idiom to reduce build times
  */
 class Function
 {
@@ -246,6 +244,9 @@ class Object
     bool local_contains(type::semantic::LValue const& lvalue);
     bool stack_frame_contains_call_instruction(Label name,
         ir::Instructions const& instructions);
+    void set_ir_parameters(Label const& label, type::Parameters& parameters);
+    type::Parameters& get_ir_parameters(Label const& label);
+    type::Parameters const& get_ir_parameters(Label const& label) const;
 
     // Stack frame management
     bool is_stack_frame();

@@ -14,3 +14,6 @@ main() {
 unit 0;
 
 mess [2] "hello ", "world\n";
+
+// /print() {}
+//write() {}

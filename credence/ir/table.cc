@@ -214,8 +214,11 @@ void Table::build_vector_definitions_from_globals()
         }
 }
 
-// Unused
-void Table::from_call_ita_instruction([[maybe_unused]] Label const& label) {}
+void Table::from_call_ita_instruction(Label const& label)
+{
+    objects_->set_ir_parameters(label, temporary_parameter_stack);
+    temporary_parameter_stack.clear();
+}
 
 /**
  * @brief add label and label instruction address entry from LABEL
@@ -505,7 +508,7 @@ void Table::from_push_instruction(Quadruple const& instruction)
     RValue operand = std::get<1>(instruction);
     auto frame = objects_->get_stack_frame();
     if (objects_->is_stack_frame()) {
-        // credence_assert(frame->get_temporary().contains(operand));
+        temporary_parameter_stack.emplace_back(operand);
         objects_->get_stack().emplace_back(frame->get_temporary().at(operand));
     }
 }

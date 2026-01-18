@@ -134,6 +134,7 @@ class Table
     }
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    type::Parameters temporary_parameter_stack{};
     type::semantic::Address instruction_index{ 0 };
     object::Instruction_PTR instructions_{};
     object::Object_PTR objects_;

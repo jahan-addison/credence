@@ -1157,9 +1157,9 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
         }
     }
     if (frame->is_pointer_parameter(rvalue))
-        return memory::registers::available_doubleword.at(index_of);
+        return memory::registers::available_doubleword_argument.at(index_of);
     else
-        return memory::registers::available_word.at(index_of);
+        return memory::registers::available_word_argument.at(index_of);
 }
 
 /**
@@ -1168,8 +1168,10 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
 Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
 {
     auto frame = stack_frame_.get_stack_frame();
-    if (frame->is_parameter(rvalue))
+
+    if (frame->is_parameter(rvalue)) {
         return get_operand_storage_from_parameter(rvalue);
+    }
 
 #if defined(__linux__)
     if (!stack_frame_.tail.empty() and
@@ -1255,21 +1257,42 @@ void Invocation_Inserter::insert_from_user_defined_function(
     auto operands = get_operands_storage_from_argument_stack();
     for (std::size_t i = 0; i < operands.size(); i++) {
         auto const& operand = operands[i];
-        auto size =
-            memory::get_operand_size_from_storage(operand, accessor_->stack);
+        auto argument = stack_frame_.argument_stack.at(i);
+        auto arg_type = type::get_type_from_rvalue_data_type(argument);
         auto arg_register = assembly::get_register_from_integer_argument(i);
-        if (is_variant(Immediate, operand)) {
-            if (type::is_rvalue_data_type_string(
-                    std::get<Immediate>(operand))) {
-                accessor_->flag_accessor.set_instruction_flag(
-                    common::flag::Load,
-                    accessor_->instruction_accessor->size());
-            }
-        }
-        if (size == Operand_Size::Doubleword)
-            accessor_->flag_accessor.set_instruction_flag(
-                common::flag::Argument, instruction_index + i);
-        arm64_add__asm(instructions, mov, arg_register, operand);
+        m::match(arg_type)(
+            m::pattern | m::or_(sv("string"), sv("float"), sv("double")) =
+                [&] {
+                    auto immediate = type::get_value_from_rvalue_data_type(
+                        std::get<Immediate>(operand));
+                    auto imm_1 =
+                        direct_immediate(fmt::format("{}@PAGE", immediate));
+                    arm64_add__asm(instructions, adrp, arg_register, imm_1);
+                    auto imm_2 =
+                        direct_immediate(fmt::format("{}@PAGEOFF", immediate));
+                    arm64_add__asm(
+                        instructions, add, arg_register, arg_register, imm_2);
+                },
+            m::pattern | m::_ =
+                [&] {
+                    accessor_->flag_accessor.set_instruction_flag(
+                        common::flag::Argument, instructions.size());
+                    if (is_variant(common::Stack_Offset, operand) or
+                        assembly::is_immediate_pc_address_offset(operand))
+                        arm64_add__asm(
+                            instructions, ldr, arg_register, operand);
+                    else if (is_variant(Register, operand) and
+                             assembly::is_word_register(
+                                 std::get<Register>(operand))) {
+                        auto storage_dword =
+                            assembly::get_word_register_from_doubleword(
+                                arg_register);
+                        arm64_add__asm(
+                            instructions, mov, storage_dword, operand);
+                    } else
+                        arm64_add__asm(
+                            instructions, mov, arg_register, operand);
+                });
     }
     arm64_add__asm(instructions, bl, direct_immediate(routine));
 }

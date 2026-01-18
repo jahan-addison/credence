@@ -1643,7 +1643,7 @@ _start:
     str x10, [sp, #4]
     mov x0, x10
     mov w1, #10
-    bl _print
+    bl print
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1766,8 +1766,8 @@ _start:
     mov w0, #1
     mov x1, x10
     mov w2, #6
-    mov x16, #4
-    svc #0x80
+    mov x8, #4
+    svc #0
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1779,8 +1779,8 @@ _start:
     mov w0, #1
     ldr x1, [x6, #8]
     mov w2, #6
-    mov x16, #4
-    svc #0x80
+    mov x8, #4
+    svc #0
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1791,8 +1791,8 @@ _start:
     adrp x1, ._L_str2__@PAGE
     add x1, x1, ._L_str2__@PAGEOFF
     mov w2, #21
-    mov x16, #4
-    svc #0x80
+    mov x8, #4
+    svc #0
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1938,7 +1938,7 @@ _start:
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
-    bl _print
+    bl print
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1947,7 +1947,7 @@ _start:
     str x10, [sp, #4]
     mov x0, x10
     mov w1, #6
-    bl _print
+    bl print
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1958,7 +1958,7 @@ _start:
     add x6, x6, mess@PAGEOFF
     ldr x0, [x6, #8]
     mov w1, #7
-    bl _print
+    bl print
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1969,8 +1969,8 @@ _start:
     adrp x1, ._L_str3__@PAGE
     add x1, x1, ._L_str3__@PAGEOFF
     mov w2, #21
-    mov x16, #4
-    svc #0x80
+    mov x8, #4
+    svc #0
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -1992,8 +1992,6 @@ _start:
 
 ._L_str4__:
     .asciz "world\n"
-
-.section __DATA,__data
 
 .align 3
 
@@ -2102,4 +2100,94 @@ unit:
 #endif
     SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "stdlib/print", expected, true);
+}
+
+TEST_CASE("target/arm64: fixture: stdlib print")
+{
+    SETUP_ARM64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/print_2");
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x9, x6
+    mov x0, x9
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    mov w1, #18
+    bl print
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x8, #1
+    svc #0
+
+
+identity:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #16
+    ret
+
+.data
+
+._L_str1__:
+    .asciz "hello, how are you"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x9, x6
+    mov x0, x9
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    mov w1, #18
+    bl _print
+    ldp x29, x30, [sp], #16
+    mov x0, #0
+    mov x16, #1
+    svc #0x80
+
+
+identity:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #16
+    ret
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "hello, how are you"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "call_1", expected, false);
 }

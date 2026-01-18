@@ -72,6 +72,9 @@ class IR_Instruction_Visitor final : public ARM64_IR_Visitor
   private:
     void set_pointer_address_of_lvalue(LValue const& lvalue);
 
+  private:
+    bool parameters_in_return_stack(Label const& label);
+
   public:
     void from_locl_ita(ir::Quadruple const& inst) override;
     void from_pop_ita() override;

@@ -232,6 +232,7 @@ type::Parameters const& Function::get_parameters() const
 {
     return pimpl->parameters;
 }
+
 Ordered_Map<LValue, RValue>& Function::get_temporary()
 {
     return pimpl->temporary;
@@ -320,6 +321,7 @@ struct Object::Object_IMPL
     Function::Address_Table address_table{};
     std::string stack_frame_symbol{};
     Stack stack{};
+    std::map<Label, type::Parameters> ir_parameters{};
     Functions functions{};
     Vectors vectors{};
     type::RValues strings{};
@@ -447,6 +449,21 @@ type::Labels& Object::get_labels()
 type::Labels const& Object::get_labels() const
 {
     return pimpl->labels;
+}
+
+void Object::set_ir_parameters(Label const& label, type::Parameters& parameters)
+{
+    pimpl->ir_parameters.insert_or_assign(label, parameters);
+}
+type::Parameters& Object::get_ir_parameters(Label const& label)
+{
+    credence_assert(pimpl->ir_parameters.contains(label));
+    return pimpl->ir_parameters.at(label);
+}
+type::Parameters const& Object::get_ir_parameters(Label const& label) const
+{
+    credence_assert(pimpl->ir_parameters.contains(label));
+    return pimpl->ir_parameters.at(label);
 }
 
 /**
@@ -680,6 +697,8 @@ Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
             return type::get_size_from_rvalue_data_type(
                 locals.get_symbol_by_name(rvalue));
     }
+    if (rvalue == "RET")
+        return 8UL;
     credence_error("unreachable");
     return 0UL;
 }

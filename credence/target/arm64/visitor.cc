@@ -117,7 +117,7 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
     };
 
     m::match(lhs, rhs)(
-        m::pattern | m::ds(m::app(is_parameter, true), m::_) = [] {},
+        m::pattern | m::ds(m::app(is_parameter, true), m::_) = [&] {},
         m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
             [&] {
                 expression_inserter.insert_lvalue_at_temporary_object_address(
@@ -240,13 +240,31 @@ void IR_Instruction_Visitor::from_pop_ita()
 }
 
 /**
+ * @brief Check if the parameter stack has already been allocated before a
+ * function call
+ */
+bool IR_Instruction_Visitor::parameters_in_return_stack(Label const& label)
+{
+    auto& table = accessor_->table_accessor;
+    auto parameters = table.get_table()->get_ir_parameters(label);
+    std::vector<bool> rets{};
+    if (!parameters.empty()) {
+        auto parent = accessor_->get_frame_in_memory().get_stack_frame();
+        for (auto const& parameter : parameters)
+            rets.emplace_back(
+                table.get_table()->lvalue_at_temporary_object_address(
+                    parameter, parent) == "RET");
+    }
+    return std::ranges::all_of(rets, [](auto&& ret) { return ret == true; });
+}
+
+/**
  * @brief IR Instruction Instruction::CALL
  */
 void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto inserter = Invocation_Inserter{ accessor_,
-        instruction_accessor->get_instructions().size() };
+    auto inserter = Invocation_Inserter{ accessor_ };
     auto& instructions = instruction_accessor->get_instructions();
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
 
@@ -276,8 +294,10 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 
 #endif
     };
-    accessor_->device_accessor.save_and_allocate_before_instruction_jump(
-        instructions);
+
+    if (!parameters_in_return_stack(function_name))
+        accessor_->device_accessor.save_and_allocate_before_instruction_jump(
+            instructions);
     m::match(function_name)(
         m::pattern | m::app(is_syscall_function, true) =
             [&] {
@@ -294,10 +314,12 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
                 inserter.insert_from_user_defined_function(
                     function_name, instructions);
             });
-    stack_frame_.call_stack.emplace_back(function_name);
+    stack_frame_.call_stack.emplace_back(
+        accessor_->get_frame_in_memory().symbol);
     stack_frame_.tail = function_name;
-    accessor_->device_accessor.restore_and_deallocate_after_instruction_jump(
-        instructions);
+    if (!parameters_in_return_stack(function_name))
+        accessor_->device_accessor
+            .restore_and_deallocate_after_instruction_jump(instructions);
 }
 
 /**

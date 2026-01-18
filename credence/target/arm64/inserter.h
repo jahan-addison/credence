@@ -155,10 +155,8 @@ struct Bitwise_Operator_Inserter : public ARM64_Bitwise_Operator_Inserter
 
 struct Invocation_Inserter : public ARM64_Invocation_Inserter
 {
-    explicit Invocation_Inserter(memory::Memory_Access accessor,
-        std::size_t index)
+    explicit Invocation_Inserter(memory::Memory_Access accessor)
         : ARM64_Invocation_Inserter(accessor)
-        , instruction_index(index)
     {
     }
     arguments_t get_operands_storage_from_argument_stack() override;
@@ -174,9 +172,6 @@ struct Invocation_Inserter : public ARM64_Invocation_Inserter
     void insert_type_check_stdlib_printf_arguments(
         common::memory::Locals const& argument_stack,
         ARM64_Invocation_Inserter::arguments_t& operands) override;
-
-  private:
-    std::size_t instruction_index;
 };
 
 struct Arithemtic_Operator_Inserter : public ARM64_Arithemtic_Operator_Inserter
