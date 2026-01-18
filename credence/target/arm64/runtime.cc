@@ -166,7 +166,8 @@ void Library_Call_Inserter::
                     arm64_add__asm(instructions, mov, storage, x6);
                     return;
                 }
-                if (is_variant(common::Stack_Offset, argument))
+                if (is_variant(common::Stack_Offset, argument) or
+                    assembly::is_immediate_pc_address_offset(argument))
                     arm64_add__asm(instructions, ldr, storage, argument);
                 else if (is_variant(Register, argument) and
                          assembly::is_word_register(

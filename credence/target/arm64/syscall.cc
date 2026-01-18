@@ -156,9 +156,20 @@ void syscall_operands_to_instructions(assembly::Instructions& instructions,
             arm64_add__asm(instructions, adrp, storage, imm_1);
             auto imm_2 = direct_immediate(fmt::format("{}@PAGEOFF", immediate));
             arm64_add__asm(instructions, add, storage, storage, imm_2);
+        } else if (assembly::is_immediate_pc_address_offset(arg)) {
+            arm64_add__asm(instructions, ldr, storage, arg);
         } else if (check_signal_register_from_safe_address(
-                       instructions, storage, accessor))
-            arm64_add__asm(instructions, mov, storage, arg);
+                       instructions, storage, accessor)) {
+            if (is_variant(common::Stack_Offset, arg))
+                arm64_add__asm(instructions, ldr, storage, arg);
+            else if (is_variant(Register, arg) and
+                     assembly::is_word_register(std::get<Register>(arg))) {
+                auto storage_dword =
+                    assembly::get_word_register_from_doubleword(storage);
+                arm64_add__asm(instructions, mov, storage_dword, arg);
+            } else
+                arm64_add__asm(instructions, mov, storage, arg);
+        }
     }
 }
 

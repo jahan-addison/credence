@@ -1143,8 +1143,21 @@ constexpr bool is_immediate_relative_address(Storage const& immediate)
 }
 
 /**
- * @brief Check if x28 (argc, argv) address offset
- * Note: x28 is used as a reserved register for argc/argv on ARM64
+ * @brief Check if stack pointer or vector lvalue address offset
+ */
+constexpr bool is_immediate_pc_address_offset(Storage const& immediate)
+{
+    if (is_variant(Immediate, immediate))
+        return util::contains(
+                   std::get<0>(std::get<Immediate>(immediate)), "[sp") or
+               util::contains(
+                   std::get<0>(std::get<Immediate>(immediate)), "[x6");
+    else
+        return false;
+}
+
+/**
+ * @brief Check if argv address offset
  */
 constexpr bool is_immediate_x28_address_offset(Storage const& immediate)
 {
