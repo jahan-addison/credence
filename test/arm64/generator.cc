@@ -1760,42 +1760,24 @@ _start:
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     mov w0, #1
     mov x1, x10
     mov w2, #6
-    mov x8, #4
-    svc #0
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    mov x16, #4
+    svc #0x80
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     mov w0, #1
     ldr x1, [x6, #8]
     mov w2, #6
-    mov x8, #4
-    svc #0
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    mov x16, #4
+    svc #0x80
     mov w0, #1
     adrp x1, ._L_str2__@PAGE
     add x1, x1, ._L_str2__@PAGEOFF
     mov w2, #21
-    mov x8, #4
-    svc #0
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
+    mov x16, #4
+    svc #0x80
     ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
@@ -1841,20 +1823,11 @@ _start:
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     mov w0, #1
     mov x1, x10
     mov w2, #6
     mov x16, #4
     svc #0x80
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     mov w0, #1
@@ -1862,21 +1835,12 @@ _start:
     mov w2, #6
     mov x16, #4
     svc #0x80
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     mov w0, #1
     adrp x1, ._L_str2__@PAGE
     add x1, x1, ._L_str2__@PAGEOFF
     mov w2, #21
     mov x16, #4
     svc #0x80
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
     ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1
@@ -1932,36 +1896,18 @@ _start:
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
-    bl print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    bl _print
     mov x0, x10
     mov w1, #6
-    bl print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
+    bl _print
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x0, [x6, #8]
     mov w1, #7
-    bl print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
+    bl _print
     sub sp, sp, #16
     str w9, [sp, #0]
     str x10, [sp, #4]
@@ -1969,8 +1915,8 @@ _start:
     adrp x1, ._L_str3__@PAGE
     add x1, x1, ._L_str3__@PAGEOFF
     mov w2, #21
-    mov x8, #4
-    svc #0
+    mov x16, #4
+    svc #0x80
     ldr w9, [sp, #0]
     ldr x10, [sp, #4]
     add sp, sp, #16
@@ -2022,36 +1968,18 @@ _start:
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6]
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
     bl _print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     mov x0, x10
     mov w1, #6
     bl _print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
-    sub sp, sp, #16
-    str w9, [sp, #0]
-    str x10, [sp, #4]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x0, [x6, #8]
     mov w1, #7
     bl _print
-    ldr w9, [sp, #0]
-    ldr x10, [sp, #4]
-    add sp, sp, #16
     sub sp, sp, #16
     str w9, [sp, #0]
     str x10, [sp, #4]
@@ -2119,15 +2047,23 @@ _start:
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
     mov x9, x6
+    sub sp, sp, #16
+    str x9, [sp, #0]
     mov x0, x9
     bl identity
     mov x0, x0
     bl identity
     mov x0, x0
     bl identity
+    ldr x9, [sp, #0]
+    add sp, sp, #16
+    sub sp, sp, #16
+    str x9, [sp, #0]
     mov x0, x0
     mov w1, #18
-    bl print
+    bl _print
+    ldr x9, [sp, #0]
+    add sp, sp, #16
     ldp x29, x30, [sp], #16
     mov x0, #0
     mov x8, #1
@@ -2160,15 +2096,23 @@ _start:
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
     mov x9, x6
+    sub sp, sp, #16
+    str x9, [sp, #0]
     mov x0, x9
     bl identity
     mov x0, x0
     bl identity
     mov x0, x0
     bl identity
+    ldr x9, [sp, #0]
+    add sp, sp, #16
+    sub sp, sp, #16
+    str x9, [sp, #0]
     mov x0, x0
     mov w1, #18
     bl _print
+    ldr x9, [sp, #0]
+    add sp, sp, #16
     ldp x29, x30, [sp], #16
     mov x0, #0
     mov x16, #1

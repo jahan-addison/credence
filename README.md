@@ -51,9 +51,9 @@ See documentation on code generation [here](credence/target/readme.md).
 
 Machine code generated for each ISA is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
 
-* #### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
+* ### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
 
-* #### ARM64 _(Linux, BSD (Darwin))_ : In Progress 🚂 (95%)
+* ### ARM64 _(Linux, BSD (Darwin))_ : In Progress 🚂 (95%)
 
 
 

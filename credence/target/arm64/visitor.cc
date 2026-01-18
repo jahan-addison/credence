@@ -77,7 +77,7 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
     auto frame = table->get_functions()[name];
-    // accessor_->stack->allocate(16);
+    table->reset_frame_calls();
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
     arm64_add__asm(instructions, mov, x29, sp);
@@ -240,22 +240,34 @@ void IR_Instruction_Visitor::from_pop_ita()
 }
 
 /**
- * @brief Check if the parameter stack has already been allocated before a
- * function call
+ * @brief Check if the parameter stack of the same function already been
+ * allocated before a function call
  */
 bool IR_Instruction_Visitor::parameters_in_return_stack(Label const& label)
 {
     auto& table = accessor_->table_accessor;
-    auto parameters = table.get_table()->get_ir_parameters(label);
-    std::vector<bool> rets{};
-    if (!parameters.empty()) {
-        auto parent = accessor_->get_frame_in_memory().get_stack_frame();
-        for (auto const& parameter : parameters)
-            rets.emplace_back(
-                table.get_table()->lvalue_at_temporary_object_address(
-                    parameter, parent) == "RET");
+    auto& parameters = table.get_table()->get_ir_parameters(label);
+    if (parameters.size() < 2)
+        return false;
+
+    auto parent = accessor_->get_frame_in_memory().get_stack_frame();
+
+    auto parameter_stack = parameters.back();
+    auto last_stack = parameters.at(parameters.size() - 2);
+    for (std::size_t j = 0UL; j++; j < parameter_stack.size()) {
+        if (parameter_stack.at(j) != last_stack.at(j))
+            return false;
     }
-    return std::ranges::all_of(rets, [](auto&& ret) { return ret == true; });
+    return true;
+}
+
+unsigned int* IR_Instruction_Visitor::get_function_frame_calls(
+    Label const& label)
+{
+    auto& table = accessor_->table_accessor.get_table();
+    credence_assert_message(table->function_contains(label), label);
+    auto object_frame = table->get_functions().at(label);
+    return object_frame->get_calls();
 }
 
 /**
@@ -264,9 +276,11 @@ bool IR_Instruction_Visitor::parameters_in_return_stack(Label const& label)
 void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
+    auto& table = accessor_->table_accessor.get_table();
     auto inserter = Invocation_Inserter{ accessor_ };
     auto& instructions = instruction_accessor->get_instructions();
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
+    auto& parameters = table->get_ir_parameters(function_name);
 
     auto is_syscall_function = [&](Label const& label) {
 #if defined(__linux__)
@@ -295,7 +309,9 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 #endif
     };
 
-    if (!parameters_in_return_stack(function_name))
+    if ((table->function_contains(function_name) and
+            *get_function_frame_calls(function_name) == 0) or
+        not parameters_in_return_stack(function_name))
         accessor_->device_accessor.save_and_allocate_before_instruction_jump(
             instructions);
     m::match(function_name)(
@@ -317,7 +333,13 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
     stack_frame_.call_stack.emplace_back(
         accessor_->get_frame_in_memory().symbol);
     stack_frame_.tail = function_name;
-    if (!parameters_in_return_stack(function_name))
+
+    if (table->function_contains(function_name))
+        ++(*get_function_frame_calls(function_name));
+
+    if ((table->function_contains(function_name) and
+            *get_function_frame_calls(function_name) == parameters.size()) or
+        not parameters_in_return_stack(function_name))
         accessor_->device_accessor
             .restore_and_deallocate_after_instruction_jump(instructions);
 }
@@ -395,5 +417,4 @@ void IR_Instruction_Visitor::from_if_ita(
     [[maybe_unused]] ir::Quadruple const& inst)
 {
 }
-
 }

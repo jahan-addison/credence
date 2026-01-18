@@ -22,11 +22,6 @@
  * Defines ARM64 instructions, registers, and mnemonics. Provides
  * instruction formatting and operand helpers for ARM64 ISA.
  *
- * Example registers:
- *   64-bit: x0-x30 (general purpose), sp (stack), x29 (frame pointer)
- *   32-bit: w0-w30 (lower 32 bits of x registers)
- *   Special: x30/lr (link register), xzr/wzr (zero register)
- *
  * Example instructions:
  *   Data movement: mov, ldr, str, ldp, stp
  *   Arithmetic: add, sub, mul, sdiv, udiv
@@ -148,10 +143,6 @@ Directives string(type::semantic::RValue const& rvalue)
 /***********************************/
 /* arm64 instruction constructors */
 /***********************************/
-
-// Instruction_Pair is the destination storage device, and std::deque of
-// instructions
-// ---
 
 Instruction_Pair mul(Storage const& s0, Storage const& s1)
 {

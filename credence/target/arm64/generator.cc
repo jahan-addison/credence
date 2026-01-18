@@ -242,7 +242,7 @@ void Data_Emitter::set_data_globals()
 
     for (auto const& global : table->get_globals().get_pointers()) {
         credence_assert(table->get_vectors().contains(global));
-        auto& vector = table->get_vectors().at(global);
+        auto vector = table->get_vectors().at(global);
         if (vector->get_size() == 1) {
             auto align = get_alignment_size_from_rvalue_data_type(
                 type::get_type_from_rvalue_data_type(

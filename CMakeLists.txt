@@ -1,20 +1,22 @@
-###############################################################################
-## Copyright (c) Jahan Addison
-##
-## This software is dual-licensed under the Apache License, Version 2.0
-## or the GNU General Public License, Version 3.0 or later.
-##
-## You may use this work, in part or in whole, under the terms of either
-## license.
-##
-## See the LICENSE.Apache-v2 and LICENSE.GPL-v3 files in the project root
-## for the full text of these licenses.
-###############################################################################
+# ##############################################################################
+# Copyright (c) Jahan Addison
+#
+# This software is dual-licensed under the Apache License, Version 2.0 or the
+# GNU General Public License, Version 3.0 or later.
+#
+# You may use this work, in part or in whole, under the terms of either license.
+#
+# See the LICENSE.Apache-v2 and LICENSE.GPL-v3 files in the project root for the
+# full text of these licenses.
+# ##############################################################################
 
 cmake_minimum_required(VERSION 3.16...3.29)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-    message(FATAL_ERROR "Do not build in-source. Please remove CMakeCache.txt and the CMakeFiles/ directory. Then build out-of-source.")
+  message(
+    FATAL_ERROR
+      "Do not build in-source. Please remove CMakeCache.txt and the CMakeFiles/ directory. Then build out-of-source."
+  )
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -35,10 +37,12 @@ if(MSVC)
 else()
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -Werror -Wpedantic -DDEBUG")
+        "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -Werror -Wpedantic -Wno-unused-comparison -DDEBUG"
+    )
   else()
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -O2 -march=native")
+        "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wno-unused-comparison -Wpedantic -O2 -march=native"
+    )
   endif()
 endif()
 
@@ -49,8 +53,8 @@ cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
 set_source_files_properties(doctest.h PROPERTIES SKIP_LINTING TRUE)
 
-# Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake
-# Address, Memory, MemoryWithOrigins, Undefined, Thread, Leak, 'Address;Undefined'
+# Enable sanitizer with `-DUSE_SANITIZER=<VALUE>` argument to CMake Address,
+# Memory, MemoryWithOrigins, Undefined, Thread, Leak, 'Address;Undefined'
 if(USE_SANITIZER)
   include(${cmake-scripts_SOURCE_DIR}/sanitizers.cmake)
 endif()
@@ -70,13 +74,14 @@ if(IWYU)
     message(STATUS "IWYU enabled for C++ targets.")
   else()
     message(
-      WARNING "Include-What-You-Use executable not found. IWYU will not be run.")
+      WARNING "Include-What-You-Use executable not found. IWYU will not be run."
+    )
   endif()
 endif()
 
-###############
+# ##############################################################################
 # Dependencies
-###############
+# ##############################################################################
 
 # Add python-dev library to interface with python
 find_package(
@@ -109,8 +114,7 @@ cpmaddpackage(
   "EASYJSON_BUILD_EXAMPLES OFF"
   "EASYJSON_BUILD_TESTS OFF")
 
-CPMAddPackage("gh:fmtlib/fmt#12.1.0")
-
+cpmaddpackage("gh:fmtlib/fmt#12.1.0")
 
 cpmaddpackage(NAME pybind11 VERSION 3.0.1 GITHUB_REPOSITORY pybind/pybind11)
 
@@ -118,9 +122,9 @@ cpmaddpackage(NAME matchit VERSION 1.0.1 GITHUB_REPOSITORY BowenFu/matchit.cpp)
 
 set(PYBIND11_FINDPYTHON ON)
 
-##############
+# ##############################################################################
 # Executables
-##############
+# ##############################################################################
 
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/*.h")
@@ -131,17 +135,16 @@ file(GLOB_RECURSE test_sources CONFIGURE_DEPENDS
 
 add_executable(${PROJECT_NAME} ${sources} ${headers})
 
-
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>)
 
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts fmt::fmt
-                         matchit easyjson)
+  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts
+                         fmt::fmt matchit easyjson)
 target_link_libraries(
-  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts fmt::fmt
-                         matchit easyjson)
+  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts
+                         fmt::fmt matchit easyjson)
 
 include(cmake/doctest.cmake)

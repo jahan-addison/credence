@@ -126,19 +126,20 @@ struct Function::Function_IMPL
 {
     Return_RValue ret{};
     Label label_before_reserved{};
-    type::Parameters parameters{};
+    Parameters parameters{};
     Ordered_Map<LValue, RValue> temporary{};
     Address_Table label_address{};
     std::array<type::semantic::Address, 2> address_location{};
-    type::semantic::Label symbol{};
-    type::Labels labels{};
-    type::Locals locals{};
-    type::RValues tokens{};
-    type::Pointers pointers{};
-    unsigned int allocation = 0;
+    Label symbol{};
+    Labels labels{};
+    Locals locals{};
+    RValues tokens{};
+    Pointers pointers{};
+    unsigned int calls{ 0 };
+    unsigned int allocation{ 0 };
 };
 
-Function::Function(type::semantic::Label const& label)
+Function::Function(Label const& label)
     : pimpl{ std::make_unique<Function_IMPL>() }
 {
     pimpl->symbol = label;
@@ -224,11 +225,19 @@ Label const& Function::get_label_before_reserved() const
 {
     return pimpl->label_before_reserved;
 }
-type::Parameters& Function::get_parameters()
+unsigned int* Function::get_calls()
+{
+    return &pimpl->calls;
+}
+void Function::reset_calls()
+{
+    pimpl->calls = 0;
+}
+Parameters& Function::get_parameters()
 {
     return pimpl->parameters;
 }
-type::Parameters const& Function::get_parameters() const
+Parameters const& Function::get_parameters() const
 {
     return pimpl->parameters;
 }
@@ -258,45 +267,45 @@ std::array<type::semantic::Address, 2> const& Function::get_address_location()
 {
     return pimpl->address_location;
 }
-type::semantic::Label& Function::get_symbol()
+Label& Function::get_symbol()
 {
     return pimpl->symbol;
 }
-type::semantic::Label const& Function::get_symbol() const
+Label const& Function::get_symbol() const
 {
     return pimpl->symbol;
 }
-type::Labels& Function::get_labels()
+Labels& Function::get_labels()
 {
     return pimpl->labels;
 }
-type::Labels const& Function::get_labels() const
+Labels const& Function::get_labels() const
 {
     return pimpl->labels;
 }
-type::Locals& Function::get_locals()
+Locals& Function::get_locals()
 {
     return pimpl->locals;
 }
-type::Locals const& Function::get_locals() const
+Locals const& Function::get_locals() const
 {
     return pimpl->locals;
 }
-type::RValues& Function::get_tokens()
+RValues& Function::get_tokens()
 {
     return pimpl->tokens;
 }
-type::RValues const& Function::get_tokens() const
+RValues const& Function::get_tokens() const
 {
     return pimpl->tokens;
 }
 
-type::Pointers& Function::get_pointers()
+Pointers& Function::get_pointers()
 {
     return pimpl->pointers;
 }
 
-type::Pointers const& Function::get_pointers() const
+Pointers const& Function::get_pointers() const
 {
     return pimpl->pointers;
 }
@@ -321,13 +330,13 @@ struct Object::Object_IMPL
     Function::Address_Table address_table{};
     std::string stack_frame_symbol{};
     Stack stack{};
-    std::map<Label, type::Parameters> ir_parameters{};
+    Argument_Stack ir_parameters{};
     Functions functions{};
     Vectors vectors{};
-    type::RValues strings{};
-    type::RValues floats{};
-    type::RValues doubles{};
-    type::Labels labels{};
+    RValues strings{};
+    RValues floats{};
+    RValues doubles{};
+    Labels labels{};
 };
 
 Object::Object()
@@ -352,6 +361,13 @@ void Object::set_stack_frame(Label const& label)
 void Object::reset_stack_frame()
 {
     pimpl->stack_frame_symbol = std::string{};
+}
+
+void Object::reset_frame_calls()
+{
+    for (auto& function : pimpl->functions) {
+        function.second->reset_calls();
+    }
 }
 
 Instruction_PTR& Object::get_ir_instructions()
@@ -418,49 +434,51 @@ Vectors const& Object::get_vectors() const
 {
     return pimpl->vectors;
 }
-type::RValues& Object::get_strings()
+RValues& Object::get_strings()
 {
     return pimpl->strings;
 }
-type::RValues const& Object::get_strings() const
+RValues const& Object::get_strings() const
 {
     return pimpl->strings;
 }
-type::RValues& Object::get_floats()
+RValues& Object::get_floats()
 {
     return pimpl->floats;
 }
-type::RValues const& Object::get_floats() const
+RValues const& Object::get_floats() const
 {
     return pimpl->floats;
 }
-type::RValues& Object::get_doubles()
+RValues& Object::get_doubles()
 {
     return pimpl->doubles;
 }
-type::RValues const& Object::get_doubles() const
+RValues const& Object::get_doubles() const
 {
     return pimpl->doubles;
 }
-type::Labels& Object::get_labels()
+Labels& Object::get_labels()
 {
     return pimpl->labels;
 }
-type::Labels const& Object::get_labels() const
+Labels const& Object::get_labels() const
 {
     return pimpl->labels;
 }
 
-void Object::set_ir_parameters(Label const& label, type::Parameters& parameters)
+void Object::set_ir_parameters(Label const& label, Parameters& parameters)
 {
-    pimpl->ir_parameters.insert_or_assign(label, parameters);
+    auto& ir_params = pimpl->ir_parameters;
+    if (!ir_params.contains(label)) {
+        ir_params.insert_or_assign(label, std::deque<Parameters>{});
+    }
+    auto& ir_label_params = ir_params.at(label);
+    ir_label_params.emplace_back(parameters);
+    pimpl->ir_parameters.insert_or_assign(label, ir_label_params);
 }
-type::Parameters& Object::get_ir_parameters(Label const& label)
-{
-    credence_assert(pimpl->ir_parameters.contains(label));
-    return pimpl->ir_parameters.at(label);
-}
-type::Parameters const& Object::get_ir_parameters(Label const& label) const
+
+std::deque<Parameters>& Object::get_ir_parameters(Label const& label)
 {
     credence_assert(pimpl->ir_parameters.contains(label));
     return pimpl->ir_parameters.at(label);
@@ -530,14 +548,19 @@ bool Vector_Offset::is_valid_vector_address_offset(LValue const& lvalue)
 /**
  * @brief Pattern matching helpers
  */
-bool Object::vector_contains(type::semantic::LValue const& lvalue)
+bool Object::vector_contains(LValue const& lvalue)
 {
     return pimpl->vectors.contains(lvalue);
 }
-bool Object::local_contains(type::semantic::LValue const& lvalue)
+bool Object::local_contains(LValue const& lvalue)
 {
     const auto& locals = get_stack_frame_symbols();
     return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
+}
+
+bool Object::function_contains(Label const& label)
+{
+    return pimpl->functions.contains(label);
 }
 
 /**
@@ -553,7 +576,7 @@ Function_PTR Object::get_stack_frame(Label const& label)
     credence_assert(pimpl->functions.contains(label));
     return pimpl->functions.at(label);
 }
-type::Locals& Object::get_stack_frame_symbols()
+Locals& Object::get_stack_frame_symbols()
 {
     return get_stack_frame()->get_locals();
 }

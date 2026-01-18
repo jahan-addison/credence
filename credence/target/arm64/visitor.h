@@ -74,6 +74,7 @@ class IR_Instruction_Visitor final : public ARM64_IR_Visitor
 
   private:
     bool parameters_in_return_stack(Label const& label);
+    unsigned int* get_function_frame_calls(Label const& label);
 
   public:
     void from_locl_ita(ir::Quadruple const& inst) override;

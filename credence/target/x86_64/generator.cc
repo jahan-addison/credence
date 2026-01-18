@@ -285,7 +285,7 @@ void Data_Emitter::set_data_globals()
     auto& table = accessor_->table_accessor.get_table();
     for (auto const& global : table->get_globals().get_pointers()) {
         credence_assert(table->get_vectors().contains(global));
-        auto& vector = table->get_vectors().at(global);
+        auto vector = table->get_vectors().at(global);
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
         for (auto const& item : vector->get_data()) {

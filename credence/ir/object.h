@@ -67,6 +67,16 @@ using Stack = std::deque<type::semantic::RValue>;
 
 namespace object {
 
+using Address = type::semantic::Address;
+using Label = type::semantic::Label;
+using Address = type::semantic::Address;
+using Size = type::semantic::Size;
+using Labels = type::Labels;
+using Locals = type::Locals;
+using Parameters = type::Parameters;
+using RValues = type::RValues;
+using Pointers = type::Pointers;
+
 constexpr bool is_vector_lvalue(LValue const& lvalue)
 {
     return util::contains(lvalue, "[") and util::contains(lvalue, "]");
@@ -125,14 +135,13 @@ class Function
 {
   public:
     using Return_RValue = std::optional<std::pair<RValue, RValue>>;
-    using Address_Table =
-        Symbol_Table<type::semantic::Label, type::semantic::Address>;
+    using Address_Table = Symbol_Table<Label, Address>;
 
     static constexpr int max_depth = 999;
 
   public:
     // Constructors and destructor
-    explicit Function(type::semantic::Label const& label);
+    explicit Function(Label const& label);
     ~Function();
     Function(Function&&) noexcept;
     Function& operator=(Function&&) noexcept;
@@ -151,28 +160,30 @@ class Function
   public:
     Label& get_label_before_reserved();
     Label const& get_label_before_reserved() const;
-    type::Parameters& get_parameters();
-    type::Parameters const& get_parameters() const;
+    unsigned int* get_calls();
+    void reset_calls();
+    Parameters& get_parameters();
+    Parameters const& get_parameters() const;
     Ordered_Map<LValue, RValue>& get_temporary();
     Ordered_Map<LValue, RValue> const& get_temporary() const;
     Address_Table& get_label_address();
     Address_Table const& get_label_address() const;
-    std::array<type::semantic::Address, 2>& get_address_location();
-    std::array<type::semantic::Address, 2> const& get_address_location() const;
-    type::semantic::Label& get_symbol();
-    type::semantic::Label const& get_symbol() const;
+    std::array<Address, 2>& get_address_location();
+    std::array<Address, 2> const& get_address_location() const;
+    Label& get_symbol();
+    Label const& get_symbol() const;
 
   public:
     Return_RValue& get_ret();
     Return_RValue const& get_ret() const;
-    type::Labels& get_labels();
-    type::Labels const& get_labels() const;
-    type::Locals& get_locals();
-    type::Locals const& get_locals() const;
-    type::RValues& get_tokens();
-    type::RValues const& get_tokens() const;
-    type::Pointers& get_pointers();
-    type::Pointers const& get_pointers() const;
+    Labels& get_labels();
+    Labels const& get_labels() const;
+    Locals& get_locals();
+    Locals const& get_locals() const;
+    RValues& get_tokens();
+    RValues const& get_tokens() const;
+    Pointers& get_pointers();
+    Pointers const& get_pointers() const;
     unsigned int& get_allocation();
     unsigned int get_allocation() const;
 
@@ -185,8 +196,8 @@ using Instruction_PTR = std::shared_ptr<ir::Instructions>;
 using Function_PTR = std::shared_ptr<Function>;
 using Vector_PTR = std::shared_ptr<Vector>;
 using Stack_Frame = std::optional<Function_PTR>;
-using Functions = std::map<std::string, Function_PTR>;
-using Vectors = std::map<std::string, Vector_PTR>;
+using Functions = Ordered_Map<std::string, Function_PTR>;
+using Vectors = Ordered_Map<std::string, Vector_PTR>;
 
 namespace detail {
 /**
@@ -223,6 +234,8 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
     object::Vectors& vectors,
     std::source_location const& location = std::source_location::current());
 
+using Argument_Stack = std::map<Label, std::deque<type::Parameters>>;
+
 /**
  * @brief Object table of types, functions, and vectors in a frame
  *
@@ -240,21 +253,22 @@ class Object
     Object& operator=(Object const&) = delete;
 
     // Container queries
-    bool vector_contains(type::semantic::LValue const& lvalue);
-    bool local_contains(type::semantic::LValue const& lvalue);
+    bool vector_contains(LValue const& lvalue);
+    bool function_contains(Label const& label);
+    bool local_contains(LValue const& lvalue);
     bool stack_frame_contains_call_instruction(Label name,
         ir::Instructions const& instructions);
     void set_ir_parameters(Label const& label, type::Parameters& parameters);
-    type::Parameters& get_ir_parameters(Label const& label);
-    type::Parameters const& get_ir_parameters(Label const& label) const;
+    std::deque<type::Parameters>& get_ir_parameters(Label const& label);
 
     // Stack frame management
     bool is_stack_frame();
     void set_stack_frame(Label const& label);
     void reset_stack_frame();
+    void reset_frame_calls();
     Function_PTR get_stack_frame();
     Function_PTR get_stack_frame(Label const& label);
-    type::Locals& get_stack_frame_symbols();
+    Locals& get_stack_frame_symbols();
 
     // Temporary object utilities
     RValue lvalue_at_temporary_object_address(LValue const& lvalue,
@@ -287,14 +301,14 @@ class Object
     Vectors const& get_vectors() const;
 
     // Getters: Literal storage
-    type::RValues& get_strings();
-    type::RValues const& get_strings() const;
-    type::RValues& get_floats();
-    type::RValues const& get_floats() const;
-    type::RValues& get_doubles();
-    type::RValues const& get_doubles() const;
-    type::Labels& get_labels();
-    type::Labels const& get_labels() const;
+    RValues& get_strings();
+    RValues const& get_strings() const;
+    RValues& get_floats();
+    RValues const& get_floats() const;
+    RValues& get_doubles();
+    RValues const& get_doubles() const;
+    Labels& get_labels();
+    Labels const& get_labels() const;
 
   private:
     Size get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
