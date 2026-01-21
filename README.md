@@ -6,8 +6,9 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
- * Language grammar: [here](https://github.com/jahan-addison/augur/blob/master/augur/grammar.lark)
- * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
+Language grammar: [here](https://github.com/jahan-addison/augur/blob/master/augur/grammar.lark)
+<br>
+Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 
 ## Overview
@@ -16,7 +17,7 @@ The compiler works in 3 stages:
 
 * The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/augur) in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
-* The target platforms and ISAs - x86-64, ARM64 for Linux and BSD (Darwin)
+* The target platforms and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
 
 <span style="font-size:18px">
 Check out the <a href="https://soliloq.uy/tag/credence/">blog series</a>!
@@ -48,9 +49,9 @@ Note that windows is not supported. Please open an issue or pull request for any
 
 See documentation on code generation [here](credence/target/readme.md). A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
 
-* ### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
+> #### x86-64 for Linux and BSD, Darwin : Done ✅
 
-* ### ARM64 _(Linux, BSD (Darwin))_ : Done ✅
+> #### ARM64 for Linux and BSD, Darwin : Done ✅
 
 The generated machine code is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
 
