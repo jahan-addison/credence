@@ -6,8 +6,8 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
- * Language grammar: [here](https://github.com/jahan-addison/augur/blob/master/augur/grammar.lark)
- * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
+* Language grammar: [here](https://github.com/jahan-addison/augur/blob/master/augur/grammar.lark)
+* Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 
 ## Overview
@@ -16,7 +16,7 @@ The compiler works in 3 stages:
 
 * The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/augur) in python that interfaces with C++ via `pybind11`
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
-* The target platforms and ISAs - x86-64, ARM64 for Linux and BSD (Darwin)
+* The target platforms and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
 
 <span style="font-size:18px">
 Check out the <a href="https://soliloq.uy/tag/credence/">blog series</a>!
@@ -42,15 +42,15 @@ These features are not in the original B language specification.
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 
-Note that windows is not supported. Please open an issue or pull request for any bugs you may find.
+Note that windows is not supported. Please open an issue or pull request for any bugs you encounter.
 
 ## Targets
 
 See documentation on code generation [here](credence/target/readme.md). A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
 
-* ### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
+#### x86-64 for Linux and BSD, Darwin : Done ✅
 
-* ### ARM64 _(Linux, BSD (Darwin))_ : Done ✅
+#### ARM64 for Linux and BSD, Darwin : Done ✅
 
 The generated machine code is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
 
@@ -106,9 +106,9 @@ strings [3] "Good afternoon", "Good morning", "Good evening";
 ```
 #### Result (ARM64, Darwin):
 
-Check out additional code generation examples in the [arm64 test suite](/test/arm64/generator.cc#95), and [x86_64 test suite](/test/x86_64/generator.cc#71).
+Check out additional code generation examples in the [arm64 test suite](/test/arm64/generator.cc#95) and [x86_64 test suite](/test/x86_64/generator.cc#71).
 
-<img src="docs/images/credence-example-2.png" width="700px" alt="example"> </img>
+<img src="docs/images/credence-example-3.png" width="700px" alt="example"> </img>
 
 
 ```asm
@@ -118,6 +118,8 @@ Check out additional code generation examples in the [arm64 test suite](/test/ar
     .p2align 3
 
     .global _start
+    .global _print
+    .global _printf
 
 _start:
     stp x29, x30, [sp, #-48]!
@@ -170,16 +172,16 @@ identity:
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
-    .asciz "good afternoon"
+    .asciz "Good afternoon"
 
 ._L_str2__:
-    .asciz "good evening"
+    .asciz "Good evening"
 
 ._L_str3__:
-    .asciz "good morning"
+    .asciz "Good morning"
 
 ._L_str4__:
-    .asciz "hello, how are you, %s\n"
+    .asciz "Hello, how are you, %s!\n"
 
 .section __DATA,__data
 
