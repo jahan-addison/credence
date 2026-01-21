@@ -50,7 +50,7 @@
  *    - Implicit conversions where safe
  *    - Raises compile-time errors on violations
  *    - Supports lvalue and rvalue type resolution
- *    - and more.
+ *    - and more
  *
  ****************************************************************************/
 

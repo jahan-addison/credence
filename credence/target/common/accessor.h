@@ -34,10 +34,11 @@ struct Flag_Accessor;
 
 /****************************************************************************
  *
- * Pure virtual and template types for platform-specific memory accessors
+ * Pure virtual and template types for platform-agnostic memory access data
+ * types to facilitate the Memory_Accessor facade.
  *
- * Provides access to the object table (globals, functions, vectors) and
- * stack frame during assembly code generation.
+ * Provides access to the object table (globals, functions, vectors), pushdown
+ * stack, available registers, stack frame during assembly code generation.
  *
  ****************************************************************************/
 

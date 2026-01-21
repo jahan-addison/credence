@@ -31,9 +31,9 @@
 
 /****************************************************************************
  *
- * x86-64 Runtime and Standard Library Integration
+ * x86-64 Runtime and Standard Library
  *
- * Handles function calls to the standard library and manages the System V
+ * Runtime function invocation to the standard library via the System V
  * ABI calling convention. Arguments passed in registers: rdi, rsi, rdx,
  * rcx, r8, r9, then stack. Return value in rax.
  *
@@ -46,13 +46,6 @@
  *   mov rsi, qword ptr [rbp - 8] ; x in rsi
  *   call printf                   ; from stdlib
  *
- * Example - main with argc/argv:
- *
- *   B code:    main(argc, argv) { ... }
- *
- * Setup:
- *   r15 points to stack with argc/argv (Darwin/Linux compatible)
- *
  *****************************************************************************/
 
 namespace credence::target::x86_64::runtime {
@@ -61,10 +54,10 @@ namespace credence::target::x86_64::runtime {
  * @brief A compiletime check on a buffer allocation in a storage device
  */
 bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
-    address_t& address,
-    ir::object::Object_PTR& table,
-    memory::Stack_Pointer& stack)
+    address_t& address)
 {
+    auto& table = accessor_->table_accessor.get_table();
+    auto& stack = accessor_->stack;
     auto stack_frame = table->get_stack_frame();
     bool is_buffer{ false };
 
@@ -197,10 +190,9 @@ get_argument_general_purpose_registers()
  */
 void Library_Call_Inserter::make_library_call(Instructions& instructions,
     std::string_view syscall_function,
-    common::memory::Locals& locals,
     library_arguments_t const& arguments)
 {
-
+    auto locals = stack_frame_.argument_stack;
     credence_assert(common::runtime::library_list.contains(syscall_function));
     auto [arg_size] = common::runtime::library_list.at(syscall_function);
 

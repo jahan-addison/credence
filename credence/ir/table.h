@@ -30,6 +30,7 @@
  * Table constructor for language objects. A visitor pattern on ITA instructions
  * to construct the object table of a program, including function frames,
  * vectors, locals, and globals and performs type checking on all assignments.
+ * The result is stored in an ir::object::Object for backend passes.
  *
  *  Example table construction:
  *

@@ -36,9 +36,12 @@
  *
  * ARM64 Runtime and Standard Library
  *
- * Handles function calls to the standard library and manages the ARM64 PCS
- * calling convention. Arguments passed in registers: x0-x7, then uses the
- * stack. Return value in x0. x30 (lr) holds return address.
+ * See common/runtime.h for details
+ *
+ * Runtime function invocation to the standard library and via the ARM64 PCS
+ * calling convention. Arguments passed in registers: x0-x7 or register variant
+ * depending on rvalue type then uses the stack. Return value in x0. x30 (lr)
+ * holds return address.
  *
  * Example - calling printf:
  *
@@ -51,17 +54,35 @@
  *
  *****************************************************************************/
 
+/****************************************************************************
+ * Register selection table:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register; additional scratch register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64::runtime {
 
 /**
  * @brief A compiletime check on a buffer allocation in a storage device
  */
 bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
-    address_t& address,
-    ir::object::Object_PTR& table,
-    memory::Stack_Pointer& stack)
+    address_t& address)
 {
-    auto stack_frame = table->get_stack_frame();
+    auto& stack = accessor_->stack;
+    auto& table = accessor_->table_accessor.get_table();
+    auto stack_frame = accessor_->get_frame_in_memory().get_stack_frame();
     bool is_buffer{ false };
 
     std::visit(
@@ -99,46 +120,35 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
 using library_register = std::deque<assembly::Register>;
 
 /**
- * @brief Get the operand storage devices from the argument stack
- */
-assembly::Register
-Library_Call_Inserter::get_available_standard_library_register(
-    std::deque<assembly::Register>& available_registers,
-    common::memory::Locals& argument_stack,
-    std::size_t index)
-{
-    auto& address_accessor = accessor_->address_accessor;
-    Register storage = Register::w0;
-    try {
-        if (address_accessor.is_lvalue_storage_type(
-                argument_stack.at(index), "float") or
-            address_accessor.is_lvalue_storage_type(
-                argument_stack.at(index), "double")) {
-            storage = vector_registers_.back();
-            vector_registers_.pop_back();
-        } else {
-            storage = available_registers.back();
-        }
-    } catch ([[maybe_unused]] std::out_of_range const& e) {
-        storage = available_registers.back();
-    }
-    return storage;
-}
-
-/**
  * @brief Prepare registers for argument operand storage
  */
 void Library_Call_Inserter::
     insert_argument_instructions_standard_library_function(Register storage,
         Instructions& instructions,
-        std::string_view arg_type,
-        address_t const& argument)
+        address_t const& argument,
+        unsigned int index)
 {
     auto* signal_register = accessor_->register_accessor.signal_register;
     namespace m = matchit;
+    auto& locals = accessor_->get_frame_in_memory().argument_stack;
+    auto rvalue = index >= locals.size() ? locals.at(0) : locals.at(index);
+    std::string arg_type =
+        locals.size() > index
+            ? type::get_type_from_rvalue_data_type(locals.at(index))
+            : "";
 
-    m::match(arg_type)(
-        m::pattern | m::or_(sv("string"), sv("float"), sv("double")) =
+    auto is_double_immediate = [&](RValue const& rvalue) {
+        return rvalue.starts_with("._L_double") or arg_type == "double";
+    };
+    auto is_float_immediate = [&](RValue const& rvalue) {
+        return rvalue.starts_with("._L_float") or arg_type == "float";
+    };
+    auto is_string = [&]([[maybe_unused]] RValue const& rvalue) {
+        return arg_type == "string";
+    };
+
+    m::match(rvalue)(
+        m::pattern | m::app(is_string, true) =
             [&] {
                 auto immediate = type::get_value_from_rvalue_data_type(
                     std::get<Immediate>(argument));
@@ -148,6 +158,18 @@ void Library_Call_Inserter::
                 auto imm_2 =
                     direct_immediate(fmt::format("{}@PAGEOFF", immediate));
                 arm64_add__asm(instructions, add, storage, storage, imm_2);
+            },
+        m::pattern | m::or_(m::app(is_double_immediate, true),
+                         m::app(is_float_immediate, true)) =
+            [&] {
+                auto immediate = type::get_value_from_rvalue_data_type(
+                    std::get<Immediate>(argument));
+                auto imm_1 =
+                    direct_immediate(fmt::format("{}@PAGE", immediate));
+                arm64_add__asm(instructions, adrp, x8, imm_1);
+                auto imm = direct_immediate(
+                    fmt::format("[x8, {}@PAGEOFF]", immediate));
+                arm64_add__asm(instructions, ldr, storage, imm);
             },
         m::pattern | m::_ =
             [&] {
@@ -173,41 +195,16 @@ void Library_Call_Inserter::
             });
 }
 
-std::pair<memory::registers::general_purpose,
-    memory::registers::general_purpose>
-get_argument_general_purpose_registers()
-{
-    std::deque<assembly::Register> d = { assembly::Register::x7,
-        assembly::Register::x6,
-        assembly::Register::x5,
-        assembly::Register::x4,
-        assembly::Register::x3,
-        assembly::Register::x2,
-        assembly::Register::x1,
-        assembly::Register::x0 };
-
-    std::deque<assembly::Register> w = { assembly::Register::w7,
-        assembly::Register::w6,
-        assembly::Register::w5,
-        assembly::Register::w4,
-        assembly::Register::w3,
-        assembly::Register::w2,
-        assembly::Register::w1,
-        assembly::Register::w0 };
-
-    return std::make_pair(d, w);
-}
-
 /**
  * @brief Load the rvalue address from the offset in argv
  */
 bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
     Instructions& instructions,
-    common::memory::Locals& locals,
     Register argument_storage,
     unsigned int index)
 {
     try {
+        auto& locals = accessor_->get_frame_in_memory().argument_stack;
         if (stack_frame_.symbol == "main" and
             type::from_lvalue_offset(locals.at(index)) == "argv") {
             auto offset = type::from_decay_offset(locals.at(index));
@@ -232,41 +229,37 @@ bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
  */
 void Library_Call_Inserter::make_library_call(Instructions& instructions,
     std::string_view syscall_function,
-    common::memory::Locals& locals,
     library_arguments_t const& arguments)
 {
     credence_assert(common::runtime::library_list.contains(syscall_function));
     auto [arg_size] = common::runtime::library_list.at(syscall_function);
-
+    auto& locals = accessor_->get_frame_in_memory().argument_stack;
     library_call_argument_check(syscall_function, arguments, arg_size);
-
-    auto [doubleword_storage, word_storage] =
-        get_argument_general_purpose_registers();
+    auto& address_accessor = accessor_->address_accessor;
 
     for (std::size_t i = 0; i < arguments.size(); i++) {
         auto arg = arguments.at(i);
-        Register storage{};
-        std::string arg_type =
-            locals.size() > i
-                ? type::get_type_from_rvalue_data_type(locals.at(i))
-                : "";
+        Register storage = Register::wzr;
 
-        auto float_size = vector_registers_.size();
+        try {
+            if (memory::is_doubleword_storage_size(
+                    arg, accessor_->stack, stack_frame_))
+                storage = dword_registers_.back();
+            if (address_accessor.is_lvalue_storage_type(locals.at(i), "float"))
+                storage = float_registers_.back();
+            if (address_accessor.is_lvalue_storage_type(locals.at(i), "double"))
+                storage = double_registers_.back();
+            if (storage == Register::wzr)
+                storage = word_registers_.back();
+        } catch (...) {
+            storage = word_registers_.back();
+        }
 
-        if (memory::is_doubleword_storage_size(
-                arg, accessor_->stack, stack_frame_))
-            storage = get_available_standard_library_register(
-                doubleword_storage, locals, i);
-        else
-            storage = get_available_standard_library_register(
-                word_storage, locals, i);
-
-        if (try_insert_operand_from_argv_rvalue(
-                instructions, locals, storage, i)) {
-            if (float_size == vector_registers_.size()) {
-                doubleword_storage.pop_back();
-                word_storage.pop_back();
-            }
+        if (try_insert_operand_from_argv_rvalue(instructions, storage, i)) {
+            dword_registers_.pop_back();
+            word_registers_.pop_back();
+            float_registers_.pop_back();
+            double_registers_.pop_back();
             continue;
         }
 
@@ -279,13 +272,12 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
             arm64_add__asm(instructions, ldr, storage, stack_address);
         } else {
             insert_argument_instructions_standard_library_function(
-                storage, instructions, arg_type, arg);
+                storage, instructions, arg, i);
         }
-
-        if (float_size == vector_registers_.size()) {
-            doubleword_storage.pop_back();
-            word_storage.pop_back();
-        }
+        dword_registers_.pop_back();
+        word_registers_.pop_back();
+        float_registers_.pop_back();
+        double_registers_.pop_back();
     }
 #if defined(__linux__)
     auto call_immediate =

@@ -10,7 +10,6 @@
  * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 
-
 ## Overview
 
 The compiler works in 3 stages:
@@ -29,7 +28,7 @@ Check out the <a href="https://soliloq.uy/tag/credence/">blog series</a>!
 These features are not in the original B language specification.
 
 * **Strongly typed by type inference**
-* Faithful to the original language, vectors may be non-homogeneous but their type is determined by their initial values and may not be changed
+* Vectors may be non-homogeneous but their type is determined by their initial values and may not be changed
 * Uninitialized variables are set to an internal `null` type
 * Compiletime out-of-range boundary checks on vectors and pointer arithmetic
 * `goto` and labels are not supported, use control structures
@@ -43,26 +42,22 @@ These features are not in the original B language specification.
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 
-Note: currently, windows is not supported.
+Note that windows is not supported. Please open an issue or pull request for any bugs you may find.
 
 ## Targets
 
-See documentation on code generation [here](credence/target/readme.md).
-
-Machine code generated for each ISA is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
+See documentation on code generation [here](credence/target/readme.md). A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
 
 * ### x86-64 _(Linux, BSD (Darwin))_ : Done ✅
 
-* ### ARM64 _(Linux, BSD (Darwin))_ : In Progress 🚂 (95%)
+* ### ARM64 _(Linux, BSD (Darwin))_ : Done ✅
 
+The generated machine code is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
 
 
 ## Installation
 
 Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
-
-A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
-
 
 ## Test Suite
 
@@ -80,13 +75,11 @@ cmake --build build --target coverage
 
 ---
 
-## Standard Library
+### [The Standard Library](credence/target/common/runtime.h#34)
 
-#### [The Standard Library](credence/target/common/runtime.h#43)
+Credence provides a few useful standard library functions that **do not** depend on libc or an external runtime. The standard library object file is pre-compiled in `stdlib/` for each platform and ISA:
 
-* The standard library object file is pre-compiled in `stdlib/` for each platform. **None of the standard library depends on libc or libc++**.
-
-In addition, a function map for kernel syscall tables such as `write(3)` is available for each platform and ISA, see details [here](credence/target/common/syscall.h).
+In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h).
 
 ---
 
@@ -111,16 +104,70 @@ identity(*y) {
 
 strings [3] "Good afternoon", "Good morning", "Good evening";
 ```
-#### Result (x86-64, Darwin):
+#### Result (ARM64, Darwin):
+
+Check out additional code generation examples in the [arm64 test suite](/test/arm64/generator.cc#95), and [x86_64 test suite](/test/x86_64/generator.cc#71).
 
 <img src="docs/images/credence-example-2.png" width="700px" alt="example"> </img>
 
 
 ```asm
 
-.intel_syntax noprefix
+.section	__TEXT,__text,regular,pure_instructions
 
-.data
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    str w0, [sp, #20]
+    str x1, [sp, #28]
+    ldr x10, [sp, #36]
+    adrp x6, ._L_str4__@PAGE
+    add x6, x6, ._L_str4__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #36]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #1
+    b.gt ._L4__main
+._L3__main:
+    b ._L1__main
+._L4__main:
+    ldr x0, [sp, #36]
+    bl identity
+    mov x0, x0
+    bl identity
+    mov x0, x0
+    bl identity
+    ldr x0, [sp, #36]
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #8]
+    bl _printf
+    adrp x6, strings@PAGE
+    add x6, x6, strings@PAGEOFF
+    ldr x0, [x6]
+    mov w1, #14
+    bl _print
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #48
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+
+identity:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+    mov x0, x0
+    ldp x29, x30, [sp], #16
+    ret
+
+.section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
     .asciz "good afternoon"
@@ -134,67 +181,24 @@ strings [3] "Good afternoon", "Good morning", "Good evening";
 ._L_str4__:
     .asciz "hello, how are you, %s\n"
 
+.section __DATA,__data
+
+.p2align 3
+
 strings:
-    .quad ._L_str1__
+    .xword ._L_str1__
 
-    .quad ._L_str3__
+    .xword ._L_str3__
 
-    .quad ._L_str2__
-
-.text
-    .global _start
-    .extern print
-    .extern printf
-
-_start:
-    lea r15, [rsp]
-    push rbp
-    mov rbp, rsp
-    sub rsp, 16
-    lea rcx, [rip + ._L_str4__]
-    mov qword ptr [rbp - 8], rcx
-._L2__main:
-    mov rax, [r15]
-    cmp rax, 1
-    jg ._L4__main
-._L3__main:
-    jmp ._L1__main
-._L4__main:
-    mov rdi, qword ptr [rbp - 8]
-    call identity
-    mov rdi, rax
-    call identity
-    mov rdi, rax
-    call identity
-    mov rdi, rax
-    mov rsi, [r15 + 8 * 2]
-    call printf
-    mov rdi, qword ptr [rip + strings]
-    mov esi, 14
-    call print
-    jmp ._L3__main
-._L1__main:
-    add rsp, 16
-    mov rax, 33554433
-    mov rdi, 0
-    syscall
-
-
-identity:
-    push rbp
-    mov rbp, rsp
-    mov rax, rdi
-    pop rbp
-    ret
+    .xword ._L_str2__
 
 ```
 
 ---
 
-An example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
+Here is an example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
 
 <img src="docs/images/credence-out-of-range-2.png" width="700px" alt="error"> </img>
-
 
 
 ## Intermediate Representation

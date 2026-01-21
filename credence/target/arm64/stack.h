@@ -50,7 +50,7 @@
  *****************************************************************************/
 
 /****************************************************************************
- * Special register usage conventions:
+ * Register selection table:
  *
  *   x6  = intermediate scratch and data section register
  *      s6  = floating point
@@ -59,7 +59,7 @@
  *   x15      = Second data section register
  *   x7       = multiplication scratch register
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register
+ *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
  *
@@ -118,7 +118,8 @@ class Stack : public common::detail::base_stack_pointer
         Operand_Size operand_size);
     void set_address_from_address(LValue const& lvalue);
 
-    Size get_stack_frame_allocation_size();
+    void set_stack_frame_allocation_size(Label const& label);
+    Size get_stack_frame_allocation_size(Label const& label);
     common::Stack_Offset get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,

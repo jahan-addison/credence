@@ -26,9 +26,9 @@
 
 /****************************************************************************
  *
- * x86-64 Runtime and Standard Library Integration
+ * x86-64 Runtime and Standard Library
  *
- * Handles function calls to the standard library and manages the System V
+ * Runtime function invocation to the standard library via the System V
  * ABI calling convention. Arguments passed in registers: rdi, rsi, rdx,
  * rcx, r8, r9, then stack. Return value in rax.
  *
@@ -40,13 +40,6 @@
  *   lea rdi, [rip + ._L_str1__]  ; format string in rdi
  *   mov rsi, qword ptr [rbp - 8] ; x in rsi
  *   call printf                   ; from stdlib
- *
- * Example - main with argc/argv:
- *
- *   B code:    main(argc, argv) { ... }
- *
- * Setup:
- *   r15 points to stack with argc/argv (Darwin/Linux compatible)
  *
  *****************************************************************************/
 
@@ -102,16 +95,13 @@ struct Library_Call_Inserter : public X8664_Library_Call_Inserter
     assembly::Register get_available_standard_library_register(
         std::deque<assembly::Register>& available_registers,
         common::memory::Locals& argument_stack,
-        std::size_t index) override;
+        std::size_t index);
 
     void make_library_call(Instructions& instructions,
         std::string_view syscall_function,
-        common::memory::Locals& locals,
         library_arguments_t const& arguments) override;
 
-    bool is_address_device_pointer_to_buffer(address_t& address,
-        ir::object::Object_PTR& table,
-        std::shared_ptr<assembly::Stack>& stack) override;
+    bool is_address_device_pointer_to_buffer(address_t& address) override;
 
     void insert_argument_instructions_standard_library_function(
         Register storage,

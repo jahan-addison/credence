@@ -39,8 +39,6 @@
  *  A `printf' routine that takes a format string and up to 8 variadic arguments
  *   Formatting:
  *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
- *   Warning:
- *      Double and float specifiers "work" but not perfectly
  *
  * print(1):
  *
@@ -56,11 +54,14 @@
  *
  *  A `getchar' routine that reads from stdin for single byte characters
  *
- * Example - main with arguments:
+ * Example:
  *
  *   main(argc, argv) {
  *     if (argc > 1) {
- *       printf("Hello, %s!\n", argv[1]);
+ *       auto x;
+ *       x = getchar();
+ *       printf("Hello, %s! Your character is: %c", argv[1], x);
+ *
  *     }
  *   }
  *

@@ -29,7 +29,7 @@
 
 /****************************************************************************
  *
- * ARM64 Assembly Code Generator and Emitter Types
+ * ARM64 Code Generator and Emitter Types
  *
  * Generates ARM64/AArch64 assembly for Linux and Darwin (macOS). Compliant
  * with ARM64 Procedure Call Standard (PCS). Translates ITA intermediate
@@ -64,6 +64,24 @@
  *         .quad ._L_str1__
  *     counter:
  *         .quad 0
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register; additional scratch register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
  *
  *****************************************************************************/
 
@@ -108,9 +126,11 @@ class Storage_Emitter
 {
   public:
     explicit Storage_Emitter(memory::Memory_Access& accessor,
+        Label const& frame_name,
         std::size_t index,
         std::size_t* pointers_index)
         : accessor_(accessor)
+        , frame_name_(frame_name)
         , instruction_index_(index)
         , address_pointer_index(pointers_index)
     {
@@ -151,6 +171,7 @@ class Storage_Emitter
 
   private:
     memory::Memory_Access accessor_;
+    Label frame_name_;
     std::size_t instruction_index_;
 
   private:

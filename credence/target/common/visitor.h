@@ -17,7 +17,7 @@
 
 /****************************************************************************
  *
- * Pure Virtual IR Visitor for code generation
+ * IR Visitor
  *
  * Abstract interface for traversing ITA (Instruction Tuple Abstraction)
  * intermediate representation and generating platform-specific assembly.

@@ -48,6 +48,24 @@
  *
  *****************************************************************************/
 
+/****************************************************************************
+ * Register selection table:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register; additional scratch register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
+ *
+ *****************************************************************************/
+
 namespace credence::target::arm64::assembly {
 enum class Directive;
 enum class Mnemonic;
@@ -68,20 +86,22 @@ enum class Register;
 #define get_arm64_storage_as_string(str) \
     common::assembly::get_storage_as_string<arm64::assembly::Register>(str)
 
-#define ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)              \
-    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s0, \
-        arm64::assembly::Storage const& s1)
-#define ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                 \
-    arm64::assembly::Instructions name(arm64::assembly::Storage const& s0, \
-        arm64::assembly::Storage const& s1,                                \
-        target::common::Label const& to,                                   \
+#define ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
+    arm64::assembly::Instruction_Pair name(                       \
+        arm64::assembly::Storage const& ss0,                      \
+        arm64::assembly::Storage const& ss1)
+#define ARM64_DEFINE_2ARY_OPERAND_JUMP_FROM_TEMPLATE(name)                  \
+    arm64::assembly::Instructions name(arm64::assembly::Storage const& ss0, \
+        arm64::assembly::Storage const& ss1,                                \
+        target::common::Label const& to,                                    \
         arm64::assembly::Register const& with)
-#define ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name)              \
-    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s0, \
-        arm64::assembly::Storage const& s1,                                    \
-        arm64::assembly::Storage const& s2)
+#define ARM64_DEFINE_3ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
+    arm64::assembly::Instruction_Pair name(                       \
+        arm64::assembly::Storage const& ss0,                      \
+        arm64::assembly::Storage const& ss1,                      \
+        arm64::assembly::Storage const& ss2)
 #define ARM64_DEFINE_1ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(name) \
-    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& s1)
+    arm64::assembly::Instruction_Pair name(arm64::assembly::Storage const& ss1)
 
 #define ARM64_DEFINE_1ARY_OPERAND_DIRECTIVE_PAIR_FROM_TEMPLATE(name) \
     arm64::assembly::Directive_Pair name(                            \
@@ -116,21 +136,21 @@ enum class Register;
 
 #define arm64__make_and_ret_with_immediate(op)                 \
     do {                                                       \
-        if (is_variant(Immediate, s1)) {                       \
+        if (is_variant(Immediate, ss1)) {                      \
             auto inst = make_empty();                          \
             auto size = get_operand_size_from_rvalue_datatype( \
-                std::get<Immediate>(s1));                      \
+                std::get<Immediate>(ss1));                     \
             if (size == Operand_Size::Doubleword) {            \
-                arm64_add__asm(inst, mov, x7, s1);             \
-                arm64_add__asm(inst, op, s0, s0, x7);          \
-                return { s0, inst };                           \
+                arm64_add__asm(inst, mov, x7, ss1);            \
+                arm64_add__asm(inst, op, ss0, ss0, x7);        \
+                return { ss0, inst };                          \
             } else {                                           \
-                arm64_add__asm(inst, mov, w7, s1);             \
-                arm64_add__asm(inst, op, s0, s0, w7);          \
-                return { s0, inst };                           \
+                arm64_add__asm(inst, mov, w7, ss1);            \
+                arm64_add__asm(inst, op, ss0, ss0, w7);        \
+                return { ss0, inst };                          \
             }                                                  \
         } else                                                 \
-            arm64__make_and_ret(op, s0, s0, s1);               \
+            arm64__make_and_ret(op, ss0, ss0, ss1);            \
     } while (false)
 
 #define arm64_add__asm(inst, op, ...)                               \
@@ -191,7 +211,6 @@ inline void newline(std::ostream& os, int amount = 1)
 
 enum class Register
 {
-    // 64-bit general purpose registers
     x0,
     x1,
     x2,
@@ -208,9 +227,9 @@ enum class Register
     x13,
     x14,
     x15,
-    x16, // IP0
-    x17, // IP1
-    x18, // Platform Register
+    x16,
+    x17,
+    x18,
     x19,
     x20,
     x21,
@@ -221,12 +240,11 @@ enum class Register
     x26,
     x27,
     x28,
-    x29, // Frame Pointer (FP)
-    x30, // Link Register (LR)
-    sp,  // Stack Pointer
-    xzr, // Zero Register
+    x29,
+    x30,
+    sp,
+    xzr,
 
-    // 32-bit general purpose registers
     w0,
     w1,
     w2,
@@ -261,11 +279,72 @@ enum class Register
     wsp,
     wzr,
 
-    // special float and double registers
-    s6,
+    d0,
+    d1,
+    d2,
+    d3,
+    d4,
+    d5,
     d6,
+    d7,
+    d8,
+    d9,
+    d10,
+    d11,
+    d12,
+    d13,
+    d14,
+    d15,
+    d16,
+    d17,
+    d18,
+    d19,
+    d20,
+    d21,
+    d22,
+    d23,
+    d24,
+    d25,
+    d26,
+    d27,
+    d28,
+    d29,
+    d30,
+    d31,
 
-    // vector registers (for floating point)
+    s0,
+    s1,
+    s2,
+    s3,
+    s4,
+    s5,
+    s6,
+    s7,
+    s8,
+    s9,
+    s10,
+    s11,
+    s12,
+    s13,
+    s14,
+    s15,
+    s16,
+    s17,
+    s18,
+    s19,
+    s20,
+    s21,
+    s22,
+    s23,
+    s24,
+    s25,
+    s26,
+    s27,
+    s28,
+    s29,
+    s30,
+    s31,
+
     v0,
     v1,
     v2,
@@ -369,6 +448,74 @@ constexpr const auto WORD_REGISTER = {
     Register::wsp,
 };
 
+constexpr const auto DOUBLE_REGISTER = {
+    Register::d0,
+    Register::d1,
+    Register::d2,
+    Register::d3,
+    Register::d4,
+    Register::d5,
+    Register::d6,
+    Register::d7,
+    Register::d8,
+    Register::d9,
+    Register::d10,
+    Register::d11,
+    Register::d12,
+    Register::d13,
+    Register::d14,
+    Register::d15,
+    Register::d16,
+    Register::d17,
+    Register::d18,
+    Register::d19,
+    Register::d20,
+    Register::d21,
+    Register::d22,
+    Register::d23,
+    Register::d24,
+    Register::d25,
+    Register::d26,
+    Register::d27,
+    Register::d28,
+    Register::d29,
+    Register::d30,
+};
+
+constexpr const auto FLOAT_REGISTER = {
+    Register::s0,
+    Register::s1,
+    Register::s2,
+    Register::s3,
+    Register::s4,
+    Register::s5,
+    Register::s6,
+    Register::s7,
+    Register::s8,
+    Register::s9,
+    Register::s10,
+    Register::s11,
+    Register::s12,
+    Register::s13,
+    Register::s14,
+    Register::s15,
+    Register::s16,
+    Register::s17,
+    Register::s18,
+    Register::s19,
+    Register::s20,
+    Register::s21,
+    Register::s22,
+    Register::s23,
+    Register::s24,
+    Register::s25,
+    Register::s26,
+    Register::s27,
+    Register::s28,
+    Register::s29,
+    Register::s30,
+};
+
 constexpr const auto VECTOR_REGISTER = { Register::v0,
     Register::v1,
     Register::v2,
@@ -445,6 +592,7 @@ enum class Mnemonic
     adrp,
     ret,
     mov,
+    fmov,
     movn,
     cmp,
     cmn,
@@ -574,6 +722,145 @@ constexpr Register get_doubleword_register_from_word(Register r)
             return Register::sp;
         default:
             return r; // Already a dword or unmapped
+    }
+}
+constexpr Register get_double_register_from_doubleword(Register r)
+{
+    switch (r) {
+        case Register::x0:
+            return Register::d0;
+        case Register::x1:
+            return Register::d1;
+        case Register::x2:
+            return Register::d2;
+        case Register::x3:
+            return Register::d3;
+        case Register::x4:
+            return Register::d4;
+        case Register::x5:
+            return Register::d5;
+        case Register::x6:
+            return Register::d6;
+        case Register::x7:
+            return Register::d7;
+        case Register::x8:
+            return Register::d8;
+        case Register::x9:
+            return Register::d9;
+        case Register::x10:
+            return Register::d10;
+        case Register::x11:
+            return Register::d11;
+        case Register::x12:
+            return Register::d12;
+        case Register::x13:
+            return Register::d13;
+        case Register::x14:
+            return Register::d14;
+        case Register::x15:
+            return Register::d15;
+        case Register::x16:
+            return Register::d16;
+        case Register::x17:
+            return Register::d17;
+        case Register::x18:
+            return Register::d18;
+        case Register::x19:
+            return Register::d19;
+        case Register::x20:
+            return Register::d20;
+        case Register::x21:
+            return Register::d21;
+        case Register::x22:
+            return Register::d22;
+        case Register::x23:
+            return Register::d23;
+        case Register::x24:
+            return Register::d24;
+        case Register::x25:
+            return Register::d25;
+        case Register::x26:
+            return Register::d26;
+        case Register::x27:
+            return Register::d27;
+        case Register::x28:
+            return Register::d28;
+        case Register::x29:
+            return Register::d29;
+        case Register::x30:
+            return Register::d30;
+        default:
+            return r;
+    }
+}
+
+constexpr Register get_float_register_from_doubleword(Register r)
+{
+    switch (r) {
+        case Register::x0:
+            return Register::s0;
+        case Register::x1:
+            return Register::s1;
+        case Register::x2:
+            return Register::s2;
+        case Register::x3:
+            return Register::s3;
+        case Register::x4:
+            return Register::s4;
+        case Register::x5:
+            return Register::s5;
+        case Register::x6:
+            return Register::s6;
+        case Register::x7:
+            return Register::s7;
+        case Register::x8:
+            return Register::s8;
+        case Register::x9:
+            return Register::s9;
+        case Register::x10:
+            return Register::s10;
+        case Register::x11:
+            return Register::s11;
+        case Register::x12:
+            return Register::s12;
+        case Register::x13:
+            return Register::s13;
+        case Register::x14:
+            return Register::s14;
+        case Register::x15:
+            return Register::s15;
+        case Register::x16:
+            return Register::s16;
+        case Register::x17:
+            return Register::s17;
+        case Register::x18:
+            return Register::s18;
+        case Register::x19:
+            return Register::s19;
+        case Register::x20:
+            return Register::s20;
+        case Register::x21:
+            return Register::s21;
+        case Register::x22:
+            return Register::s22;
+        case Register::x23:
+            return Register::s23;
+        case Register::x24:
+            return Register::s24;
+        case Register::x25:
+            return Register::s25;
+        case Register::x26:
+            return Register::s26;
+        case Register::x27:
+            return Register::s27;
+        case Register::x28:
+            return Register::s28;
+        case Register::x29:
+            return Register::s29;
+        case Register::x30:
+            return Register::s30;
+        default:
+            return r;
     }
 }
 
@@ -847,8 +1134,71 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         ARM64_REGISTER_OSTREAM(v30);
         ARM64_REGISTER_OSTREAM(v31);
 
+        ARM64_REGISTER_OSTREAM(s0);
+        ARM64_REGISTER_OSTREAM(s1);
+        ARM64_REGISTER_OSTREAM(s2);
+        ARM64_REGISTER_OSTREAM(s3);
+        ARM64_REGISTER_OSTREAM(s4);
+        ARM64_REGISTER_OSTREAM(s5);
         ARM64_REGISTER_OSTREAM(s6);
+        ARM64_REGISTER_OSTREAM(s7);
+        ARM64_REGISTER_OSTREAM(s8);
+        ARM64_REGISTER_OSTREAM(s9);
+        ARM64_REGISTER_OSTREAM(s10);
+        ARM64_REGISTER_OSTREAM(s11);
+        ARM64_REGISTER_OSTREAM(s12);
+        ARM64_REGISTER_OSTREAM(s13);
+        ARM64_REGISTER_OSTREAM(s14);
+        ARM64_REGISTER_OSTREAM(s15);
+        ARM64_REGISTER_OSTREAM(s16);
+        ARM64_REGISTER_OSTREAM(s17);
+        ARM64_REGISTER_OSTREAM(s18);
+        ARM64_REGISTER_OSTREAM(s19);
+        ARM64_REGISTER_OSTREAM(s20);
+        ARM64_REGISTER_OSTREAM(s21);
+        ARM64_REGISTER_OSTREAM(s22);
+        ARM64_REGISTER_OSTREAM(s23);
+        ARM64_REGISTER_OSTREAM(s24);
+        ARM64_REGISTER_OSTREAM(s25);
+        ARM64_REGISTER_OSTREAM(s26);
+        ARM64_REGISTER_OSTREAM(s27);
+        ARM64_REGISTER_OSTREAM(s28);
+        ARM64_REGISTER_OSTREAM(s29);
+        ARM64_REGISTER_OSTREAM(s30);
+        ARM64_REGISTER_OSTREAM(s31);
+
+        ARM64_REGISTER_OSTREAM(d0);
+        ARM64_REGISTER_OSTREAM(d1);
+        ARM64_REGISTER_OSTREAM(d2);
+        ARM64_REGISTER_OSTREAM(d3);
+        ARM64_REGISTER_OSTREAM(d4);
+        ARM64_REGISTER_OSTREAM(d5);
         ARM64_REGISTER_OSTREAM(d6);
+        ARM64_REGISTER_OSTREAM(d7);
+        ARM64_REGISTER_OSTREAM(d8);
+        ARM64_REGISTER_OSTREAM(d9);
+        ARM64_REGISTER_OSTREAM(d10);
+        ARM64_REGISTER_OSTREAM(d11);
+        ARM64_REGISTER_OSTREAM(d12);
+        ARM64_REGISTER_OSTREAM(d13);
+        ARM64_REGISTER_OSTREAM(d14);
+        ARM64_REGISTER_OSTREAM(d15);
+        ARM64_REGISTER_OSTREAM(d16);
+        ARM64_REGISTER_OSTREAM(d17);
+        ARM64_REGISTER_OSTREAM(d18);
+        ARM64_REGISTER_OSTREAM(d19);
+        ARM64_REGISTER_OSTREAM(d20);
+        ARM64_REGISTER_OSTREAM(d21);
+        ARM64_REGISTER_OSTREAM(d22);
+        ARM64_REGISTER_OSTREAM(d23);
+        ARM64_REGISTER_OSTREAM(d24);
+        ARM64_REGISTER_OSTREAM(d25);
+        ARM64_REGISTER_OSTREAM(d26);
+        ARM64_REGISTER_OSTREAM(d27);
+        ARM64_REGISTER_OSTREAM(d28);
+        ARM64_REGISTER_OSTREAM(d29);
+        ARM64_REGISTER_OSTREAM(d30);
+        ARM64_REGISTER_OSTREAM(d31);
     }
     return os;
 }
@@ -958,8 +1308,71 @@ constexpr std::string register_as_string(Register reg)
         ARM64_REGISTER_STRING(v30);
         ARM64_REGISTER_STRING(v31);
 
+        ARM64_REGISTER_STRING(s0);
+        ARM64_REGISTER_STRING(s1);
+        ARM64_REGISTER_STRING(s2);
+        ARM64_REGISTER_STRING(s3);
+        ARM64_REGISTER_STRING(s4);
+        ARM64_REGISTER_STRING(s5);
         ARM64_REGISTER_STRING(s6);
+        ARM64_REGISTER_STRING(s7);
+        ARM64_REGISTER_STRING(s8);
+        ARM64_REGISTER_STRING(s9);
+        ARM64_REGISTER_STRING(s10);
+        ARM64_REGISTER_STRING(s11);
+        ARM64_REGISTER_STRING(s12);
+        ARM64_REGISTER_STRING(s13);
+        ARM64_REGISTER_STRING(s14);
+        ARM64_REGISTER_STRING(s15);
+        ARM64_REGISTER_STRING(s16);
+        ARM64_REGISTER_STRING(s17);
+        ARM64_REGISTER_STRING(s18);
+        ARM64_REGISTER_STRING(s19);
+        ARM64_REGISTER_STRING(s20);
+        ARM64_REGISTER_STRING(s21);
+        ARM64_REGISTER_STRING(s22);
+        ARM64_REGISTER_STRING(s23);
+        ARM64_REGISTER_STRING(s24);
+        ARM64_REGISTER_STRING(s25);
+        ARM64_REGISTER_STRING(s26);
+        ARM64_REGISTER_STRING(s27);
+        ARM64_REGISTER_STRING(s28);
+        ARM64_REGISTER_STRING(s29);
+        ARM64_REGISTER_STRING(s30);
+        ARM64_REGISTER_STRING(s31);
+
+        ARM64_REGISTER_STRING(d0);
+        ARM64_REGISTER_STRING(d1);
+        ARM64_REGISTER_STRING(d2);
+        ARM64_REGISTER_STRING(d3);
+        ARM64_REGISTER_STRING(d4);
+        ARM64_REGISTER_STRING(d5);
         ARM64_REGISTER_STRING(d6);
+        ARM64_REGISTER_STRING(d7);
+        ARM64_REGISTER_STRING(d8);
+        ARM64_REGISTER_STRING(d9);
+        ARM64_REGISTER_STRING(d10);
+        ARM64_REGISTER_STRING(d11);
+        ARM64_REGISTER_STRING(d12);
+        ARM64_REGISTER_STRING(d13);
+        ARM64_REGISTER_STRING(d14);
+        ARM64_REGISTER_STRING(d15);
+        ARM64_REGISTER_STRING(d16);
+        ARM64_REGISTER_STRING(d17);
+        ARM64_REGISTER_STRING(d18);
+        ARM64_REGISTER_STRING(d19);
+        ARM64_REGISTER_STRING(d20);
+        ARM64_REGISTER_STRING(d21);
+        ARM64_REGISTER_STRING(d22);
+        ARM64_REGISTER_STRING(d23);
+        ARM64_REGISTER_STRING(d24);
+        ARM64_REGISTER_STRING(d25);
+        ARM64_REGISTER_STRING(d26);
+        ARM64_REGISTER_STRING(d27);
+        ARM64_REGISTER_STRING(d28);
+        ARM64_REGISTER_STRING(d29);
+        ARM64_REGISTER_STRING(d30);
+        ARM64_REGISTER_STRING(d31);
     }
     return "x0";
 }
@@ -985,6 +1398,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         ARM64_MNEMONIC_OSTREAM(eor);
         ARM64_MNEMONIC_OSTREAM(mvn);
         ARM64_MNEMONIC_OSTREAM(movn);
+        ARM64_MNEMONIC_OSTREAM(fmov);
         ARM64_MNEMONIC_OSTREAM(lsl);
         ARM64_MNEMONIC_OSTREAM(lsr);
         ARM64_MNEMONIC_OSTREAM(asr);
@@ -1116,7 +1530,6 @@ constexpr std::string literal_type_to_string(Literal_Type const& literal)
 
 constexpr Register get_register_from_integer_argument(int index)
 {
-    // ARM64 calling convention: x0-x7 for integer arguments
     switch (index) {
         case 0:
             return Register::x0;
@@ -1203,7 +1616,7 @@ constexpr bool is_immediate_relative_address(Storage const& immediate)
 {
     if (is_variant(Immediate, immediate))
         return util::contains(
-            std::get<0>(std::get<Immediate>(immediate)), "._L");
+            std::get<0>(std::get<Immediate>(immediate)), "._L_str");
     else
         return false;
 }
@@ -1233,6 +1646,12 @@ constexpr bool is_immediate_x1_address_offset(Storage const& immediate)
     else
         return false;
 }
+
+std::tuple<std::deque<Register>,
+    std::deque<Register>,
+    std::deque<Register>,
+    std::deque<Register>>
+get_available_argument_register();
 
 /**
  * @brief
@@ -1295,7 +1714,7 @@ ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_not);
 ARM64_DEFINE_2ARY_OPERAND_INSTRUCTION_FROM_TEMPLATE(b_xor);
 
 // pointers
-Instruction_Pair store(Storage const& s0, common::Stack_Offset const& s1);
+Instruction_Pair store(Storage const& ss0, common::Stack_Offset const& ss1);
 
 /**
  * @brief Get the size in bytes from a register

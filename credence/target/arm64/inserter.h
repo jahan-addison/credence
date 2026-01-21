@@ -31,7 +31,8 @@
  * ARM64 Instruction Inserters
  *
  * Translates B language operations into ARM64 instruction sequences.
- * Handles arithmetic, bitwise, relational operators, and assignments.
+ * Includes arithmetic, bitwise, relational operators, and lvalue and rvalue
+ * type assignments.
  *
  * Example - arithmetic operation:
  *
@@ -54,7 +55,7 @@
  *****************************************************************************/
 
 /****************************************************************************
- * Special register usage conventions:
+ * Register selection table:
  *
  *   x6  = intermediate scratch and data section register
  *      s6  = floating point
@@ -63,7 +64,7 @@
  *   x15      = Second data section register
  *   x7       = multiplication scratch register
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register
+ *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
  *
@@ -248,6 +249,7 @@ struct Expression_Inserter : public ARM64_Expression_Inserter
         LValue const& rhs) override;
     void insert_lvalue_at_temporary_object_address(
         LValue const& lvalue) override;
+    void insert_lvalue_from_return_rvalue(LValue const& lvalue);
     void insert_from_temporary_rvalue(RValue const& rvalue) override;
     void insert_from_return_rvalue(
         ir::object::Function::Return_RValue const& ret) override;
@@ -292,6 +294,10 @@ class Operand_Inserter : public ARM64_Operand_Inserter
         std::string const& op) override;
     void insert_from_mnemonic_operand(LValue const& lhs,
         RValue const& rhs) override;
+
+  public:
+    void insert_form_vector_lvalue_data_type(LValue const& lhs,
+        RValue const& rhs);
 
   private:
     Storage get_operand_storage_from_parameter(RValue const& rvalue) override;

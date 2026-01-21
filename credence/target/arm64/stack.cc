@@ -57,7 +57,7 @@
  *****************************************************************************/
 
 /****************************************************************************
- * Special register usage conventions:
+ * Register selection table:
  *
  *   x6  = intermediate scratch and data section register
  *      s6  = floating point
@@ -66,7 +66,7 @@
  *   x15      = Second data section register
  *   x7       = multiplication scratch register
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register
+ *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
  *
@@ -86,7 +86,6 @@ class Stack::Stack_IMPL
     constexpr void clear()
     {
         size = 0;
-        frame_size = 0;
         stack_address.clear();
     }
 
@@ -136,11 +135,11 @@ class Stack::Stack_IMPL
      * @brief Dynamically set an operand size for which pushes downward on a
      * chunk
      */
-    constexpr void set(Offset offset, Operand_Size size)
+    constexpr void set(Offset offset, Operand_Size operand)
     {
         using namespace fmt::literals;
         stack_address.insert(fmt::format("__internal_offset_{}"_cf, ++vectors),
-            Entry{ offset, size });
+            Entry{ offset, operand });
     }
 
     /**
@@ -151,7 +150,6 @@ class Stack::Stack_IMPL
     constexpr Offset allocate(Operand_Size operand)
     {
         auto alloc = get_size_from_operand_size(operand);
-        frame_size += alloc;
         size += alloc;
         set(size, operand);
         return size;
@@ -159,7 +157,6 @@ class Stack::Stack_IMPL
 
     constexpr Offset allocate(Size alloc)
     {
-        frame_size += alloc;
         size += alloc;
         set(size, assembly::get_operand_size_from_size(alloc));
         return size;
@@ -170,11 +167,9 @@ class Stack::Stack_IMPL
      */
     constexpr void deallocate(Size alloc)
     {
-        if ((frame_size - alloc) <= 0) {
-            frame_size = 0;
+        if ((size - alloc) <= 0) {
             size = 0;
         } else {
-            frame_size -= alloc;
             size = 0;
         }
     }
@@ -269,13 +264,19 @@ class Stack::Stack_IMPL
      * @brief Get the allocation size of the current frame, aligned up to 16
      * bytes
      */
-    Size get_stack_frame_allocation_size()
+    Size get_stack_frame_allocation_size(Label const& label)
     {
-        auto allocation_size = frame_size;
+        credence_assert(allocation_table.contains(label));
+        auto allocation_size = allocation_table.at(label);
         if (allocation_size < 16)
             return 16UL;
         else
             return common::memory::align_up_to(allocation_size, 16);
+    }
+
+    void set_stack_frame_allocation_size(Label const& label)
+    {
+        allocation_table.insert(label, size);
     }
 
     /**
@@ -321,7 +322,7 @@ class Stack::Stack_IMPL
     {
         return std::accumulate(stack_address.begin(),
             stack_address.end(),
-            frame_size,
+            size,
             [&](type::semantic::Size offset, Pair const& pair) {
                 return offset -=
                        assembly::get_size_from_operand_size(pair.second.second);
@@ -382,9 +383,9 @@ class Stack::Stack_IMPL
     Size aad_local_size{ 0 };
 
   private:
-    int vectors{ 0 };
+    Ordered_Map<Label, Offset> allocation_table{};
     Offset size{ 0 };
-    Offset frame_size{ 0 };
+    Size vectors{ 0 };
     Local stack_address{};
 };
 
@@ -472,9 +473,13 @@ void Stack::set_address_from_address(LValue const& lvalue)
 {
     pimpl->set_address_from_address(lvalue);
 }
-Size Stack::get_stack_frame_allocation_size()
+Size Stack::get_stack_frame_allocation_size(Label const& label)
 {
-    return pimpl->get_stack_frame_allocation_size();
+    return pimpl->get_stack_frame_allocation_size(label);
+}
+void Stack::set_stack_frame_allocation_size(Label const& label)
+{
+    return pimpl->set_stack_frame_allocation_size(label);
 }
 common::Stack_Offset Stack::get_stack_offset_from_table_vector_index(
     LValue const& lvalue,

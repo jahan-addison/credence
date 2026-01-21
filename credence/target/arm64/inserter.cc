@@ -42,7 +42,8 @@
  * ARM64 Instruction Inserters
  *
  * Translates B language operations into ARM64 instruction sequences.
- * Handles arithmetic, bitwise, relational operators, and assignments.
+ * Includes arithmetic, bitwise, relational operators, and lvalue and rvalue
+ * type assignments.
  *
  * Example - arithmetic operation:
  *
@@ -65,7 +66,7 @@
  *****************************************************************************/
 
 /****************************************************************************
- * Special register usage conventions:
+ * Register selection table:
  *
  *   x6  = intermediate scratch and data section register
  *      s6  = floating point
@@ -74,7 +75,7 @@
  *   x15      = Second data section register
  *   x7       = multiplication scratch register
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register
+ *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
  *
@@ -281,7 +282,6 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -290,7 +290,7 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
         if (!address_storage.is_lvalue_storage_type(
                 argument_stack.front(), "string") and
             not library_caller.is_address_device_pointer_to_buffer(
-                operands.front(), table, accessor_->stack))
+                operands.front()))
             throw_compiletime_error(
                 fmt::format("argument '{}' is not a valid buffer address",
                     argument_stack.front()),
@@ -315,7 +315,6 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -326,7 +325,7 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     if (!address_storage.is_lvalue_storage_type(
             argument_stack.front(), "string") and
         not library_caller.is_address_device_pointer_to_buffer(
-            operands.front(), table, accessor_->stack))
+            operands.front()))
         throw_compiletime_error(
             fmt::format("invalid format string '{}'", argument_stack.front()),
             "printf",
@@ -1149,6 +1148,58 @@ void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
 }
 
 /**
+ * @brief
+ *
+ * Resolve the return rvalue to store in an lvalue, we take special care with
+ * `getchar' which is the only standard library function that may return a
+ * value:
+ *
+ *  auto x = getchar();
+ *  putchar(x);
+ *
+ */
+void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto& table = accessor_->table_accessor.get_table();
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+#if defined(__linux__)
+    if (common::runtime::is_stdlib_function(stack_frame_.tail,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::ARM64) and
+        stack_frame_.tail != "getchar")
+        return;
+#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+    if (common::runtime::is_stdlib_function(stack_frame_.tail,
+            common::assembly::OS_Type::BSD,
+            common::assembly::Arch_Type::ARM64) and
+        stack_frame_.tail != "getchar")
+        return;
+#endif
+    if (stack_frame_.tail != "getchar" and
+        not table->get_functions().contains(stack_frame_.tail))
+        return;
+    auto frame = table->get_functions()[stack_frame_.tail];
+    auto [lhs_s, lhs_i] =
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            lvalue, instructions.size(), accessor_->device_accessor);
+    assembly::inserter(instructions, lhs_i);
+    if (is_variant(common::Stack_Offset, lhs_s)) {
+        auto lhs_r = accessor_->register_accessor.get_available_register(
+            accessor_->device_accessor.get_word_size_from_lvalue(lvalue));
+        arm64_add__asm(instructions, str, lhs_r, lhs_s);
+        lhs_s = lhs_r;
+    }
+    if (stack_frame_.tail == "getchar")
+        arm64_add__asm(instructions, mov, lhs_s, w0);
+    else {
+        auto immediate = operand_inserter.get_operand_storage_from_rvalue(
+            frame->get_ret()->first);
+        arm64_add__asm(instructions, mov, lhs_s, immediate);
+    }
+}
+
+/**
  * @brief Operand inserter for mnemonic operand
  */
 void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
@@ -1179,6 +1230,7 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     lhs_storage = lhs_r;
                 }
                 assembly::inserter(instructions, storage_inst);
+                auto expression_inserter = Expression_Inserter{ accessor_ };
                 if (type::get_type_from_rvalue_data_type(imm) == "string")
                     insert_from_string_address_operand(lhs, lhs_storage, rhs);
                 else if (type::get_type_from_rvalue_data_type(imm) == "float")
@@ -1230,27 +1282,42 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     arm64_add__asm(instructions, mov, lhs_storage, x6);
                 } else {
                     auto frame = stack_frame_.get_stack_frame();
+                    auto rvalue =
+                        accessor_->table_accessor.get_table()
+                            ->lvalue_at_temporary_object_address(rhs, frame);
                     auto size = assembly::get_operand_size_from_size(
                         accessor_->table_accessor.get_table()
                             ->lvalue_size_at_temporary_object_address(
                                 rhs, frame));
-                    auto acc =
-                        accumulator.get_accumulator_register_from_size(size);
-                    if (!type::is_unary_expression(lhs))
-                        accessor_->device_accessor.insert_lvalue_to_device(lhs);
-                    auto [lhs_storage, storage_inst] =
-                        address_storage
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    if (is_variant(common::Stack_Offset, lhs_storage)) {
-                        auto lhs_r =
-                            accessor_->register_accessor.get_available_register(
-                                devices.get_word_size_from_lvalue(rhs));
-                        arm64_add__asm(instructions, str, lhs_r, lhs_storage);
-                        lhs_storage = lhs_r;
+                    auto expression_inserter = Expression_Inserter{ accessor_ };
+                    expression_inserter.insert_lvalue_from_return_rvalue(lhs);
+                    if (rvalue == "RET") {
+                        expression_inserter.insert_lvalue_from_return_rvalue(
+                            lhs);
+                        return;
+                    } else {
+                        auto acc =
+                            accumulator.get_accumulator_register_from_size(
+                                size);
+                        if (!type::is_unary_expression(lhs))
+                            accessor_->device_accessor.insert_lvalue_to_device(
+                                lhs);
+                        auto [lhs_storage, storage_inst] =
+                            address_storage
+                                .get_arm64_lvalue_and_insertion_instructions(
+                                    lhs, instructions.size(), devices);
+                        if (is_variant(common::Stack_Offset, lhs_storage)) {
+                            auto lhs_r =
+                                accessor_->register_accessor
+                                    .get_available_register(
+                                        devices.get_word_size_from_lvalue(rhs));
+                            arm64_add__asm(
+                                instructions, str, lhs_r, lhs_storage);
+                            lhs_storage = lhs_r;
+                        }
+                        assembly::inserter(instructions, storage_inst);
+                        arm64_add__asm(instructions, mov, lhs_storage, acc);
                     }
-                    assembly::inserter(instructions, storage_inst);
-                    arm64_add__asm(instructions, mov, lhs_storage, acc);
                 }
             },
         m::pattern | m::app(is_address, true) =
@@ -1281,9 +1348,9 @@ inline Storage Operand_Inserter::get_operand_storage_from_return()
                           ->get_functions()[stack_frame_.tail];
     if (tail_call->get_locals().is_pointer(tail_call->get_ret()->first) or
         type::is_rvalue_data_type_string(tail_call->get_ret()->first))
-        return Register::x8;
+        return Register::x0;
     else
-        return Register::w8;
+        return Register::w0;
 }
 
 /**
@@ -1457,6 +1524,12 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
                 arguments.emplace_back(Register::w0);
         } else {
             auto operand = assembly::O_NUL;
+            if (accessor_->stack->is_allocated(rvalue)) {
+                if (accessor_->stack->is_allocated(rvalue)) {
+                    arguments.emplace_back(accessor_->stack->get(rvalue).first);
+                    continue;
+                }
+            }
             if (is_vector_offset(rvalue))
                 operand = operands.get_operand_storage_from_rvalue(rvalue);
             else
@@ -1485,11 +1558,15 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
 void Invocation_Inserter::insert_from_syscall_function(std::string_view routine,
     Instructions& instructions)
 {
+    auto syscall_inserter =
+        syscall_ns::Syscall_Invocation_Inserter{ accessor_, stack_frame_ };
     accessor_->address_accessor.buffer_accessor.set_buffer_size_from_syscall(
         routine, stack_frame_.argument_stack);
+
     auto operands = this->get_operands_storage_from_argument_stack();
 
-    syscall_ns::make_syscall(instructions, routine, operands, &accessor_);
+    syscall_inserter.make_syscall(
+        instructions, routine, operands, stack_frame_.argument_stack);
 }
 
 /**
@@ -1500,6 +1577,7 @@ void Invocation_Inserter::insert_from_user_defined_function(
     Instructions& instructions)
 {
     auto operands = get_operands_storage_from_argument_stack();
+    auto expression_inserter = Expression_Inserter{ accessor_ };
     for (std::size_t i = 0; i < operands.size(); i++) {
         auto const& operand = operands[i];
         auto argument = stack_frame_.argument_stack.at(i);
@@ -1515,7 +1593,7 @@ void Invocation_Inserter::insert_from_user_defined_function(
             arm64_add__asm(instructions, ldr, operand, argv_offset);
         } else
             m::match(arg_type)(
-                m::pattern | m::or_(sv("string"), sv("float"), sv("double")) =
+                m::pattern | sv("string") =
                     [&] {
                         auto immediate = type::get_value_from_rvalue_data_type(
                             std::get<Immediate>(operand));
@@ -1529,6 +1607,14 @@ void Invocation_Inserter::insert_from_user_defined_function(
                             arg_register,
                             arg_register,
                             imm_2);
+                    },
+                m::pattern | m::or_(sv("float"), sv("double")) =
+                    [&] {
+                        auto immediate = type::get_value_from_rvalue_data_type(
+                            std::get<Immediate>(operand));
+                        auto imm =
+                            direct_immediate(fmt::format("={}", immediate));
+                        arm64_add__asm(instructions, ldr, arg_register, imm);
                     },
                 m::pattern | m::_ =
                     [&] {
@@ -1579,8 +1665,7 @@ void Invocation_Inserter::insert_from_standard_library_function(
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
 
-    library_caller.make_library_call(
-        instructions, routine, argument_stack, operands);
+    library_caller.make_library_call(instructions, routine, operands);
 }
 
 /**
@@ -1702,8 +1787,6 @@ Instructions Relational_Operator_Inserter::from_relational_expression_operands(
             },
         m::pattern | m::_ = [&] { return Instructions{}; });
 }
-
-// @TODO:
 
 void Operand_Inserter::insert_from_float_address_operand(
     [[maybe_unused]] LValue const& lhs,

@@ -13,12 +13,6 @@
 
 #include "types.h"
 
-/****************************************************************************
- *
- * Common base_stack_pointer PIMPL
- *
- ****************************************************************************/
-
 namespace credence::target::common::detail {
 
 struct base_stack_pointer::impl

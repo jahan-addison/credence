@@ -26,9 +26,8 @@
  *
  * x86-64 System Call Interface
  *
- * Implements syscall invocation for x86-64 Linux and Darwin. Loads syscall
- * number into rax and arguments into rdi, rsi, rdx, r10, r8, r9. Executes
- * syscall instruction. Return value in rax.
+ * Syscall invocation for x86-64 Linux and Darwin. Loads syscall number into rax
+ * and arguments into rdi, rsi, rdx, r10, r8, r9 per the kernel specification
  *
  * Example - exit syscall:
  *

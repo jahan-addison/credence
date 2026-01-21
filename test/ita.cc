@@ -4184,11 +4184,12 @@ _p2_2 = (1:int:4);
 PUSH _p2_2;
 CALL getchar;
 POP 8;
-_t3 = (3:int:4) + (3:int:4);
-_t4 = (1:int:4) || _t3;
-_t5 = (1:int:4) || _t4;
-_t6 = x + _t5;
-_t6 = _t6;
+_t3 = RET;
+_t4 = _t3;
+_t5 = (3:int:4) + _t4;
+_t6 = (3:int:4) || _t5;
+_t7 = (1:int:4) || _t6;
+x = (1:int:4) + _t7;
 )ita";
     TEST_RVALUE_STATEMENT_NODE_WITH(obj, symbols, obj["test"], expected_1);
     TEST_RVALUE_STATEMENT_NODE_WITH(

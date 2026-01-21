@@ -114,7 +114,7 @@ _start:
     mul w8, w8, w7
     mov w9, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -141,7 +141,7 @@ _start:
     mul w8, w8, w7
     mov w9, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -185,10 +185,10 @@ _start:
     str w10, [sp, #20]
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    mov w1, w10
+    ldr w1, [sp, #20]
     bl printf
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -227,10 +227,10 @@ _start:
     str w10, [sp, #20]
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    mov w1, w10
+    ldr w1, [sp, #20]
     bl _printf
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -266,7 +266,7 @@ _start:
     sub w8, w8, w9
     mov w10, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -291,7 +291,7 @@ _start:
     sub w8, w8, w9
     mov w10, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -332,7 +332,7 @@ _start:
     mov w8, #10
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -366,7 +366,7 @@ _start:
     mov w8, #10
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -398,7 +398,7 @@ _start:
     sub w10, w10, #1
     add w10, w10, #1
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -423,7 +423,7 @@ _start:
     sub w10, w10, #1
     add w10, w10, #1
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -456,7 +456,7 @@ _start:
     sub w10, w10, #1
     add w10, w10, #1
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -482,7 +482,7 @@ _start:
     sub w10, w10, #1
     add w10, w10, #1
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -518,7 +518,7 @@ _start:
     mov w8, w9
     mov w10, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -547,7 +547,7 @@ _start:
     mov w8, w9
     mov w10, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -577,7 +577,7 @@ _start:
     mov w10, #1
     mov w11, #0
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -600,7 +600,7 @@ _start:
     mov w10, #1
     mov w11, #0
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -636,7 +636,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -665,7 +665,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -702,7 +702,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -732,7 +732,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -769,7 +769,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -799,7 +799,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -835,7 +835,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -864,7 +864,7 @@ _start:
     and w8, w8, w6
     mov w11, w8
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -895,7 +895,7 @@ _start:
     mov x9, x6
     mov w11, #10
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -919,7 +919,7 @@ _start:
     mov x9, x6
     mov w11, #10
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -955,7 +955,7 @@ _start:
     add x6, sp, #8
     mov x14, x6
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -984,7 +984,7 @@ _start:
     add x6, sp, #8
     mov x14, x6
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1016,7 +1016,7 @@ _start:
     mov w8, #10
     str w8, [x9]
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1041,7 +1041,7 @@ _start:
     mov w8, #10
     str w8, [x9]
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1082,7 +1082,7 @@ _start:
     mov x10, #5
     str x10, [sp, #16]
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1116,7 +1116,7 @@ _start:
     mov x10, #5
     str x10, [sp, #16]
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1154,7 +1154,7 @@ _start:
     ldr w8, [x11]
     str w8, [x9]
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1185,7 +1185,7 @@ _start:
     ldr w8, [x11]
     str w8, [x9]
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1221,7 +1221,7 @@ _start:
     add x6, x6, ._L_str1__@PAGEOFF
     mov x11, x6
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1254,7 +1254,7 @@ _start:
     add x6, x6, ._L_str1__@PAGEOFF
     mov x11, x6
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1295,7 +1295,7 @@ _start:
     str w8, [x15]
     mov w9, #10
     ldp x29, x30, [sp], #48
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1324,7 +1324,7 @@ _start:
     str w8, [x15]
     mov w9, #10
     ldp x29, x30, [sp], #48
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1366,7 +1366,7 @@ _start:
     str w8, [x15]
     mov w9, #10
     ldp x29, x30, [sp], #64
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1401,7 +1401,7 @@ _start:
     str w8, [x15]
     mov w9, #10
     ldp x29, x30, [sp], #64
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1453,7 +1453,7 @@ _start:
     mov w1, #14
     bl print
     ldp x29, x30, [sp], #80
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1503,7 +1503,7 @@ _start:
     mov w1, #14
     bl _print
     ldp x29, x30, [sp], #80
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1542,7 +1542,7 @@ _start:
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1589,7 +1589,7 @@ _start:
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1648,11 +1648,11 @@ _start:
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
     str x10, [sp, #28]
-    mov x0, x10
+    ldr x0, [sp, #28]
     mov w1, #10
     bl print
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1702,11 +1702,11 @@ _start:
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
     str x10, [sp, #28]
-    mov x0, x10
+    ldr x0, [sp, #28]
     mov w1, #10
     bl _print
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1767,7 +1767,7 @@ _start:
     ldr x10, [x6]
     str x10, [sp, #28]
     mov w0, #1
-    mov x1, x10
+    ldr x1, [sp, #28]
     mov w2, #6
     mov x8, #4
     svc #0
@@ -1785,7 +1785,7 @@ _start:
     mov x8, #4
     svc #0
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1834,7 +1834,7 @@ _start:
     ldr x10, [x6]
     str x10, [sp, #28]
     mov w0, #1
-    mov x1, x10
+    ldr x1, [sp, #28]
     mov w2, #6
     mov x16, #4
     svc #0x80
@@ -1852,7 +1852,7 @@ _start:
     mov x16, #4
     svc #0x80
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -1914,7 +1914,7 @@ _start:
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
     bl print
-    mov x0, x10
+    ldr x0, [sp, #28]
     mov w1, #6
     bl print
     adrp x6, mess@PAGE
@@ -1929,7 +1929,7 @@ _start:
     mov x8, #4
     svc #0
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -1984,7 +1984,7 @@ _start:
     add x0, x0, ._L_str2__@PAGEOFF
     mov w1, #13
     bl _print
-    mov x0, x10
+    ldr x0, [sp, #28]
     mov w1, #6
     bl _print
     adrp x6, mess@PAGE
@@ -1999,7 +1999,7 @@ _start:
     mov x16, #4
     svc #0x80
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -2054,7 +2054,7 @@ _start:
     add x6, x6, ._L_str1__@PAGEOFF
     mov x10, x6
     str x10, [sp, #24]
-    mov x0, x10
+    ldr x0, [sp, #24]
     bl identity
     mov x0, x0
     bl identity
@@ -2064,16 +2064,16 @@ _start:
     mov w1, #18
     bl print
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
 
 identity:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     ret
 
 .data
@@ -2097,7 +2097,7 @@ _start:
     add x6, x6, ._L_str1__@PAGEOFF
     mov x10, x6
     str x10, [sp, #24]
-    mov x0, x10
+    ldr x0, [sp, #24]
     bl identity
     mov x0, x0
     bl identity
@@ -2107,16 +2107,16 @@ _start:
     mov w1, #18
     bl _print
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
 
 identity:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     ret
 
 .section	__TEXT,__cstring,cstring_literals
@@ -2145,25 +2145,26 @@ _start:
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
     bl test
+    mov x0, x0
     ldr x10, [sp, #24]
     mov x10, x0
     str x10, [sp, #24]
-    mov x0, x8
+    ldr x0, [sp, #24]
     bl test
     ldr x0, [sp, #24]
     mov w1, #11
     bl print
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
 
 test:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     ret
 
 .data
@@ -2185,25 +2186,26 @@ _start:
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
     bl test
+    mov x0, x0
     ldr x10, [sp, #24]
     mov x10, x0
     str x10, [sp, #24]
-    mov x0, x8
+    ldr x0, [sp, #24]
     bl test
     ldr x0, [sp, #24]
     mov w1, #11
     bl _print
     ldp x29, x30, [sp], #32
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
 
 test:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #16
     ret
 
 .section	__TEXT,__cstring,cstring_literals
@@ -2216,7 +2218,7 @@ test:
         "call_2", expected, false);
 }
 
-TEST_CASE("target/arm64: fixture: call_2")
+TEST_CASE("target/arm64: fixture: readme 2")
 {
 #if defined(__linux__)
     std::string expected = R"arm(
@@ -2244,7 +2246,7 @@ _start:
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    mov x0, x10
+    ldr x0, [sp, #36]
     bl identity
     mov x0, x0
     bl identity
@@ -2261,17 +2263,17 @@ _start:
     bl print
     b ._L3__main
 ._L1__main:
-    ldp x29, x30, [sp], #0
-    mov x0, #0
+    ldp x29, x30, [sp], #48
+    mov w0, #0
     mov x8, #1
     svc #0
 
 
 identity:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #16
     ret
 
 .data
@@ -2323,7 +2325,7 @@ _start:
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    mov x0, x10
+    ldr x0, [sp, #36]
     bl identity
     mov x0, x0
     bl identity
@@ -2340,17 +2342,17 @@ _start:
     bl _print
     b ._L3__main
 ._L1__main:
-    ldp x29, x30, [sp], #0
-    mov x0, #0
+    ldp x29, x30, [sp], #48
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
 
 identity:
-    stp x29, x30, [sp, #-48]!
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     mov x0, x0
-    ldp x29, x30, [sp], #48
+    ldp x29, x30, [sp], #16
     ret
 
 .section	__TEXT,__cstring,cstring_literals
@@ -2404,7 +2406,7 @@ _start:
     mov w0, 108
     bl putchar
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x8, #1
     svc #0
 
@@ -2429,7 +2431,7 @@ _start:
     mov w0, 108
     bl _putchar
     ldp x29, x30, [sp], #16
-    mov x0, #0
+    mov w0, #0
     mov x16, #1
     svc #0x80
 
@@ -2439,4 +2441,966 @@ _start:
 #endif
     SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
         "stdlib/putchar_1", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: relational/if_1.b")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #10
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.le ._L4__main
+._L3__main:
+._L8__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #10
+    b.eq ._L10__main
+._L9__main:
+._L14__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.ge ._L16__main
+._L15__main:
+._L20__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.ne ._L22__main
+._L21__main:
+._L26__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #8
+    b.gt ._L28__main
+._L27__main:
+._L32__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #20
+    b.lt ._L34__main
+._L33__main:
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    mov w1, #5
+    bl print
+    mov w8, 1
+    ldr w10, [sp, #20]
+    mov w10, w8
+    str w10, [sp, #20]
+    b ._L1__main
+._L4__main:
+    ldr w10, [sp, #20]
+    mov w10, #1
+    str w10, [sp, #20]
+    adrp x0, ._L_str6__@PAGE
+    add x0, x0, ._L_str6__@PAGEOFF
+    mov w1, #5
+    bl printf
+    b ._L3__main
+._L10__main:
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    mov w1, #10
+    bl printf
+    b ._L9__main
+._L16__main:
+    adrp x0, ._L_str4__@PAGE
+    add x0, x0, ._L_str4__@PAGEOFF
+    mov w1, #5
+    bl printf
+    b ._L15__main
+._L22__main:
+    adrp x0, ._L_str7__@PAGE
+    add x0, x0, ._L_str7__@PAGEOFF
+    mov w1, #5
+    bl printf
+    b ._L21__main
+._L28__main:
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    mov w1, #8
+    bl printf
+    b ._L27__main
+._L34__main:
+    adrp x0, ._L_str5__@PAGE
+    add x0, x0, ._L_str5__@PAGEOFF
+    mov w1, #20
+    bl printf
+    b ._L33__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "done!"
+
+._L_str2__:
+    .asciz "equal to %d\n"
+
+._L_str3__:
+    .asciz "greater than %d\n"
+
+._L_str4__:
+    .asciz "greater than or equal to %d\n"
+
+._L_str5__:
+    .asciz "less than %d\n"
+
+._L_str6__:
+    .asciz "less than or equal to %d\n"
+
+._L_str7__:
+    .asciz "not equal to %d\n"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #10
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.le ._L4__main
+._L3__main:
+._L8__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #10
+    b.eq ._L10__main
+._L9__main:
+._L14__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.ge ._L16__main
+._L15__main:
+._L20__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.ne ._L22__main
+._L21__main:
+._L26__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #8
+    b.gt ._L28__main
+._L27__main:
+._L32__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #20
+    b.lt ._L34__main
+._L33__main:
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    mov w1, #5
+    bl _print
+    mov w8, 1
+    ldr w10, [sp, #20]
+    mov w10, w8
+    str w10, [sp, #20]
+    b ._L1__main
+._L4__main:
+    ldr w10, [sp, #20]
+    mov w10, #1
+    str w10, [sp, #20]
+    adrp x0, ._L_str6__@PAGE
+    add x0, x0, ._L_str6__@PAGEOFF
+    mov w1, #5
+    bl _printf
+    b ._L3__main
+._L10__main:
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    mov w1, #10
+    bl _printf
+    b ._L9__main
+._L16__main:
+    adrp x0, ._L_str4__@PAGE
+    add x0, x0, ._L_str4__@PAGEOFF
+    mov w1, #5
+    bl _printf
+    b ._L15__main
+._L22__main:
+    adrp x0, ._L_str7__@PAGE
+    add x0, x0, ._L_str7__@PAGEOFF
+    mov w1, #5
+    bl _printf
+    b ._L21__main
+._L28__main:
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    mov w1, #8
+    bl _printf
+    b ._L27__main
+._L34__main:
+    adrp x0, ._L_str5__@PAGE
+    add x0, x0, ._L_str5__@PAGEOFF
+    mov w1, #20
+    bl _printf
+    b ._L33__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "done!"
+
+._L_str2__:
+    .asciz "equal to %d\n"
+
+._L_str3__:
+    .asciz "greater than %d\n"
+
+._L_str4__:
+    .asciz "greater than or equal to %d\n"
+
+._L_str5__:
+    .asciz "less than %d\n"
+
+._L_str6__:
+    .asciz "less than or equal to %d\n"
+
+._L_str7__:
+    .asciz "not equal to %d\n"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/if_1", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: relational while")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #100
+    str w10, [sp, #20]
+    ldr w10, [sp, #24]
+    mov w10, #4
+    str w10, [sp, #24]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #50
+    b.gt ._L4__main
+._L3__main:
+._L11__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #48
+    b.eq ._L13__main
+    b ._L16__main
+._L12__main:
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    ldr w1, [sp, #20]
+    ldr w2, [sp, #24]
+    bl printf
+    b ._L1__main
+._L4__main:
+._L6__main:
+._L8__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #50
+    b.ge ._L7__main
+    b ._L3__main
+._L7__main:
+    ldr w10, [sp, #20]
+    sub w10, w10, #1
+    str w10, [sp, #20]
+    ldr w10, [sp, #20]
+    mov w8, w10
+    sub w8, w8, #1
+    ldr w10, [sp, #24]
+    mov w10, w8
+    str w10, [sp, #24]
+    b ._L6__main
+._L13__main:
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    mov w1, #4
+    bl print
+    b ._L12__main
+._L16__main:
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    mov w1, #6
+    bl print
+    b ._L12__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "no\n"
+
+._L_str2__:
+    .asciz "x, y: %d %d\n"
+
+._L_str3__:
+    .asciz "yes!\n"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #100
+    str w10, [sp, #20]
+    ldr w10, [sp, #24]
+    mov w10, #4
+    str w10, [sp, #24]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #50
+    b.gt ._L4__main
+._L3__main:
+._L11__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #48
+    b.eq ._L13__main
+    b ._L16__main
+._L12__main:
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    ldr w1, [sp, #20]
+    ldr w2, [sp, #24]
+    bl _printf
+    b ._L1__main
+._L4__main:
+._L6__main:
+._L8__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #50
+    b.ge ._L7__main
+    b ._L3__main
+._L7__main:
+    ldr w10, [sp, #20]
+    sub w10, w10, #1
+    str w10, [sp, #20]
+    ldr w10, [sp, #20]
+    mov w8, w10
+    sub w8, w8, #1
+    ldr w10, [sp, #24]
+    mov w10, w8
+    str w10, [sp, #24]
+    b ._L6__main
+._L13__main:
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    mov w1, #4
+    bl _print
+    b ._L12__main
+._L16__main:
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    mov w1, #6
+    bl _print
+    b ._L12__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "no\n"
+
+._L_str2__:
+    .asciz "x, y: %d %d\n"
+
+._L_str3__:
+    .asciz "yes!\n"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/while_1", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: relational switch")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #10
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.ge ._L4__main
+._L3__main:
+    ldr w10, [sp, #24]
+    mov w10, #10
+    str w10, [sp, #24]
+    b ._L1__main
+._L4__main:
+    mov w8, w10
+    cmp w8, #10
+    b.eq ._L8__main
+    mov w8, w10
+    cmp w8, #6
+    b.eq ._L16__main
+    mov w8, w10
+    cmp w8, #7
+    b.eq ._L18__main
+._L17__main:
+._L15__main:
+._L7__main:
+    b ._L3__main
+._L8__main:
+._L9__main:
+._L11__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #1
+    b.gt ._L10__main
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    ldr w1, [sp, #20]
+    bl printf
+    b ._L7__main
+._L10__main:
+    ldr w10, [sp, #20]
+    sub w10, w10, #1
+    str w10, [sp, #20]
+    b ._L9__main
+._L16__main:
+    ldr w10, [sp, #24]
+    mov w10, #2
+    str w10, [sp, #24]
+    b ._L3__main
+._L18__main:
+    ldr w10, [sp, #20]
+    mov w10, #5
+    str w10, [sp, #20]
+    b ._L17__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "should say 1: %d, %b\n"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #10
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.ge ._L4__main
+._L3__main:
+    ldr w10, [sp, #24]
+    mov w10, #10
+    str w10, [sp, #24]
+    b ._L1__main
+._L4__main:
+    mov w8, w10
+    cmp w8, #10
+    b.eq ._L8__main
+    mov w8, w10
+    cmp w8, #6
+    b.eq ._L16__main
+    mov w8, w10
+    cmp w8, #7
+    b.eq ._L18__main
+._L17__main:
+._L15__main:
+._L7__main:
+    b ._L3__main
+._L8__main:
+._L9__main:
+._L11__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #1
+    b.gt ._L10__main
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    ldr w1, [sp, #20]
+    bl _printf
+    b ._L7__main
+._L10__main:
+    ldr w10, [sp, #20]
+    sub w10, w10, #1
+    str w10, [sp, #20]
+    b ._L9__main
+._L16__main:
+    ldr w10, [sp, #24]
+    mov w10, #2
+    str w10, [sp, #24]
+    b ._L3__main
+._L18__main:
+    ldr w10, [sp, #20]
+    mov w10, #5
+    str w10, [sp, #20]
+    b ._L17__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "should say 1: %d, %b\n"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/switch_1", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: relational if 2")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr x10, [sp, #28]
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #28]
+    ldr w10, [sp, #20]
+    mov w10, #5
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.gt ._L4__main
+    b ._L6__main
+._L3__main:
+    ldr x0, [sp, #28]
+    mov w1, #6
+    bl print
+    b ._L1__main
+._L4__main:
+    ldr x10, [sp, #28]
+    adrp x6, ._L_str2__@PAGE
+    add x6, x6, ._L_str2__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #28]
+    b ._L3__main
+._L6__main:
+    ldr x10, [sp, #28]
+    adrp x6, ._L_str3__@PAGE
+    add x6, x6, ._L_str3__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #28]
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "no"
+
+._L_str2__:
+    .asciz "yes"
+
+._L_str3__:
+    .asciz "yes!!!"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr x10, [sp, #28]
+    adrp x6, ._L_str1__@PAGE
+    add x6, x6, ._L_str1__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #28]
+    ldr w10, [sp, #20]
+    mov w10, #5
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.gt ._L4__main
+    b ._L6__main
+._L3__main:
+    ldr x0, [sp, #28]
+    mov w1, #6
+    bl _print
+    b ._L1__main
+._L4__main:
+    ldr x10, [sp, #28]
+    adrp x6, ._L_str2__@PAGE
+    add x6, x6, ._L_str2__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #28]
+    b ._L3__main
+._L6__main:
+    ldr x10, [sp, #28]
+    adrp x6, ._L_str3__@PAGE
+    add x6, x6, ._L_str3__@PAGEOFF
+    mov x10, x6
+    str x10, [sp, #28]
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "no"
+
+._L_str2__:
+    .asciz "yes"
+
+._L_str3__:
+    .asciz "yes!!!"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "relational/if_2", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: stdlib printf")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #5
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.gt ._L4__main
+    b ._L7__main
+._L3__main:
+    b ._L1__main
+._L4__main:
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    mov w1, #14
+    bl print
+    b ._L3__main
+._L7__main:
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x1, ._L_str3__@PAGE
+    add x1, x1, ._L_str3__@PAGEOFF
+    mov w2, #5
+    adrp x8, ._L_double4__@PAGE
+    ldr d3, [x8, ._L_double4__@PAGEOFF]
+    mov w4, 120
+    mov w5, #1
+    bl printf
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "%s %d %g %c %b"
+
+._L_str2__:
+    .asciz "greater than 5"
+
+._L_str3__:
+    .asciz "hello"
+
+._L_double4__:
+    .double 5.2
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    ldr w10, [sp, #20]
+    mov w10, #5
+    str w10, [sp, #20]
+._L2__main:
+    ldr w10, [sp, #20]
+    mov w8, w10
+    cmp w8, #5
+    b.gt ._L4__main
+    b ._L7__main
+._L3__main:
+    b ._L1__main
+._L4__main:
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    mov w1, #14
+    bl _print
+    b ._L3__main
+._L7__main:
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x1, ._L_str3__@PAGE
+    add x1, x1, ._L_str3__@PAGEOFF
+    mov w2, #5
+    adrp x8, ._L_double4__@PAGE
+    ldr d3, [x8, ._L_double4__@PAGEOFF]
+    mov w4, 120
+    mov w5, #1
+    bl _printf
+    b ._L3__main
+._L1__main:
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "%s %d %g %c %b"
+
+._L_str2__:
+    .asciz "greater than 5"
+
+._L_str3__:
+    .asciz "hello"
+
+.section __DATA,__data
+
+._L_double4__:
+    .double 5.2
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "stdlib/printf_1", expected, false);
+}
+
+TEST_CASE("target/arm64: fixture: argc_argv")
+{
+#if defined(__linux__)
+    std::string expected = R"arm(
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str w0, [sp, #20]
+    str x1, [sp, #28]
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    ldr w1, [sp, #20]
+    bl printf
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #8]
+    bl printf
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #16]
+    bl printf
+    adrp x0, ._L_str4__@PAGE
+    add x0, x0, ._L_str4__@PAGEOFF
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #24]
+    bl printf
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x8, #1
+    svc #0
+
+.data
+
+._L_str1__:
+    .asciz "argc count: %d\n"
+
+._L_str2__:
+    .asciz "argv 1: %s\n"
+
+._L_str3__:
+    .asciz "argv 2: %s\n"
+
+._L_str4__:
+    .asciz "argv 3: %s\n"
+)arm";
+#elif defined(__APPLE__) || defined(__bsdi__)
+    std::string expected = R"arm(
+.section	__TEXT,__text,regular,pure_instructions
+
+    .p2align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    str w0, [sp, #20]
+    str x1, [sp, #28]
+    adrp x0, ._L_str1__@PAGE
+    add x0, x0, ._L_str1__@PAGEOFF
+    ldr w1, [sp, #20]
+    bl _printf
+    adrp x0, ._L_str2__@PAGE
+    add x0, x0, ._L_str2__@PAGEOFF
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #8]
+    bl _printf
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #16]
+    bl _printf
+    adrp x0, ._L_str4__@PAGE
+    add x0, x0, ._L_str4__@PAGEOFF
+    ldr x10, [sp, #28]
+    ldr x1, [x10, #24]
+    bl _printf
+    ldp x29, x30, [sp], #32
+    mov w0, #0
+    mov x16, #1
+    svc #0x80
+
+.section	__TEXT,__cstring,cstring_literals
+
+._L_str1__:
+    .asciz "argc count: %d\n"
+
+._L_str2__:
+    .asciz "argv 1: %s\n"
+
+._L_str3__:
+    .asciz "argv 2: %s\n"
+
+._L_str4__:
+    .asciz "argv 3: %s\n"
+)arm";
+#endif
+    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST_FROM_AST(
+        "argc_argv", expected, false);
 }

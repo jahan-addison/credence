@@ -30,11 +30,11 @@
 
 /****************************************************************************
  *
- * Common Instruction inserters
+ * Instruction inserters
  *
- * Translates algebraic data type operations into sequences of assembly
- * instructions. Including relational, binary, and unary operations;
- * Breaks down complex expressions by inserting appropriate sub-sequences.
+ * Translates algebraic data type operations such as relational, binary, and
+ * unary operators into sequences of assembly instructions. Decomposes complex
+ * expressions by generating the necessary instruction sub-sequences.
  *
  * Example - relational operator:
  *

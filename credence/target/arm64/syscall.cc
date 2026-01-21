@@ -28,9 +28,8 @@
  *
  * ARM64 System Call Interface
  *
- * Implements syscall invocation for ARM64 Linux and Darwin. Loads syscall
+ * Syscall invocation for ARM64 Linux and Darwin. Loads syscall
  * number into x8 (Linux) or x16 (Darwin) and arguments into x0-x7.
- * Executes svc #0 instruction. Return value in x0.
  *
  * Example - exit syscall:
  *
@@ -49,20 +48,65 @@
  *****************************************************************************/
 
 namespace credence::target::arm64::syscall_ns {
-/**
- * @brief Create instructions for a platform-independent exit syscall
- */
-// cppcheck-suppress constParameterReference
-void exit_syscall(assembly::Instructions& instructions, int exit_status)
+
+Register Syscall_Invocation_Inserter::get_storage_register_from_safe_address(
+    assembly::Storage const& argument,
+    common::memory::Locals& argument_stack,
+    unsigned int index)
 {
-    auto immediate = common::assembly::make_numeric_immediate(exit_status);
-    syscall_ns::make_syscall(instructions, "exit", { immediate }, nullptr);
+    try {
+        if (memory::is_doubleword_storage_size(
+                argument, accessor_->stack, stack_frame_))
+            return dword_registers_.back();
+        else {
+            if (accessor_->address_accessor.is_lvalue_storage_type(
+                    argument_stack.at(index), "float")) {
+                return float_registers_.back();
+            }
+            if (accessor_->address_accessor.is_lvalue_storage_type(
+                    argument_stack.at(index), "double")) {
+                return double_registers_.back();
+            }
+        }
+    } catch (...) {
+        return word_registers_.back();
+    }
+    return word_registers_.back();
 }
 
-void make_syscall(assembly::Instructions& instructions,
+/**
+ * @brief Set the signal register
+ */
+bool Syscall_Invocation_Inserter::check_signal_register_from_safe_address(
+    Instructions& instructions,
+    assembly::Register storage)
+{
+    auto* address_of = accessor_->register_accessor.signal_register;
+    if (storage == arm_rr(x6) and *address_of == Register::x6) {
+        accessor_->set_signal_register(Register::w0);
+        arm64_add__asm(instructions, mov, storage, arm_rr(x6));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief Create instructions for an exit syscall
+ */
+void Syscall_Invocation_Inserter::exit_syscall(
+    assembly::Instructions& instructions,
+    int exit_status)
+{
+    auto immediate = common::assembly::make_numeric_immediate(exit_status);
+    auto empty_locals = common::memory::Locals{};
+    make_syscall(instructions, "exit", { immediate }, empty_locals);
+}
+
+void Syscall_Invocation_Inserter::make_syscall(
+    assembly::Instructions& instructions,
     std::string_view syscall,
     syscall_arguments_t const& arguments,
-    memory::Memory_Access* accessor)
+    common::memory::Locals& argument_stack)
 {
 #if defined(__linux__)
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
@@ -85,18 +129,13 @@ void make_syscall(assembly::Instructions& instructions,
 
     credence_assert_equal(syscall_entry[1], arguments.size());
 
-    auto [doubleword_storage, word_storage] =
-        target::arm64::runtime::get_argument_general_purpose_registers();
-
-    target::arm64::syscall_ns::syscall_operands_to_instructions(
-        instructions, arguments, doubleword_storage, word_storage, accessor);
+    syscall_operands_to_instructions(instructions, arguments, argument_stack);
 
 #if defined(__linux__)
     assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x8, syscall_number);
 #elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
-    // load syscall number into x16 (darwin uses x16 instead of x8)
     target::arm64::assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x16, syscall_number);
@@ -114,40 +153,24 @@ void make_syscall(assembly::Instructions& instructions,
 }
 
 /**
- * @brief NULL-check the memory access, then set the signal register
- */
-bool check_signal_register_from_safe_address(Instructions& instructions,
-    assembly::Register storage,
-    memory::Memory_Access* accessor)
-{
-    if (accessor != nullptr) {
-        auto accessor_ = *accessor;
-        auto* address_of = accessor_->register_accessor.signal_register;
-        if (storage == arm_rr(x6) and *address_of == Register::x6) {
-            accessor_->set_signal_register(Register::w0);
-            arm64_add__asm(instructions, mov, storage, arm_rr(x6));
-            return false;
-        }
-    }
-    return true;
-}
-/**
  * @brief Prepare the operands for the syscall
  */
 
-void syscall_operands_to_instructions(assembly::Instructions& instructions,
+void Syscall_Invocation_Inserter::syscall_operands_to_instructions(
+    assembly::Instructions& instructions,
     syscall_arguments_t const& arguments,
-    memory::registers::general_purpose& w_registers,
-    memory::registers::general_purpose& d_registers,
-    memory::Memory_Access* accessor)
+    common::memory::Locals& argument_stack)
 {
     for (std::size_t i = 0; i < arguments.size(); i++) {
         Storage arg = arguments[i];
-        auto storage = get_storage_register_from_safe_address(
-            arg, w_registers, d_registers, accessor);
 
-        w_registers.pop_back();
-        d_registers.pop_back();
+        auto storage =
+            get_storage_register_from_safe_address(arg, argument_stack, i);
+
+        word_registers_.pop_back();
+        double_registers_.pop_back();
+        float_registers_.pop_back();
+        dword_registers_.pop_back();
 
         if (is_immediate_relative_address(arg)) {
             auto immediate =
@@ -159,7 +182,7 @@ void syscall_operands_to_instructions(assembly::Instructions& instructions,
         } else if (assembly::is_immediate_pc_address_offset(arg)) {
             arm64_add__asm(instructions, ldr, storage, arg);
         } else if (check_signal_register_from_safe_address(
-                       instructions, storage, accessor)) {
+                       instructions, storage)) {
             if (is_variant(common::Stack_Offset, arg))
                 arm64_add__asm(instructions, ldr, storage, arg);
             else if (is_variant(Register, arg) and

@@ -14,20 +14,6 @@ set -e
 ARCH=''
 DIRECTORY=""
 
-require_install() {
-    local missing_count=0
-    for cmd in "$@"; do
-        if ! command -v "$cmd" &> /dev/null; then
-            echo "Error: Command '$cmd' not found."
-            missing_count=$((missing_count + 1))
-        fi
-    done
-    if [ $missing_count -gt 0 ]; then
-        echo "Please install the missing dependencies and try again."
-        exit 1
-    fi
-}
-
 send_message() {
     local COLOR='\033[1;32m'
     local RESET='\033[0m'
@@ -65,7 +51,7 @@ send_message "Running test suite ..."
 
 CREDENCE_BINARY="$DIRECTORY/bin/credence"
 
-send_message "!!! RUNNING EXPECTED MACHINE CODE OUTPUT TESTS !!!"
+send_message "> E2E: Testing Generated Binary Execution And Runtime:"
 
 if [[ "$ARCH" == "arm64" ]] ; then
 
@@ -77,6 +63,15 @@ if [[ "$ARCH" == "arm64" ]] ; then
   "$CREDENCE_BINARY" -t arm64 -o call_test_1 ./test/fixtures/platform/call_1.b
   "$CREDENCE_BINARY" -t arm64 -o call_test_2 ./test/fixtures/platform/call_2.b
   "$CREDENCE_BINARY" -t arm64 -o stdlib_putchar_test ./test/fixtures/platform/stdlib/putchar_1.b
+  "$CREDENCE_BINARY" -t arm64 -o stdlib_getchar_test ./test/fixtures/platform/stdlib/getchar_1.b
+  "$CREDENCE_BINARY" -t arm64 -o syscall_test ./test/fixtures/platform/stdlib/write.b
+  "$CREDENCE_BINARY" -t arm64 -o stdlib_test ./test/fixtures/platform/stdlib/print.b
+  "$CREDENCE_BINARY" -t arm64 -o if_1 ./test/fixtures/platform/relational/if_1.b
+  "$CREDENCE_BINARY" -t arm64 -o while_1 ./test/fixtures/platform/relational/while_1.b
+  "$CREDENCE_BINARY" -t arm64 -o switch_1 ./test/fixtures/platform/relational/switch_1.b
+  "$CREDENCE_BINARY" -t arm64 -o stdlib_printf_test ./test/fixtures/platform/stdlib/printf_1.b
+  "$CREDENCE_BINARY" -t arm64 -o argc_argv ./test/fixtures/platform/argc_argv.b
+
 
   send_message "Running arm64 tests ..."
 
@@ -86,6 +81,14 @@ if [[ "$ARCH" == "arm64" ]] ; then
   ./test/compiled-test.sh call_test_1
   ./test/compiled-test.sh call_test_2
   ./test/compiled-test.sh stdlib_putchar_test
+  ./test/compiled-test.sh stdin stdlib_getchar_test
+  ./test/compiled-test.sh syscall_test
+  ./test/compiled-test.sh stdlib_test
+  ./test/compiled-test.sh if_1
+  ./test/compiled-test.sh while_1
+  ./test/compiled-test.sh switch_1
+  ./test/compiled-test.sh stdlib_printf_test
+  ./test/compiled-test.sh argc argc_argv
 
 else
 
@@ -97,10 +100,10 @@ else
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_putchar_test ./test/fixtures/platform/stdlib/putchar_1.b
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_getchar_test ./test/fixtures/platform/stdlib/getchar_1.b
   "$CREDENCE_BINARY" -t x86_64 -o call_test_1 ./test/fixtures/platform/call_1.b
+  "$CREDENCE_BINARY" -t x86_64 -o call_test_2 ./test/fixtures/platform/call_2.b
   "$CREDENCE_BINARY" -t x86_64 -o if_1 ./test/fixtures/platform/relational/if_1.b
   "$CREDENCE_BINARY" -t x86_64 -o while_1 ./test/fixtures/platform/relational/while_1.b
   "$CREDENCE_BINARY" -t x86_64 -o switch_1 ./test/fixtures/platform/relational/switch_1.b
-  "$CREDENCE_BINARY" -t x86_64 -o call_test_2 ./test/fixtures/platform/call_2.b
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_printf_test ./test/fixtures/platform/stdlib/printf_1.b
   "$CREDENCE_BINARY" -t x86_64 -o argc_argv ./test/fixtures/platform/argc_argv.b
 

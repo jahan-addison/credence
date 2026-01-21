@@ -25,7 +25,7 @@
  * ARM64 IR Visitor
  *
  * Visits ITA intermediate representation instructions and emits ARM64
- * assembly. Implements the IR_Visitor interface for ARM64 ISA.
+ * machine code. Implements the IR_Visitor interface for ARM64 ISA.
  *
  * Example - visiting assignment:
  *
@@ -40,6 +40,24 @@
  *
  * Visitor generates:
  *   bl add
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register; additional scratch register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
  *
  *****************************************************************************/
 

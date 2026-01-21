@@ -28,7 +28,7 @@
 
 /****************************************************************************
  *
- * x86-64 Assembly Code Generator and Emitter Types
+ * x86-64 Code Generator and Emitter Types
  *
  * Generates Intel-syntax x86-64 assembly for Linux and Darwin (macOS).
  * Compliant with System V ABI calling conventions. Translates ITA

@@ -33,7 +33,13 @@
 #include <utility>                              // for move
 
 /****************************************************************************
- * Special register usage conventions:
+ *
+ * ARM64 Memory Accessor
+ * ARM64 memory data type accessors and memory accessor facade.
+ ****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
  *
  *   x6  = intermediate scratch and data section register
  *      s6  = floating point
@@ -42,7 +48,7 @@
  *   x15      = Second data section register
  *   x7       = multiplication scratch register
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register
+ *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
  *
@@ -385,7 +391,7 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
     Register get_accumulator_with_rvalue_context(assembly::Operand_Size size);
 
   private:
-    Register signal_register = assembly::Register::w0;
+    Register signal_register = assembly::Register::wzr;
     Table_Pointer table_;
 
   public:

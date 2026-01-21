@@ -31,10 +31,9 @@
 
 /****************************************************************************
  *
- * x86-64 Memory Accessors and Address Calculators
+ * x86-64 Memory Accessors
  *
- * Handles memory addressing modes for x86-64: register direct, register
- * indirect, base+offset, RIP-relative. Manages variable and array access.
+ * ARM64 memory data type accessors and memory accessor facade.
  *
  * Example - local variable access:
  *

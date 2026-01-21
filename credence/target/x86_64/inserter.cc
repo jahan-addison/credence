@@ -40,8 +40,9 @@
  *
  * x86-64 Instruction Inserters
  *
- * Translates B language operations into x86-64 instruction sequences.
- * Handles arithmetic, bitwise, relational operators, and assignments.
+ * Translates B language operations into x86_64 instruction sequences.
+ * Includes arithmetic, bitwise, relational operators, and lvalue and rvalue
+ * type assignments.
  *
  * Example - arithmetic operation:
  *
@@ -447,8 +448,7 @@ void Invocation_Inserter::insert_from_standard_library_function(
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
 
-    library_caller.make_library_call(
-        instructions, routine, argument_stack, operands);
+    library_caller.make_library_call(instructions, routine, operands);
 }
 
 /**
@@ -459,7 +459,6 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -468,7 +467,7 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
         if (!address_storage.is_lvalue_storage_type(
                 argument_stack.front(), "string") and
             not library_caller.is_address_device_pointer_to_buffer(
-                operands.front(), table, accessor_->stack))
+                operands.front()))
             throw_compiletime_error(
                 fmt::format("argument '{}' is not a valid buffer address",
                     argument_stack.front()),
@@ -492,7 +491,6 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     common::memory::Locals const& argument_stack,
     syscall_ns::syscall_arguments_t& operands)
 {
-    auto& table = accessor_->table_accessor.get_table();
     auto& address_storage = accessor_->address_accessor;
     auto library_caller =
         runtime::Library_Call_Inserter{ accessor_, stack_frame_ };
@@ -503,7 +501,7 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     if (!address_storage.is_lvalue_storage_type(
             argument_stack.front(), "string") and
         not library_caller.is_address_device_pointer_to_buffer(
-            operands.front(), table, accessor_->stack))
+            operands.front()))
         throw_compiletime_error(
             fmt::format("invalid format string '{}'", argument_stack.front()),
             "printf",

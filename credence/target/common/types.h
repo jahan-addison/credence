@@ -27,7 +27,7 @@
 
 /****************************************************************************
  *
- * Common templates and type traits platform-agnostic code translation.
+ * Common templates and type traits for code generation.
  *
  ****************************************************************************/
 

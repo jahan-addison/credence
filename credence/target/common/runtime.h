@@ -44,8 +44,6 @@
  *  A `printf' routine that takes a format string and up to 8 variadic arguments
  *   Formatting:
  *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
- *   Warning:
- *      Double and float specifiers "work" but not perfectly
  *
  * print(1):
  *
@@ -61,11 +59,14 @@
  *
  *  A `getchar' routine that reads from stdin for single byte characters
  *
- * Example - main with arguments:
+ * Example:
  *
  *   main(argc, argv) {
  *     if (argc > 1) {
- *       printf("Hello, %s!\n", argv[1]);
+ *       auto x;
+ *       x = getchar();
+ *       printf("Hello, %s! Your character is: %c", argv[1], x);
+ *
  *     }
  *   }
  *
@@ -164,18 +165,15 @@ struct Library_Call_Inserter
 
     virtual void make_library_call(Instructions& instructions,
         std::string_view syscall_function,
-        memory::Locals& locals,
         library_arguments_t<Registers> const& arguments) = 0;
 
-    virtual Registers get_available_standard_library_register(
+    Registers get_available_standard_library_register(
         std::deque<Registers>& available_registers,
         memory::Locals& argument_stack,
-        std::size_t index) = 0;
+        std::size_t index);
 
     virtual bool is_address_device_pointer_to_buffer(
-        address_t<Registers>& address,
-        ir::object::Object_PTR& table,
-        Stack_Pointer<Stack>& stack) = 0;
+        address_t<Registers>& address) = 0;
 
     void library_call_argument_check(std::string_view library_function,
         library_arguments_t<Registers> const& arguments,

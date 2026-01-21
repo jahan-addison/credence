@@ -35,11 +35,13 @@
 #include <utility>           // for pair, move
 
 /****************************************************************************
+ * Object Table
  *
- * Object storage system for the intermediate representation. Including vectors,
- * functions, stack frames, and symbol tables throughout the backend phases.
+ * Provides an object storage interface from the IR for target platform passes.
+ * Represents vectors, functions, stack frames, and symbol tables as queryable
+ * lvalues and rvalues for backend code generation."
  *
- *  Example:
+ * Example:
  *
  *  main() {
  *    auto array[10];

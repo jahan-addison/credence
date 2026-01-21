@@ -42,7 +42,7 @@
  * ARM64 IR Visitor
  *
  * Visits ITA intermediate representation instructions and emits ARM64
- * assembly. Implements the IR_Visitor interface for ARM64 ISA.
+ * machine code. Implements the IR_Visitor interface for ARM64 ISA.
  *
  * Example - visiting assignment:
  *
@@ -57,6 +57,24 @@
  *
  * Visitor generates:
  *   bl add
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register; additional scratch register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
  *
  *****************************************************************************/
 
@@ -109,6 +127,8 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
 void IR_Instruction_Visitor::from_func_end_ita()
 {
     accessor_->register_accessor.reset_available_registers();
+    accessor_->stack->set_stack_frame_allocation_size(stack_frame_.symbol);
+    accessor_->stack->clear();
 }
 
 // Unused
@@ -236,12 +256,15 @@ void IR_Instruction_Visitor::from_leave_ita()
     auto& instructions = instruction_accessor->get_instructions();
 
     auto sp_imm = direct_immediate("[sp]");
-    set_alignment_flag(Align_S3_Folded);
-    arm64_add__asm(instructions, ldp, x29, x30, sp_imm, alignment__integer());
+    // replaced safely in the code generator
+    auto code_imm = direct_immediate("0x0");
+    arm64_add__asm(instructions, ldp, x29, x30, sp_imm, code_imm);
 
-    if (stack_frame_.symbol == "main")
-        syscall_ns::exit_syscall(instructions, 0);
-    else
+    if (stack_frame_.symbol == "main") {
+        auto syscall_inserter =
+            syscall_ns::Syscall_Invocation_Inserter{ accessor_, stack_frame_ };
+        syscall_inserter.exit_syscall(instructions, 0);
+    } else
         arm64_add__asm(instructions, ret);
 }
 

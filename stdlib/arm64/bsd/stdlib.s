@@ -18,29 +18,32 @@ _printf:
     stp     x29, x30, [sp, #-16]!
     mov     x29, sp
 
-    sub     sp, sp, #128
-    stp     x1, x2, [x29, #-128]
-    stp     x3, x4, [x29, #-112]
-    stp     x5, x6, [x29, #-96]
-    str     x7,     [x29, #-80]
-    stp     d0, d1, [x29, #-72]
-    stp     d2, d3, [x29, #-56]
-    stp     d4, d5, [x29, #-40]
-    stp     d6, d7, [x29, #-24]
-
     stp     x19, x20, [sp, #-16]!
     stp     x21, x22, [sp, #-16]!
     stp     x23, x24, [sp, #-16]!
     stp     x25, x26, [sp, #-16]!
 
-    sub     sp, sp, #1024
+    sub     sp, sp, #1152
+
+    add     x9, sp, #1024
+    stp     x0, x1, [x9, #0]
+    stp     x2, x3, [x9, #16]
+    stp     x4, x5, [x9, #32]
+    stp     x6, x7, [x9, #48]
+
+    add     x9, sp, #1088
+    stp     d0, d1, [x9, #0]
+    stp     d2, d3, [x9, #16]
+    stp     d4, d5, [x9, #32]
+    stp     d6, d7, [x9, #48]
+
     mov     x19, x0
-    mov     x20, #0
-    mov     x21, #0
+    mov     x20, #1
+    add     x26, sp, #1024
+    add     x25, sp, #1088
+
     mov     x22, #0
     mov     x23, sp
-    sub     x26, x29, #128
-    sub     x25, x29, #72
 
 .loop:
     ldrb    w0, [x19], #1
@@ -68,14 +71,14 @@ _printf:
     b       .loop
 
 .do_int:
-    ldr     x0, [x26, x20]
-    add     x20, x20, #8
+    ldr     x0, [x26, x20, lsl #3]
+    add     x20, x20, #1
     bl      ._itoa
     b       .loop
 
 .do_str:
-    ldr     x1, [x26, x20]
-    add     x20, x20, #8
+    ldr     x1, [x26, x20, lsl #3]
+    add     x20, x20, #1
     cbz     x1, .loop
 .s_copy:
     ldrb    w0, [x1], #1
@@ -85,16 +88,16 @@ _printf:
     b       .s_copy
 
 .do_char:
-    ldr     x24, [x26, x20]
-    add     x20, x20, #8
-    strb    w24, [x23, x22]
+    ldr     x0, [x26, x20, lsl #3]
+    add     x20, x20, #1
+    strb    w0, [x23, x22]
     add     x22, x22, #1
     b       .loop
 
 .do_bool:
-    ldr     x24, [x26, x20]
-    add     x20, x20, #8
-    cmp     x24, #0
+    ldr     x0, [x26, x20, lsl #3]
+    add     x20, x20, #1
+    cmp     x0, #0
     cset    w0, ne
     add     w0, w0, #'0'
     strb    w0, [x23, x22]
@@ -102,10 +105,8 @@ _printf:
     b       .loop
 
 .do_float:
-    ldr     d0, [x25, x21]
-    add     x21, x21, #8
-    adrp    x0, .L_ten_mil@PAGE
-    ldr     d2, [x0, .L_ten_mil@PAGEOFF]
+    ldr     d0, [x25, x20, lsl #3]
+    add     x20, x20, #1
 
     fcvtzs  x0, d0
     bl      ._itoa
@@ -114,14 +115,18 @@ _printf:
     strb    w0, [x23, x22]
     add     x22, x22, #1
 
-    fcvtzs  x24, d0
-    scvtf   d1, x24
+    frintz  d1, d0
     fsub    d0, d0, d1
     fabs    d0, d0
+
+    adrp    x0, .L_ten_mil@PAGE
+    ldr     d2, [x0, .L_ten_mil@PAGEOFF]
     fmul    d0, d0, d2
+
     fcvtzs  x0, d0
 
-    ldr x1, =1000000
+    movz    x1, #0x4240
+    movk    x1, #0x000f, lsl #16
     mov     x2, #6
 .frac_loop:
     mov     x3, #10
@@ -142,7 +147,7 @@ _printf:
     mov     x16, #4
     svc     #0x80
 
-    add     sp, sp, #1024
+    add     sp, sp, #1152
     ldp     x25, x26, [sp], #16
     ldp     x23, x24, [sp], #16
     ldp     x21, x22, [sp], #16

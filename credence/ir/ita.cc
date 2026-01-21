@@ -30,11 +30,11 @@
 #include <variant>                 // for get, monostate, variant
 
 /****************************************************************************
- * ITA
+ * Instruction Tuple Abstraction
  *
  * The intermediate representation (IR) is formalized as a linear four-tuple,
  * named the Instruction Tuple Abstraction (ITA). The ITA comprises a collection
- * of platform-independent  instructions that approximate the structure and
+ * of platform-independent instructions that approximate the structure and
  * semantics of a target machine language.
  *
  * See ir/readme.md for details.

@@ -367,9 +367,9 @@ void Temporary::from_call_operands_to_temporary_instructions(
             "",
             ""));
     // does this function have a return value?
-    if (symbol != "getchar" and details.has_key(symbol) and
-        not details[symbol]["void"].is_null() and
-        details[symbol]["void"].to_bool() == false) {
+    if (symbol == "getchar" or
+        (details.has_key(symbol) and not details[symbol]["void"].is_null() and
+            details[symbol]["void"].to_bool() == false)) {
         auto call_return = ir::make_temporary(temporary_index, "RET");
         instructions.emplace_back(call_return);
         if (operand_stack.size() >= 1) {

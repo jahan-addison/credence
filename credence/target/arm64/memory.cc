@@ -35,7 +35,13 @@
 #include <variant>                           // for get, variant, monostate
 
 /****************************************************************************
- * Special register usage conventions:
+ *
+ * ARM64 Memory Accessor
+ * ARM64 memory data type accessors and memory accessor facade.
+ ****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
  *
  *   x6  = intermediate scratch and data section register
  *      s6  = floating point
@@ -44,7 +50,7 @@
  *   x15      = Second data section register
  *   x7       = multiplication scratch register
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register
+ *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
  *
@@ -184,9 +190,9 @@ Register Accumulator_Accessor::get_accumulator_register_from_size(
     assembly::Operand_Size size)
 {
     namespace m = matchit;
-    if (*signal_register_ != Register::w0) {
+    if (*signal_register_ != Register::wzr) {
         auto designated = *signal_register_;
-        *signal_register_ = Register::w0;
+        *signal_register_ = Register::wzr;
         return designated;
     }
     return m::match(size)(
@@ -294,6 +300,13 @@ Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     Device_Accessor& device_accessor)
 {
     Address instructions{ assembly::O_NUL, {} };
+    auto* signal_register = register_accessor_.signal_register;
+    if (*signal_register != Register::wzr) {
+        Storage rr = *signal_register;
+        *signal_register = Register::wzr;
+        instructions.first = rr;
+        return instructions;
+    }
     get_lvalue_address_and_from_unary_and_vectors(
         instructions, lvalue, instruction_index);
     if (instructions.first == assembly::O_NUL)
@@ -301,6 +314,7 @@ Address_Accessor::get_arm64_lvalue_and_insertion_instructions(
     if (is_variant(common::Stack_Offset, instructions.first)) {
         auto str_r = register_accessor_.get_available_register(
             device_accessor.get_word_size_from_lvalue(lvalue));
+        // this sometimes loads garbage, but is only used before a real str call
         arm64_add__asm(instructions.second, ldr, str_r, instructions.first);
         instructions.first = str_r;
     }
@@ -370,6 +384,11 @@ Device_Accessor::Device Device_Accessor::get_device_by_lvalue(
 assembly::Storage Register_Accessor::get_available_register(
     assembly::Operand_Size size)
 {
+    if (*signal_register != Register::wzr) {
+        auto rr = *signal_register;
+        *signal_register = Register::wzr;
+        return rr;
+    }
     return size == assembly::Operand_Size::Doubleword ? Register::x10
                                                       : Register::w10;
 }

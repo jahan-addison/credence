@@ -29,9 +29,12 @@
  *
  * ARM64 Runtime and Standard Library
  *
- * Handles function calls to the standard library and manages the ARM64 PCS
- * calling convention. Arguments passed in registers: x0-x7, then uses the
- * stack. Return value in x0. x30 (lr) holds return address.
+ * See common/runtime.h for details
+ *
+ * Runtime function invocation to the standard library and via the ARM64 PCS
+ * calling convention. Arguments passed in registers: x0-x7 or register variant
+ * depending on rvalue type then uses the stack. Return value in x0. x30 (lr)
+ * holds return address.
  *
  * Example - calling printf:
  *
@@ -41,6 +44,24 @@
  *   add x0, x0, ._L_str1__@PAGEOFF
  *   mov x1, x9                      ; x from register x9
  *   bl printf                       ; from stdlib
+ *
+ *****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
+ *
+ *   x6  = intermediate scratch and data section register
+ *      s6  = floating point
+ *      d6  = double
+ *      v6  = SIMD
+ *   x15      = Second data section register
+ *   x7       = multiplication scratch register
+ *   x8       = The default "accumulator" register for expression expansion
+ *   x10      = The stack move register; additional scratch register
+ *   x9 - x18 = If there are no function calls in a stack frame, local scope
+ *             variables are stored in x9-x18, after which the stack is used
+ *
+ *   Vectors and vector offsets will always be on the stack
  *
  *****************************************************************************/
 
@@ -60,9 +81,6 @@ using ARM64_Library_Call_Inserter =
         assembly::Stack,
         assembly::Instructions>;
 
-std::pair<library_register_t, library_register_t>
-get_argument_general_purpose_registers();
-
 struct Library_Call_Inserter : public ARM64_Library_Call_Inserter
 {
     explicit Library_Call_Inserter(memory::Memory_Access& accessor,
@@ -70,42 +88,37 @@ struct Library_Call_Inserter : public ARM64_Library_Call_Inserter
         : accessor_(accessor)
         , stack_frame_(stack_frame)
     {
-        word_registers_ = assembly::WORD_REGISTER;
-        dword_registers_ = assembly::DOUBLEWORD_REGISTER;
-        vector_registers_ = assembly::VECTOR_REGISTER;
+        auto [doubleword_storage, word_storage, float_storage, double_storage] =
+            assembly::get_available_argument_register();
+        word_registers_ = word_storage;
+        dword_registers_ = doubleword_storage;
+        float_registers_ = float_storage;
+        double_registers_ = double_storage;
     }
 
     bool try_insert_operand_from_argv_rvalue(Instructions& instructions,
-        common::memory::Locals& locals,
         Register argument_storage,
         unsigned int index);
 
-    assembly::Register get_available_standard_library_register(
-        std::deque<assembly::Register>& available_registers,
-        common::memory::Locals& argument_stack,
-        std::size_t index) override;
-
     void make_library_call(Instructions& instructions,
         std::string_view syscall_function,
-        common::memory::Locals& locals,
         library_arguments_t const& arguments) override;
 
-    bool is_address_device_pointer_to_buffer(address_t& address,
-        ir::object::Object_PTR& table,
-        memory::Stack_Pointer& stack) override;
+    bool is_address_device_pointer_to_buffer(address_t& address) override;
 
     void insert_argument_instructions_standard_library_function(
         Register storage,
         Instructions& instructions,
-        std::string_view arg_type,
-        address_t const& argument);
+        address_t const& argument,
+        unsigned int index);
 
   private:
     memory::Memory_Access accessor_;
     memory::Stack_Frame stack_frame_;
     library_register_t word_registers_;
     library_register_t dword_registers_;
-    library_register_t vector_registers_;
+    library_register_t float_registers_;
+    library_register_t double_registers_;
 };
 
 } // namespace credence::target::arm64::runtime

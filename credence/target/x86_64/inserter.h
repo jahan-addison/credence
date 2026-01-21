@@ -30,8 +30,9 @@
  *
  * x86-64 Instruction Inserters
  *
- * Translates B language operations into x86-64 instruction sequences.
- * Handles arithmetic, bitwise, relational operators, and assignments.
+ * Translates B language operations into x86_64 instruction sequences.
+ * Includes arithmetic, bitwise, relational operators, and lvalue and rvalue
+ * type assignments.
  *
  * Example - arithmetic operation:
  *
