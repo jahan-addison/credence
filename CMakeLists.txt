@@ -12,6 +12,8 @@
 
 cmake_minimum_required(VERSION 3.16...3.29)
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
+
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
   message(
     FATAL_ERROR
@@ -25,7 +27,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(
   credence
-  VERSION 1.0.0
+  VERSION 1.1.0
   LANGUAGES CXX)
 
 include(GNUInstallDirs)
