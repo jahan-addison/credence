@@ -1,0 +1,288 @@
+## [1.1.0] - 2026-07-05
+
+### 🚀 Features
+
+- Cmake, gha, pre-commit, project setup. closes #8
+- Remove cpp-peglib, add python interfacing
+- Parse tree initial work
+- *(parse_tree)* ParseTreeLoader and libpython3 headers
+- *(parse_tree)* ParseTreeLoader and libpython3 headers
+- *(parse_tree)* ParseTreeLoader and libpython3 headers
+- ParseTreeLoader and dynamic argument parser
+- Dynamic ParseTreeLoader class
+- Cppcheck static analyzer
+- Cppcheck static analyzer
+- Static analysis in cmake and at build time
+- *(ast)* Initial ast and node definitions
+- Simdjson and python module loader
+- Simdjson and PythonModuleLoader refactor
+- Simdjson and PythonModuleLoader refactor
+- AST loading options via cxxopts to parse arguments
+- Switch to nlohmann::json
+- Symbol table storage
+- Switch to simplejson and add cxxopts
+- Print symbol table in debug mode
+- Print symbol table in debug mode
+- Print symbol table in debug mode
+- Print symbol table in debug mode
+- Quintdruple IR code layout
+- Quintdruple IR code layout
+- Quintdruple IR code layout
+- *(ir)* IR symbol construction from literal types and tests
+- *(ir)* IR lvalue variable construction
+- *(ir)* Recursive descent of IR translation
+- *(ir)* Recursive descent of IR translation
+- *(ir)* IR translation code and iwyu formatting
+- *(ir)* IR translation of pointer and scaler decls
+- *(ir)* IR strong type symbols and constructor
+- *(ir)* IR lvalue and rvalue expression types
+- *(ir)* Recursive sum type rvalue
+- *(ir)* Intermediate expression table
+- *(ir)* Intermediate rvalue table
+- *(ir)* Unary intermediate rvalue table
+- *(ir)* Relational sum type intermediate rvalue table
+- *(ir)* Function and evaluated intermediate rvalue table
+- *(ir)* Quint intermediate ir
+- *(ir)* Ir code generation function expression
+- *(ir)* Ir code generation function expression
+- *(ir)* Rvalue expression to operator operand queue
+- *(ir)* Rvalue expression evaluation to queue
+- *(ir)* Rvalue expression set to operator queue
+- *(ir)* Rvalue expression set to operator queue
+- *(ir)* Rvalue expression set to operator queue
+- *(ir)* Qaud linear IR construction and emitter
+- *(ir)* Qaud linear IR construction and emitter
+- Better error handling
+- *(ir)* Qaud linear IR construction and emitter
+- *(ir)* Linear IR construction - function and block definitions
+- Target platform options
+- Hoist function definitions to symbols, cpptrace for symbol OOR
+- *(ir)* Linear IR construction of return statements
+- *(ir)* Linear IR construction temporary algorithm
+- *(ir)* Linear IR temporary algorithm refactor
+- *(ir)* Linear IR temporary algorithm improvements
+- *(ir)* Linear IR temporary algorithm
+- Chakram and C++-style comment support
+- *(ir)* Goto and label linear ir construction
+- *(ir)* Linear IR vector definitions, globals, and extrn statements
+- *(ir)* Linear IR if else branching instructions
+- Table -> LL(1) RValue expression parser
+- Table -> LL(1) RValue expression parser
+- *(ir)* Linear IR while and if rigorous branching support
+- *(ir)* Linear IR ternary branching support
+- *(ir)* Ternary branching support
+- *(ir)* Comparator algorithm for truthy type coercion
+- Eternal constexpr lookup tables
+- Eternal constexpr lookup tables
+- Use my json library
+- Switch to memory safe pybind11
+- *(ir)* Switch statement ir construction
+- *(ir)* ITA IR construction algorithm
+- *(ita)* Branch state and branch continuation-passing
+- *(ir)* Ita construction for recursion and functions as parameters
+- *(ita)* Refactor branch logic into state machine ITA::Branch
+- *(ita)* Ita switch case support 🚂
+- Language runtime stacktraces and while jump ita bug fix
+- Ita factory methods; output to file; target platform helpers
+- Ita normalizing into canonical object form
+- *(ita)* Ita normal object form with runtime and type checks
+- *(ita)* Context stack frame type checking and symbol allocation
+- Vector allocation, out-of-range bounds, pointer decay arithmetic
+- *(table)* Vector symbolic allocation and pointer decay arithmetic, tests
+- *(table)* Localized vector allocation and pointer arithmetic boundaries, tests
+- Type checking, vector and pointer boundary checks, tests
+- More compiletime type checking, fail on null pointer dereference
+- *(x86-64)* Rigourous dynamic stack allocation algorithm, ordered map, trivial binary expression evaluation
+- *(x86-64)* X86-64 stack offset and lvalue management
+- *(x86-64)* Arithmetic binary and unary code generation
+- *(x86-64)* Bitwise binary and unary code generation
+- Expression_Parser and discrete expression data structures and algorithms
+- *(x86_64)* Rvalue variant pattern matching on binary operand storage types
+- *(x86-64)* Load effective address code generation and stack alignment
+- *(x86-64)* Local stack allocation at declaration time from type table
+- *(x86-64)* Address, pointer, and indirect assignment code generation with type safety
+- Credence_exception, better errors, remove cpptrace
+- *(x86-64)* .asciz directive and %rip string storage
+- *(x86-64)* Typed array and vector code generation with stack alignment
+- *(x86-64)* Data section directives translation and compiletime type-safe vector access
+- *(x86-64)* _start symbol exit code and syscall for linux and macos
+- *(x86-64)* Polymorphoic platform syscall tables and type safe code generation
+- *(x86-64)* Standard library and syscall tables
+- *(x86-64)* Standard library and syscall tables
+- *(x86-64)* Standard library, compiletime syscall tables, linker frontend, clang-format changes
+- B Language vscode extension
+- *(x86_64)* Stack frame and user-defined function invocation translation
+- Installation script for macos and linux
+- *(x86-64)* Putchar standard library function
+- *(x86-64)* Putchar standard library function
+- IR Instruction visitor pure virtual type
+- *(x86-64)* Low-level assembler types and macro expansion
+- *(x86-64)* Standard library runtime types and code generation helpers
+- *(x86-64)* Memory accessor object types for address resolution
+- *(x86-64)* Refactor x86-64 code generator into discrete memory accessors, emitters and inserters
+- Discrete type checker and object table storage types
+- *(x86-64)* Putchar and getchar stdlib functions, syscall pointer safety improvements
+- Integer, float, and double literal suffix type language support
+- *(x86-64)* Printf x86-64 standard library function from scratch
+- *(x86-64)* Printf standard library function, branching code translation - getting close 🚀
+- *(x86-64)* Argc and argv access in entry point function, relational bug fixes
+- *(x86-64)* Boolean literals, comparator, standard library and syscall improvements, other improvements
+- Documentation 🚀
+- ARM64, type generics and template classes for target-agnostic code generation, augur
+- ARM64 PCS and ABI, Allocate, Access, Deallocate pattern
+- ARM64 register selection improvements, multiplication register, mod, and division constructors
+- ARM64 register selection improvements, multiplication, mod, and division constructors
+- ARM64 register selection improvements, unary and arithemtic nnemonic selection
+- ARM64 stack unravelling for bitwise immediate and register instruction translation
+- ARM64 register selection and instruction improvements for bitwise operators, stack frame and other improvements
+- ARM64 lvalue address storage on stack and assignment lookup
+- PIMPL and push-down stack improvements for both arm64 and x86_64
+- PIMPL improvements and educational documentation
+- ARM64 ldr= double and float immediate, string address rvalue resolution
+- ARM64 register vs stack selection based on call jumps, stack and register selection improvements
+- *(language)* Native re2c-generated lexer and hand-written recursive-descent parser, replacing the pybind11 Python and Lark frontend - producing identical AST output
+- *(language)* Native re2c-generated lexer and hand-written recursive-descent parser, replacing the pybind11 Python and Lark frontend - producing identical AST output
+
+### 📚 Documentation
+
+- Update readme
+
+### ⚙️ Miscellaneous Tasks
+
+- Add ebnf B grammar
+- Add ebnf B grammar
+- Update readme
+- Ebnf -> abnf grammar
+- Update readme
+- Update readme
+- Fix build
+- Fix build
+- License
+- Readme
+- Remove grammar, will use xion
+- Add xion as git submodule
+- Parse tree loader
+- Parse tree loader
+- Xion 1.0.2
+- Delete unused cmake tools
+- Fix readme
+- ParseTreeModuleLoader and safer types
+- Enable parse tree formatting options
+- *(cmake)* Only run iwyu on CI
+- Rename sample b programs
+- *(ast)* ParseTreeModuleLoader better scope and ast
+- Address and UB sanitizers on CI
+- Bump dependency
+- *(ast)* More ast types and other improvements
+- *(ast)* Ast type improvements
+- *(ast)* Ast type improvements
+- *(ast)* Substantial progress on ast types
+- *(ast)* Return const reference in get_ast
+- *(ast)* Improve expression node and rvalue references
+- *(ast)* Ast recursive descent method definitions
+- *(ast)* Clang compiler improvements
+- Docs and xion updates
+- Run clang format
+- Add smaller b program for debugging
+- Prep for second-pass and symbol-table construction
+- Docs
+- New meta flag to frontend module
+- -h
+- Prepare for ir, internal ast, and target code generation
+- Prepare for ir, internal ast, and target code generation
+- Improvements and notes for target platforms
+- Setup doctest and test suite for symbol table
+- Setup doctest and test suite for symbol table
+- Setup doctest and test suite for symbol table
+- Formatting
+- Installation and usage improvements, documentation
+- *(ir)* Rvalues table
+- Isolate operators and types from ir
+- Add tests for self-evaluated rvalues
+- Readme
+- Readme
+- Chakram compiler frontend
+- Constexpr compile-time optimizations
+- Const and constexpr optimizations
+- Run test suite on macos and ubuntu with clang and gcc
+- Constexpr type safe lookup table and null literal
+- Python module RAII pattern
+- Remove python module loader memory leaks
+- Swap to simplejson++ v1.1.7
+- *(ir)* Fix while and if branch nesting
+- Assertion macros, ITA ir tests and improvements
+- Namespace and ast node improvements, fixtures and call recursion support
+- Additional helpers and prep for recursion support
+- Gcc/g++ constexpr optimizations
+- Fixed function rvalue assignment and unary lvalue bugs
+- Less insane unary translation and improvements
+- More unary expression fixes, functions with no arguments improvements
+- Use credence_error, evaluated expression comparator fix, ir docs
+- Runtime error handling and line number improvements
+- *(ita)* Symbolic function parameters, temporary lvalue symbol storage, other improvements
+- Context-aware ita tables for platform code generation
+- Ita context-aware table for platform code generation
+- Add blog series in readme
+- ITA::Instruction::VARIABLE -> ITA::Instruction::MOV
+- Target platform pure virtual class
+- Readme updates
+- Pass stack frame locals by reference, more x86_64 code
+- *(x86-64)* Immediate expression code generation
+- *(x86-64)* Binary expression imul code generation
+- *(x86-64)* Algebraic immediate rvalue resolution from table
+- *(x86-64)* X86_64 code generation
+- *(x86-64)* X86-64 code generation
+- *(x86-64)* X86-64 code generation
+- *(x86-64)* X86-64 code generation
+- *(x86-64)* Translate trivial immediate integral expressions as operands, x86-64 tests
+- *(x86-64)* Pre and post inc/dec and ones-complement translation
+- *(x86-64)* Unary arithemtic +/- code translation
+- *(x86-64)* Code generation macro expansion and namespace clean up
+- Shared symbol namespace and formatting
+- Typeinfo definitions for multi-pass symbol data types
+- Mov_ita_instruction correct construction of bitwise binary expressions
+- *(x86-64)* Immediate and register assignment from value type constructors, other improvements
+- *(x86-64)* Bitwise operator code generation, better register selection
+- Prevent temporary-to-temporary assignments in the ITA IR
+- *(x86_64)* Bitwise operation code generation and operand type pattern matching
+- Ita ir namespace and visibility improvements
+- *(x86-64)* Pointer indirection code generation and parser fixes
+- *(x86_64)* Dereference type checking, instruction flags, dereference code generation
+- Switch to {fmt} for compiletime string formatting
+- Constexpr optimizations and namespace improvements, other bug fixes
+- *(x86-64)* .data, .asciz, and .text section directives
+- *(x86-64)* Stack allocation memory alignment improvements
+- *(x86-64)* Strict type pointer assignments and pointer decay
+- Clean up standard library
+- *(x86-64)* Isolate x86_64::Stack for reuse in the standard library, standard library type checking, easyjson
+- *(x86_64)* Dereference pointer type checking improvements
+- More pointer and address-of operand type checking
+- More pointer, vector, and address-of operand type checking
+- Remove eternal.hpp dependency, add installation script
+- More pointer and dereference type safety
+- Cppcheck and clang-tidy format improvements
+- *(x86-64)* Standard library registers ABI system V compliance
+- *(x86-64)* Discrete object::detail::vector_offset to resolve the rvalue of vector indexes at compiletime
+- *(x86-64)* Read and assign scoped labels from the table object in stack frames
+- Discrete size pointer for parameter identifiers throughout the parsing phase
+- Readme and license update, code coverage and test suite build details
+- Agnostic assembler type constructors and macro improvements
+- *(arm64)* Register selection, no stack unless absolutely necessary
+- ARM64 PCS and ABI darwin function prologue and epilogue
+- ARM64 and x8664 immediate unary argument translation improvements
+- ARM64 callee-saved register management, unary table lookup improvements
+- Inserter template types for agnostic algebraic operand deconstruction and visitor improvements
+- ARM64 temporary lvalue storage and accumulator register size improvements
+- ARM64 stack alignment improvements and address-to-stack mechanics
+- Implementation details and documentation 🚂
+- ARM64 inline language vector stack and lvalue assignment
+- Refine ARM64 stack alignment and register orchestration, vector lvalue assignments
+- Common memory accessor types pimpl improvements
+- ARM64 PC-relative addressing for PIC global scope resolution, other improvements
+- ARM64 PC-relative addressing for PIC syscall and runtime interface
+- ARM64 shared call stack memory allocation improvements
+- ARM64 translation improvements via stack frame callee management
+- ARM64 runtime and syscall refactoring with improved register management and standard library integration
+- Documentation  🚂
+- Readme updates
+- Version v1.1.0
