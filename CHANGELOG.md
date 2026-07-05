@@ -1,0 +1,284 @@
+## [1.1.0] - 2026-07-05
+
+- feat(language): native re2c-generated lexer and hand-written recursive-descent parser, replacing the pybind11 Python and Lark frontend - producing identical AST output
+- feat(language): native re2c-generated lexer and hand-written recursive-descent parser, replacing the pybind11 Python and Lark frontend - producing identical AST output
+- feat: ARM64 register vs stack selection based on call jumps, stack and register selection improvements
+- feat: ARM64 ldr= double and float immediate, string address rvalue resolution
+- feat: PIMPL improvements and educational documentation
+- feat: PIMPL and push-down stack improvements for both arm64 and x86_64
+- feat: ARM64 lvalue address storage on stack and assignment lookup
+- feat: ARM64 register selection and instruction improvements for bitwise operators, stack frame and other improvements
+- feat: ARM64 stack unravelling for bitwise immediate and register instruction translation
+- feat: ARM64 register selection improvements, unary and arithemtic nnemonic selection
+- feat: ARM64 register selection improvements, multiplication, mod, and division constructors
+- feat: ARM64 register selection improvements, multiplication register, mod, and division constructors
+- feat: ARM64 PCS and ABI, Allocate, Access, Deallocate pattern
+- feat: ARM64, type generics and template classes for target-agnostic code generation, augur
+- feat: documentation 🚀
+- feat(x86-64): boolean literals, comparator, standard library and syscall improvements, other improvements
+- feat(x86-64): argc and argv access in entry point function, relational bug fixes
+- feat(x86-64): printf standard library function, branching code translation - getting close 🚀
+- feat(x86-64): printf x86-64 standard library function from scratch
+- feat: integer, float, and double literal suffix type language support
+- feat(x86-64): putchar and getchar stdlib functions, syscall pointer safety improvements
+- feat: discrete type checker and object table storage types
+- feat(x86-64): refactor x86-64 code generator into discrete memory accessors, emitters and inserters
+- feat(x86-64): memory accessor object types for address resolution
+- feat(x86-64): standard library runtime types and code generation helpers
+- feat(x86-64): low-level assembler types and macro expansion
+- feat: IR Instruction visitor pure virtual type
+- feat(x86-64): putchar standard library function
+- feat(x86-64): putchar standard library function
+- feat: installation script for macos and linux
+- feat(x86_64): stack frame and user-defined function invocation translation
+- feat: B Language vscode extension
+- feat(x86-64): standard library, compiletime syscall tables, linker frontend, clang-format changes
+- feat(x86-64): standard library and syscall tables
+- feat(x86-64): standard library and syscall tables
+- feat(x86-64): polymorphoic platform syscall tables and type safe code generation
+- feat(x86-64): _start symbol exit code and syscall for linux and macos
+- feat(x86-64): data section directives translation and compiletime type-safe vector access
+- feat(x86-64): typed array and vector code generation with stack alignment
+- feat(x86-64): .asciz directive and %rip string storage
+- feat: credence_exception, better errors, remove cpptrace
+- feat(x86-64): address, pointer, and indirect assignment code generation with type safety
+- feat(x86-64): local stack allocation at declaration time from type table
+- feat(x86-64): load effective address code generation and stack alignment
+- feat(x86_64): rvalue variant pattern matching on binary operand storage types
+- feat: Expression_Parser and discrete expression data structures and algorithms
+- feat(x86-64): bitwise binary and unary code generation
+- feat(x86-64): arithmetic binary and unary code generation
+- feat(x86-64): x86-64 stack offset and lvalue management
+- feat(x86-64): rigourous dynamic stack allocation algorithm, ordered map, trivial binary expression evaluation
+- feat: more compiletime type checking, fail on null pointer dereference
+- feat: type checking, vector and pointer boundary checks, tests
+- feat(table): localized vector allocation and pointer arithmetic boundaries, tests
+- feat(table): vector symbolic allocation and pointer decay arithmetic, tests
+- feat: vector allocation, out-of-range bounds, pointer decay arithmetic
+- feat(ita): context stack frame type checking and symbol allocation
+- feat(ita): ita normal object form with runtime and type checks
+- feat: ita normalizing into canonical object form
+- feat: ita factory methods; output to file; target platform helpers
+- feat: language runtime stacktraces and while jump ita bug fix
+- feat(ita): ita switch case support 🚂
+- feat(ita): refactor branch logic into state machine ITA::Branch
+- feat(ir): ita construction for recursion and functions as parameters
+- feat(ita): branch state and branch continuation-passing
+- feat(ir): ITA IR construction algorithm
+- feat(ir): switch statement ir construction
+- feat: switch to memory safe pybind11
+- feat: use my json library
+- feat: eternal constexpr lookup tables
+- feat: eternal constexpr lookup tables
+- feat(ir): comparator algorithm for truthy type coercion
+- feat(ir): ternary branching support
+- feat(ir): linear IR ternary branching support
+- feat(ir): linear IR while and if rigorous branching support
+- feat: table -> LL(1) RValue expression parser
+- feat: table -> LL(1) RValue expression parser
+- feat(ir): linear IR if else branching instructions
+- feat(ir): linear IR vector definitions, globals, and extrn statements
+- feat(ir): goto and label linear ir construction
+- feat: chakram and C++-style comment support
+- feat(ir): linear IR temporary algorithm
+- feat(ir): linear IR temporary algorithm improvements
+- feat(ir): linear IR temporary algorithm refactor
+- feat(ir): linear IR construction temporary algorithm
+- feat(ir): linear IR construction of return statements
+- feat: hoist function definitions to symbols, cpptrace for symbol OOR
+- feat: target platform options
+- feat(ir): linear IR construction - function and block definitions
+- feat(ir): qaud linear IR construction and emitter
+- feat: better error handling
+- feat(ir): qaud linear IR construction and emitter
+- feat(ir): qaud linear IR construction and emitter
+- feat(ir): rvalue expression set to operator queue
+- feat(ir): rvalue expression set to operator queue
+- feat(ir): rvalue expression set to operator queue
+- feat(ir): rvalue expression evaluation to queue
+- feat(ir): rvalue expression to operator operand queue
+- feat(ir): ir code generation function expression
+- feat(ir): ir code generation function expression
+- feat(ir): quint intermediate ir
+- feat(ir): function and evaluated intermediate rvalue table
+- feat(ir): relational sum type intermediate rvalue table
+- feat(ir): unary intermediate rvalue table
+- feat(ir): intermediate rvalue table
+- feat(ir): intermediate expression table
+- feat(ir): recursive sum type rvalue
+- feat(ir): IR lvalue and rvalue expression types
+- feat(ir): IR strong type symbols and constructor
+- feat(ir): IR translation of pointer and scaler decls
+- feat(ir): IR translation code and iwyu formatting
+- feat(ir): recursive descent of IR translation
+- feat(ir): recursive descent of IR translation
+- feat(ir): IR lvalue variable construction
+- feat(ir): IR symbol construction from literal types and tests
+- feat: quintdruple IR code layout
+- feat: quintdruple IR code layout
+- feat: quintdruple IR code layout
+- feat: print symbol table in debug mode
+- feat: print symbol table in debug mode
+- feat: print symbol table in debug mode
+- feat: print symbol table in debug mode
+- feat: switch to simplejson and add cxxopts
+- feat: symbol table storage
+- feat: switch to nlohmann::json
+- feat: AST loading options via cxxopts to parse arguments
+- feat: simdjson and PythonModuleLoader refactor
+- feat: simdjson and PythonModuleLoader refactor
+- feat: simdjson and python module loader
+- feat(ast): initial ast and node definitions
+- feat(ast) ast transformer and clean up
+- feat: static analysis in cmake and at build time
+- feat: cppcheck static analyzer
+- feat: cppcheck static analyzer
+- feat: dynamic ParseTreeLoader class
+- feat: ParseTreeLoader and dynamic argument parser
+- feat(parse_tree): ParseTreeLoader and libpython3 headers
+- feat(parse_tree): ParseTreeLoader and libpython3 headers
+- feat(parse_tree): ParseTreeLoader and libpython3 headers
+- feat: parse tree initial work
+- feat: remove cpp-peglib, add python interfacing
+- feat: cmake, gha, pre-commit, project setup. closes #8
+
+- chore: version v1.1.0
+- chore: readme updates
+- chore: documentation  🚂
+- chore: ARM64 runtime and syscall refactoring with improved register management and standard library integration
+- chore: ARM64 translation improvements via stack frame callee management
+- chore: ARM64 shared call stack memory allocation improvements
+- chore: ARM64 PC-relative addressing for PIC syscall and runtime interface
+- chore: ARM64 PC-relative addressing for PIC global scope resolution, other improvements
+- chore: common memory accessor types pimpl improvements
+- chore: refine ARM64 stack alignment and register orchestration, vector lvalue assignments
+- chore: ARM64 inline language vector stack and lvalue assignment
+- chore: implementation details and documentation 🚂
+- chore: ARM64 stack alignment improvements and address-to-stack mechanics
+- chore: ARM64 temporary lvalue storage and accumulator register size improvements
+- chore: inserter template types for agnostic algebraic operand deconstruction and visitor improvements
+- chore: ARM64 callee-saved register management, unary table lookup improvements
+- chore: ARM64 and x8664 immediate unary argument translation improvements
+- chore: ARM64 PCS and ABI darwin function prologue and epilogue
+- chore(arm64): register selection, no stack unless absolutely necessary
+- chore: agnostic assembler type constructors and macro improvements
+- chore: readme and license update, code coverage and test suite build details
+- chore: discrete size pointer for parameter identifiers throughout the parsing phase
+- chore(x86-64): read and assign scoped labels from the table object in stack frames
+- chore(x86-64): discrete object::detail::vector_offset to resolve the rvalue of vector indexes at compiletime
+- chore(x86-64): standard library registers ABI system V compliance
+- chore: cppcheck and clang-tidy format improvements
+- chore: more pointer and dereference type safety
+- chore: remove eternal.hpp dependency, add installation script
+- chore: more pointer, vector, and address-of operand type checking
+- chore: more pointer and address-of operand type checking
+- chore(x86_64): dereference pointer type checking improvements
+- chore(x86-64): isolate x86_64::Stack for reuse in the standard library, standard library type checking, easyjson
+- chore: clean up standard library
+- chore(x86-64): strict type pointer assignments and pointer decay
+- chore(x86-64): stack allocation memory alignment improvements
+- chore(x86-64): .data, .asciz, and .text section directives
+- chore: constexpr optimizations and namespace improvements, other bug fixes
+- chore: switch to {fmt} for compiletime string formatting
+- chore(x86_64): dereference type checking, instruction flags, dereference code generation
+- chore(x86-64): pointer indirection code generation and parser fixes
+- chore: ita ir namespace and visibility improvements
+- chore(x86_64): bitwise operation code generation and operand type pattern matching
+- chore: prevent temporary-to-temporary assignments in the ITA IR
+- chore(x86-64): bitwise operator code generation, better register selection
+- chore(x86-64): immediate and register assignment from value type constructors, other improvements
+- chore: mov_ita_instruction correct construction of bitwise binary expressions
+- chore: typeinfo definitions for multi-pass symbol data types
+- chore: shared symbol namespace and formatting
+- chore(x86-64): code generation macro expansion and namespace clean up
+- chore(x86-64): unary arithemtic +/- code translation
+- chore(x86-64): pre and post inc/dec and ones-complement translation
+- chore(x86-64): translate trivial immediate integral expressions as operands, x86-64 tests
+- chore(x86-64): x86-64 code generation
+- chore(x86-64): x86-64 code generation
+- chore(x86-64): x86-64 code generation
+- chore(x86-64): x86_64 code generation
+- chore(x86-64): algebraic immediate rvalue resolution from table
+- chore(x86-64): binary expression imul code generation
+- chore(x86-64): immediate expression code generation
+- chore: pass stack frame locals by reference, more x86_64 code
+- chore: readme updates
+- chore: target platform pure virtual class
+- chore: ITA::Instruction::VARIABLE -> ITA::Instruction::MOV
+- chore: add blog series in readme
+- chore: ita context-aware table for platform code generation
+- chore: context-aware ita tables for platform code generation
+- chore(ita): symbolic function parameters, temporary lvalue symbol storage, other improvements
+- chore: runtime error handling and line number improvements
+- chore: use credence_error, evaluated expression comparator fix, ir docs
+- chore: more unary expression fixes, functions with no arguments improvements
+- chore: less insane unary translation and improvements
+- chore: fixed function rvalue assignment and unary lvalue bugs
+- chore: gcc/g++ constexpr optimizations
+- chore: additional helpers and prep for recursion support
+- chore: namespace and ast node improvements, fixtures and call recursion support
+- chore: assertion macros, ITA ir tests and improvements
+- chore(ir): fix while and if branch nesting
+- chore: swap to simplejson++ v1.1.7
+- chore: remove python module loader memory leaks
+- chore: python module RAII pattern
+- chore: constexpr type safe lookup table and null literal
+- chore: const and constexpr optimizations
+- chore: constexpr compile-time optimizations
+- chore: chakram compiler frontend
+- chore: readme
+- chore: readme
+- chore: add tests for self-evaluated rvalues
+- chore: isolate operators and types from ir
+- chore(ir): rvalues table
+- chore: installation and usage improvements, documentation
+- chore: formatting
+- chore: setup doctest and test suite for symbol table
+- chore: setup doctest and test suite for symbol table
+- chore: setup doctest and test suite for symbol table
+- chore: improvements and notes for target platforms
+- chore: prepare for ir, internal ast, and target code generation
+- chore: prepare for ir, internal ast, and target code generation
+- chore: new meta flag to frontend module
+- chore: docs
+- chore: prep for second-pass and symbol-table construction
+- chore: add smaller b program for debugging
+- chore: run clang format
+- chore: docs and xion updates
+- chore(ast): clang compiler improvements
+- chore(ast): ast recursive descent method definitions
+- chore(ast): improve expression node and rvalue references
+- chore(ast): return const reference in get_ast
+- chore(ast): substantial progress on ast types
+- chore(ast): ast type improvements
+- chore(ast): ast type improvements
+- chore(ast): more ast types and other improvements
+- chore: bump dependency
+- chore(ast): ParseTreeModuleLoader better scope and ast
+- chore: rename sample b programs
+- chore(cmake): only run iwyu on CI
+- chore: enable parse tree formatting options
+- chore: ParseTreeModuleLoader and safer types
+- chore: fix readme
+- chore: delete unused cmake tools
+- chore: xion 1.0.2
+- chore: parse tree loader
+- chore: parse tree loader
+- chore: add xion as git submodule
+- chore: remove grammar, will use xion
+- chore: readme
+- chore: license
+- chore: update readme
+- chore: update readme
+- chore: ebnf -> abnf grammar
+- chore: update readme
+- chore: add ebnf B grammar
+- chore: add ebnf B grammar
+
+- ci: run test suite on macos and ubuntu with clang and gcc
+- ci: -h
+- ci: Address and UB sanitizers on CI
+- docs: update readme
+- ci: fix build
+- ci: fix build
+- Initial commit
