@@ -1,0 +1,49 @@
+name: Release and Changelog
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    name: Create Release and PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Generate full changelog for PR
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --output CHANGELOG.md
+
+      - name: Generate latest release notes for GitHub Release
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: release-notes.md
+
+      - name: Create Pull Request with updated CHANGELOG.md
+        uses: peter-evans/create-pull-request@v8
+        with:
+          add-paths: CHANGELOG.md
+          commit-message: "chore: update CHANGELOG.md for ${{ github.ref_name }}"
+          title: "Update changelog for ${{ github.ref_name }}"
+          body: "Automated PR to update `CHANGELOG.md` following the release of `${{ github.ref_name }}`."
+          branch: "chore/changelog-${{ github.ref_name }}"
+          base: master
