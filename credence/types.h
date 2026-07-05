@@ -16,7 +16,6 @@
 #include <concepts>          // for integral
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <credence/values.h> // for Expression
 #include <deque>             // for deque
 #include <easyjson.h>        // for JSON
 #include <fmt/format.h>      // for format
@@ -31,14 +30,14 @@
 #include <variant>           // for variant
 #include <vector>            // for vector
 
+#include <credence/language/datatype.h> // for Datatype
+
 /****************************************************************************
  * Type category, string, and numeric utilities
  *   See values.h for details on literals and data types
  *****************************************************************************/
 
-namespace credence {
-
-namespace type {
+namespace credence::type {
 
 namespace semantic {
 
@@ -65,7 +64,7 @@ using Strings = std::set<semantic::RValue>;
 using RValues = Strings;
 using Floats = std::set<float>;
 using Doubles = std::set<double>;
-using Globals = value::Array;
+using Globals = language::datatype::Array;
 using Binary_Expression =
     std::tuple<semantic::RValue, std::string, semantic::RValue>;
 using RValue_Reference_Type = std::variant<semantic::RValue, Data_Type>;
@@ -645,5 +644,3 @@ constexpr std::string is_temporary_operand_binary_expression(
 }
 
 } // namespace type
-
-} // namespace credence

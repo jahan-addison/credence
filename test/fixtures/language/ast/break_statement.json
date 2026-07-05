@@ -1,0 +1,49 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "x"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": {
+              "node": "lvalue",
+              "root": "x"
+            },
+            "node": "statement",
+            "right": [
+              {
+                "left": [
+                  {
+                    "node": "statement",
+                    "root": "break"
+                  }
+                ],
+                "node": "statement",
+                "root": "block"
+              }
+            ],
+            "root": "while"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

@@ -13,26 +13,25 @@
 
 #pragma once
 
-#include <algorithm>            // for __find, find
-#include <credence/ir/ita.h>    // for Instructions
-#include <credence/operators.h> // for Operator
-#include <credence/queue.h>     // for Queue
-#include <credence/symbol.h>    // for Symbol_Table
-#include <credence/util.h>      // for AST_Node
-#include <credence/values.h>    // for Expression, Size
-#include <initializer_list>     // for initializer_list
-#include <stack>                // for stack
-#include <string>               // for basic_string, string
-#include <utility>              // for pair
-#include <vector>               // for vector
+#include <credence/ir/ita.h>                 // for Instructions
+#include <credence/language/datatype.h>      // for Datatype, Size
+#include <credence/language/operators.h>     // for Operator
+#include <credence/language/shunting_yard.h> // for Shunting_Yard
+#include <credence/symbol.h>                 // for Symbol_Table
+#include <credence/util.h>                   // for AST_Node, range_contains
+#include <initializer_list>                  // for initializer_list
+#include <stack>                             // for stack
+#include <string>                            // for basic_string, string
+#include <utility>                           // for pair
+#include <vector>                            // for vector
 
 /****************************************************************************
  * Temporary LValue Constructor
  *
  * A set of algorithms that construct temporary lvalues "_tX" that aid in
  * breaking expressions into 3- or 4- tuples for linear instructions. Uses the
- * rvalue queue from queue.h of expressions, which should be ordered by
- * operator preedence.
+ * rvalue queue from shunting_yard.h of expressions, which should be ordered
+ * by operator preedence.
  *
  *  Example:
  *
@@ -57,8 +56,8 @@ namespace credence {
 
 namespace ir {
 
-using Expression_Instructions =
-    std::pair<ir::Instructions, queue::detail::Queue::Container>;
+using Expression_Instructions = std::pair<ir::Instructions,
+    language::shunting_yard::detail::Shunting_Yard::Container>;
 using Temporary_Instructions = std::pair<std::string, ir::Instructions>;
 
 namespace detail {
@@ -115,21 +114,23 @@ class Temporary
     }
 
   public:
-    using Operand = value::Expression::Type_Pointer;
+    using Operand = language::datatype::Datatype::Type_Pointer;
     using Operands = std::vector<Operand>;
-    using Operator = type::Operator;
+    using Operator = language::type::Operator;
     using Instructions = ir::Instructions;
     using Operand_Stack = std::stack<Operand>;
     using Temporary_Stack = std::stack<std::string>;
 
-    value::Size insert_and_create_temporary_from_operand(Operand& operand);
+    language::datatype::Size insert_and_create_temporary_from_operand(
+        Operand& operand);
 
   public:
-    void unary_operand_to_temporary_stack(type::Operator op);
+    void unary_operand_to_temporary_stack(language::type::Operator op);
     void assignment_operands_to_temporary_stack();
-    void binary_operands_to_temporary_stack(type::Operator op);
-    void binary_operands_balanced_temporary_stack(type::Operator op);
-    void binary_operands_unbalanced_temporary_stack(type::Operator op);
+    void binary_operands_to_temporary_stack(language::type::Operator op);
+    void binary_operands_balanced_temporary_stack(language::type::Operator op);
+    void binary_operands_unbalanced_temporary_stack(
+        language::type::Operator op);
 
   public:
     void from_call_operands_to_temporary_instructions(
@@ -149,19 +150,19 @@ class Temporary
     Temporary_Stack temporary_stack{};
 };
 
-constexpr bool is_in_place_unary_operator(type::Operator op)
+constexpr bool is_in_place_unary_operator(language::type::Operator op)
 {
-    const auto unary_types = { type::Operator::PRE_DEC,
-        type::Operator::POST_DEC,
-        type::Operator::PRE_INC,
-        type::Operator::POST_INC };
+    const auto unary_types = { language::type::Operator::PRE_DEC,
+        language::type::Operator::POST_DEC,
+        language::type::Operator::PRE_INC,
+        language::type::Operator::POST_INC };
     return util::range_contains(op, unary_types);
 }
 
 } // namespace detail
 
 Instructions queue_to_ita_instructions(
-    queue::detail::Queue::Container const& queue,
+    language::shunting_yard::detail::Shunting_Yard::Container const& queue,
     util::AST_Node const& details,
     int* temporary_index);
 

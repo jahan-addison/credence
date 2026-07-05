@@ -13,32 +13,34 @@
 
 #include <credence/ir/temporary.h>
 
-#include <credence/expression.h> // for Expression_Parser
-#include <credence/ir/ita.h>     // for make_temporary, insert, make_quadruple
-#include <credence/operators.h>  // for Operator, operator_to_string
-#include <credence/queue.h>      // for queue_from_expression_operands
-#include <credence/symbol.h>     // for Symbol_Table
-#include <credence/types.h>      // for is_temporary
-#include <credence/util.h>       // for AST_Node, overload
-#include <credence/values.h>     // for expression_type_to_string, make_val...
-#include <deque>                 // for deque
-#include <easyjson.h>            // for JSON
-#include <fmt/compile.h>         // for format, operator""_cf
-#include <matchit.h>             // for Ds, Meet, _, Wildcard, pattern, ds
-#include <memory>                // for shared_ptr, unique_ptr
-#include <stddef.h>              // for size_t
-#include <string>                // for basic_string, char_traits, string
-#include <string_view>           // for basic_string_view, string_view
-#include <tuple>                 // for get, tuple
-#include <utility>               // for make_pair, pair, cmp_equal
-#include <variant>               // for visit, monostate, variant
+#include <credence/ir/ita.h>                 // for make_temporary, Instruc...
+#include <credence/language/datatype.h>      // for Datatype, datatype_to_s...
+#include <credence/language/operators.h>     // for Operator, operator_to_s...
+#include <credence/language/resolver.h>      // for Expression_Resolver
+#include <credence/language/shunting_yard.h> // for queue_from_expression_o...
+#include <credence/symbol.h>                 // for Symbol_Table
+#include <credence/types.h>                  // for is_temporary
+#include <credence/util.h>                   // for AST_Node, overload
+#include <deque>                             // for deque
+#include <easyjson.h>                        // for JSON
+#include <fmt/base.h>                        // for copy
+#include <fmt/compile.h>                     // for format
+#include <map>                               // for map
+#include <matchit.h>                         // for PatternPair, Meet, Ds
+#include <memory>                            // for shared_ptr, unique_ptr
+#include <stddef.h>                          // for size_t
+#include <string>                            // for basic_string, char_traits
+#include <string_view>                       // for basic_string_view, stri...
+#include <tuple>                             // for get, tuple
+#include <utility>                           // for pair, make_pair, cmp_equal
+#include <variant>                           // for monostate, variant, visit
 
 /****************************************************************************
  * Temporary LValue Constructor
  *
  * A set of algorithms that construct temporary lvalues "_tx" that aid in
  * breaking expressions into 3- or 4- tuples for linear instructions. Uses the
- * rvalue queue from queue.h of expressions, which should be ordered by
+ * rvalue queue from shunting_yard.h of expressions, which should be ordered by
  * operator preedence.
  *
  *  Example:
@@ -67,18 +69,19 @@ namespace ir {
 namespace m = matchit;
 
 constexpr std::string make_binary_temporary_string(std::string_view s1,
-    type::Operator s2,
+    language::type::Operator s2,
     std::string_view s3)
 {
     using namespace fmt::literals;
-    return fmt::format("{} {} {}"_cf, s1, type::operator_to_string(s2), s3);
+    return fmt::format(
+        "{} {} {}"_cf, s1, language::type::operator_to_string(s2), s3);
 }
 
-constexpr std::string make_unary_temporary_string(type::Operator s1,
+constexpr std::string make_unary_temporary_string(language::type::Operator s1,
     std::string_view s2)
 {
     using namespace fmt::literals;
-    return fmt::format("{} {}"_cf, type::operator_to_string(s1), s2);
+    return fmt::format("{} {}"_cf, language::type::operator_to_string(s1), s2);
 }
 
 namespace detail {
@@ -91,7 +94,8 @@ instruction_temporary_from_expression_operand(Temporary::Operand& operand);
  * Pop exactly 1 operand and 1 temporary
  * from each stack onto instruction tuple
  */
-void Temporary::binary_operands_balanced_temporary_stack(type::Operator op)
+void Temporary::binary_operands_balanced_temporary_stack(
+    language::type::Operator op)
 {
     auto operand1 = operand_stack.top();
     auto rhs = temporary_stack.top();
@@ -121,9 +125,9 @@ void Temporary::binary_operands_balanced_temporary_stack(type::Operator op)
 
 /**
  * @brief Create and insert instructions from an expression operand
- *  See Expression in `value.h' for details.
+ *  See Datatype in `datatype.h' for details.
  */
-value::Size Temporary::insert_and_create_temporary_from_operand(
+language::datatype::Size Temporary::insert_and_create_temporary_from_operand(
     Operand& operand)
 {
     auto inst_temp = instruction_temporary_from_expression_operand(operand);
@@ -132,7 +136,7 @@ value::Size Temporary::insert_and_create_temporary_from_operand(
         return std::make_pair(inst_temp.first, inst_temp.second.size());
     } else {
         return std::make_pair(
-            value::expression_type_to_string(*operand, false), 0);
+            language::datatype::datatype_to_string(*operand, false), 0);
     }
 }
 
@@ -141,10 +145,11 @@ value::Size Temporary::insert_and_create_temporary_from_operand(
  * There is only one operand on the stack, and no temporaries,
  * so use the lvalue from the last instruction for the LHS.
  */
-void Temporary::binary_operands_unbalanced_temporary_stack(type::Operator op)
+void Temporary::binary_operands_unbalanced_temporary_stack(
+    language::type::Operator op)
 {
     auto rhs_lvalue =
-        value::expression_type_to_string(*operand_stack.top(), false);
+        language::datatype::datatype_to_string(*operand_stack.top(), false);
     auto operand = operand_stack.top();
 
     if (instructions.empty())
@@ -186,7 +191,7 @@ void Temporary::binary_operands_unbalanced_temporary_stack(type::Operator op)
 /**
  * @brief
  * Construct a temporary lvalue from a recursive expression
- *  See Expression in `value.h' for details.
+ *  See Datatype in `datatype.h' for details.
  */
 Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
     Operand& operand)
@@ -195,25 +200,29 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
     std::string temp_name{};
     std::visit(
         util::overload{ [&](std::monostate) {},
-            [&](value::Expression::Pointer& s) {
-                auto unwrap_type = value::make_value_type_pointer(s->value);
+            [&](language::datatype::Datatype::Pointer& s) {
+                auto unwrap_type =
+                    language::datatype::make_value_type_pointer(s->value);
                 auto pointer =
                     instruction_temporary_from_expression_operand(unwrap_type);
                 ir::insert(instructions, pointer.second);
                 temp_name = pointer.first;
             },
-            [&](value::Array&) {},
-            [&](value::Literal&) {
-                temp_name = value::expression_type_to_string(*operand, false);
+            [&](language::datatype::Array&) {},
+            [&](language::datatype::Literal&) {
+                temp_name =
+                    language::datatype::datatype_to_string(*operand, false);
             },
-            [&](value::Expression::LValue&) {
-                temp_name = value::expression_type_to_string(*operand, false);
+            [&](language::datatype::Datatype::LValue&) {
+                temp_name =
+                    language::datatype::datatype_to_string(*operand, false);
             },
-            [&](value::Expression::Unary& s) {
+            [&](language::datatype::Datatype::Unary& s) {
                 auto op = s.first;
                 auto rhs_expression = s.second;
                 auto unwrap_rhs_type =
-                    value::make_value_type_pointer(s.second->value);
+                    language::datatype::make_value_type_pointer(
+                        s.second->value);
                 auto rhs = instruction_temporary_from_expression_operand(
                     unwrap_rhs_type);
                 ir::insert(instructions, rhs.second);
@@ -224,13 +233,15 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
                 instructions.emplace_back(unary);
                 temp_name = std::get<1>(unary);
             },
-            [&](value::Expression::Relation& s) {
+            [&](language::datatype::Datatype::Relation& s) {
                 auto op = s.first;
                 if (s.second.size() == 2) {
                     auto unwrap_lhs_type =
-                        value::make_value_type_pointer(s.second.at(0)->value);
+                        language::datatype::make_value_type_pointer(
+                            s.second.at(0)->value);
                     auto unwrap_rhs_type =
-                        value::make_value_type_pointer(s.second.at(1)->value);
+                        language::datatype::make_value_type_pointer(
+                            s.second.at(1)->value);
                     auto lhs = instruction_temporary_from_expression_operand(
                         unwrap_lhs_type);
                     auto rhs = instruction_temporary_from_expression_operand(
@@ -241,11 +252,13 @@ Temporary_Instructions Temporary::instruction_temporary_from_expression_operand(
                     temp_name = std::get<1>(relation);
                 }
             },
-            [&](value::Expression::Function& s) {
-                temp_name = value::expression_type_to_string(s.first, false);
+            [&](language::datatype::Datatype::Function& s) {
+                temp_name =
+                    language::datatype::datatype_to_string(s.first, false);
             },
-            [&](value::Expression::Symbol& s) {
-                temp_name = value::expression_type_to_string(s.first, false);
+            [&](language::datatype::Datatype::Symbol& s) {
+                temp_name =
+                    language::datatype::datatype_to_string(s.first, false);
             } },
         *operand);
 
@@ -274,7 +287,7 @@ void Temporary::assignment_operands_to_temporary_stack()
             },
         m::pattern | ds(m::_ == 1, m::_ == 0) =
             [&] {
-                auto lhs_expression = value::expression_type_to_string(
+                auto lhs_expression = language::datatype::datatype_to_string(
                     *operand_stack.top(), false);
                 operand_stack.pop();
                 if (instructions.size() > 1) {
@@ -326,7 +339,7 @@ void Temporary::from_push_operands_to_temporary_instructions()
 void Temporary::from_call_operands_to_temporary_instructions(
     util::AST_Node const& details)
 {
-    auto op = type::Operator::U_CALL;
+    auto op = language::type::Operator::U_CALL;
     std::string symbol{};
     if (temporary_stack.size() > 1) {
         auto rhs = temporary_stack.top();
@@ -362,8 +375,8 @@ void Temporary::from_call_operands_to_temporary_instructions(
     }
     if (parameters_size > 0)
         instructions.emplace_back(make_quadruple(Instruction::POP,
-            std::to_string(
-                parameters_size * value::TYPE_LITERAL.at("word").second),
+            std::to_string(parameters_size *
+                           language::datatype::TYPE_LITERAL.at("word").second),
             "",
             ""));
     // does this function have a return value?
@@ -401,7 +414,7 @@ void Temporary::from_call_operands_to_temporary_instructions(
  * I.e., the sub expression "~ 5" was pushed on to a temporary stack, with
  * identifier _t2. We popped it off and used it in our final temporary.
  */
-void Temporary::unary_operand_to_temporary_stack(type::Operator op)
+void Temporary::unary_operand_to_temporary_stack(language::type::Operator op)
 {
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
@@ -444,13 +457,13 @@ void Temporary::unary_operand_to_temporary_stack(type::Operator op)
                             // If the operand is an lvalue, use it,
                             // otherwise create a temporary and assign it
                             // the unary expression
-                            if (value::is_value_type_pointer_type(
+                            if (language::datatype::is_value_type_pointer_type(
                                     operand1, "lvalue") and
                                 is_in_place_unary_operator(op)) {
                                 auto unary = make_quadruple(Instruction::MOV,
-                                    value::expression_type_to_string(
+                                    language::datatype::datatype_to_string(
                                         *operand1, false),
-                                    type::operator_to_string(op),
+                                    language::type::operator_to_string(op),
                                     rhs.first);
                                 instructions.emplace_back(unary);
                                 operand_stack.emplace(operand1);
@@ -575,11 +588,12 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                                     temporary_index,
                                     make_binary_temporary_string(
                                         lhs_name.first, op, rhs_name.first));
-                                value::Expression::LValue temp_lvalue =
-                                    std::make_pair(std::get<1>(operand_temp),
-                                        value::NULL_LITERAL);
+                                language::datatype::Datatype::LValue
+                                    temp_lvalue = std::make_pair(
+                                        std::get<1>(operand_temp),
+                                        language::datatype::NULL_LITERAL);
                                 operand_stack.emplace(
-                                    value::make_value_type_pointer(
+                                    language::datatype::make_value_type_pointer(
                                         temp_lvalue));
                                 instructions.emplace_back(operand_temp);
 
@@ -600,11 +614,12 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
  * @brief
  * Construct a set of ita instructions from an expression queue.
  */
-Instructions queue_to_ita_instructions(queue::detail::Queue::Container& queue,
+Instructions queue_to_ita_instructions(
+    language::shunting_yard::detail::Shunting_Yard::Container& queue,
     util::AST_Node const& details,
     int* temporary_index)
 {
-    using namespace credence::type;
+    using namespace credence::language::type;
     if (queue.empty()) {
         return Instructions{};
     }
@@ -675,12 +690,13 @@ Instructions queue_to_ita_instructions(queue::detail::Queue::Container& queue,
                             break;
                         case Operator::B_TERNARY:
                             temporary.binary_operands_to_temporary_stack(op);
-                            temporary.instructions.emplace_back(
-                                make_quadruple(Instruction::POP,
-                                    std::to_string(
-                                        value::TYPE_LITERAL.at("word").second),
-                                    "",
-                                    ""));
+                            temporary.instructions.emplace_back(make_quadruple(
+                                Instruction::POP,
+                                std::to_string(
+                                    language::datatype::TYPE_LITERAL.at("word")
+                                        .second),
+                                "",
+                                ""));
                             break;
                     }
                 },
@@ -707,27 +723,30 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
         for (auto& expression : node.array_range()) {
             if (expression.JSON_type() == util::AST_Node::Class::Array) {
                 for (auto& expr : expression.array_range()) {
-                    auto expression =
-                        Expression_Parser::parse(expr, details, symbols);
+                    auto expression = language::Expression_Resolver::parse(
+                        expr, details, symbols);
                     operands.emplace_back(
-                        value::make_value_type_pointer(expression.value));
+                        language::datatype::make_value_type_pointer(
+                            expression.value));
                 }
             } else {
-                operands.emplace_back(value::make_value_type_pointer(
-                    Expression_Parser::parse(expression, details, symbols)
-                        .value));
+                operands.emplace_back(
+                    language::datatype::make_value_type_pointer(
+                        language::Expression_Resolver::parse(
+                            expression, details, symbols)
+                            .value));
             }
         }
-        auto queue = queue::queue_from_expression_operands(
+        auto queue = language::shunting_yard::queue_from_expression_operands(
             operands, temporary_index, identifier_index);
         auto instructions =
             queue_to_ita_instructions(*queue, details, temporary_index);
         return std::make_pair(instructions, *queue);
 
     } else {
-        auto type_pointer = value::make_value_type_pointer(
-            Expression_Parser::parse(node, details, symbols).value);
-        auto queue = queue::queue_from_expression_operands(
+        auto type_pointer = language::datatype::make_value_type_pointer(
+            language::Expression_Resolver::parse(node, details, symbols).value);
+        auto queue = language::shunting_yard::queue_from_expression_operands(
             type_pointer, temporary_index, identifier_index);
         auto instructions =
             queue_to_ita_instructions(*queue, details, temporary_index);

@@ -14,7 +14,7 @@
 
 The compiler works in 3 stages:
 
-* The Lexer, Parser first-pass built with an [LALR(1) grammar and parser generator](https://github.com/jahan-addison/augur) in python that interfaces with C++ via `pybind11`
+* A Lexer Generator [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h). See details [here](/credence/language/README.md)
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
 * The target platforms and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
 
@@ -68,10 +68,12 @@ To build the test suite and coverage yourself (with `llvm-cov`), run:
 ```bash
 
 cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
-cmake --build build
+cmake --build build -j$(nproc || sysctl -n hw.ncpu)
 cmake --build build --target coverage
 
 ```
+
+Building without `-j` runs a single job at a time and is noticeably slower on a codebase this size - `-j` alone (no number) also works and lets make/ninja spawn unlimited parallel jobs, but capping it to your core count (`nproc` on Linux, `sysctl -n hw.ncpu` on macOS) avoids oversubscribing the CPU. This form works regardless of the underlying generator, so it's unaffected if you switch from Makefiles to [Ninja](https://ninja-build.org/) (`cmake -Bbuild -G Ninja ...`), which is generally faster still for incremental builds.
 
 ---
 
@@ -343,12 +345,10 @@ Usage:
 
 **Note: These are installed automatically via CPM and cmake.**
 
-* `augur` - [LALR(1) parser generator and Lexer](https://github.com/jahan-addison/augur)
 * `easyjson` - [Lightweight memory safe json library](https://github.com/jahan-addison/easyjson)
 * `cxxopts` - Lightweight commandline parser
 * `matchit` - Pattern matching
 * `fmt` - fast constexpr string formatting
-* `pybind11`
 
 ## Licensing
 

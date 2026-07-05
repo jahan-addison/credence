@@ -13,15 +13,18 @@
 
 #pragma once
 
+#include <credence/error.h>     // for throw_compiletime_error
 #include <credence/ir/ita.h>    // for Quadruple, Instructions, ITA
-#include <credence/ir/object.h> // for Object, LValue, Label, Object_PTR
+#include <credence/ir/object.h> // for Object, LValue, Label, RValue, Instr...
 #include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for Data_Type, Address, RValue_Reference
+#include <credence/types.h>     // for Data_Type, Address, Parameters, RVal...
 #include <credence/util.h>      // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_...
 #include <easyjson.h>           // for JSON
 #include <iosfwd>               // for ostream
 #include <memory>               // for make_shared
-#include <string>               // for basic_string
+#include <source_location>      // for source_location
+#include <string>               // for basic_string, char_traits
+#include <string_view>          // for basic_string_view, string_view
 #include <utility>              // for move
 
 /****************************************************************************

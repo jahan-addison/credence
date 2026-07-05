@@ -1,0 +1,86 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "f"
+              },
+              {
+                "node": "lvalue",
+                "root": "g"
+              }
+            ],
+            "node": "statement",
+            "root": "extrn"
+          },
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "f"
+                  },
+                  "node": "function_expression",
+                  "right": [
+                    {
+                      "node": "integer_literal",
+                      "root": 1
+                    },
+                    {
+                      "node": "integer_literal",
+                      "root": 2
+                    },
+                    {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "g"
+                      },
+                      "node": "function_expression",
+                      "right": [
+                        {
+                          "node": "integer_literal",
+                          "root": 3
+                        }
+                      ],
+                      "root": "g"
+                    }
+                  ],
+                  "root": "f"
+                }
+              ],
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "f"
+                  },
+                  "node": "function_expression",
+                  "right": [
+                    null
+                  ],
+                  "root": "f"
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

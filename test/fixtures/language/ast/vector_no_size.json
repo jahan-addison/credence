@@ -1,0 +1,15 @@
+{
+  "left": [
+    {
+      "left": {
+        "node": "integer_literal",
+        "root": 5
+      },
+      "node": "vector_definition",
+      "right": [],
+      "root": "nums"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

@@ -13,24 +13,25 @@
 
 #pragma once
 
-#include <algorithm>         // for any_of
-#include <credence/error.h>  // for credence_assert_message
-#include <credence/util.h>   // for CREDENCE_PRIVATE_UNLESS_TESTED
-#include <credence/values.h> // for Literal, Array, ...
-#include <fmt/format.h>      // for format
-#include <map>               // for map
-#include <set>               // for set
-#include <source_location>   // for source_location
-#include <string>            // for basic_string, string
-#include <utility>           // for make_pair, move
+#include <algorithm>                    // for any_of
+#include <credence/error.h>             // for credence_assert_message
+#include <credence/language/datatype.h> // for Literal, Array, ...
+#include <credence/util.h>              // for CREDENCE_PRIVATE_UNLESS_TESTED
+#include <fmt/format.h>                 // for format
+#include <map>                          // for map
+#include <set>                          // for set
+#include <source_location>              // for source_location
+#include <string>                       // for basic_string, string
+#include <utility>                      // for make_pair, move
 
 /****************************************************************************
  *
- * Symbol table
+ * Symbol table Template
  *
  * A template to map Lvalues and addresses in memory to an internal data type.
- * By default, the type value::Literal in values.h is used for symbols, and
- * value::Array as a representation of contiguous blocks in memory.
+ * By default, the type language::datatype::Literal in datatype.h is used for
+ * symbols, and language::datatype::Array as a representation of contiguous
+ * blocks in memory.
  *
  * Note that in most use cases, two instances are used for "local" and "global"
  * symbols.
@@ -51,7 +52,8 @@
 
 namespace credence {
 
-template<typename Symbol = value::Literal, typename Pointer = value::Array>
+template<typename Symbol = language::datatype::Literal,
+    typename Pointer = language::datatype::Array>
 class Symbol_Table
 {
   public:

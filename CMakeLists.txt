@@ -81,12 +81,6 @@ endif()
 # Dependencies
 # ##############################################################################
 
-# Add python-dev library to interface with python
-find_package(
-  Python3
-  COMPONENTS Interpreter Development
-  REQUIRED)
-
 cpmaddpackage("gh:doctest/doctest@2.4.12")
 
 cpmaddpackage(
@@ -114,11 +108,32 @@ cpmaddpackage(
 
 cpmaddpackage("gh:fmtlib/fmt#12.1.0")
 
-cpmaddpackage(NAME pybind11 VERSION 3.0.1 GITHUB_REPOSITORY pybind/pybind11)
-
 cpmaddpackage(NAME matchit VERSION 1.0.1 GITHUB_REPOSITORY BowenFu/matchit.cpp)
 
-set(PYBIND11_FINDPYTHON ON)
+# ##############################################################################
+# re2c (B language lexer)
+# ##############################################################################
+
+# credence/language/lexer.cc is generated from lexer.re and committed to the
+# repo (re2c output is plain, dependency-free C++, so a normal build doesn't
+# need re2c at all -- it's picked up like any other source below). This target
+# is only for regenerating lexer.cc after editing lexer.re.
+find_program(RE2C_EXECUTABLE re2c)
+if(RE2C_EXECUTABLE)
+  add_custom_target(
+    regenerate_lexer
+    COMMAND
+      ${RE2C_EXECUTABLE} -o
+      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/language/lexer.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/language/lexer.re" -W
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Regenerating B language lexer (re2c) from lexer.re")
+else()
+  message(
+    STATUS "re2c not found; `regenerate_lexer` target unavailable (lexer.cc is "
+           "already generated and committed, so this only matters if you edit "
+           "lexer.re). Install with e.g. `brew install re2c`.")
+endif()
 
 # ##############################################################################
 # Executables
@@ -138,11 +153,7 @@ target_include_directories(
   PUBLIC $<BUILD_INTERFACE:${${PROJECT_NAME}_SOURCE_DIR}>
          $<INSTALL_INTERFACE:${PROJECT_NAME}-${PROJECT_VERSION}>)
 
-target_include_directories(
-  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::headers cxxopts::cxxopts
-                         fmt::fmt matchit easyjson)
-target_link_libraries(
-  ${PROJECT_NAME} PUBLIC Python3::Python pybind11::pybind11 cxxopts::cxxopts
-                         fmt::fmt matchit easyjson)
+target_link_libraries(${PROJECT_NAME} PUBLIC cxxopts::cxxopts fmt::fmt matchit
+                                             easyjson)
 
 include(cmake/doctest.cmake)

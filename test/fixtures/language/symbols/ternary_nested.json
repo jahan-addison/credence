@@ -1,0 +1,23 @@
+{
+  "a": {
+    "type": "lvalue"
+  },
+  "b": {
+    "type": "lvalue"
+  },
+  "c": {
+    "type": "lvalue"
+  },
+  "d": {
+    "type": "lvalue"
+  },
+  "e": {
+    "type": "lvalue"
+  },
+  "main": {
+    "type": "function_definition"
+  },
+  "x": {
+    "type": "lvalue"
+  }
+}

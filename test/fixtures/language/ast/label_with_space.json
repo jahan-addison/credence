@@ -1,0 +1,40 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              "loop"
+            ],
+            "node": "statement",
+            "root": "goto"
+          },
+          {
+            "left": [
+              "loop "
+            ],
+            "node": "statement",
+            "root": "label"
+          },
+          {
+            "left": [
+              null
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

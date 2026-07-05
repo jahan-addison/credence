@@ -7,19 +7,11 @@ list(REMOVE_ITEM sources "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/main.cc")
 
 add_executable(Test_Suite ${sources} ${test_sources})
 
-target_include_directories(
-  Test_Suite PUBLIC Python3::Python pybind11::headers fmt::fmt cxxopts::cxxopts
-                    matchit easyjson)
+target_include_directories(Test_Suite PUBLIC fmt::fmt cxxopts::cxxopts matchit
+                                             easyjson)
 
-target_link_libraries(
-  Test_Suite
-  doctest::doctest
-  Python3::Python
-  fmt::fmt
-  pybind11::headers
-  matchit
-  cxxopts::cxxopts
-  easyjson)
+target_link_libraries(Test_Suite doctest::doctest fmt::fmt matchit
+                      cxxopts::cxxopts easyjson)
 
 set_target_properties(Test_Suite PROPERTIES CXX_STANDARD 20 OUTPUT_NAME
                                                             "test_suite")

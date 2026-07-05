@@ -1,0 +1,11 @@
+{
+  "main": {
+    "type": "function_definition"
+  },
+  "x": {
+    "type": "lvalue"
+  },
+  "y": {
+    "type": "lvalue"
+  }
+}

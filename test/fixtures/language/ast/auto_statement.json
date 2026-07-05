@@ -1,0 +1,41 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "x"
+              },
+              {
+                "node": "lvalue",
+                "root": "y"
+              },
+              {
+                "left": {
+                  "node": "integer_literal",
+                  "root": 5
+                },
+                "node": "vector_lvalue",
+                "root": "v"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

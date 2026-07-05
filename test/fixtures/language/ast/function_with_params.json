@@ -1,0 +1,46 @@
+{
+  "left": [
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "a"
+        },
+        {
+          "node": "lvalue",
+          "root": "b"
+        }
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "left": {
+                  "node": "lvalue",
+                  "root": "a"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "lvalue",
+                  "root": "b"
+                },
+                "root": [
+                  "+"
+                ]
+              }
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "add"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

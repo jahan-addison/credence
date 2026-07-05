@@ -13,26 +13,21 @@
 
 #pragma once
 
-#include <algorithm>         // for __find, find
 #include <array>             // for array
-#include <credence/ir/ita.h> // for ITA, Instructions
+#include <credence/ir/ita.h> // for Instructions
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/symbol.h> // for Symbol_Table
-#include <credence/types.h>  // for Label, Address, Data_Type, LValue, Labels
-#include <credence/util.h>   // for contains
+#include <credence/types.h>  // for Parameters, Address, Data_Type, Label
+#include <credence/util.h>   // for contains, AST_Node
 #include <cstddef>           // for size_t
 #include <deque>             // for deque
-#include <easyjson.h>        // for JSON
-#include <fmt/base.h>        // for copy
-#include <fmt/compile.h>     // for format, operator""_cf
 #include <map>               // for map
-#include <memory>            // for shared_ptr
+#include <memory>            // for shared_ptr, unique_ptr
 #include <optional>          // for optional
-#include <ranges>            // for __fn, end
 #include <source_location>   // for source_location
-#include <string>            // for basic_string, string, operator==, char_...
-#include <string_view>       // for basic_string_view, string_view
-#include <utility>           // for pair, move
+#include <string>            // for basic_string, string
+#include <string_view>       // for basic_string_view
+#include <utility>           // for pair
 
 /****************************************************************************
  * Object Table

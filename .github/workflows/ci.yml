@@ -46,21 +46,6 @@ jobs:
         with:
           cmake-version: '4.x.x'
 
-      - name: setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: setup poetry
-        run: pipx install poetry
-
-      - name: install python dependencies
-        run: |
-          cd python/augur
-          poetry install
-          make install
-          cd ../../
-
       - name: install extras linux
         if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
         run: |

@@ -1,0 +1,12 @@
+{
+  "main": {
+    "type": "function_definition"
+  },
+  "v": {
+    "size": 5,
+    "type": "vector_lvalue"
+  },
+  "x": {
+    "type": "lvalue"
+  }
+}

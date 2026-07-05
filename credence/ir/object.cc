@@ -15,18 +15,22 @@
 
 #include <algorithm>         // for __find_if, find_if
 #include <array>             // for array
-#include <credence/error.h>  // for assert_nequal_impl, credence_assert
-#include <credence/ir/ita.h> // for Instructions, Quadruple
+#include <credence/error.h>  // for credence_assert, assert_nequal_impl
+#include <credence/ir/ita.h> // for Instruction, Instructions, Quadruple
 #include <credence/map.h>    // for Ordered_Map
-#include <credence/types.h>  // for get_value_from_rvalue_data_type, from_l...
-#include <credence/util.h>   // for contains
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for get_size_from_rvalue_data_type, get_val...
+#include <credence/util.h>   // for contains, range_contains, AST_Node, __s...
+#include <easyjson.h>        // for JSON
+#include <fmt/base.h>        // for copy
+#include <fmt/compile.h>     // for format, operator""_cf
 #include <fmt/format.h>      // for format
 #include <matchit.h>         // for App, app, pattern, PatternHelper, Patte...
-#include <memory>            // for shared_ptr
+#include <memory>            // for unique_ptr, make_unique, shared_ptr
 #include <source_location>   // for source_location
 #include <string>            // for basic_string, char_traits, operator==
-#include <string_view>       // for basic_string_view
-#include <tuple>             // for tuple, get
+#include <string_view>       // for basic_string_view, string_view
+#include <tuple>             // for get, tuple
 
 /****************************************************************************
  * Object Table

@@ -1,0 +1,12 @@
+{
+  "a": {
+    "type": "lvalue"
+  },
+  "add": {
+    "type": "function_definition",
+    "void": false
+  },
+  "b": {
+    "type": "lvalue"
+  }
+}

@@ -13,6 +13,8 @@
 
 #include <credence/error.h>                   // for Credence_Exception
 #include <credence/ir/table.h>                // for emit
+#include <credence/language/parser.h>         // for Parser
+#include <credence/language/symbol_table.h>   // for Symbol_Table_Builder
 #include <credence/target/arm64/generator.h>  // for emit
 #include <credence/target/common/assembly.h>  // for Arch_Type
 #include <credence/target/common/runtime.h>   // for add_stdlib_functions_t...
@@ -24,10 +26,6 @@
 #include <iostream>                           // for ostringstream, cerr, cout
 #include <matchit.h>                          // for pattern, Or, PatternHe...
 #include <memory>                             // for shared_ptr
-#include <pybind11/cast.h>                    // for object_api::operator()
-#include <pybind11/embed.h>                   // for scoped_interpreter
-#include <pybind11/pybind11.h>                // for error_already_set::what
-#include <pybind11/pytypes.h>                 // for object, accessor, str_...
 #include <sstream>                            // for basic_ostringstream
 #include <string>                             // for basic_string, char_traits
 #include <string_view>                        // for basic_string_view, str...
@@ -38,8 +36,7 @@
  *
  * The compiler works in 3 stages:
  *
- * 1. Lexer/Parser: LALR(1) grammar in Python (via pybind11) produces AST
- *      * Convert the ast into strongly typed algebraic data structures
+ * 1. Lexer/Parser: re2c Lexer Generator and Recursive-Descent Parser
  * 2. IR Generation: Converts AST to ITA, see ir/readme.md for details
  * 3. Code Generation: Emits x86-64 or ARM64 assembly from the IR
  *      * See target/readme.md for details
@@ -64,16 +61,15 @@
 
 int main(int argc, const char* argv[])
 {
-    namespace py = pybind11;
     namespace m = matchit;
     try {
         cxxopts::Options options("Credence", "Credence :: B Language Compiler");
         options.show_positional_help();
 
         options.add_options()("a,ast-loader",
-            "AST Loader [json, python]",
-            cxxopts::value<std::string>()->default_value("python"))("t,target",
-            "Target [ir, syntax, ast, arm64, x86_64]",
+            "AST Loader [parser, json]",
+            cxxopts::value<std::string>()->default_value("parser"))("t,target",
+            "Target [ir, ast, arm64, x86_64]",
             cxxopts::value<std::string>()->default_value("ir"))("d,debug",
             "Dump symbol table",
             cxxopts::value<bool>()->default_value("false"))("o,output",
@@ -100,47 +96,14 @@ int main(int argc, const char* argv[])
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
 
-        if (type == "python") {
-            py::scoped_interpreter guard{};
-            try {
-                py::object python_module = py::module::import("augur.parser");
-                py::object symbol_table_call = python_module.attr(
-                    "get_source_program_symbol_table_as_json");
-                py::object syntax_symbols = symbol_table_call(source);
-                py::object get_ast_call;
-                symbols = credence::util::AST_Node::load(
-                    syntax_symbols.cast<std::string>());
-
-                if (result["debug"].count() and target != "ast")
-                    std::cout << "> Symbol Table:" << std::endl
-                              << syntax_symbols.cast<std::string>()
-                              << std::endl;
-                if (target == "syntax") {
-                    auto get_source_ast =
-                        python_module.attr("parse_source_program_as_string");
-                    syntax_tree =
-                        get_source_ast(source, py::arg("pretty") = true)
-                            .cast<std::string>();
-                }
-
-                get_ast_call =
-                    python_module.attr("get_source_program_ast_as_json");
-
-                py::object ast_as_json = get_ast_call(source);
-
-                if (ast_as_json.is_none())
-                    credence_error("could not construct ast");
-
-                ast["root"] = credence::util::AST_Node::load(
-                    ast_as_json.cast<std::string>());
-            } catch (py::error_already_set const& e) {
-                auto error_message = std::string_view{ e.what() };
-                std::cerr << "Credence :: " << "\033[33m"
-                          << error_message.substr(0, error_message.find("At:"))
-                          << "\033[0m" << std::endl;
-                return 1;
-            }
-
+        if (type == "parser") {
+            auto parser = credence::language::Parser{ source };
+            ast["root"] = parser.parse_program();
+            symbols =
+                credence::language::Symbol_Table_Builder::build(ast["root"]);
+            if (result["debug"].count() and target != "ast")
+                std::cout << "> Symbol Table:" << std::endl
+                          << symbols << std::endl;
         } else if (type == "json") {
             ast["root"] = credence::util::AST_Node::load(source);
         } else {

@@ -12,16 +12,16 @@
  ****************************************************************************/
 
 #include "accessor.h"
-#include "credence/error.h"                     // for credence_assert, thr...
-#include "credence/ir/ita.h"                    // for Instruction
-#include "credence/target/common/memory.h"      // for is_vector_offset
-#include "credence/target/common/stack_frame.h" // for Stack_Frame, Locals
-#include "credence/values.h"                    // for is_integer_string
-#include "easyjson.h"                           // for JSON
 #include "types.h"                              // for RValue, Table_Pointer
+#include <credence/error.h>                     // for credence_assert, thr...
+#include <credence/ir/ita.h>                    // for Instruction
 #include <credence/ir/object.h>                 // for Object, Function
+#include <credence/language/datatype.h>         // for is_integer_string
+#include <credence/target/common/memory.h>      // for is_vector_offset
+#include <credence/target/common/stack_frame.h> // for Stack_Frame, Locals
 #include <credence/types.h>                     // for get_size_from_rvalue...
 #include <credence/util.h>                      // for is_numeric, __source__
+#include <easyjson.h>                           // for JSON
 #include <fmt/format.h>                         // for format
 #include <map>                                  // for map
 #include <matchit.h>                            // for Or, match, or_, pattern
@@ -420,7 +420,7 @@ void Vector_Accessor<Entry>::type_check_invalid_vector_symbol(
     RValue const& offset)
 {
     if (!table_->get_hoisted_symbols().has_key(offset) and
-        not value::is_integer_string(offset))
+        not language::datatype::is_integer_string(offset))
         throw_compiletime_error(
             fmt::format("Invalid index '{}' on vector lvalue", offset), vector);
 }
@@ -475,7 +475,7 @@ auto Vector_Accessor<Entry>::get_offset_address(LValue const& lvalue,
     if (table_->get_hoisted_symbols().has_key(offset))
         return get_offset_from_hoisted_symbols(vector, offset);
 
-    if (value::is_integer_string(offset))
+    if (language::datatype::is_integer_string(offset))
         return get_offset_from_integer_rvalue(vector, offset);
 
     return std::make_pair(0UL,

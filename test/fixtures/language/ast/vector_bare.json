@@ -1,0 +1,11 @@
+{
+  "left": [
+    {
+      "node": "vector_definition",
+      "right": [],
+      "root": "nums"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

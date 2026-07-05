@@ -1,0 +1,28 @@
+{
+  "left": [
+    {
+      "left": {
+        "node": "integer_literal",
+        "root": 3
+      },
+      "node": "vector_definition",
+      "right": [
+        {
+          "node": "integer_literal",
+          "root": 1
+        },
+        {
+          "node": "integer_literal",
+          "root": 2
+        },
+        {
+          "node": "integer_literal",
+          "root": 3
+        }
+      ],
+      "root": "nums"
+    }
+  ],
+  "node": "program",
+  "root": "definitions"
+}

@@ -1,0 +1,11 @@
+{
+  "f": {
+    "type": "lvalue"
+  },
+  "g": {
+    "type": "lvalue"
+  },
+  "main": {
+    "type": "function_definition"
+  }
+}

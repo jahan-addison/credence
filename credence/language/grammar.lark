@@ -1,0 +1,204 @@
+/////////////////////////////////////////////////////////////
+//  The original B Language grammar
+//         Author: Jahan Addison
+//              LALR(1) Grammar
+/////////////////////////////////////////////////////////////
+
+
+// License: CC0 https://creativecommons.org/public-domain/cc0/
+
+// Grammar syntax - https://lark-parser.readthedocs.io/en/stable/grammar.html
+
+program : ( definition ) *
+
+definition : function_definition
+ | vector_definition
+
+vector_definition   :  NAME v_size (v_symbol ( ","? v_symbol ) * )? SEMI_COLON
+
+function_definition :  ( NAME "(" parameters ")" function_body )
+
+parameters          :  [ rvalue (( "," rvalue ) *) ]
+
+v_symbol : constant
+    | NAME
+
+v_size : [ ( "[" ( constant ) ? "]" ) ]
+
+statement : block_statement
+    | label_statement
+    | auto_statement
+    | extrn_statement
+    | if_statement
+    | while_statement
+    | switch_statement
+    | break_statement
+    | goto_statement
+    | return_statement
+    | rvalue_statement
+
+
+statement_2 : label_statement
+    | auto_statement
+    | extrn_statement
+    | if_statement
+    | while_statement
+    | switch_statement
+    | break_statement
+    | goto_statement
+    | rvalue_statement
+
+
+function_body      :  ( "{" ((statement_2) *  (return_statement) ?)  "}" )
+
+auto_statement     : "auto" lvalue ("," lvalue )* SEMI_COLON
+
+extrn_statement    : "extrn" NAME ("," NAME)* SEMI_COLON
+
+case_statement     : "case" constant ":" (statement *)
+
+label_statement    :  /[a-zA-Z_][a-zA-Z0-9._]{0,7}[\s]*:/
+
+goto_statement     : "goto" NAME SEMI_COLON
+
+if_statement       : "if" "(" rvalue ")" statement [ "else" statement ]
+
+return_statement   : "return" [ ( "(" rvalue ")" ) ] SEMI_COLON
+
+rvalue_statement   :  expression +
+
+block_statement    :  ( "{" (statement) *  "}" )
+
+while_statement    :  "while" "(" ( rvalue ) ")" statement
+
+switch_statement   :  "switch" ("(" rvalue ")") "{" case_statement * "}"
+
+break_statement    :  "break" SEMI_COLON
+
+
+expression: SEMI_COLON
+    | rvalue SEMI_COLON
+
+rvalue : unary_address_of
+ | address_of_expression
+ | lvalue_expression
+ | constant_expression
+ | pre_inc_dec_expression
+ | post_inc_dec_expression
+ | unary_expression
+ | function_expression
+ | relation_expression
+ | ternary_expression
+ | assignment_expression
+ | evaluated_expression
+
+
+function_expression     : lvalue "(" parameters  ")"
+
+ternary_expression      : rvalue "?" rvalue ":" rvalue
+
+relation_expression     : rvalue binary rvalue
+
+address_of_expression   : unary_address_of lvalue
+
+unary_expression        : unary_modifier unary_operand
+
+post_inc_dec_expression : lvalue inc_dec
+
+pre_inc_dec_expression  : inc_dec lvalue
+
+assignment_expression   : lvalue assignment_operator rvalue
+
+constant_expression     : constant
+
+evaluated_expression    : "(" rvalue ")"
+
+lvalue_expression       : lvalue
+
+unary_operand : lvalue_expression
+    | constant_expression
+    | evaluated_expression
+    | function_expression
+    | pre_inc_dec_expression
+    | post_inc_dec_expression
+
+
+?lvalue: NAME                   -> identifier
+    | unary_indirection rvalue  -> indirect_identifier
+    | lvalue "[" rvalue "]"     -> vector_identifier
+
+
+assignment_operator : EQUAL
+
+?inc_dec : unary_inc
+    | unary_dec
+
+
+?unary_modifier : unary_minus
+    | unary_plus
+    | unary_not
+    | unary_ones_complement
+
+unary_indirection     : "*"
+unary_address_of      : "&"
+unary_minus           : "-"
+unary_plus            : "+"
+unary_not             : "!"
+unary_inc             : "++"
+unary_dec             : "--"
+unary_ones_complement : "~"
+
+binary : "||" -> or_operator
+    | "&&"    -> and_operator
+    | "&"     -> bit_and_operator
+    | "|"     -> bit_or_operator
+    | "=="    -> eq_operator
+    | "!="    -> neq_oeprator
+    | "<"     -> lt_operator
+    | "<="    -> lte_operator
+    | ">"     -> gt_operator
+    | ">="    -> gte_operator
+    | "^"     -> xor_operator
+    | "<<"    -> lshift_operator
+    | ">>"    -> rshift_operator
+    | "-"     -> sub_operator
+    | "+"     -> add_operator
+    | "%"     -> mod_operator
+    | "*"     -> mul_operator
+    | "/"     -> div_operator
+
+
+
+constant  :  FLOAT_CONSTANT      -> float_literal
+    | INT "." INT                -> double_literal
+    | INT                        -> integer_literal
+    | BOOL_CONSTANT              -> bool_literal
+    | "'" ( CHAR ) ~ 1 .. 2 "'"  -> constant_literal
+    | /\'\s\'/                   -> constant_literal
+    | ESCAPED_STRING             -> string_literal
+
+
+BOOL_CONSTANT : "true"
+    | "false"
+
+FLOAT_CONSTANT : INT ["." INT] "f"
+    | INT ["." INT] "F"
+
+EQUAL      : "="
+
+SEMI_COLON  : ";"
+
+NAME       : /(?!true|false)[a-zA-Z_][a-zA-Z0-9_.]{0,7}/
+
+CHAR       : /[\x00-\x7F]/
+
+%import common.ESCAPED_STRING
+%import common.WS
+%import common.INT
+%import common.WORD
+%import common.CPP_COMMENT
+%import common.C_COMMENT
+
+%ignore WS
+%ignore C_COMMENT
+%ignore CPP_COMMENT

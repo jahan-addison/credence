@@ -1,18 +1,19 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
-#include <credence/ir/ita.h> // for ITA
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/util.h>   // for AST_Node
-#include <credence/values.h> // for Value_Type, TYPE_LITERAL, Byte, NULL_L...
-#include <deque>             // for deque
-#include <easyjson.h>        // for JSON
-#include <map>               // for map
-#include <sstream>           // for basic_ostringstream, ostringstream
-#include <string>            // for basic_string, allocator, char_traits
-#include <string_view>       // for basic_string_view
-#include <tuple>             // for tuple
-#include <utility>           // for pair, make_pair
-#include <variant>           // for monostate
+#include <credence/ir/ita.h>            // for ITA
+#include <credence/language/datatype.h> // for Value_Type, TYPE_LITERAL, Byte, NULL_L...
+#include <credence/symbol.h>            // for Symbol_Table
+#include <credence/util.h>              // for AST_Node
+#include <deque>                        // for deque
+#include <easyjson.h>                   // for JSON
+#include <map>                          // for map
+
+#include <sstream>     // for basic_ostringstream, ostringstream
+#include <string>      // for basic_string, allocator, char_traits
+#include <string_view> // for basic_string_view
+#include <tuple>       // for tuple
+#include <utility>     // for pair, make_pair
+#include <variant>     // for monostate
 
 #define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
@@ -100,7 +101,8 @@ struct ITA_Fixture
         auto os_test = std::ostringstream();
         auto ita = ITA_hoisted(global_symbols);
         for (auto const& s : nulls)
-            ita.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
+            ita.symbols_.table_.emplace(
+                s, credence::language::datatype::NULL_LITERAL);
         auto test_instructions = ita.build_from_function_definition(node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -137,7 +139,8 @@ struct ITA_Fixture
             tail ? ITA_with_tail_branch(symbols) : ITA_hoisted(symbols);
         hoisted.make_root_branch();
         for (auto const& s : nulls)
-            hoisted.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
+            hoisted.symbols_.table_.emplace(
+                s, credence::language::datatype::NULL_LITERAL);
         auto test_instructions = hoisted.build_from_block_statement(node, ret);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -153,7 +156,8 @@ struct ITA_Fixture
         std::ostringstream os_test;
         auto hoisted = ITA_hoisted(symbols);
         for (auto const& s : nulls)
-            hoisted.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
+            hoisted.symbols_.table_.emplace(
+                s, credence::language::datatype::NULL_LITERAL);
         auto test_instructions = hoisted.build_from_return_statement(node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -169,7 +173,8 @@ struct ITA_Fixture
         std::ostringstream os_test;
         auto hoisted = ITA_hoisted(symbols);
         for (auto const& s : nulls)
-            hoisted.symbols_.table_.emplace(s, credence::value::NULL_LITERAL);
+            hoisted.symbols_.table_.emplace(
+                s, credence::language::datatype::NULL_LITERAL);
         auto test_instructions = hoisted.build_from_rvalue_statement(node);
         for (auto const& inst : test_instructions) {
             EMIT(os_test, inst);
@@ -1486,12 +1491,15 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_extrn_statement")
 
     CHECK_THROWS(ita.build_from_extrn_statement(obj["test"], instructions));
 
-    ita.globals_.addr_.emplace(
-        "a", credence::value::Array{ credence::value::NULL_LITERAL });
-    ita.globals_.addr_.emplace(
-        "b", credence::value::Array{ credence::value::NULL_LITERAL });
-    ita.globals_.addr_.emplace(
-        "c", credence::value::Array{ credence::value::NULL_LITERAL });
+    ita.globals_.addr_.emplace("a",
+        credence::language::datatype::Array{
+            credence::language::datatype::NULL_LITERAL });
+    ita.globals_.addr_.emplace("b",
+        credence::language::datatype::Array{
+            credence::language::datatype::NULL_LITERAL });
+    ita.globals_.addr_.emplace("c",
+        credence::language::datatype::Array{
+            credence::language::datatype::NULL_LITERAL });
 
     CHECK_NOTHROW(ita.build_from_extrn_statement(obj["test"], instructions));
 
@@ -4227,11 +4235,11 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_auto_statement")
     CHECK(ita_.symbols_.table_.contains("y") == true);
     CHECK(ita_.symbols_.table_.contains("z") == true);
 
-    value::Literal empty_value =
-        std::make_pair(std::monostate(), value::TYPE_LITERAL.at("null"));
-    value::Literal word_value =
-        std::make_pair("__WORD__", value::TYPE_LITERAL.at("word"));
-    value::Literal byte_value = std::make_pair(
+    language::datatype::Literal empty_value = std::make_pair(
+        std::monostate(), language::datatype::TYPE_LITERAL.at("null"));
+    language::datatype::Literal word_value =
+        std::make_pair("__WORD__", language::datatype::TYPE_LITERAL.at("word"));
+    language::datatype::Literal byte_value = std::make_pair(
         static_cast<unsigned char>('0'), std::make_pair("byte", 50));
 
     CHECK(ita_.symbols_.table_["x"] == byte_value);
