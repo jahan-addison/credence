@@ -117,6 +117,10 @@ void Syscall_Invocation_Inserter::make_syscall(
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::BSD,
         target::common::assembly::Arch_Type::ARM64);
+#elif defined(_WIN32) || defined(_WIN64)
+    auto syscall_list = target::common::syscall_ns::get_syscall_list(
+        target::common::assembly::OS_Type::Linux,
+        target::common::assembly::Arch_Type::ARM64);
 #endif
 
     credence_assert(syscall_list.contains(syscall));
@@ -139,6 +143,10 @@ void Syscall_Invocation_Inserter::make_syscall(
     target::arm64::assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x16, syscall_number);
+#elif defined(_WIN32) || defined(_WIN64)
+    assembly::Storage syscall_number =
+        target::common::assembly::make_numeric_immediate(syscall_entry[0]);
+    arm64_add__asm(instructions, mov, x8, syscall_number);
 #else
     credence_error("Operating system not supported");
 #endif
@@ -149,6 +157,10 @@ void Syscall_Invocation_Inserter::make_syscall(
 #elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0x80"));
+#elif defined(_WIN32) || defined(_WIN64)
+    arm64_add__asm(
+        instructions, svc, common::assembly::make_direct_immediate("#0"));
+
 #endif
 }
 

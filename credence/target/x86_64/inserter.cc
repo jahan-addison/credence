@@ -359,7 +359,12 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::X8664))
         return get_operand_storage_from_return();
-
+#elif defined(_WIN32) || defined(_WIN64)
+    if (!stack_frame_.tail.empty() and
+        not common::runtime::is_stdlib_function(stack_frame_.tail,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::X8664))
+        return get_operand_storage_from_return();
 #endif
 
     if (type::is_unary_expression(rvalue)) {
@@ -1060,7 +1065,10 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::X8664);
-
+#elif defined(_WIN32) || defined(_WIN64)
+        return common::runtime::is_stdlib_function(label,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::X8664);
 #endif
     };
 

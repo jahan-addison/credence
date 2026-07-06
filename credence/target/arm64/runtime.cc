@@ -285,6 +285,9 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
 #elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
     auto call_immediate = common::assembly::make_array_immediate(
         fmt::format("_{}", syscall_function));
+#elif defined(_WIN32) || defined(_WIN64)
+    auto call_immediate =
+        common::assembly::make_array_immediate(syscall_function);
 #endif
     arm64_add__asm(instructions, bl, call_immediate);
 }

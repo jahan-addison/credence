@@ -132,7 +132,7 @@ if(RE2C_EXECUTABLE)
     COMMENT "Regenerating B language lexer (re2c) from lexer.re")
 else()
   message(
-    STATUS "re2c not found; `regenerate_lexer` target unavailable (lexer.cc is "
+    STATUS "re2c not found. `regenerate_lexer` target unavailable (lexer.cc is "
            "already generated and committed, so this only matters if you edit "
            "lexer.re). Install with e.g. `brew install re2c`.")
 endif()

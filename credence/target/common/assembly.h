@@ -44,10 +44,7 @@
  *
  ****************************************************************************/
 
-// -----------------------------
 // Immediate relational utilities
-// -----------------------------
-// These macros rely on matchit (namespace m::) being available in the includer.
 
 #define make_integral_relational_entry(T, op)                   \
     m::pattern | std::string{ STRINGIFY(T) } = [&] {            \
@@ -89,10 +86,7 @@
 #define alignment__16_integer() \
     target::common::assembly::make_u32_int_immediate(16)
 
-// ---------------------------------
 // Register and directive print macros
-// ---------------------------------
-
 #define COMMON_REGISTER_OSTREAM(rr, reg) \
     case rr(reg):                        \
         os << STRINGIFY(reg);            \
@@ -230,6 +224,8 @@ constexpr OS_Type get_os_type()
 
 #elif defined(__APPLE__) || defined(__bsdi__)
     return OS_Type::BSD;
+#elif defined(_WIN32) || defined(_WIN64)
+    return OS_Type::Linux;
 #endif
 }
 

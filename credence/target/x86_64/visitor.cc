@@ -206,6 +206,10 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
         return common::runtime::is_syscall_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::X8664);
+#elif defined(_WIN32) || defined(_WIN64)
+        return common::runtime::is_syscall_function(label,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::X8664);
 #endif
     };
     auto is_stdlib_function = [&](Label const& label) {
@@ -218,7 +222,10 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::X8664);
-
+#elif defined(_WIN32) || defined(_WIN64)
+        return common::runtime::is_stdlib_function(label,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::X8664);
 #endif
     };
     m::match(function_name)(

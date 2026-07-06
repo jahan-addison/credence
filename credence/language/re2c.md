@@ -1,12 +1,13 @@
 ### Re2c
 
+#### Playground: https://re2c.org/playground
 
 #### Basic usage
 
 1. Create a source file with a `/*!re2c ... */` block wherever you want a scan point. Inside it: `name = pattern;` definitions, then `pattern_or_name { action }` rules.
 2. re2c matches the *longest* rule at the current position ("maximal munch"). Two rules matching the same length are broken by declaration order, not by which pattern is "more specific."
-3. Configure how re2c talks to your surrounding code with `re2c:define:X = Y;` directives, most commonly `YYCTYPE` (character type) and `YYCURSOR`/`YYMARKER`/`YYLIMIT` (the scan cursor, backtrack marker, and end-of-buffer pointer).
-4. Generate with `re2c -o output.cc input.re`, then compile the *output*. Never hand-edit generated code - see the warning at the top of `lexer.re`.
+3. Configure how re2c talks to your surrounding code with `re2c:define:X = Y;` directives, most commonly `YYCTYPE` (character type) and `YYCURSOR`, `YYMARKER`, `YYLIMIT` (the scan cursor, backtrack marker, and end-of-buffer pointer).
+4. Generate with `re2c -o output.cc input.re`, then compile the *output*.
 
 #### Example from `lexer.re`:
 

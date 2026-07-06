@@ -170,6 +170,10 @@ void make_syscall(
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::BSD,
         target::common::assembly::Arch_Type::X8664);
+#elif defined(_WIN32) || defined(_WIN64)
+    auto syscall_list = target::common::syscall_ns::get_syscall_list(
+        target::common::assembly::OS_Type::Linux,
+        target::common::assembly::Arch_Type::X8664);
 #endif
 
     credence_assert(syscall_list.contains(syscall));
@@ -191,6 +195,9 @@ void make_syscall(
     auto syscall_number = target::common::assembly::make_numeric_immediate(
         target::common::syscall_ns::x86_64::bsd_ns::SYSCALL_CLASS_UNIX +
         syscall_entry[0]);
+#elif defined(_WIN32) || defined(_WIN64)
+    auto syscall_number =
+        target::common::assembly::make_numeric_immediate(syscall_entry[0]);
 #endif
 
     x8664_add__asm(instructions, mov, rax, syscall_number);

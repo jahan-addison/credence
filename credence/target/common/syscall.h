@@ -67,9 +67,9 @@ namespace arm64::linux_ns {
  * into x0, x1, x2, x3, x4, x5. Then you execute the svc #0 instruction.
  *
  * SYSCALL REGISTER CONVENTIONS (ARM64 Linux)
- * ------------------------------------------------------------------------------------------------------
- * REGISTER | PURPOSE / ROLE                | CONTENT DURING SYSCALL
- * ------------------------------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
+ * REGISTER | ROLE                          | CONTENT DURING SYSCALL
+ * --------------------------------------------------------------------------
  * x8       | Syscall Number                | The syscall number
  * x0       | Argument 1 / Return Value     | The first parameter / return value
  * x1       | Argument 2                    | The second parameter
@@ -77,7 +77,7 @@ namespace arm64::linux_ns {
  * x3       | Argument 4                    | The fourth parameter
  * x4       | Argument 5                    | The fifth parameter
  * x5       | Argument 6                    | The sixth parameter
- * ------------------------------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * NOTES:
  * - The svc #0 instruction is used for syscalls on ARM64 Linux.
  * - Return value is placed in x0. Negative values indicate errors.
@@ -750,9 +750,9 @@ constexpr uint32_t SYSCALL_CLASS_UNIX = 0x80000000;
  * into x0, x1, x2, x3, x4, x5. Then you execute the svc #0x80 instruction.
  *
  * SYSCALL REGISTER CONVENTIONS (ARM64 Darwin)
- * ------------------------------------------------------------------------------------------------------
- * REGISTER | PURPOSE / ROLE                | CONTENT DURING SYSCALL
- * ------------------------------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
+ * REGISTER | PURPOSE                       | CONTENT DURING SYSCALL
+ * --------------------------------------------------------------------------
  * x16      | Syscall Number                | Syscall Number
  * x0       | Argument 1 / Return Value     | The first parameter / return value
  * x1       | Argument 2                    | The second parameter
@@ -760,7 +760,7 @@ constexpr uint32_t SYSCALL_CLASS_UNIX = 0x80000000;
  * x3       | Argument 4                    | The fourth parameter
  * x4       | Argument 5                    | The fifth parameter
  * x5       | Argument 6                    | The sixth parameter
- * ------------------------------------------------------------------------------------------------------
+ * --------------------------------------------------------------------------
  * NOTES:
  * - The svc #0x80 instruction is used for syscalls on ARM64 Darwin.
  * - Errors are indicated by the carry flag being set after the syscall returns.

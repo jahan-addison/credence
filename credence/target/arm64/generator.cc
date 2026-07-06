@@ -298,6 +298,8 @@ void Data_Emitter::emit_data_section(std::ostream& os)
     os << assembly::Directive::data;
 #elif defined(__APPLE__) || defined(__bsdi__)
     os << ".section	__TEXT,__cstring,cstring_literals";
+#elif defined(_WIN32) || defined(_WIN64)
+    os << assembly::Directive::data;
 #endif
     assembly::newline(os, 2);
 
@@ -392,6 +394,8 @@ void emit_arm64_alignment_directive(std::ostream& os,
     os << assembly::tabwidth(4) << ".align " << align;
 #elif defined(__APPLE__) || defined(__bsdi__)
     os << assembly::tabwidth(4) << ".p2align " << align;
+#elif defined(_WIN32) || defined(_WIN64)
+    os << assembly::tabwidth(4) << ".align " << align;
 #endif
     assembly::newline(os, newline);
 }
@@ -403,6 +407,8 @@ void insert_arm64_alignment_directive(assembly::Directives& instructions,
     assembly::inserter(instructions, assembly::align(std::to_string(align)));
 #elif defined(__APPLE__) || defined(__bsdi__)
     assembly::inserter(instructions, assembly::p2align(std::to_string(align)));
+#elif defined(_WIN32) || defined(_WIN64)
+    assembly::inserter(instructions, assembly::align(std::to_string(align)));
 #endif
 }
 
@@ -798,6 +804,8 @@ void Text_Emitter::emit_text_directives(std::ostream& os)
     os << assembly::Directive::text << std::endl;
 #elif defined(__APPLE__) || defined(__bsdi__)
     os << ".section	__TEXT,__text,regular,pure_instructions" << std::endl;
+#elif defined(_WIN32) || defined(_WIN64)
+    os << assembly::Directive::text << std::endl;
 #endif
     assembly::newline(os, 1);
     emit_arm64_alignment_directive(os, 3, 2);

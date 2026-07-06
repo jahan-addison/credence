@@ -26,8 +26,16 @@ jobs:
           - platform: { name: "x86_64 Linux", os: ubuntu-latest, arch: x86_64 }
             compiler: clang++
             cxx: clang++
+          # arm64 Linux
+          # - platform: { name: "ARM64 Linux", os: ubuntu-24.04-arm, arch: arm64 }
+          #   compiler: g++
+          #   cxx: g++
+          # - platform: { name: "ARM64 Linux", os: ubuntu-24.04-arm, arch: arm64 }
+          #   compiler: clang++
+          #   cxx: clang++
+
           # x86_64 macOS
-          - platform: { name: "x86_64 macOS", os: macos-latest, arch: x86_64 }
+          - platform: { name: "x86_64 macOS", os: macos-26-intel, arch: x86_64 }
             compiler: clang++
             cxx: clang++
           # ARM64 macOS
@@ -53,7 +61,7 @@ jobs:
 
       - name: install extras macos
         if: |
-          matrix.platform.name == 'x86_64 macOS' &&
+          matrix.platform.name == 'ARM64 macOS' &&
           matrix.compiler == 'clang++'
         run: |
           brew install llvm@20 lcov
@@ -68,7 +76,7 @@ jobs:
           COVERAGE=""
           if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
             SANDFLAGS="-DUSE_SANITIZER=Address;Undefined"
-            if [[ "${{ matrix.platform.name }}" == "x86_64 macOS" ]]; then
+            if [[ "${{ matrix.platform.name }}" == "ARM64 macOS" ]]; then
               COVERAGE="-DENABLE_TEST_COVERAGE=ON"
               export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
             fi
@@ -76,7 +84,7 @@ jobs:
           cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS $COVERAGE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: build
-        run: cmake --build build
+        run: cmake --build build  -j$(nproc || sysctl -n hw.ncpu)
 
       - name: setup assembler
         run: |
@@ -103,17 +111,17 @@ jobs:
       - name: build coverage
         if: |
           github.ref == 'refs/heads/master' &&
-          matrix.platform.name == 'x86_64 macOS' &&
+          matrix.platform.name == 'ARM64 macOS' &&
           matrix.compiler == 'clang++'
         run: |
-          cmake --build build
+          cmake --build build  -j$(nproc || sysctl -n hw.ncpu)
           cmake --build build --target coverage
 
       - name: deploy
         uses: peaceiris/actions-gh-pages@v4
         if: |
           github.ref == 'refs/heads/master' &&
-          matrix.platform.name == 'x86_64 macOS' &&
+          matrix.platform.name == 'ARM64 macOS' &&
           matrix.compiler == 'clang++'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

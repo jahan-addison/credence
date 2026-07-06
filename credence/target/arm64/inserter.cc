@@ -952,6 +952,10 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
                         common::assembly::OS_Type::BSD,
                         common::assembly::Arch_Type::ARM64))
                     return;
+#elif defined(_WIN32) || defined(_WIN64)
+                if (common::runtime::is_stdlib_function(stack_frame_.tail,
+                        common::assembly::OS_Type::Linux,
+                        common::assembly::Arch_Type::ARM64))
 #endif
                 credence_assert(
                     table->get_functions().contains(stack_frame_.tail));
@@ -1175,6 +1179,11 @@ void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
             common::assembly::Arch_Type::ARM64) and
         stack_frame_.tail != "getchar")
         return;
+#elif defined(_WIN32) || defined(_WIN64)
+    if (common::runtime::is_stdlib_function(stack_frame_.tail,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::ARM64) and
+        stack_frame_.tail != "getchar")
 #endif
     if (stack_frame_.tail != "getchar" and
         not table->get_functions().contains(stack_frame_.tail))

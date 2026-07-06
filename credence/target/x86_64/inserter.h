@@ -117,9 +117,7 @@ assembly::Operand_Size get_operand_size_from_storage(
     assembly::Storage const& storage,
     memory::Stack_Pointer& stack);
 
-/************************/
-// ---------------------
-/************************/
+///////////////////////////////////////////////////////////////////////////////
 
 inline auto get_rvalue_pair_as_immediate(RValue const& lhs, RValue const& rhs)
 {
