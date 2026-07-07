@@ -572,11 +572,13 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                         assembly::get_operand_size_from_size(
                             devices.get_size_from_rvalue_reference(rhs)));
                     arm64_add__asm(instructions, mov, acc, rhs_s);
+                    // The instruction this expression computes for is
+                    // tracked as living in acc, not rhs_s's freshly-loaded
+                    // register - the actual op below must target acc too,
+                    // or the next instruction's temporary lookup and this
+                    // one's real result diverge.
+                    rhs_s = acc;
                 }
-                if (is_temporary(lhs))
-                    rhs_s = accumulator.get_accumulator_register_from_size(
-                        assembly::get_operand_size_from_size(
-                            devices.get_size_from_rvalue_reference(rhs)));
             },
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, false)) =

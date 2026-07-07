@@ -16,7 +16,7 @@
 #include <credence/error.h>             // for assert_equal_impl, credence_...
 #include <credence/ir/temporary.h>      // for ast_to_ita_instructions
 #include <credence/language/datatype.h> // for datatype_to_string, WORD_LIT...
-#include <credence/language/resolver.h> // for Expression_Resolver
+#include <credence/language/node.h>     // for Node_Parser
 #include <credence/symbol.h>            // for Symbol_Table
 #include <credence/types.h>             // for get_unary_operator, is_unary...
 #include <credence/util.h>              // for range_contains, AST_Node
@@ -234,7 +234,7 @@ void ITA::build_from_vector_definition(Node const& node)
 
     globals_.set_symbol_by_name(name, values_at);
     for (auto& child_node : right_child_node.array_range()) {
-        auto rvalue = language::Expression_Resolver::parse(
+        auto rvalue = language::Node_Parser::parse(
             child_node, internal_symbols_, symbols_, globals_);
         auto datatype = std::get<language::datatype::Literal>(rvalue.value);
         values_at.emplace_back(datatype);
@@ -406,8 +406,8 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
     Instructions& instructions)
 {
     std::string temp_lvalue{};
-    auto rvalue = language::Expression_Resolver::parse(
-        block, internal_symbols_, symbols_);
+    auto rvalue =
+        language::Node_Parser::parse(block, internal_symbols_, symbols_);
     auto comparator_instructions = ast_to_ita_instructions(
         symbols_, block, internal_symbols_, &temporary, &identifier)
                                        .first;
@@ -468,8 +468,8 @@ ITA::Branch_Instructions ITA::build_from_case_statement(Node const& node,
     auto statements = node["right"].to_deque();
     auto case_statement = detail::make_block_statement(statements);
 
-    auto condition = language::Expression_Resolver::parse(
-        node["left"], internal_symbols_, symbols_);
+    auto condition =
+        language::Node_Parser::parse(node["left"], internal_symbols_, symbols_);
 
     predicate_instructions.emplace_back(make_quadruple(Instruction::JMP_E,
         switch_label,
@@ -639,7 +639,7 @@ Instructions ITA::build_from_goto_statement(Node const& node)
     credence_assert_equal(node["root"].to_string(), "goto");
     credence_assert(node.has_key("left"));
     Instructions instructions{};
-    language::Expression_Resolver parser{ internal_symbols_, symbols_ };
+    language::Node_Parser parser{ internal_symbols_, symbols_ };
     auto statement = node["left"];
     auto label = statement.to_deque().front().to_string();
     if (!parser.is_defined(label))

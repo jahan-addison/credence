@@ -25,7 +25,7 @@
 
 /****************************************************************************
  *
- * Shunting-yard queue of the Expression type in resolver.h
+ * Shunting-yard queue of the Expression type in node.h
  *
  * An extension to Shunting-yard to build a queue of expressions ordered by
  * operator precedence, extended for function invocation and function
@@ -91,17 +91,44 @@ class Shunting_Yard
     void shunt_argument_expressions_into_queue(
         datatype::Datatype::Function const& s);
 
+    ///////////////////////////////////////////////////////////////////////////////
+    // A binary Relation chain (a OP1 b OP2 c ...) parses as nested Relations
+    // down the right side, in source order but with no real precedence -
+    // e.g. "a * b + c" is Relation(*, a, Relation(+, b, c)), even though *
+    // and + are siblings, not nested. This Flattens that side back into the
+    // flat sequence it represents and runs ordinary left-to-right shunting-yard
+    // over it, instead of trying to balance precedence against the parser's
+    // arbitrary nesting.
+    ///////////////////////////////////////////////////////////////////////////////
+    void shunt_relation_chain_into_queue(type::Operator op1,
+        std::vector<datatype::Datatype::Pointer> const& blocks,
+        Operator_Stack* operator_stack = nullptr);
+
     inline std::unique_ptr<Container> get()
     {
         return std::make_unique<Container>(queue_);
+    }
+    ///////////////////////////////////////////////////////////////////////////////
+    // Once an expression is fully shunted, its operator stack may still hold
+    // operators nothing further will ever compare against (there's no next
+    // token to trigger balance_operator_precedence again) - drain it into
+    // the queue in LIFO order, same as reaching end-of-input in a standard
+    // shunting-yard. Defaults to operator_stack_ - pass the local stack used
+    // by shunt_argument_expressions_into_queue to drain that one instead.
+    ///////////////////////////////////////////////////////////////////////////////
+    inline void drain_operator_stack(Operator_Stack* operator_stack = nullptr)
+    {
+        Operator_Stack& stack_ref =
+            operator_stack != nullptr ? *operator_stack : operator_stack_;
+        while (!stack_ref.empty()) {
+            queue_.emplace_back(stack_ref.top());
+            stack_ref.pop();
+        }
     }
 
   private:
     void balance_operator_precedence(type::Operator op1);
     void balance_queue();
-    void balance_operator_precedence(Operator_Stack* operator_stack,
-        type::Operator op1);
-    void balance_queue(Operator_Stack* operator_stack);
 
   private:
     Container queue_;

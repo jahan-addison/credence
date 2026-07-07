@@ -4,7 +4,8 @@ Checks: >
   bugprone-*,
   performance-*,
   portability-*,
-  -bugprone-easily-swappable-parameters
+  -bugprone-easily-swappable-parameters,
+  -portability-avoid-pragma-once
 WarningsAsErrors: ''
 HeaderFilterRegex: '^(?!.*(\.cache/CPM|/build/)).*$'
 FormatStyle: file

@@ -1,7 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
 #include <credence/language/datatype.h> // for credence::language::datatype::Literal, credence::language::datatype::Datatype, Type_, Byte
-#include <credence/language/resolver.h> // for language::Expression_Resolver
+#include <credence/language/node.h>     // for language::Node_Parser
 #include <credence/symbol.h>            // for Symbol_Table
 #include <deque>                        // for deque
 #include <easyjson.h>                   // for JSON
@@ -73,7 +73,7 @@ struct Fixture
     ~Fixture() = default;
 };
 
-TEST_CASE("resolver.cc: Expression_Resolver::rvalue_expression")
+TEST_CASE("node.cc: Node_Parser::rvalue_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -170,7 +170,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::rvalue_expression")
         ": 10\n                  },\n                  \"root\" : "
         "[\"^\"]\n    "
         "            }]");
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     credence::language::datatype::Literal null =
         language::datatype::NULL_LITERAL;
 
@@ -184,7 +184,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::rvalue_expression")
     }
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::function_expression")
+TEST_CASE("node.cc: Node_Parser::function_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -205,7 +205,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::function_expression")
         "   \"node\" : \"lvalue\",\n                      \"root\" : "
         "\"z\"\n   "
         "                 }]\n}\n                    ");
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     credence::language::datatype::Literal null =
         language::datatype::NULL_LITERAL;
 
@@ -229,7 +229,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::function_expression")
               .first == "z");
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::evaluated_expression")
+TEST_CASE("node.cc: Node_Parser::evaluated_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
@@ -260,7 +260,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::evaluated_expression")
         "          \"root\" : [\"*\"]\n                  }\n              "
         "  "
         "}]");
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     credence::language::datatype::Literal null =
         language::datatype::NULL_LITERAL;
 
@@ -281,7 +281,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::evaluated_expression")
               .first == "*x");
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_relation_expression")
+TEST_CASE("node.cc: Node_Parser::from_relation_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -344,7 +344,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_relation_expression")
         "\"integer_literal\",\n      \"root\": 10\n    },\n    \"root\": "
         "[\n    "
         "  \"<=\"\n    ]\n  }\n]");
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     credence::language::datatype::Literal null =
         language::datatype::NULL_LITERAL;
 
@@ -462,7 +462,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_relation_expression")
                   .first) == 10);
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_unary_expression")
+TEST_CASE("node.cc: Node_Parser::from_unary_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -532,7 +532,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_unary_expression")
         " "
         "    "
         "    \"root\" : [\"!\"]\n                }]");
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
 
     credence::language::datatype::Literal null =
         language::datatype::NULL_LITERAL;
@@ -613,8 +613,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_unary_expression")
             .first == "x");
 }
 
-TEST_CASE_FIXTURE(Fixture,
-    "resolver.cc: Expression_Resolver::from_assignment_expression")
+TEST_CASE_FIXTURE(Fixture, "node.cc: Node_Parser::from_assignment_expression")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
@@ -634,7 +633,7 @@ TEST_CASE_FIXTURE(Fixture,
         "   },\n                  \"root\" : [\"=\", null]\n              "
         " "
         " }");
-    auto temp = language::Expression_Resolver(obj["symbols"]);
+    auto temp = language::Node_Parser(obj["symbols"]);
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression_node(obj["test"]));
 
@@ -661,18 +660,18 @@ TEST_CASE_FIXTURE(Fixture,
           assigned_type);
 }
 
-TEST_CASE_FIXTURE(Fixture, "resolver.cc: Expression_Resolver::is_symbol")
+TEST_CASE_FIXTURE(Fixture, "node.cc: Node_Parser::is_symbol")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
     obj["test"] = credence::util::AST_Node::load("{\"node\":  \"lvalue\","
                                                  "\"root\": \"x\""
                                                  "}");
-    auto temp = language::Expression_Resolver(obj["test"]);
+    auto temp = language::Node_Parser(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
 
-    auto temp2 = language::Expression_Resolver(obj["symbols"]);
+    auto temp2 = language::Node_Parser(obj["symbols"]);
     CHECK(temp2.is_symbol(obj["test"]) == false);
 
     credence::language::datatype::Literal value_type =
@@ -681,7 +680,7 @@ TEST_CASE_FIXTURE(Fixture, "resolver.cc: Expression_Resolver::is_symbol")
     CHECK(temp2.is_symbol(obj["test"]) == true);
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_lvalue_expression")
+TEST_CASE("node.cc: Node_Parser::from_lvalue_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -705,7 +704,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_lvalue_expression")
         "    "
         "  }, {\n                \"node\" : \"lvalue\",\n                "
         "\"root\" : \"z\"\n              }]");
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     credence::language::datatype::Literal empty_value =
         std::make_pair('0', std::make_pair("byte", 50));
     auto lvalues = obj["test"].to_deque();
@@ -726,7 +725,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_lvalue_expression")
     CHECK(test3.second == empty_value);
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_indirect_identifier")
+TEST_CASE("node.cc: Node_Parser::from_indirect_identifier")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -736,7 +735,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_indirect_identifier")
         "               \"node\" : \"indirect_lvalue\",\n                "
         "\"root\" : [\"*\"]\n              }");
 
-    auto temp = language::Expression_Resolver(obj["test"]);
+    auto temp = language::Node_Parser(obj["test"]);
     CHECK_THROWS(temp.from_indirect_identifier_node(obj["test"]));
     credence::language::datatype::Literal value =
         std::make_pair('0', std::make_pair("byte", 50));
@@ -744,7 +743,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_indirect_identifier")
     auto test = temp.from_indirect_identifier_node(obj["test"]);
     CHECK(test == value);
 }
-TEST_CASE("resolver.cc: Expression_Resolver::from_vector_idenfitier")
+TEST_CASE("node.cc: Node_Parser::from_vector_idenfitier")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -757,7 +756,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_vector_idenfitier")
         " "
         "\"root\" : \"x\"\n              }");
 
-    auto temp = language::Expression_Resolver(obj["test"]);
+    auto temp = language::Node_Parser(obj["test"]);
     CHECK_THROWS(temp.from_vector_idenfitier_node(obj["test"]));
     credence::language::datatype::Literal test =
         std::make_pair('0', std::make_pair("byte", 50));
@@ -765,7 +764,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_vector_idenfitier")
     CHECK(temp.from_vector_idenfitier_node(obj["test"]) == test);
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_constant_expression")
+TEST_CASE("node.cc: Node_Parser::from_constant_expression")
 {
     credence::util::AST_Node obj;
     obj["test"] =
@@ -773,7 +772,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_constant_expression")
                                        "\"root\": 10"
                                        "}");
 
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     auto data = temp.from_constant_expression_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
@@ -781,7 +780,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_constant_expression")
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_integer_literal")
+TEST_CASE("node.cc: Node_Parser::from_integer_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] =
@@ -789,7 +788,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_integer_literal")
                                        "\"root\": 10"
                                        "}");
 
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     auto data = temp.from_integer_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<int>(value) == 10);
@@ -797,7 +796,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_integer_literal")
     CHECK(type.second == sizeof(int));
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_float_literal")
+TEST_CASE("node.cc: Node_Parser::from_float_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] =
@@ -805,7 +804,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_float_literal")
                                        "\"root\": 10.0002"
                                        "}");
 
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     auto data = temp.from_float_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<float>(value) == 10.0002f);
@@ -813,7 +812,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_float_literal")
     CHECK(type.second == sizeof(float));
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_double_literal")
+TEST_CASE("node.cc: Node_Parser::from_double_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] =
@@ -821,7 +820,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_double_literal")
                                        "\"root\": 10.05"
                                        "}");
 
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     auto data = temp.from_double_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<double>(value) == 10.05);
@@ -829,7 +828,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_double_literal")
     CHECK(type.second == sizeof(double));
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_string_literal")
+TEST_CASE("node.cc: Node_Parser::from_string_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] = credence::util::AST_Node::load(
@@ -837,7 +836,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_string_literal")
         "     "
         " \"root\" : \"\\\"hello world\\\"\"\n                }");
 
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     auto data = temp.from_string_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<std::string>(value) == "hello world");
@@ -845,7 +844,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_string_literal")
     CHECK(type.second == std::string{ "hello world" }.size());
 }
 
-TEST_CASE("resolver.cc: Expression_Resolver::from_constant_literal")
+TEST_CASE("node.cc: Node_Parser::from_constant_literal")
 {
     credence::util::AST_Node obj;
     obj["test"] =
@@ -853,7 +852,7 @@ TEST_CASE("resolver.cc: Expression_Resolver::from_constant_literal")
                                        "\"root\": \"x\""
                                        "}");
 
-    auto temp = language::Expression_Resolver(obj);
+    auto temp = language::Node_Parser(obj);
     auto data = temp.from_constant_literal_node(obj["test"]);
     auto [value, type] = data;
     CHECK(std::get<char>(value) == 'x');

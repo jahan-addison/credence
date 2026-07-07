@@ -1,7 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
 #include <credence/language/datatype.h> // for RValue, Type_
-#include <credence/language/resolver.h> // for Expression_Resolver
+#include <credence/language/node.h>     // for Node_Parser
 
 #include <credence/language/shunting_yard.h> // for rvalues_to_queue, queue_of_rvalues_to_s...
 
@@ -351,7 +351,7 @@ TEST_CASE("shunting_yard.cc: rvalues_to_queue")
         "    \"root\" : \"exp\"\n                  },\n                  "
         "\"root\" : [\"=\", null]\n                }");
 
-    language::Expression_Resolver parser{ obj };
+    language::Node_Parser parser{ obj };
     language::datatype::Literal null = language::datatype::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);
@@ -361,8 +361,8 @@ TEST_CASE("shunting_yard.cc: rvalues_to_queue")
     parser.symbols_.table_.emplace("y", null);
 
     std::string complex_expected =
-        "(5:int:4) (5:int:4) exp _p1_1 (2:int:4) = _p2_2 (5:int:4) = _p1_1 "
-        "_p2_2 PUSH PUSH CALL (4:int:4) (2:int:4) ^ ~ / + * ";
+        "(5:int:4) (5:int:4) * exp _p1_1 (2:int:4) = _p2_2 (5:int:4) = _p1_1 "
+        "_p2_2 PUSH PUSH CALL (4:int:4) ~ / + (2:int:4) ^ ";
     std::string unary_expected = "(5:int:4) ~ ";
     std::string equal_expected = "x (5:int:4) (5:int:4) + = ";
     std::string unary_relation_expected = "(5:int:4) ~ (2:int:4) ^ ";

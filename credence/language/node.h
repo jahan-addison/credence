@@ -26,12 +26,14 @@
 
 /****************************************************************************
  *
- * Expression Resolver AST - LL(1) parser
+ * Node_Parser - second pass, AST_Node -> Datatype
  *
- * Parses right-associative expression nodes and value category types from
- * the frontend into into a well-formed version by operator precedence.
- *
- * Note that statements and non-expression nodes are omitted here.
+ * Parser (parser.cc) produces a right-associative AST_Node tree with no
+ * real operator precedence. Node_Parser walks that tree's expression
+ * nodes into the algebraic Datatype type, checking lvalues against
+ * declared storage along the way. Statement and non-expression nodes are
+ * out of scope here - Shunting_Yard (shunting_yard.h) is the next pass,
+ * fixing precedence over the Datatype tree this class produces.
  *
  *   B source:  x = 5 + 3 * 2
  *
@@ -39,7 +41,7 @@
  *               "left": {"name": "x"},
  *               "right": {"node": "binary_op", "op": "+", ...}}
  *
- *   Example:    Assignment(lvalue="x",
+ *   Datatype:  Assignment(lvalue="x",
  *                        rvalue=BinaryOp(ADD,
  *                                       Literal(5),
  *                                       BinaryOp(MUL, ...)))
@@ -50,17 +52,17 @@ namespace credence::language {
 
 /**
  * @brief
- * LL(1) top-down Parser of expression ast nodes to
- * algebraic data structures.
+ * Second-pass parser: AST_Node expression nodes to the algebraic
+ * Datatype type, checking lvalue declarations along the way.
  *
- * See types.h for details.
+ * See datatype.h for details.
  */
-class Expression_Resolver
+class Node_Parser
 {
 
   public:
-    Expression_Resolver(Expression_Resolver const&) = delete;
-    Expression_Resolver& operator=(Expression_Resolver const&) = delete;
+    Node_Parser(Node_Parser const&) = delete;
+    Node_Parser& operator=(Node_Parser const&) = delete;
 
   private:
     using Expression = datatype::Datatype;
@@ -72,14 +74,14 @@ class Expression_Resolver
     using Parameters = std::vector<Expression_PTR>;
 
   public:
-    explicit Expression_Resolver(util::AST_Node const& internal_symbols,
+    explicit Node_Parser(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
 
-    explicit Expression_Resolver(util::AST_Node const& internal_symbols,
+    explicit Node_Parser(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols,
         Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
@@ -88,7 +90,7 @@ class Expression_Resolver
     {
     }
 
-    ~Expression_Resolver() = default;
+    ~Node_Parser() = default;
 
   public:
     static inline Expression parse(util::AST_Node const& node,
@@ -96,7 +98,7 @@ class Expression_Resolver
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
     {
-        auto expression = Expression_Resolver{ internals, symbols, globals };
+        auto expression = Node_Parser{ internals, symbols, globals };
         return expression.parse_from_node(node);
     }
 
@@ -179,14 +181,14 @@ class Expression_Resolver
 
 // clang-format on
 
-inline Expression_Resolver::Expression_PTR parse_node_as_expression(
+inline Node_Parser::Expression_PTR parse_node_as_expression(
     util::AST_Node const& node,
     util::AST_Node const& internals,
     Symbol_Table<> const& symbols = {},
     Symbol_Table<> const& globals = {})
 {
     return std::make_shared<datatype::Datatype>(
-        Expression_Resolver::parse(node, internals, symbols, globals));
+        Node_Parser::parse(node, internals, symbols, globals));
 }
 
 } // namespace language

@@ -20,6 +20,7 @@
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/util.h>                   // for AST_Node, range_contains
 #include <initializer_list>                  // for initializer_list
+#include <ostream>                           // for ostream
 #include <stack>                             // for stack
 #include <string>                            // for basic_string, string
 #include <utility>                           // for pair
@@ -160,6 +161,11 @@ constexpr bool is_in_place_unary_operator(language::type::Operator op)
 }
 
 } // namespace detail
+
+// When set, ast_to_ita_instructions writes each expression's queue form
+// here as it's computed - a debug hook into the pass with no effect on
+// the instructions actually returned. Off (nullptr) by default.
+inline std::ostream* queue_dump_stream = nullptr;
 
 Instructions queue_to_ita_instructions(
     language::shunting_yard::detail::Shunting_Yard::Container const& queue,

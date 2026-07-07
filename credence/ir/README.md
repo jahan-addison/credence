@@ -4,6 +4,19 @@ The intermediate representation (IR) is formalized as a linear four-tuple, named
 
 It's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from a [queue of expressions](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/queue.h#L36) and rvalues in reverse polish form. The temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/temporary.h#L68).
 
+```mermaid
+flowchart LR
+    A(queue) -->|ast_to_ita_instructions| B(Temporary)
+    B -->|operand + temporary stacks| C(Quadruples)
+    C -->|ir::Table| D(Object)
+    D -->|checker.h| E[Type-checked ITA]
+
+    style A fill:#2d2d2d,stroke:#888,color:#fff
+    style B fill:#2d2d2d,stroke:#888,color:#fff
+    style C fill:#2d2d2d,stroke:#888,color:#fff
+    style D fill:#2d2d2d,stroke:#888,color:#fff
+    style E fill:#2d2d2d,stroke:#888,color:#fff
+```
 
 ## Instructions
 

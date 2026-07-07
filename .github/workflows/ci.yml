@@ -84,7 +84,7 @@ jobs:
           cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS $COVERAGE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: build
-        run: cmake --build build  -j$(nproc || sysctl -n hw.ncpu)
+        run: cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
 
       - name: setup assembler
         run: |
@@ -114,7 +114,7 @@ jobs:
           matrix.platform.name == 'ARM64 macOS' &&
           matrix.compiler == 'clang++'
         run: |
-          cmake --build build  -j$(nproc || sysctl -n hw.ncpu)
+          cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
           cmake --build build --target coverage
 
       - name: deploy

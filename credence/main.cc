@@ -13,6 +13,7 @@
 
 #include <credence/error.h>                   // for Credence_Exception
 #include <credence/ir/table.h>                // for emit
+#include <credence/ir/temporary.h>            // for queue_dump_stream
 #include <credence/language/parser.h>         // for Parser
 #include <credence/language/symbol_table.h>   // for Symbol_Table_Builder
 #include <credence/target/arm64/generator.h>  // for emit
@@ -37,13 +38,14 @@
  * The compiler works in 3 stages:
  *
  * 1. Lexer/Parser: re2c Lexer Generator and Recursive-Descent Parser
- * 2. IR Generation: Converts AST to ITA, see ir/readme.md for details
+ *    See language/README.md for details
+ * 2. IR Generation: Converts AST to ITA, see ir/README.md for details
  * 3. Code Generation: Emits x86-64 or ARM64 assembly from the IR
- *      * See target/readme.md for details
+ *      * See target/README.md for details
  *
  * Example usage:
  *
- * Note: There is a frontend with a linker and assembler installed via the
+ * Note: There is an entry point with a linker and assembler available via the
  * install.sh
  *
  *   $ credence --target x86_64 --output program program.b
@@ -71,7 +73,9 @@ int main(int argc, const char* argv[])
             cxxopts::value<std::string>()->default_value("parser"))("t,target",
             "Target [ir, ast, arm64, x86_64]",
             cxxopts::value<std::string>()->default_value("ir"))("d,debug",
-            "Dump symbol table",
+            "[Debug] Dump symbol table",
+            cxxopts::value<bool>()->default_value("false"))("q,dump-queue",
+            "[Debug] Dump each expression's queue form to stdout",
             cxxopts::value<bool>()->default_value("false"))("o,output",
             "Output file",
             cxxopts::value<std::string>()->default_value("stdout"))(
@@ -86,12 +90,14 @@ int main(int argc, const char* argv[])
             std::cout << options.help() << std::endl;
             exit(0);
         }
-        std::string syntax_tree;
         credence::util::AST_Node ast;
         credence::util::AST_Node symbols;
         auto type = result["ast-loader"].as<std::string>();
         auto target = result["target"].as<std::string>();
         auto output = result["output"].as<std::string>();
+
+        if (result["dump-queue"].as<bool>())
+            credence::ir::queue_dump_stream = &std::cout;
 
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
@@ -114,10 +120,9 @@ int main(int argc, const char* argv[])
         std::ostringstream out_to{};
 
         const std::string_view extension = m::match(target)(
-            m::pattern | m::or_(sv("x86_64"), sv("arm64"), sv("z80")) =
-                [&] { return "bs"; },
             m::pattern |
-                m::or_(sv("ast"), sv("syntax")) = [&] { return "bast"; },
+                m::or_(sv("x86_64"), sv("arm64")) = [&] { return "bs"; },
+            m::pattern | sv("ast") = [&] { return "bast"; },
             m::pattern | m::_ = [&] { return "bo"; });
 
         m::match(target)(
@@ -152,8 +157,6 @@ int main(int argc, const char* argv[])
                     } else
                         out_to << ast["root"] << std::endl;
                 },
-            m::pattern |
-                "syntax" = [&]() { out_to << syntax_tree << std::endl; },
             m::pattern | m::_ =
                 [&]() {
                     std::cerr << "Credence :: Invalid target option"

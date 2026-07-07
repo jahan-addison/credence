@@ -107,11 +107,11 @@ _start:
     mov x29, sp
     mov w9, #1
     mov w10, #5
-    mov w8, w10
-    sub w8, w8, #0
-    add w8, w8, w9
+    mov w8, w9
     mov w7, #10
     mul w8, w8, w7
+    add w8, w8, w10
+    sub w8, w8, #0
     mov w9, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
@@ -134,11 +134,11 @@ _start:
     mov x29, sp
     mov w9, #1
     mov w10, #5
-    mov w8, w10
-    sub w8, w8, #0
-    add w8, w8, w9
+    mov w8, w9
     mov w7, #10
     mul w8, w8, w7
+    add w8, w8, w10
+    sub w8, w8, #0
     mov w9, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
@@ -172,14 +172,13 @@ _start:
     ldr w10, [sp, #24]
     mov w10, #5
     str w10, [sp, #24]
-    ldr w10, [sp, #24]
+    ldr w10, [sp, #20]
     mov w8, w10
-    sub w8, w8, #0
-    ldr w10, [sp, #20]
-    ldr w10, [sp, #20]
-    add w8, w8, w10
     mov w7, #10
     mul w8, w8, w7
+    ldr w10, [sp, #24]
+    add w8, w8, w10
+    sub w8, w8, #0
     ldr w10, [sp, #20]
     mov w10, w8
     str w10, [sp, #20]
@@ -214,14 +213,13 @@ _start:
     ldr w10, [sp, #24]
     mov w10, #5
     str w10, [sp, #24]
-    ldr w10, [sp, #24]
+    ldr w10, [sp, #20]
     mov w8, w10
-    sub w8, w8, #0
-    ldr w10, [sp, #20]
-    ldr w10, [sp, #20]
-    add w8, w8, w10
     mov w7, #10
     mul w8, w8, w7
+    ldr w10, [sp, #24]
+    add w8, w8, w10
+    sub w8, w8, #0
     ldr w10, [sp, #20]
     mov w10, w8
     str w10, [sp, #20]
@@ -262,8 +260,9 @@ _start:
     mov w8, #4
     add w8, w8, #1
     mov w9, w8
-    mov w8, #2
-    sub w8, w8, w9
+    mov w8, w9
+    sub w8, w8, #1
+    add w8, w8, #1
     mov w10, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
@@ -287,8 +286,9 @@ _start:
     mov w8, #4
     add w8, w8, #1
     mov w9, w8
-    mov w8, #2
-    sub w8, w8, w9
+    mov w8, w9
+    sub w8, w8, #1
+    add w8, w8, #1
     mov w10, w8
     ldp x29, x30, [sp], #16
     mov w0, #0

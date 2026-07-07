@@ -12,7 +12,7 @@
 
 cmake_minimum_required(VERSION 3.16...3.29)
 
-set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.12)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
   message(
@@ -23,6 +23,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # set(CMAKE_CXX_COMPILER "/opt/homebrew/bin/g++-15")
 
 project(
@@ -135,6 +136,39 @@ else()
     STATUS "re2c not found. `regenerate_lexer` target unavailable (lexer.cc is "
            "already generated and committed, so this only matters if you edit "
            "lexer.re). Install with e.g. `brew install re2c`.")
+endif()
+
+# ##############################################################################
+# clang-tidy (cmake --build build --target tidy)
+# ##############################################################################
+
+# Files matching this regex are skipped by the `tidy` target below.
+set(CLANG_TIDY_IGNORE_REGEX
+    "^(?!.*/(test|\\.cache)/)(?!.*language/lexer\\.cc).*\\.cc$"
+    CACHE STRING "run-clang-tidy file filter regex")
+
+find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
+find_program(RUN_CLANG_TIDY_EXECUTABLE NAMES run-clang-tidy run-clang-tidy.py)
+if(CLANG_TIDY_EXECUTABLE AND RUN_CLANG_TIDY_EXECUTABLE)
+  include(ProcessorCount)
+  ProcessorCount(NPROC)
+  set(TIDY_COMPILE_COMMANDS_DIR ${CMAKE_BINARY_DIR}/tidy)
+  add_custom_target(
+    tidy
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${TIDY_COMPILE_COMMANDS_DIR}
+    COMMAND
+      ${CMAKE_COMMAND}
+      -DSOURCE_COMPILE_COMMANDS=${CMAKE_BINARY_DIR}/compile_commands.json
+      -DOUTPUT_COMPILE_COMMANDS=${TIDY_COMPILE_COMMANDS_DIR}/compile_commands.json
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dedup_compile_commands.cmake
+    COMMAND ${RUN_CLANG_TIDY_EXECUTABLE} -p ${TIDY_COMPILE_COMMANDS_DIR} -j
+            ${NPROC} -warnings-as-errors=* "${CLANG_TIDY_IGNORE_REGEX}"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running clang-tidy over credence/ sources"
+    VERBATIM)
+else()
+  message(
+    STATUS "clang-tidy or run-clang-tidy not found: `tidy` target unavailable.")
 endif()
 
 # ##############################################################################

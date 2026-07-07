@@ -15,8 +15,8 @@
 
 #include <credence/ir/ita.h>                 // for make_temporary, Instruc...
 #include <credence/language/datatype.h>      // for Datatype, datatype_to_s...
+#include <credence/language/node.h>          // for Node_Parser
 #include <credence/language/operators.h>     // for Operator, operator_to_s...
-#include <credence/language/resolver.h>      // for Expression_Resolver
 #include <credence/language/shunting_yard.h> // for queue_from_expression_o...
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/types.h>                  // for is_temporary
@@ -723,8 +723,8 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
         for (auto& expression : node.array_range()) {
             if (expression.JSON_type() == util::AST_Node::Class::Array) {
                 for (auto& expr : expression.array_range()) {
-                    auto expression = language::Expression_Resolver::parse(
-                        expr, details, symbols);
+                    auto expression =
+                        language::Node_Parser::parse(expr, details, symbols);
                     operands.emplace_back(
                         language::datatype::make_value_type_pointer(
                             expression.value));
@@ -732,22 +732,32 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             } else {
                 operands.emplace_back(
                     language::datatype::make_value_type_pointer(
-                        language::Expression_Resolver::parse(
+                        language::Node_Parser::parse(
                             expression, details, symbols)
                             .value));
             }
         }
         auto queue = language::shunting_yard::queue_from_expression_operands(
             operands, temporary_index, identifier_index);
+        if (queue_dump_stream)
+            *queue_dump_stream
+                << language::shunting_yard::queue_of_expressions_to_string(
+                       *queue)
+                << std::endl;
         auto instructions =
             queue_to_ita_instructions(*queue, details, temporary_index);
         return std::make_pair(instructions, *queue);
 
     } else {
         auto type_pointer = language::datatype::make_value_type_pointer(
-            language::Expression_Resolver::parse(node, details, symbols).value);
+            language::Node_Parser::parse(node, details, symbols).value);
         auto queue = language::shunting_yard::queue_from_expression_operands(
             type_pointer, temporary_index, identifier_index);
+        if (queue_dump_stream)
+            *queue_dump_stream
+                << language::shunting_yard::queue_of_expressions_to_string(
+                       *queue)
+                << std::endl;
         auto instructions =
             queue_to_ita_instructions(*queue, details, temporary_index);
         return std::make_pair(instructions, *queue);

@@ -1,8 +1,26 @@
 # Language Frontend
 
-Initially, the source-to-AST step was an entirely separate older Python project, [augur](https://github.com/jahan-addison/augur), built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11 (the `"python"` `--ast-loader` path in [`main.cc`](/credence/main.cc)). This folder is a native C++ replacement for that step: a re2c-generated lexer and a hand-written recursive-descent parser that produce the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend - [`resolver.h`](/credence/language/resolver.h), [`shunting_yard.h`](/credence/language/shunting_yard.h), and the [IR](/credence/ir/README.md) - did not need to change to consume it.
+Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11 (the `"python"` `--ast-loader` path in [`main.cc`](/credence/main.cc)). This folder is a native C++ replacement for that step: a re2c-generated lexer and a hand-written recursive-descent parser that produce the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend - [`node.h`](/credence/language/node.h), [`shunting_yard.h`](/credence/language/shunting_yard.h), and the [IR](/credence/ir/README.md) - did not need to change to consume it.
 
-The lexer, datatype, resolver, and shunting-yard pieces are comparatively straightforward once you understand the parser's construction.
+The lexer, datatype, node parser, and shunting-yard pieces are comparatively straightforward once you understand the parser's construction. Here are the passes:
+
+```mermaid
+flowchart LR
+    A[B source] -->|lexer.re| B(Tokens)
+    B -->|parser.cc| C(AST_Node)
+    C -->|node.cc| D(Datatype tree)
+    D -->|shunting_yard.cc| E(queue)
+    E -->|ir/temporary.cc| F(IR)
+
+    style A fill:#2d2d2d,stroke:#888,color:#fff
+    style B fill:#2d2d2d,stroke:#888,color:#fff
+    style C fill:#2d2d2d,stroke:#888,color:#fff
+    style D fill:#2d2d2d,stroke:#888,color:#fff
+    style E fill:#2d2d2d,stroke:#888,color:#fff
+    style F fill:#2d2d2d,stroke:#888,color:#fff
+```
+
+`Parser` and `Node_Parser` are named for the stage they perform (tokens → tree, tree → typed tree), matching standard compiler terms. `Shunting_Yard` is named for the actual Dijkstra algorithm it implements, extended for function calls.
 
 ## Lexer
 
@@ -10,7 +28,7 @@ A lexer built with the lexer-generator re2c from [`lexer.re`](/credence/language
 
 ## Parser
 
-The original `grammar.lark` is a flat LALR(1) grammar with _no real operator precedence at the parse-tree level_. Lark's default parser resolves every `rvalue OP rvalue` the same way no matter which operator is involved, so the resulting tree is always right-associative:
+The original `grammar.lark` is a flat LALR(1) grammar with no real operator precedence at the parse-tree level. Lark's default parser resolves every `rvalue OP rvalue` the same way no matter which operator is involved, so the resulting tree is always right-associative:
 
 ```C
 main() { auto x, a, b, c; x = a * b + c; }
@@ -18,7 +36,9 @@ main() { auto x, a, b, c; x = a * b + c; }
 
 parses as `a * (b + c)`, not `(a * b) + c` - the `*` ends up as the *outer* node simply because it was seen first, not because it binds tighter than `+`.
 
-The shunting-yard `Shunting_Yard` in [`shunting_yard.h`](/credence/language/shunting_yard.h) corrects precedence downstream, by walking the resolved `Datatype::Expression` tree against the real precedence table in [`operators.h`](/credence/language/operators.h) rather than trusting the parse tree's shape. So the parser in `parser.cc` reproduces the original grammar's flat, right-associative structure instead of a fixed C-precedence tree.
+`Shunting_Yard` in [`shunting_yard.h`](/credence/language/shunting_yard.h) corrects this. A mis-nested chain like the one above always encodes its operators in true left-to-right source order down the tree's right-side - `Mul(a, Add(b, c))` is really the flat sequence `a, *, b, +, c` with the wrong grouping.
+
+`Shunting_Yard` flattens that back into its flat form and runs ordinary shunting-yard over it against the real precedence table in [`operators.h`](/credence/language/operators.h), rather than trying to balance precedence against whatever nesting the parser happened to produce. So the parser in `parser.cc` is free to reproduce the original grammar's flat, right-associative structure instead of a fixed C-precedence tree.
 
 ### The ternary
 
@@ -42,7 +62,7 @@ main() { auto x; x = 5 < 4 ? 10 : 1; }
 }
 ```
 
-Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes the `<` comparison ends up as the ternary node's `root`, not as the relation's own `right` operand. This isn't a design choice - it's what a 1-token-lookahead parser does when it sees `?` before it's reduced. `<`. [`resolver.h`](/credence/language/resolver.h)'s `from_relation_expression_node` already has a branch that unwinds exactly this shape back into `(condition) ? then : else`.
+Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes the `<` comparison ends up as the ternary node's `root`, not as the relation's own `right` operand. This isn't a design choice - it's what a 1-token-lookahead parser does when it sees `?` before it's reduced. `<`. [`node.h`](/credence/language/node.h)'s `from_relation_expression_node` already has a branch that unwinds exactly this shape back into `(condition) ? then : else`.
 
 ### Other Weirdness
 
@@ -52,7 +72,7 @@ Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes
 
 ## Datatype
 
-[`datatype.h`](/credence/language/datatype.h) is the internal `(Value : Type : Size)` tuple that passes beyond the AST use:
+[`datatype.h`](/credence/language/datatype.h) is the internal `(Value : Type : Size)` tuple that the compiler uses beyond the AST, and facilitates the type system:
 
 ```
 (10:int:4)
@@ -63,9 +83,9 @@ Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes
 
 `Datatype::Type` is the algebraic sum of every expression shape the rest of the compiler cares about: `Literal`, `Array`, `Symbol`, `Unary`, `Relation`, `Function`, `LValue`.
 
-## Resolver
+## Node Parser
 
-[`resolver.h`](/credence/language/resolver.h)'s `Expression_Resolver` walks an `AST_Node` - built by `parser.cc`, or previously by augur - and resolves it against a symbol table into a `Datatype` tree. It's the same walk augur's transformer performed, except it also checks that every lvalue was actually declared with `auto` or `extrn` along the way, instead of trusting the source blindly.
+[`node.h`](/credence/language/node.h)'s `Node_Parser` walks expression `AST_Node` built by `parser.cc` into a `Datatype` tree - the second pass. It checks symbol and value category correctness against storage devices, such as that all lvalues were declared with `auto` or `extrn`.
 
 ## Shunting Yard
 

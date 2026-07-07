@@ -83,10 +83,10 @@ _start:
     mov rbp, rsp
     mov dword ptr [rbp - 4], 1
     mov dword ptr [rbp - 8], 5
-    mov eax, dword ptr [rbp - 8]
-    sub eax, 0
-    add eax, dword ptr [rbp - 4]
+    mov eax, dword ptr [rbp - 4]
     imul eax, 10
+    add eax, dword ptr [rbp - 8]
+    sub eax, 0
     mov dword ptr [rbp - 4], eax
     mov rax, 60
     mov rdi, 0
@@ -112,8 +112,9 @@ _start:
     mov eax, 4
     add eax, 1
     mov dword ptr [rbp - 4], eax
-    mov eax, 2
-    sub eax, dword ptr [rbp - 4]
+    mov eax, dword ptr [rbp - 4]
+    sub eax, 1
+    add eax, 1
     mov dword ptr [rbp - 8], eax
     mov rax, 60
     mov rdi, 0

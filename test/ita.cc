@@ -875,9 +875,9 @@ _L16:
 _L14:
 _L8:
 _L24:
-_t27 = c <= ('57':char:1);
-_t28 = c && _t27;
-_t29 = ('48':char:1) <= _t28;
+_t27 = ('48':char:1) <= c;
+_t28 = c <= ('57':char:1);
+_t29 = _t27 && _t28;
 IF _t29 GOTO _L26;
 _L25:
 GOTO _L4;
@@ -909,9 +909,9 @@ RET i ;
 GOTO _L21;
 GOTO _L4;
 _L26:
-_t30 = c - ('48':char:1);
-_t31 = m + _t30;
-_t32 = (10:int:4) * _t31;
+_t30 = (10:int:4) * m;
+_t31 = _t30 + c;
+_t32 = _t31 - ('48':char:1);
 m = _t32;
 GOTO _L25;
  EndFunc ;
@@ -1127,14 +1127,14 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_function_definition")
     std::string expected = R"ita(__main():
  BeginFunc ;
 LOCL x;
+_t4 = (5:int:4) * (5:int:4);
 _p2_1 = (2:int:4);
 _p3_2 = (5:int:4);
 PUSH _p3_2;
 PUSH _p2_1;
 CALL exp;
 POP 16;
-_t4 = (5:int:4) + (5:int:4);
-_t5 = x * _t4;
+_t5 = x + _t4;
 _t5 = _t5;
 _L1:
 LEAVE;
@@ -1237,9 +1237,9 @@ TEST_CASE_FIXTURE(ITA_Fixture,
     std::string expected = R"ita(__exp(x,y):
  BeginFunc ;
 _L2:
-_t5 = y == (1:int:4);
-_t6 = (1:int:4) || _t5;
-_t7 = x == _t6;
+_t5 = x == (1:int:4);
+_t6 = y == (1:int:4);
+_t7 = _t5 || _t6;
 IF _t7 GOTO _L4;
 _L3:
 _t11 = x - (1:int:4);
@@ -1624,8 +1624,8 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_return_statement")
         "         }],\n            \"node\" : \"statement\",\n            "
         "\"root\" : \"return\"\n          }");
 
-    std::string expected = R"ita(_t1 = y * y;
-_t2 = x * _t1;
+    std::string expected = R"ita(_t1 = x * y;
+_t2 = _t1 * y;
 RET _t2;
 )ita";
     TEST_RETURN_STATEMENT_NODE_WITH(
@@ -4150,17 +4150,17 @@ TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_rvalue_statement")
         "x", "putchar", "getchar", "double", "exp", "puts", "y"
     };
 
-    std::string expected_1 = R"ita(_p1_1 = (2:int:4);
+    std::string expected_1 = R"ita(_t3 = (5:int:4) * (5:int:4);
+_p1_1 = (2:int:4);
 _p2_2 = (5:int:4);
 PUSH _p2_2;
 PUSH _p1_1;
 CALL exp;
 POP 16;
-_t3 = (4:int:4) ^ (2:int:4);
-_t4 = ~ _t3;
+_t4 = ~ (4:int:4);
 _t5 = _t4;
-_t6 = (5:int:4) / _t5;
-_t7 = (5:int:4) + _t6;
+_t6 = _t3 / _t5;
+_t7 = _t3 + _t6;
 )ita";
     std::string expected_2 = R"ita(y = (3:int:4);
 _t1 = y == (3:int:4);
@@ -4170,17 +4170,17 @@ x = _t3;
 )ita";
 
     std::string expected_3 = R"ita(y = (3:int:4);
-_t1 = (2:int:4) || (3:int:4);
-_t2 = (1:int:4) || _t1;
+_t1 = (1:int:4) || (2:int:4);
+_t2 = _t1 || (3:int:4);
 x = _t2;
 )ita";
 
     std::string expected_4 = R"ita(y = (3:int:4);
-_t1 = (3:int:4) + (3:int:4);
-_t2 = (2:int:4) || _t1;
-_t3 = (2:int:4) + _t2;
-_t4 = (1:int:4) || _t3;
-_t5 = (1:int:4) + _t4;
+_t1 = (1:int:4) + (1:int:4);
+_t2 = (2:int:4) + (2:int:4);
+_t3 = _t1 || _t2;
+_t4 = (3:int:4) + (3:int:4);
+_t5 = _t3 || _t4;
 x = _t5;
 )ita";
     std::string expected_5 = R"ita(y = (3:int:4);
@@ -4188,16 +4188,16 @@ _p1_1 = (5:int:4);
 PUSH _p1_1;
 CALL putchar;
 POP 8;
+_t3 = (1:int:4) + (1:int:4);
 _p2_2 = (1:int:4);
 PUSH _p2_2;
 CALL getchar;
 POP 8;
-_t3 = RET;
-_t4 = _t3;
-_t5 = (3:int:4) + _t4;
-_t6 = (3:int:4) || _t5;
-_t7 = (1:int:4) || _t6;
-x = (1:int:4) + _t7;
+_t4 = RET;
+_t5 = _t4;
+_t6 = _t3 || _t5;
+_t7 = (3:int:4) + _t6;
+x = (3:int:4) || _t7;
 )ita";
     TEST_RVALUE_STATEMENT_NODE_WITH(obj, symbols, obj["test"], expected_1);
     TEST_RVALUE_STATEMENT_NODE_WITH(

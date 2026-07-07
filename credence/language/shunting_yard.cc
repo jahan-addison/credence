@@ -24,7 +24,7 @@
 
 /****************************************************************************
  *
- * Shunting-yard queue of the Expression type in resolver.h
+ * Shunting-yard queue of the Expression type in node.h
  *
  * An extension to Shunting-yard to build a queue of expressions ordered by
  * operator precedence, extended for function invocation and function
@@ -68,9 +68,9 @@ void Shunting_Yard::balance_operator_precedence(type::Operator op1)
     while (!operator_stack_.empty()) {
         auto op2 = operator_stack_.top();
         if ((is_left_associative(op1) &&
-                get_precedence(op2) <= get_precedence(op2)) ||
+                get_precedence(op2) <= get_precedence(op1)) ||
             (!is_left_associative(op1) &&
-                get_precedence(op1) < get_precedence(op2))) {
+                get_precedence(op2) < get_precedence(op1))) {
             queue_.emplace_back(operator_stack_.top());
             operator_stack_.pop();
         } else {
@@ -87,37 +87,6 @@ void Shunting_Yard::balance_queue()
     if (operator_stack_.size() == 1) {
         queue_.emplace_back(operator_stack_.top());
         operator_stack_.pop();
-    }
-}
-
-/**
- * @brief Operator precedence check of the queue and operator stack
- */
-void Shunting_Yard::balance_operator_precedence(Operator_Stack* operator_stack,
-    type::Operator op1)
-{
-    while (!operator_stack->empty()) {
-        auto op2 = operator_stack->top();
-        if ((is_left_associative(op1) &&
-                get_precedence(op2) <= get_precedence(op2)) ||
-            (!is_left_associative(op1) &&
-                get_precedence(op1) < get_precedence(op2))) {
-            queue_.emplace_back(operator_stack->top());
-            operator_stack->pop();
-        } else {
-            break;
-        }
-    }
-}
-
-/**
- * @brief Re-balance the queue if the stack is empty
- */
-void Shunting_Yard::balance_queue(Operator_Stack* operator_stack)
-{
-    if (operator_stack->size() == 1) {
-        queue_.emplace_back(operator_stack->top());
-        operator_stack->pop();
     }
 }
 
@@ -143,9 +112,12 @@ void Shunting_Yard::shunt_argument_expressions_into_queue(
         parameters.emplace_back(lvalue);
         shunt_expression_pointer_into_queue(lvalue, &operator_stack);
         shunt_expression_pointer_into_queue(param, &operator_stack);
+        // param may itself carry a pending operator (e.g. "++j" leaves
+        // PRE_INC on operator_stack) - drain it before this parameter's own
+        // "_pN_M = param" assignment gets pushed on top of it.
+        drain_operator_stack(&operator_stack);
         operator_stack.emplace(type::Operator::B_ASSIGN);
-        balance_queue(&operator_stack);
-        balance_operator_precedence(&operator_stack, type::Operator::B_ASSIGN);
+        drain_operator_stack(&operator_stack);
     }
 
     operator_stack.emplace(op1);
@@ -154,8 +126,82 @@ void Shunting_Yard::shunt_argument_expressions_into_queue(
         operator_stack.emplace(type::Operator::U_PUSH);
         shunt_expression_pointer_into_queue(param_lvalue);
     }
-    balance_queue(&operator_stack);
-    balance_operator_precedence(&operator_stack, op1);
+    // PUSH/CALL is a fixed structural sequence, not a precedence relation -
+    // always drain the whole stack (PUSH's in reverse-argument order, then
+    // CALL) rather than balancing against it.
+    drain_operator_stack(&operator_stack);
+}
+
+namespace {
+////////////////////////////////////////////////////////////////////////////
+// parse_from_node wraps every compound node's result in one Pointer layer
+// (see Node_Parser's m::match dispatch). A direct chain continuation - the
+// "+ c" in "a * b + c", i.e. node["right"]["node"] == "relation_expression"
+// with no parens - is therefore exactly one Pointer away from its real
+// Relation. A genuinely parenthesized evaluated_expression is two Pointers
+// away instead (the dispatch's own wrap, plus from_evaluated_expression_
+// node's wrap of its inner content), so this deliberately does not unwrap
+// that far - a real "(b + c)" must stay opaque to the enclosing operator.
+////////////////////////////////////////////////////////////////////////////
+datatype::Datatype::Relation const* as_chain_relation(
+    datatype::Datatype::Pointer const& block)
+{
+    if (auto const* relation =
+            std::get_if<datatype::Datatype::Relation>(&block->value))
+        return relation->second.size() == 2 ? relation : nullptr;
+    if (auto const* inner =
+            std::get_if<datatype::Datatype::Pointer>(&block->value))
+        if (auto const* relation =
+                std::get_if<datatype::Datatype::Relation>(&(*inner)->value))
+            return relation->second.size() == 2 ? relation : nullptr;
+    return nullptr;
+}
+
+} // namespace
+
+/**
+ * @brief Flatten a right-associative Relation chain and shunt it left to
+ * right, instead of balancing precedence against the parser's nesting
+ */
+void Shunting_Yard::shunt_relation_chain_into_queue(type::Operator op1,
+    std::vector<datatype::Datatype::Pointer> const& blocks,
+    Operator_Stack* operator_stack)
+{
+    Operator_Stack& operator_stack_ref =
+        operator_stack != nullptr ? *operator_stack : operator_stack_;
+
+    std::vector<datatype::Datatype::Pointer> operands{ blocks.at(0) };
+    std::vector<type::Operator> ops{ op1 };
+    auto rhs = blocks.at(1);
+
+    while (auto const* relation = as_chain_relation(rhs)) {
+        operands.push_back(relation->second.at(0));
+        ops.push_back(relation->first);
+        rhs = relation->second.at(1);
+    }
+    operands.push_back(rhs);
+
+    shunt_expression_pointer_into_queue(
+        datatype::make_value_type_pointer(operands.at(0)->value),
+        &operator_stack_ref);
+
+    for (std::size_t i = 0; i < ops.size(); ++i) {
+        auto op = ops.at(i);
+        while (!operator_stack_ref.empty() &&
+               ((is_left_associative(op) &&
+                    get_precedence(operator_stack_ref.top()) <=
+                        get_precedence(op)) ||
+                   (!is_left_associative(op) &&
+                       get_precedence(operator_stack_ref.top()) <
+                           get_precedence(op)))) {
+            queue_.emplace_back(operator_stack_ref.top());
+            operator_stack_ref.pop();
+        }
+        operator_stack_ref.emplace(op);
+        shunt_expression_pointer_into_queue(
+            datatype::make_value_type_pointer(operands.at(i + 1)->value),
+            &operator_stack_ref);
+    }
 }
 
 /**
@@ -174,16 +220,25 @@ void Shunting_Yard::shunt_expression_pointer_into_queue(
             [&](datatype::Array const&) { queue_.emplace_back(pointer); },
             [&](datatype::Literal const&) { queue_.emplace_back(pointer); },
             [&](datatype::Datatype::Pointer const& s) {
+                //////////////////////////////////////////////////////////////
+                // A Pointer is always a self-contained sub-expression - a
+                // parenthesized evaluated_expression, or just the extra
+                // wrapping layer parse_from_node's catch-all adds around a
+                // Unary. Either way it must resolve fully in its own stack
+                // and come out as one atomic result, never sharing the
+                // enclosing stack (an inner operator here has no business
+                // being compared against an outer one it isn't a sibling of).
+                //////////////////////////////////////////////////////////////
                 auto value = datatype::make_value_type_pointer(s->value);
-                shunt_expression_pointer_into_queue(value);
+                Operator_Stack nested_stack{};
+                shunt_expression_pointer_into_queue(value, &nested_stack);
+                drain_operator_stack(&nested_stack);
             },
             [&](datatype::Datatype::Unary const& s) {
                 auto op1 = s.first;
                 auto rhs = datatype::make_value_type_pointer(s.second->value);
-                shunt_expression_pointer_into_queue(rhs);
                 operator_stack_ref.emplace(op1);
-                balance_queue();
-                balance_operator_precedence(op1);
+                shunt_expression_pointer_into_queue(rhs, &operator_stack_ref);
             },
             [&](datatype::Datatype::LValue const&) {
                 queue_.emplace_back(pointer);
@@ -191,13 +246,8 @@ void Shunting_Yard::shunt_expression_pointer_into_queue(
             [&](datatype::Datatype::Relation const& s) {
                 auto op1 = s.first;
                 if (s.second.size() == 2) {
-                    auto lhs = datatype::make_value_type_pointer(
-                        s.second.at(0)->value);
-                    auto rhs = datatype::make_value_type_pointer(
-                        s.second.at(1)->value);
-                    shunt_expression_pointer_into_queue(lhs);
-                    operator_stack_ref.emplace(op1);
-                    shunt_expression_pointer_into_queue(rhs);
+                    shunt_relation_chain_into_queue(
+                        op1, s.second, operator_stack);
                 } else if (s.second.size() == 4) {
                     // ternary
                     operator_stack_ref.emplace(type::Operator::B_TERNARY);
@@ -215,9 +265,9 @@ void Shunting_Yard::shunt_expression_pointer_into_queue(
                         s.second.at(1)->value);
                     shunt_expression_pointer_into_queue(ternary_truthy);
                     shunt_expression_pointer_into_queue(ternary_falsey);
+                    balance_queue();
+                    balance_operator_precedence(op1);
                 }
-                balance_queue();
-                balance_operator_precedence(op1);
             },
             [&](datatype::Datatype::Function const& s) {
                 shunt_argument_expressions_into_queue(s);
@@ -226,11 +276,9 @@ void Shunting_Yard::shunt_expression_pointer_into_queue(
                 auto op1 = type::Operator::B_ASSIGN;
                 auto lhs = datatype::make_value_type_pointer(s.first);
                 auto rhs = datatype::make_value_type_pointer(s.second->value);
-                shunt_expression_pointer_into_queue(lhs);
-                shunt_expression_pointer_into_queue(rhs);
+                shunt_expression_pointer_into_queue(lhs, &operator_stack_ref);
                 operator_stack_ref.emplace(op1);
-                balance_queue();
-                balance_operator_precedence(op1);
+                shunt_expression_pointer_into_queue(rhs, &operator_stack_ref);
             } },
         *pointer);
 }
@@ -246,8 +294,14 @@ queue_from_expression_operands(Expressions const& items,
     int* identifier)
 {
     detail::Shunting_Yard queue{ parameter, identifier };
-    for (Expression const& item : items)
+    // Each item is an independent statement (merged into one array by the
+    // "consecutive expression-statements share one rvalue_statement" quirk,
+    // not one continuous expression) - drain fully between items so one
+    // statement's pending operators can't leak in front of the next.
+    for (Expression const& item : items) {
         queue.shunt_expression_pointer_into_queue(item);
+        queue.drain_operator_stack();
+    }
 
     return queue.get();
 }
@@ -262,6 +316,7 @@ queue_from_expression_operands(Expression const& item,
 {
     detail::Shunting_Yard queue{ parameter, identifier };
     queue.shunt_expression_pointer_into_queue(item);
+    queue.drain_operator_stack();
 
     return queue.get();
 }

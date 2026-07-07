@@ -893,18 +893,32 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
         m::pattern |
             m::ds(m::app(is_address, false), m::app(is_address, true)) =
             [&] {
-                lhs_s = registers.get_register_for_binary_operator(lhs, stack);
+                // get_register_for_binary_operator's fallback for a
+                // temporary is always the qword rax, regardless of the
+                // operand size actually in play here - use the size-aware
+                // accumulator instead so it matches rhs's width (e.g. eax,
+                // not rax, for a dword rhs), and the preceding instruction
+                // that computed this temporary.
+                lhs_s = is_temporary(lhs)
+                            ? assembly::Storage{ accumulator
+                                      .get_accumulator_register_from_size(
+                                          stack->get(rhs).second) }
+                            : registers.get_register_for_binary_operator(
+                                  lhs, stack);
                 rhs_s = stack->get(rhs).first;
                 if (table_accessor.last_ir_instruction_is_assignment()) {
                     auto acc = accumulator.get_accumulator_register_from_size(
                         stack->get(rhs).second);
                     x8664_add__asm(
                         instructions, mov, acc, stack->get(rhs).first);
+                    // This instruction's result is tracked as living in acc,
+                    // not rhs_s's memory operand - the actual op below must
+                    // target acc too, or the next instruction's temporary
+                    // lookup and this one's real result diverge. Also
+                    // required for imul/idiv, which can't take a memory
+                    // destination the way add/sub can.
+                    rhs_s = acc;
                 }
-                if (is_temporary(lhs) or
-                    table_accessor.is_ir_instruction_temporary())
-                    rhs_s = accumulator.get_accumulator_register_from_size(
-                        stack->get(rhs).second);
             },
         m::pattern |
             m::ds(m::app(is_temporary, true), m::app(is_temporary, false)) =
