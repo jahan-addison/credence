@@ -15,8 +15,8 @@
 
 #include <credence/ir/ita.h>                 // for make_temporary, Instruc...
 #include <credence/language/datatype.h>      // for Datatype, datatype_to_s...
-#include <credence/language/node.h>          // for Node_Parser
 #include <credence/language/operators.h>     // for Operator, operator_to_s...
+#include <credence/language/rvalue.h>        // for RValue_Parser
 #include <credence/language/shunting_yard.h> // for queue_from_expression_o...
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/types.h>                  // for is_temporary
@@ -724,7 +724,7 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             if (expression.JSON_type() == util::AST_Node::Class::Array) {
                 for (auto& expr : expression.array_range()) {
                     auto expression =
-                        language::Node_Parser::parse(expr, details, symbols);
+                        language::RValue_Parser::parse(expr, details, symbols);
                     operands.emplace_back(
                         language::datatype::make_value_type_pointer(
                             expression.value));
@@ -732,7 +732,7 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             } else {
                 operands.emplace_back(
                     language::datatype::make_value_type_pointer(
-                        language::Node_Parser::parse(
+                        language::RValue_Parser::parse(
                             expression, details, symbols)
                             .value));
             }
@@ -750,7 +750,7 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
 
     } else {
         auto type_pointer = language::datatype::make_value_type_pointer(
-            language::Node_Parser::parse(node, details, symbols).value);
+            language::RValue_Parser::parse(node, details, symbols).value);
         auto queue = language::shunting_yard::queue_from_expression_operands(
             type_pointer, temporary_index, identifier_index);
         if (queue_dump_stream)

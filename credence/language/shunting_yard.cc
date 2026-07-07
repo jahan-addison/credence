@@ -24,7 +24,7 @@
 
 /****************************************************************************
  *
- * Shunting-yard queue of the Expression type in node.h
+ * Shunting-yard queue of the Expression type in rvalue.h
  *
  * An extension to Shunting-yard to build a queue of expressions ordered by
  * operator precedence, extended for function invocation and function
@@ -135,7 +135,7 @@ void Shunting_Yard::shunt_argument_expressions_into_queue(
 namespace {
 ////////////////////////////////////////////////////////////////////////////
 // parse_from_node wraps every compound node's result in one Pointer layer
-// (see Node_Parser's m::match dispatch). A direct chain continuation - the
+// (see RValue_Parser's m::match dispatch). A direct chain continuation - the
 // "+ c" in "a * b + c", i.e. node["right"]["node"] == "relation_expression"
 // with no parens - is therefore exactly one Pointer away from its real
 // Relation. A genuinely parenthesized evaluated_expression is two Pointers

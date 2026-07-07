@@ -26,10 +26,10 @@
 
 /****************************************************************************
  *
- * Node_Parser - second pass, AST_Node -> Datatype
+ * RValue_Parser - second pass, AST_Node -> Datatype
  *
  * Parser (parser.cc) produces a right-associative AST_Node tree with no
- * real operator precedence. Node_Parser walks that tree's expression
+ * real operator precedence. RValue_Parser walks that tree's expression
  * nodes into the algebraic Datatype type, checking lvalues against
  * declared storage along the way. Statement and non-expression nodes are
  * out of scope here - Shunting_Yard (shunting_yard.h) is the next pass,
@@ -57,12 +57,12 @@ namespace credence::language {
  *
  * See datatype.h for details.
  */
-class Node_Parser
+class RValue_Parser
 {
 
   public:
-    Node_Parser(Node_Parser const&) = delete;
-    Node_Parser& operator=(Node_Parser const&) = delete;
+    RValue_Parser(RValue_Parser const&) = delete;
+    RValue_Parser& operator=(RValue_Parser const&) = delete;
 
   private:
     using Expression = datatype::Datatype;
@@ -74,14 +74,14 @@ class Node_Parser
     using Parameters = std::vector<Expression_PTR>;
 
   public:
-    explicit Node_Parser(util::AST_Node const& internal_symbols,
+    explicit RValue_Parser(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
 
-    explicit Node_Parser(util::AST_Node const& internal_symbols,
+    explicit RValue_Parser(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols,
         Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
@@ -90,7 +90,7 @@ class Node_Parser
     {
     }
 
-    ~Node_Parser() = default;
+    ~RValue_Parser() = default;
 
   public:
     static inline Expression parse(util::AST_Node const& node,
@@ -98,7 +98,7 @@ class Node_Parser
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
     {
-        auto expression = Node_Parser{ internals, symbols, globals };
+        auto expression = RValue_Parser{ internals, symbols, globals };
         return expression.parse_from_node(node);
     }
 
@@ -181,14 +181,14 @@ class Node_Parser
 
 // clang-format on
 
-inline Node_Parser::Expression_PTR parse_node_as_expression(
+inline RValue_Parser::Expression_PTR parse_node_as_expression(
     util::AST_Node const& node,
     util::AST_Node const& internals,
     Symbol_Table<> const& symbols = {},
     Symbol_Table<> const& globals = {})
 {
     return std::make_shared<datatype::Datatype>(
-        Node_Parser::parse(node, internals, symbols, globals));
+        RValue_Parser::parse(node, internals, symbols, globals));
 }
 
 } // namespace language

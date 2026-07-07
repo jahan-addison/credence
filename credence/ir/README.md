@@ -2,12 +2,12 @@
 
 The intermediate representation (IR) is formalized as a linear four-tuple, named the Instruction Tuple Abstraction (ITA). The ITA comprises a collection of platform-independent  instructions that approximate the structure and semantics of a target machine language.
 
-It's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from a [queue of expressions](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/queue.h#L36) and rvalues in reverse polish form. The temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/temporary.h#L68).
+`ast_to_ita_instructions` walks the program's `AST_Node` tree statement by statement. For a statement holding an expression, it first gets a queue back from `RValue_Parser` and `Shunting_Yard` (see [the language frontend](/credence/language/README.md) for that part) and rvalues in reverse polish form. From there it's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from that queue, and the temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/temporary.h#L68).
 
 ```mermaid
 flowchart LR
-    A(queue) -->|ast_to_ita_instructions| B(Temporary)
-    B -->|operand + temporary stacks| C(Quadruples)
+    A(AST_Node statement) -->|ast_to_ita_instructions| B(queue)
+    B -->|Temporary, operand + temporary stacks| C(Quadruples)
     C -->|ir::Table| D(Object)
     D -->|checker.h| E[Type-checked ITA]
 

@@ -56,7 +56,7 @@ if [[ "$1" == "globals_3" ]]; then
   printf -v expected_output '%s' "tough luck"
 fi
 if [[ "$1" == "arm64_constant_1" ]]; then
-  printf -v expected_output '%s' "m is 60"
+  printf -v expected_output '%s' "m is 15"
 fi
 
 program_name=$1

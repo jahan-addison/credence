@@ -1,7 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
 #include <credence/language/datatype.h> // for RValue, Type_
-#include <credence/language/node.h>     // for Node_Parser
+#include <credence/language/rvalue.h>   // for RValue_Parser
 
 #include <credence/language/shunting_yard.h> // for rvalues_to_queue, queue_of_rvalues_to_s...
 
@@ -351,7 +351,7 @@ TEST_CASE("shunting_yard.cc: rvalues_to_queue")
         "    \"root\" : \"exp\"\n                  },\n                  "
         "\"root\" : [\"=\", null]\n                }");
 
-    language::Node_Parser parser{ obj };
+    language::RValue_Parser parser{ obj };
     language::datatype::Literal null = language::datatype::NULL_LITERAL;
     parser.symbols_.table_.emplace("x", null);
     parser.symbols_.table_.emplace("double", null);

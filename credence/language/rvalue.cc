@@ -11,7 +11,7 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include "node.h"
+#include "rvalue.h"
 
 #include "datatype.h"        // for make_lvalue, Expression, TYPE_LITERAL
 #include "operators.h"       // for Operator, BINARY_OPERATORS
@@ -31,7 +31,7 @@
 
 /****************************************************************************
  *
- * Node_Parser - second pass, AST_Node -> Datatype
+ * RValue_Parser - second pass, AST_Node -> Datatype
  *
  * Walks Parser's right-associative AST_Node expression nodes into the
  * algebraic Datatype type, checking lvalues against declared storage
@@ -58,7 +58,7 @@ namespace m = matchit;
 /**
  * @brief Parse expression ast node into Expression struct type pointer
  */
-Node_Parser::Expression Node_Parser::parse_from_node(Node const& node)
+RValue_Parser::Expression RValue_Parser::parse_from_node(Node const& node)
 {
 
     auto expression = Expression{};
@@ -133,7 +133,7 @@ Node_Parser::Expression Node_Parser::parse_from_node(Node const& node)
 /**
  * @brief Build expression from function call expression
  */
-Node_Parser::Expression Node_Parser::from_function_expression_node(
+RValue_Parser::Expression RValue_Parser::from_function_expression_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "function_expression");
@@ -155,7 +155,7 @@ Node_Parser::Expression Node_Parser::from_function_expression_node(
 /**
  * @brief An expression wrapped in parenthesis, pre-evaluated
  */
-Node_Parser::Expression Node_Parser::from_evaluated_expression_node(
+RValue_Parser::Expression RValue_Parser::from_evaluated_expression_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "evaluated_expression");
@@ -167,7 +167,7 @@ Node_Parser::Expression Node_Parser::from_evaluated_expression_node(
 /**
  * @brief Ternary relation expression
  */
-Node_Parser::Expression Node_Parser::from_ternary_expression_node(
+RValue_Parser::Expression RValue_Parser::from_ternary_expression_node(
     Node const& node)
 {
     Expression expression{};
@@ -189,7 +189,7 @@ Node_Parser::Expression Node_Parser::from_ternary_expression_node(
 /**
  * @brief Relation to sum type of operator and chain of expressions
  */
-Node_Parser::Expression Node_Parser::from_relation_expression_node(
+RValue_Parser::Expression RValue_Parser::from_relation_expression_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "relation_expression");
@@ -211,7 +211,7 @@ Node_Parser::Expression Node_Parser::from_relation_expression_node(
 /**
  * @brief Unary operator expression to algebraic pair
  */
-Node_Parser::Expression Node_Parser::from_unary_expression_node(
+RValue_Parser::Expression RValue_Parser::from_unary_expression_node(
     Node const& node)
 {
     using namespace type;
@@ -281,7 +281,7 @@ Node_Parser::Expression Node_Parser::from_unary_expression_node(
 /**
  * @brief Parse assignment expression into pairs of LHS and RHS
  */
-Node_Parser::Expression Node_Parser::from_assignment_expression_node(
+RValue_Parser::Expression RValue_Parser::from_assignment_expression_node(
     Node const& node)
 {
     if (node["left"]["node"].to_string() == "assignment_expression") {
@@ -328,7 +328,7 @@ Node_Parser::Expression Node_Parser::from_assignment_expression_node(
 /**
  * @brief Parse lvalue expression data types
  */
-Node_Parser::Expression::LValue Node_Parser::from_lvalue_expression_node(
+RValue_Parser::Expression::LValue RValue_Parser::from_lvalue_expression_node(
     Node const& node)
 {
     auto constant_type = node["node"].to_string();
@@ -391,7 +391,7 @@ Node_Parser::Expression::LValue Node_Parser::from_lvalue_expression_node(
 /**
  * @brief Parse constant expression data types
  */
-Node_Parser::Literal Node_Parser::from_constant_expression_node(
+RValue_Parser::Literal RValue_Parser::from_constant_expression_node(
     Node const& node)
 {
     return m::match(node["node"].to_string())(
@@ -414,7 +414,7 @@ Node_Parser::Literal Node_Parser::from_constant_expression_node(
 /**
  * @brief Parse lvalue to pointer data type
  */
-Node_Parser::Literal Node_Parser::from_indirect_identifier_node(
+RValue_Parser::Literal RValue_Parser::from_indirect_identifier_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "indirect_lvalue");
@@ -431,7 +431,8 @@ Node_Parser::Literal Node_Parser::from_indirect_identifier_node(
 /**
  * @brief Parse fixed-size vector (array) lvalue
  */
-Node_Parser::Literal Node_Parser::from_vector_idenfitier_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_vector_idenfitier_node(
+    Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "vector_lvalue");
 
@@ -447,7 +448,8 @@ Node_Parser::Literal Node_Parser::from_vector_idenfitier_node(Node const& node)
 /**
  * @brief Parse integer literal node into symbols
  */
-Node_Parser::Literal Node_Parser::from_integer_literal_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_integer_literal_node(
+    Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "integer_literal");
     return { static_cast<int>(node["root"].to_int()),
@@ -457,7 +459,7 @@ Node_Parser::Literal Node_Parser::from_integer_literal_node(Node const& node)
 /**
  * @brief Parse float literal node into symbols
  */
-Node_Parser::Literal Node_Parser::from_float_literal_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_float_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "float_literal");
     return { static_cast<float>(node["root"].to_float()),
@@ -467,7 +469,7 @@ Node_Parser::Literal Node_Parser::from_float_literal_node(Node const& node)
 /**
  * @brief Parse double literal node into symbols
  */
-Node_Parser::Literal Node_Parser::from_double_literal_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_double_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "double_literal");
     return { static_cast<double>(node["root"].to_float()),
@@ -477,7 +479,7 @@ Node_Parser::Literal Node_Parser::from_double_literal_node(Node const& node)
 /**
  * @brief Parse bool literal node into symbols
  */
-Node_Parser::Literal Node_Parser::from_bool_literal_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_bool_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "bool_literal");
     return { node["root"].to_string() == "true" ? 1 : 0,
@@ -487,7 +489,7 @@ Node_Parser::Literal Node_Parser::from_bool_literal_node(Node const& node)
 /**
  * @brief Parse string literal node into symbols
  */
-Node_Parser::Literal Node_Parser::from_string_literal_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_string_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "string_literal");
     auto string_literal = util::unescape_string(node["root"].to_string());
@@ -500,7 +502,8 @@ Node_Parser::Literal Node_Parser::from_string_literal_node(Node const& node)
 /**
  * @brief Parse constant literal node into symbols
  */
-Node_Parser::Literal Node_Parser::from_constant_literal_node(Node const& node)
+RValue_Parser::Literal RValue_Parser::from_constant_literal_node(
+    Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "constant_literal");
     return { static_cast<char>(node["root"].to_string()[0]),
@@ -510,7 +513,7 @@ Node_Parser::Literal Node_Parser::from_constant_literal_node(Node const& node)
 /**
  * @brief Raise error expressing parsing error
  */
-inline void Node_Parser::expression_parser_error(std::string_view message,
+inline void RValue_Parser::expression_parser_error(std::string_view message,
     std::string_view symbol,
     std::source_location const& location)
 {

@@ -1,16 +1,18 @@
 # Language Frontend
 
-Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11 (the `"python"` `--ast-loader` path in [`main.cc`](/credence/main.cc)). This folder is a native C++ replacement for that step: a re2c-generated lexer and a hand-written recursive-descent parser that produce the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend - [`node.h`](/credence/language/node.h), [`shunting_yard.h`](/credence/language/shunting_yard.h), and the [IR](/credence/ir/README.md) - did not need to change to consume it.
+Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11 (the `"python"` `--ast-loader` path in [`main.cc`](/credence/main.cc)). This folder is a native C++ replacement for that step: a re2c-generated lexer and a hand-written recursive-descent parser that produce the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend - [`rvalue.h`](/credence/language/rvalue.h), [`shunting_yard.h`](/credence/language/shunting_yard.h), and the [IR](/credence/ir/README.md) - did not need to change to consume it.
 
-The lexer, datatype, node parser, and shunting-yard pieces are comparatively straightforward once you understand the parser's construction. Here are the passes:
+The lexer, datatype, rvalue parser, and shunting-yard pieces are comparatively straightforward once you understand the parser's construction. Here are the passes:
 
 ```mermaid
 flowchart LR
     A[B source] -->|lexer.re| B(Tokens)
     B -->|parser.cc| C(AST_Node)
-    C -->|node.cc| D(Datatype tree)
-    D -->|shunting_yard.cc| E(queue)
-    E -->|ir/temporary.cc| F(IR)
+    C -->|ir/temporary.cc| D(IR walk)
+    D --> G(IR instruction)
+    D -.->|rvalue| E(RValue_Parser)
+    E -.->|rvalue.cc| F(Shunting_Yard)
+    F -.->|queue| G
 
     style A fill:#2d2d2d,stroke:#888,color:#fff
     style B fill:#2d2d2d,stroke:#888,color:#fff
@@ -18,9 +20,12 @@ flowchart LR
     style D fill:#2d2d2d,stroke:#888,color:#fff
     style E fill:#2d2d2d,stroke:#888,color:#fff
     style F fill:#2d2d2d,stroke:#888,color:#fff
+    style G fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
-`Parser` and `Node_Parser` are named for the stage they perform (tokens → tree, tree → typed tree), matching standard compiler terms. `Shunting_Yard` is named for the actual Dijkstra algorithm it implements, extended for function calls.
+`RValue_Parser` and `Shunting_Yard` only ever see expressions - rvalues. The IR (`ir/temporary.cc`) is what walks the full `AST_Node` tree, statement by statement. When it reaches one holding an expression (an `rvalue_statement`, a `return`, an `if`/`while` condition, and so on), it hands that subtree to `RValue_Parser` then `Shunting_Yard` and gets a queue back. Everything else - `auto`, `extrn`, labels, `goto`, block and function structure - the IR just walks on its own, no expression pass involved. This pair is really the project's own stand-in for a Pratt parser, just scoped to rvalues instead of the whole program.
+
+`Parser` and `RValue_Parser` are named for the stage they perform (tokens → tree, tree → typed tree), matching standard compiler terms. `Shunting_Yard` is named for the actual Dijkstra algorithm it implements, extended for function calls.
 
 ## Lexer
 
@@ -62,7 +67,7 @@ main() { auto x; x = 5 < 4 ? 10 : 1; }
 }
 ```
 
-Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes the `<` comparison ends up as the ternary node's `root`, not as the relation's own `right` operand. This isn't a design choice - it's what a 1-token-lookahead parser does when it sees `?` before it's reduced. `<`. [`node.h`](/credence/language/node.h)'s `from_relation_expression_node` already has a branch that unwinds exactly this shape back into `(condition) ? then : else`.
+Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes the `<` comparison ends up as the ternary node's `root`, not as the relation's own `right` operand. This isn't a design choice - it's what a 1-token-lookahead parser does when it sees `?` before it's reduced. `<`. [`rvalue.h`](/credence/language/rvalue.h)'s `from_relation_expression_node` already has a branch that unwinds exactly this shape back into `(condition) ? then : else`.
 
 ### Other Weirdness
 
@@ -83,9 +88,9 @@ Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes
 
 `Datatype::Type` is the algebraic sum of every expression shape the rest of the compiler cares about: `Literal`, `Array`, `Symbol`, `Unary`, `Relation`, `Function`, `LValue`.
 
-## Node Parser
+## RValue Parser
 
-[`node.h`](/credence/language/node.h)'s `Node_Parser` walks expression `AST_Node` built by `parser.cc` into a `Datatype` tree - the second pass. It checks symbol and value category correctness against storage devices, such as that all lvalues were declared with `auto` or `extrn`.
+[`rvalue.h`](/credence/language/rvalue.h)'s `RValue_Parser` walks an expression `AST_Node` built by `parser.cc` into a `Datatype` tree - the second pass over that expression, after the parser's own tree pass. It checks symbol and value category correctness against storage devices, such as that all lvalues were declared with `auto` or `extrn`.
 
 ## Shunting Yard
 

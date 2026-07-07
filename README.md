@@ -14,9 +14,12 @@
 
 The compiler works in 3 stages:
 
-* A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h). See details [here](/credence/language/README.md)
+* A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h).
+    * See details [here](/credence/language/README.md)
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
-* The target platforms and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
+    * See details [here](/credence/ir/README.md)
+* The target platforms, instruction selection and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
+    * See details [here](/credence/target/README.md)
 
 ```mermaid
 flowchart LR
@@ -24,22 +27,20 @@ flowchart LR
         direction LR
         A[B source] --> B(Lexer)
         B --> C(Parser)
-        C --> D(Node_Parser)
-        D --> E(Shunting_Yard)
     end
     subgraph Middle [" "]
         direction LR
-        F(IR / ITA)
-        G(Table)
+        D(IR / ITA)
+        E(Table)
     end
     subgraph Backend [" "]
         direction LR
-        H(x86-64)
-        I(ARM64)
+        F(x86-64)
+        G(ARM64)
     end
-    E --> F --> G
-    G --> H
-    G --> I
+    C --> D --> E
+    E --> F
+    E --> G
 
     style A fill:#2d2d2d,stroke:#888,color:#fff
     style B fill:#2d2d2d,stroke:#888,color:#fff
@@ -48,11 +49,7 @@ flowchart LR
     style E fill:#2d2d2d,stroke:#888,color:#fff
     style F fill:#2d2d2d,stroke:#888,color:#fff
     style G fill:#2d2d2d,stroke:#888,color:#fff
-    style H fill:#2d2d2d,stroke:#888,color:#fff
-    style I fill:#2d2d2d,stroke:#888,color:#fff
 ```
-
-See [`credence/language/README.md`](credence/language/README.md) and [`credence/ir/README.md`](credence/ir/README.md) for the frontend and IR stages in detail, and [`credence/target/README.md`](credence/target/README.md) for backend, code geneeration details.
 
 <span style="font-size:18px">
 Check out the <a href="https://soliloq.uy/tag/credence/">blog series</a>!
