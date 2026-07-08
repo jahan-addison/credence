@@ -35,9 +35,9 @@ jobs:
           #   cxx: clang++
 
           # x86_64 macOS
-          - platform: { name: "x86_64 macOS", os: macos-26-intel, arch: x86_64 }
-            compiler: clang++
-            cxx: clang++
+          # - platform: { name: "x86_64 macOS", os: macos-26-intel, arch: x86_64 }
+          #   compiler: clang++
+          #   cxx: clang++
           # ARM64 macOS
           - platform: { name: "ARM64 macOS", os: macos-latest, arch: arm64 }
             compiler: clang++
