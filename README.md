@@ -79,7 +79,7 @@ Note that windows is not supported. Please open an issue or pull request for any
 
 ## Targets
 
-See documentation on code generation [here](credence/target/readme.md). A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
+A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
 
 #### x86-64 for Linux and BSD, Darwin : Done ✅
 
@@ -101,7 +101,7 @@ To build the test suite and coverage yourself (with `llvm-cov`), run:
 ```bash
 
 cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
-cmake --build build --parallel
+cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 cmake --build build --target coverage
 
 ```
@@ -365,7 +365,9 @@ Usage:
 
   -a, --ast-loader arg   AST Loader [parser, json] (default: parser)
   -t, --target arg       Target [ir, ast, arm64, x86_64] (default: ir)
-  -d, --debug            Dump symbol table
+  -d, --debug            [Debug] Dump symbol table
+  -q, --dump-queue       [Debug] Dump each expression's queue form to
+                         stdout
   -o, --output arg       Output file (default: stdout)
   -h, --help             Print usage
       --source-code arg  B Source file

@@ -46,3 +46,4 @@ Check out the test suites in `test/x86_64/generator.cc` and `test/arm64/generato
 #### Platform dependent kernel `syscall` codes, which in Linux's case is different for ARM64 and X8664
 ## Runtime
 #### Standard library and syscall function invocation, operand type checkers
+

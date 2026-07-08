@@ -50,40 +50,39 @@ if ! type "ld" >/dev/null 2>&1; then
   exit 1
 fi
 
-while getopts ":o:t:" opt; do
-  case $opt in
-    o) SOURCE_NAME="$OPTARG" ;;
-    t) ARCH="$OPTARG" ;;
-    \?) # do nothing
+ARGS=("$@")
+for ((i = 0; i < ${#ARGS[@]}; i++)); do
+  case "${ARGS[$i]}" in
+    -o|--output) SOURCE_NAME="${ARGS[$((i + 1))]}" ;;
+    -t|--target) ARCH="${ARGS[$((i + 1))]}" ;;
   esac
 done
 
-if [ -z "$SOURCE_NAME" ]; then
-  echo "Credence Error: -o argument is required for output path"
-  exit 1
-fi
-
-STDLIB_PATH="$CREDENCE_HOME/stdlib/$ARCH/$STDLIB_TYPE/stdlib.o"
-
 "$CREDENCE_BINARY" "$@"
 
-if [[ "$UNAMESTR" == 'Linux' ]]; then
-  as -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
-  ld -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
-elif [[ "$UNAMESTR" == 'Darwin' ]]; then
-  as -arch "$ARCH" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
-  if [[ "$ARCH" == "arm64" ]]; then
-    SDK_PATH=$(xcrun --show-sdk-path)
-    ld -arch arm64 \
-      -e _start \
-      -o "$SOURCE_NAME" \
-      "$STDLIB_PATH" \
-      "$SOURCE_NAME".o \
-      -lSystem \
-      -syslibroot "$SDK_PATH"
-        codesign -s - "$SOURCE_NAME"
-  else
-    ld -arch "$ARCH" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+if [[ ( "$ARCH" == "arm64" || "$ARCH" == "x86_64" ) && -n "$SOURCE_NAME" ]]; then
+  STDLIB_PATH="$CREDENCE_HOME/stdlib/$ARCH/$STDLIB_TYPE/stdlib.o"
+
+  if [[ "$UNAMESTR" == 'Linux' ]]; then
+    as -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
+    ld -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+  elif [[ "$UNAMESTR" == 'Darwin' ]]; then
+    as -arch "$ARCH" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
+    if [[ "$ARCH" == "arm64" ]]; then
+      SDK_PATH=$(xcrun --show-sdk-path)
+      ld -arch arm64 \
+        -e _start \
+        -o "$SOURCE_NAME" \
+        "$STDLIB_PATH" \
+        "$SOURCE_NAME".o \
+        -lSystem \
+        -syslibroot "$SDK_PATH"
+      codesign -s - "$SOURCE_NAME"
+    else
+      ld -arch "$ARCH" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+    fi
   fi
+
+  rm -f "$SOURCE_NAME".o "$SOURCE_NAME".bs
 fi
 

@@ -171,8 +171,7 @@ void detail::add_stdlib_function_to_table_symbols(
         credence_error(
             fmt::format("Invalid stdlib function '{}'", stdlib_function));
     symbols[stdlib_function] = util::AST::object();
-    auto& node = symbols[stdlib_function];
-    node["type"] = "function_definition";
+    symbols[stdlib_function]["type"] = "function_definition";
 }
 
 /**

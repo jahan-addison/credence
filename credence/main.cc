@@ -90,8 +90,7 @@ int main(int argc, const char* argv[])
             std::cout << options.help() << std::endl;
             exit(0);
         }
-        credence::util::AST_Node ast;
-        credence::util::AST_Node symbols;
+        credence::util::AST_Node ast, symbols;
         auto type = result["ast-loader"].as<std::string>();
         auto target = result["target"].as<std::string>();
         auto output = result["output"].as<std::string>();
@@ -102,20 +101,38 @@ int main(int argc, const char* argv[])
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
 
-        if (type == "parser") {
-            auto parser = credence::language::Parser{ source };
-            ast["root"] = parser.parse_program();
-            symbols =
-                credence::language::Symbol_Table_Builder::build(ast["root"]);
-            if (result["debug"].count() and target != "ast")
-                std::cout << "> Symbol Table:" << std::endl
-                          << symbols << std::endl;
-        } else if (type == "json") {
-            ast["root"] = credence::util::AST_Node::load(source);
-        } else {
-            std::cerr << "Credence :: No source file provided" << std::endl;
-            return 1;
-        }
+        m::match(type)(
+            m::pattern | "parser" =
+                [&] {
+                    auto parser = credence::language::Parser{ source };
+                    ast["root"] = parser.parse_program();
+                    symbols = credence::language::Symbol_Table_Builder::build(
+                        ast["root"]);
+                },
+            m::pattern | "json" =
+                [&] { ast["root"] = credence::util::AST_Node::load(source); },
+            m::pattern | m::_ =
+                [&] {
+                    std::cerr << "Credence :: No source file provided"
+                              << std::endl;
+                    exit(1);
+                });
+
+        // Populate the symbol table with standard library functions
+        auto os_type = credence::target::common::assembly::get_os_type();
+        if (target == "x86_64" or target == "ir")
+            credence::target::common::runtime::add_stdlib_functions_to_symbols(
+                symbols,
+                os_type,
+                credence::target::common::assembly::Arch_Type::X8664);
+        else if (target == "arm64")
+            credence::target::common::runtime::add_stdlib_functions_to_symbols(
+                symbols,
+                os_type,
+                credence::target::common::assembly::Arch_Type::ARM64);
+
+        if (result["debug"].count() and target != "ast")
+            std::cout << "> Symbol Table:" << std::endl << symbols << std::endl;
 
         std::ostringstream out_to{};
 
@@ -128,20 +145,10 @@ int main(int argc, const char* argv[])
         m::match(target)(
             m::pattern | "arm64" =
                 [&]() {
-                    credence::target::common::runtime::
-                        add_stdlib_functions_to_symbols(symbols,
-                            credence::target::common::assembly::get_os_type(),
-                            credence::target::common::assembly::Arch_Type::
-                                ARM64);
                     credence::target::arm64::emit(out_to, symbols, ast["root"]);
                 },
             m::pattern | "x86_64" =
                 [&]() {
-                    credence::target::common::runtime::
-                        add_stdlib_functions_to_symbols(symbols,
-                            credence::target::common::assembly::get_os_type(),
-                            credence::target::common::assembly::Arch_Type::
-                                X8664);
                     credence::target::x86_64::emit(
                         out_to, symbols, ast["root"]);
                 },

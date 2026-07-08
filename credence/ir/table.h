@@ -32,8 +32,9 @@
  *
  * Table constructor for language objects. A visitor pattern on ITA instructions
  * to construct the object table of a program, including function frames,
- * vectors, locals, and globals and performs type checking on all assignments.
- * The result is stored in an ir::object::Object for backend passes.
+ * vectors, locals, and globals. In addition, performs type checking on all
+ * assignments. The result is stored in an ir::object::Object for backend
+ * passes.
  *
  *  Example table construction:
  *
@@ -75,14 +76,14 @@ class Table
 #endif
     explicit Table(ITA::Node hoisted_symbols,
         Instructions& instructions,
-        Symbol_Table<> globals)
+        Symbol_Table<> const& globals)
     {
         objects_ = std::make_shared<object::Object>(object::Object{});
         instructions_ =
             std::make_shared<ir::Instructions>(std::move(instructions));
         objects_->get_ir_instructions() = instructions_;
         objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
-        objects_->get_globals() = std::move(globals);
+        objects_->get_globals() = globals;
     }
 
   public:

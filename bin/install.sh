@@ -47,15 +47,6 @@ $(printf '\033[0m')
 EOM
 )
 
-PYENV_DETAILS=$(cat << EOM
-$(printf '\033[38;5;113m')
-\$PYENV_ROOT not found, please add the following to your env:
-  export PYENV_ROOT="\$HOME/.pyenv"
-  [[ -d $PYENV_ROOT/bin ]] && export PATH="\$PYENV_ROOT/bin:\$PATH"
-  eval "\$(pyenv init - bash)"
-EOM
-)
-
 if [[ "$UNAMESTR" == 'Linux' ]]; then
 
   message "Installing llvm@20 for Linux ..."
@@ -72,15 +63,11 @@ if [[ "$UNAMESTR" == 'Linux' ]]; then
   chmod +x llvm.sh
   sudo ./llvm.sh 20
 
-  message "Installing pyenv ..."
-
-  curl https://pyenv.run | bash
-
   message "Installing apt-get dependencies ..."
 
   sudo apt-get install clang-20 llvm-20 lldb-20 lld-20 libc++-20-dev libc++abi-20-dev
-  sudo apt-get install -y python3-dev libpython3-dev gcc-10 valgrind iwyu cppcheck binutils cmake clang-tidy
-  python3 -m pip install --user pipx
+  sudo apt-get install -y gcc-10 valgrind iwyu cppcheck binutils cmake clang-tidy
+
   sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-20 100
   sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-20 100
   sudo update-alternatives \
@@ -95,33 +82,12 @@ elif [[ "$UNAMESTR" == 'Darwin' ]]; then
 
   message "Installing brew dependencies ..."
 
-  brew install include-what-you-use pipx pyenv include-what-you-use llvm@20 cmake gcc clang-format cppcheck coreutils poetry
+  brew install include-what-you-use include-what-you-use llvm@20 cmake gcc clang-format cppcheck coreutils
 
   echo -e "$MACOS_DETAILS"
 
   CXX="$(which c++)"
 fi
-
-message "Installing the Parser Python submodule ..."
-
-if ! command -v pyenv &> /dev/null ; then
-  echo -e "$PYENV_DETAILS"
-  exit 1
-fi
-
-git submodule update --init --recursive
-# shellcheck disable=SC2164
-
-cd python/augur
-export PYENV_ROOT="$HOME/.pyenv"
-[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init - zsh)"
-pyenv init -sh
-pyenv install 3.14.2
-pyenv local 3.14.2
-pip install .
-# shellcheck disable=SC2164
-cd "$CREDENCE"
 
 echo "$(pwd)" > $HOME/.credence
 
@@ -131,13 +97,15 @@ cmake -Bbuild -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_COMPILER="$CXX" -DI
 
 message "Building targets ..."
 
-PYTHONHOME="$PYENV_ROOT/versions/3.14.2" cmake --build build
+cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 
 chmod +x ./bin/credence
 
-sudo ln -sf "$CREDENCE"/bin/credence /usr/bin/credence
+mkdir -p "$HOME"/.local/bin 2>/dev/null
 
-message "A binary is now available at '/usr/bin/credence' with an assembler and linker provided."
+sudo ln -sf "$CREDENCE"/bin/credence "$HOME"/.local/bin/credence
+
+message "A binary is now available at '\$HOME/.local/bin/credence' with an assembler and linker provided."
 
 message "The build files (including the test suite) are available in './build'"
 
