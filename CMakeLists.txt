@@ -28,7 +28,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(
   credence
-  VERSION 1.1.0
+  VERSION 1.1.1
   LANGUAGES CXX)
 
 include(GNUInstallDirs)
