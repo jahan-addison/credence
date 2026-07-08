@@ -25,7 +25,7 @@
 
 /****************************************************************************
  *
- * Shunting-yard queue of the Expression type in rvalue.h
+ * Shunting-yard queue of the RValue type in rvalue.h
  *
  * An extension to Shunting-yard to build a queue of expressions ordered by
  * operator precedence, extended for function invocation and function

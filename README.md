@@ -6,7 +6,7 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-* Language grammar: [here](https://github.com/jahan-addison/augur/blob/master/augur/grammar.lark)
+* Language grammar: [here](credence/language/grammar.lark)
 * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 

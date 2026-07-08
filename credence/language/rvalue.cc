@@ -13,7 +13,7 @@
 
 #include "rvalue.h"
 
-#include "datatype.h"        // for make_lvalue, Expression, TYPE_LITERAL
+#include "datatype.h"        // for make_lvalue, RValue, TYPE_LITERAL
 #include "operators.h"       // for Operator, BINARY_OPERATORS
 #include <algorithm>         // for __find, find
 #include <credence/error.h>  // for assert_equal_impl, credence_assert_equal
@@ -56,12 +56,12 @@ namespace credence::language {
 namespace m = matchit;
 
 /**
- * @brief Parse expression ast node into Expression struct type pointer
+ * @brief Parse expression ast node into RValue struct type pointer
  */
-RValue_Parser::Expression RValue_Parser::parse_from_node(Node const& node)
+RValue_Parser::RValue RValue_Parser::parse_from_node(Node const& node)
 {
 
-    auto expression = Expression{};
+    auto expression = RValue{};
     auto node_type = node["node"].to_string();
 
     // pointer indirection assignment:
@@ -69,7 +69,7 @@ RValue_Parser::Expression RValue_Parser::parse_from_node(Node const& node)
     if (node.has_key("left") and
         node["left"]["node"].to_string() == "assignment_expression") {
         expression.value =
-            std::make_shared<Expression>(from_assignment_expression_node(node));
+            std::make_shared<RValue>(from_assignment_expression_node(node));
         return expression;
     }
 
@@ -92,35 +92,35 @@ RValue_Parser::Expression RValue_Parser::parse_from_node(Node const& node)
             [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "function_expression" =
             [&] {
-                expression.value = std::make_shared<Expression>(
+                expression.value = std::make_shared<RValue>(
                     from_function_expression_node(node));
             },
         m::pattern | "evaluated_expression" =
             [&] {
-                expression.value = std::make_shared<Expression>(
+                expression.value = std::make_shared<RValue>(
                     from_evaluated_expression_node(node));
             },
         m::pattern | "relation_expression" =
             [&] {
-                expression.value = std::make_shared<Expression>(
+                expression.value = std::make_shared<RValue>(
                     from_relation_expression_node(node));
             },
         m::pattern | "ternary_expression" =
             [&] {
-                expression.value = std::make_shared<Expression>(
+                expression.value = std::make_shared<RValue>(
                     from_ternary_expression_node(node));
             },
         m::pattern | "indirect_lvalue" =
             [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "assignment_expression" =
             [&] {
-                expression.value = std::make_shared<Expression>(
+                expression.value = std::make_shared<RValue>(
                     from_assignment_expression_node(node));
             },
         m::pattern | m::_ =
             [&] {
                 if (util::range_contains(node_type, unary_types)) {
-                    expression.value = std::make_shared<Expression>(
+                    expression.value = std::make_shared<RValue>(
                         from_unary_expression_node(node));
                 } else {
                     credence_error(
@@ -133,12 +133,12 @@ RValue_Parser::Expression RValue_Parser::parse_from_node(Node const& node)
 /**
  * @brief Build expression from function call expression
  */
-RValue_Parser::Expression RValue_Parser::from_function_expression_node(
+RValue_Parser::RValue RValue_Parser::from_function_expression_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "function_expression");
     credence_assert(node["right"].to_deque().size() >= 1);
-    Expression expression{};
+    RValue expression{};
     Parameters parameters{};
     auto param_node = node["right"].to_deque();
     // if the size of parameters is 1 and its only
@@ -155,11 +155,11 @@ RValue_Parser::Expression RValue_Parser::from_function_expression_node(
 /**
  * @brief An expression wrapped in parenthesis, pre-evaluated
  */
-RValue_Parser::Expression RValue_Parser::from_evaluated_expression_node(
+RValue_Parser::RValue RValue_Parser::from_evaluated_expression_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "evaluated_expression");
-    Expression expression{};
+    RValue expression{};
     expression.value = make_expression_pointer_from_ast(node["root"]);
     return expression;
 }
@@ -167,10 +167,10 @@ RValue_Parser::Expression RValue_Parser::from_evaluated_expression_node(
 /**
  * @brief Ternary relation expression
  */
-RValue_Parser::Expression RValue_Parser::from_ternary_expression_node(
+RValue_Parser::RValue RValue_Parser::from_ternary_expression_node(
     Node const& node)
 {
-    Expression expression{};
+    RValue expression{};
     Parameters blocks{};
     auto conditional = node["left"];
     auto ternary = node["right"];
@@ -189,11 +189,11 @@ RValue_Parser::Expression RValue_Parser::from_ternary_expression_node(
 /**
  * @brief Relation to sum type of operator and chain of expressions
  */
-RValue_Parser::Expression RValue_Parser::from_relation_expression_node(
+RValue_Parser::RValue RValue_Parser::from_relation_expression_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "relation_expression");
-    Expression expression{};
+    RValue expression{};
     Parameters blocks{};
     if (node.has_key("right") and
         node["right"]["node"].to_string() == "ternary_expression") {
@@ -211,7 +211,7 @@ RValue_Parser::Expression RValue_Parser::from_relation_expression_node(
 /**
  * @brief Unary operator expression to algebraic pair
  */
-RValue_Parser::Expression RValue_Parser::from_unary_expression_node(
+RValue_Parser::RValue RValue_Parser::from_unary_expression_node(
     Node const& node)
 {
     using namespace type;
@@ -220,7 +220,7 @@ RValue_Parser::Expression RValue_Parser::from_unary_expression_node(
     credence_assert_message(util::range_contains(unary_type, unary_types),
         fmt::format("Invalid unary expression type `{}`", unary_type));
 
-    Expression expression{};
+    RValue expression{};
     std::map<std::string, Operator> const other_unary = {
         { "!", Operator::U_NOT             },
         { "~", Operator::U_ONES_COMPLEMENT },
@@ -240,25 +240,25 @@ RValue_Parser::Expression RValue_Parser::from_unary_expression_node(
         m::pattern | "pre_inc_dec_expression" =
             [&] {
                 if (op == "++") {
-                    auto rhs = std::make_shared<Expression>(
-                        parse_from_node(node["left"]));
+                    auto rhs =
+                        std::make_shared<RValue>(parse_from_node(node["left"]));
                     expression.value = std::make_pair(Operator::PRE_INC, rhs);
 
                 } else if (op == "--") {
-                    auto rhs = std::make_shared<Expression>(
-                        parse_from_node(node["left"]));
+                    auto rhs =
+                        std::make_shared<RValue>(parse_from_node(node["left"]));
                     expression.value = std::make_pair(Operator::PRE_DEC, rhs);
                 }
             },
         m::pattern | "post_inc_dec_expression" =
             [&] {
                 if (op == "++") {
-                    auto rhs = std::make_shared<Expression>(
+                    auto rhs = std::make_shared<RValue>(
                         parse_from_node(node["right"]));
                     expression.value = std::make_pair(Operator::POST_INC, rhs);
 
                 } else if (op == "--") {
-                    auto rhs = std::make_shared<Expression>(
+                    auto rhs = std::make_shared<RValue>(
                         parse_from_node(node["right"]));
                     expression.value =
                         std::make_pair(Operator::POST_DEC, std::move(rhs));
@@ -281,7 +281,7 @@ RValue_Parser::Expression RValue_Parser::from_unary_expression_node(
 /**
  * @brief Parse assignment expression into pairs of LHS and RHS
  */
-RValue_Parser::Expression RValue_Parser::from_assignment_expression_node(
+RValue_Parser::RValue RValue_Parser::from_assignment_expression_node(
     Node const& node)
 {
     if (node["left"]["node"].to_string() == "assignment_expression") {
@@ -299,7 +299,7 @@ RValue_Parser::Expression RValue_Parser::from_assignment_expression_node(
                 left_child_node["left"]["root"].to_string());
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
-        Expression expression = Expression{};
+        RValue expression = RValue{};
         expression.value = make_pair(lhs, rhs);
         return expression;
     } else {
@@ -318,7 +318,7 @@ RValue_Parser::Expression RValue_Parser::from_assignment_expression_node(
 
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
-        Expression expression = Expression{};
+        RValue expression = RValue{};
         expression.value = make_pair(lhs, rhs);
 
         return expression;
@@ -328,7 +328,7 @@ RValue_Parser::Expression RValue_Parser::from_assignment_expression_node(
 /**
  * @brief Parse lvalue expression data types
  */
-RValue_Parser::Expression::LValue RValue_Parser::from_lvalue_expression_node(
+RValue_Parser::RValue::LValue RValue_Parser::from_lvalue_expression_node(
     Node const& node)
 {
     auto constant_type = node["node"].to_string();
@@ -352,7 +352,7 @@ RValue_Parser::Expression::LValue RValue_Parser::from_lvalue_expression_node(
                 symbols_.set_symbol_by_name(name, datatype::WORD_LITERAL);
         }
     }
-    Expression::LValue lvalue{};
+    RValue::LValue lvalue{};
     m::match(node["node"].to_string())(
         m::pattern | "lvalue" =
             [&] {

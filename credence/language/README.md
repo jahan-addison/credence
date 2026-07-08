@@ -1,8 +1,8 @@
 # Language Frontend
 
-Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11 (the `"python"` `--ast-loader` path in [`main.cc`](/credence/main.cc)). This folder is a native C++ replacement for that step: a re2c-generated lexer and a hand-written recursive-descent parser that produce the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend - [`rvalue.h`](/credence/language/rvalue.h), [`shunting_yard.h`](/credence/language/shunting_yard.h), and the [IR](/credence/ir/README.md) - did not need to change to consume it.
+Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11. This folder is a native C++ replacement for that: a re2c-generated lexer and a hand-written recursive-descent parser that produces the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend did not need to change.
 
-The lexer, datatype, rvalue parser, and shunting-yard pieces are comparatively straightforward once you understand the parser's construction. Here are the passes:
+The lexer, datatype, rvalue parser, and shunting-yard pieces are comparatively straightforward once you understand the parser's constraints. Here are the passes:
 
 ```mermaid
 flowchart LR
@@ -23,9 +23,11 @@ flowchart LR
     style G fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
-`RValue_Parser` and `Shunting_Yard` only ever see expressions - rvalues. The IR (`ir/temporary.cc`) is what walks the full `AST_Node` tree, statement by statement. When it reaches one holding an expression (an `rvalue_statement`, a `return`, an `if`/`while` condition, and so on), it hands that subtree to `RValue_Parser` then `Shunting_Yard` and gets a queue back. Everything else - `auto`, `extrn`, labels, `goto`, block and function structure - the IR just walks on its own, no expression pass involved. This pair is really the project's own stand-in for a Pratt parser, just scoped to rvalues instead of the whole program.
+`RValue_Parser` and the `Shunting_Yard` virtual stack machine only ever see rvalue expressions. The IR (`ir/temporary.cc`) is what walks the full `AST_Node` tree, statement by statement. When it reaches one holding an expression (such as `rvalue_statement`, a `return`, an `if` condition, etc), it hands that subtree to `RValue_Parser` then `Shunting_Yard` and gets a queue back. Everything else such as `auto`, function statements, and so on the IR takes care of on its own.
 
-`Parser` and `RValue_Parser` are named for the stage they perform (tokens → tree, tree → typed tree), matching standard compiler terms. `Shunting_Yard` is named for the actual Dijkstra algorithm it implements, extended for function calls.
+
+In hindsight, the RValue <-> Shunting_Yard pair is a replacement for Pratt Parsing.
+
 
 ## Lexer
 
@@ -43,7 +45,7 @@ parses as `a * (b + c)`, not `(a * b) + c` - the `*` ends up as the *outer* node
 
 `Shunting_Yard` in [`shunting_yard.h`](/credence/language/shunting_yard.h) corrects this. A mis-nested chain like the one above always encodes its operators in true left-to-right source order down the tree's right-side - `Mul(a, Add(b, c))` is really the flat sequence `a, *, b, +, c` with the wrong grouping.
 
-`Shunting_Yard` flattens that back into its flat form and runs ordinary shunting-yard over it against the real precedence table in [`operators.h`](/credence/language/operators.h), rather than trying to balance precedence against whatever nesting the parser happened to produce. So the parser in `parser.cc` is free to reproduce the original grammar's flat, right-associative structure instead of a fixed C-precedence tree.
+`Shunting_Yard` flattens that back into its flat form and runs shunting-yard over it against the real precedence table in [`operators.h`](/credence/language/operators.h), rather than trying to balance precedence against whatever nesting the parser happened to produce. So the parser in `parser.cc` is able to reproduce the original grammar's flat, right-associative structure.
 
 ### The ternary
 

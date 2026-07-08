@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "datatype.h"        // for Expression, Literal
+#include "datatype.h"        // for RValue, Literal
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
@@ -28,9 +28,9 @@
  *
  * RValue_Parser - second pass, AST_Node -> Datatype
  *
- * Parser (parser.cc) produces a right-associative AST_Node tree with no
+ * The Parser produces a right-associative AST_Node tree with no
  * real operator precedence. RValue_Parser walks that tree's expression
- * nodes into the algebraic Datatype type, checking lvalues against
+ * nodes into the algebraic type from datatype.h, checking lvalues against
  * declared storage along the way. Statement and non-expression nodes are
  * out of scope here - Shunting_Yard (shunting_yard.h) is the next pass,
  * fixing precedence over the Datatype tree this class produces.
@@ -53,7 +53,7 @@ namespace credence::language {
 /**
  * @brief
  * Second-pass parser: AST_Node expression nodes to the algebraic
- * Datatype type, checking lvalue declarations along the way.
+ * type in datatype.h, checking lvalue declarations along the way.
  *
  * See datatype.h for details.
  */
@@ -65,13 +65,13 @@ class RValue_Parser
     RValue_Parser& operator=(RValue_Parser const&) = delete;
 
   private:
-    using Expression = datatype::Datatype;
+    using RValue = datatype::Datatype;
     using Literal = datatype::Literal;
 
   public:
-    using Expression_PTR = datatype::Datatype::Pointer;
+    using RValue_PTR = datatype::Datatype::Pointer;
     using Node = util::AST_Node;
-    using Parameters = std::vector<Expression_PTR>;
+    using Parameters = std::vector<RValue_PTR>;
 
   public:
     explicit RValue_Parser(util::AST_Node const& internal_symbols,
@@ -93,7 +93,7 @@ class RValue_Parser
     ~RValue_Parser() = default;
 
   public:
-    static inline Expression parse(util::AST_Node const& node,
+    static inline RValue parse(util::AST_Node const& node,
         util::AST_Node const& internals,
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
@@ -103,14 +103,14 @@ class RValue_Parser
     }
 
   public:
-    Expression parse_from_node(Node const& node);
+    RValue parse_from_node(Node const& node);
 
-    inline Expression_PTR make_expression_pointer_from_ast(Node const& node)
+    inline RValue_PTR make_expression_pointer_from_ast(Node const& node)
     {
         return std::make_shared<datatype::Datatype>(parse_from_node(node));
     }
 
-    inline Expression from_expression_node(Node const& node)
+    inline RValue from_expression_node(Node const& node)
     {
         return parse_from_node(node);
     }
@@ -129,25 +129,25 @@ class RValue_Parser
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Expression from_evaluated_expression_node(Node const& node);
-    Expression from_function_expression_node(Node const& node);
+    RValue from_evaluated_expression_node(Node const& node);
+    RValue from_function_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Expression from_relation_expression_node(Node const& node);
+    RValue from_relation_expression_node(Node const& node);
 
   private:
-    Expression from_ternary_expression_node(Node const& node);
+    RValue from_ternary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Expression from_unary_expression_node(Node const& node);
+    RValue from_unary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Expression::LValue from_lvalue_expression_node(Node const& node);
+    RValue::LValue from_lvalue_expression_node(Node const& node);
     Literal from_indirect_identifier_node(Node const& node);
     Literal from_vector_idenfitier_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Expression from_assignment_expression_node(Node const& node);
+    RValue from_assignment_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Literal from_constant_expression_node(Node const& node);
@@ -181,7 +181,7 @@ class RValue_Parser
 
 // clang-format on
 
-inline RValue_Parser::Expression_PTR parse_node_as_expression(
+inline RValue_Parser::RValue_PTR parse_node_as_rvalue(
     util::AST_Node const& node,
     util::AST_Node const& internals,
     Symbol_Table<> const& symbols = {},

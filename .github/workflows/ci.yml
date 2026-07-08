@@ -12,36 +12,25 @@ on:
       - master
 
 jobs:
-  build:
+  build-linux:
     name: ${{ matrix.platform.name }} / ${{ matrix.compiler }}
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # x86_64 Linux
           - platform: { name: "x86_64 Linux", os: ubuntu-latest, arch: x86_64 }
             compiler: g++
             cxx: g++
           - platform: { name: "x86_64 Linux", os: ubuntu-latest, arch: x86_64 }
             compiler: clang++
             cxx: clang++
-          # arm64 Linux
           # - platform: { name: "ARM64 Linux", os: ubuntu-24.04-arm, arch: arm64 }
           #   compiler: g++
           #   cxx: g++
           # - platform: { name: "ARM64 Linux", os: ubuntu-24.04-arm, arch: arm64 }
           #   compiler: clang++
           #   cxx: clang++
-
-          # x86_64 macOS
-          - platform: { name: "x86_64 macOS", os: macos-26-intel, arch: x86_64 }
-            compiler: clang++
-            cxx: clang++
-          # ARM64 macOS
-          - platform: { name: "ARM64 macOS", os: macos-latest, arch: arm64 }
-            compiler: clang++
-            cxx: clang++
 
     steps:
       - name: checkout
@@ -54,43 +43,21 @@ jobs:
         with:
           cmake-version: '4.x.x'
 
-      - name: install extras linux
-        if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
+      - name: install extras
+        if: matrix.compiler == 'g++'
         run: |
           sudo apt-get install -y valgrind
-
-      - name: install extras macos
-        if: |
-          matrix.platform.name == 'ARM64 macOS' &&
-          matrix.compiler == 'clang++'
-        run: |
-          brew install llvm@20 lcov
-          export PATH="/opt/homebrew/opt/llvm@20/bin:/opt/homebrew/bin:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:$PATH"
-
-          llvm-cov --version
-          llvm-profdata --version
 
       - name: configure build
         run: |
           SANDFLAGS=""
-          COVERAGE=""
           if [[ "${{ matrix.compiler }}" == "clang++" ]]; then
             SANDFLAGS="-DUSE_SANITIZER=Address;Undefined"
-            if [[ "${{ matrix.platform.name }}" == "ARM64 macOS" ]]; then
-              COVERAGE="-DENABLE_TEST_COVERAGE=ON"
-              export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
-            fi
           fi
-          cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS $COVERAGE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug $SANDFLAGS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: build
-        run: |
-          if [[ "$(uname)" == "Darwin" ]]; then
-            JOBS=2
-          else
-            JOBS=$(nproc)
-          fi
-          cmake --build build -j$JOBS
+        run: cmake --build build -j$(nproc)
 
       - name: setup assembler
         run: |
@@ -110,30 +77,89 @@ jobs:
           ./test/run-tests.sh -a arm64 -d .
 
       - name: memcheck
-        if: matrix.platform.name == 'x86_64 Linux' && matrix.compiler == 'g++'
+        if: matrix.compiler == 'g++'
         run: |
           valgrind --leak-check=full --show-leak-kinds=all ./build/credence -d $(pwd)/test/fixtures/readme.b
+
+  build-macos:
+    name: ${{ matrix.platform.name }} / ${{ matrix.compiler }}
+    runs-on: ${{ matrix.platform.os }}
+    concurrency:
+      group: macos-ci
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: { name: "x86_64 macOS", os: macos-26-intel, arch: x86_64 }
+            compiler: clang++
+            cxx: clang++
+          - platform: { name: "ARM64 macOS", os: macos-latest, arch: arm64 }
+            compiler: clang++
+            cxx: clang++
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.x.x'
+
+      - name: install extras
+        if: matrix.platform.name == 'ARM64 macOS'
+        run: |
+          brew install llvm@20 lcov
+          export PATH="/opt/homebrew/opt/llvm@20/bin:/opt/homebrew/bin:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:$PATH"
+
+          llvm-cov --version
+          llvm-profdata --version
+
+      - name: configure build
+        run: |
+          COVERAGE=""
+          if [[ "${{ matrix.platform.name }}" == "ARM64 macOS" ]]; then
+            COVERAGE="-DENABLE_TEST_COVERAGE=ON"
+            export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
+          fi
+          cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug "-DUSE_SANITIZER=Address;Undefined" $COVERAGE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: build
+        run: cmake --build build -j2
+
+      - name: setup assembler
+        run: |
+          export CREDENCE_ENV_HOME="$(pwd)"
+          echo "$(pwd)" > $HOME/.credence
+          chmod +x ./bin/credence
+          chmod +x ./test/compiled-test.sh
+
+      - name: test x86_64
+        if: matrix.platform.arch == 'x86_64'
+        run: |
+          ./test/run-tests.sh -a x86_64 -d .
+
+      - name: test arm64
+        if: matrix.platform.arch == 'arm64'
+        run: |
+          ./test/run-tests.sh -a arm64 -d .
 
       - name: build coverage
         if: |
           github.ref == 'refs/heads/master' &&
-          matrix.platform.name == 'ARM64 macOS' &&
-          matrix.compiler == 'clang++'
+          matrix.platform.name == 'ARM64 macOS'
         run: |
-          if [[ "$(uname)" == "Darwin" ]]; then
-            JOBS=2
-          else
-            JOBS=$(nproc)
-          fi
-          cmake --build build -j$JOBS
+          cmake --build build -j2
           cmake --build build --target coverage
 
       - name: deploy
         uses: peaceiris/actions-gh-pages@v4
         if: |
           github.ref == 'refs/heads/master' &&
-          matrix.platform.name == 'ARM64 macOS' &&
-          matrix.compiler == 'clang++'
+          matrix.platform.name == 'ARM64 macOS'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/coverage_report
