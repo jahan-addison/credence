@@ -71,7 +71,7 @@ These features are not in the original B language specification.
 * `argc` and `argv` support
 * Logical and bitwise operators behave like C
 * Operator precedence behaves like C
-* VSCode extension provided in `ext/`
+* VSCode extension provided
 * Switch statement condition must always be enclosed with `(` and `)`
 * Binary operators may not be used directly after the `=` operator
 
