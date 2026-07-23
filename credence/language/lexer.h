@@ -119,12 +119,17 @@ class Lexer
     explicit Lexer(std::string source);
 
     /**
-     * @brief Scan and return the next token, including END_OF_FILE.
+     * @brief Scan and return the next token, including END_OF_FILE
      */
     Token next();
 
     /**
-     * @brief Scan the entire source, ending with one END_OF_FILE token.
+     * @brief SIMD-powered scanning to skip and count whitespace in chunks
+     */
+    void skip_whitespace();
+
+    /**
+     * @brief Scan the entire source, ending with one END_OF_FILE token
      */
     std::vector<Token> tokenize();
 

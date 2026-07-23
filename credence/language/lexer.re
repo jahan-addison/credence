@@ -19,6 +19,8 @@
 // Token rules are a direct port of the lexical grammar in grammar.lark
 
 #include <credence/language/lexer.h>
+#include <experimental/simd>
+namespace stdx = std::experimental;
 
 namespace credence::language {
 
@@ -137,6 +139,21 @@ std::string_view token_type_to_string(Token_Type type)
 
 namespace {
 constexpr std::size_t PADDING = (YYMAXFILL > 0) ? YYMAXFILL : 1;
+
+using char_v = stdx::fixed_size_simd<char, 16>;
+
+inline size_t get_whitespace_offset(const char* cursor) {
+    char_v chunk(cursor, stdx::element_aligned);
+
+    auto is_whitespace = (chunk == ' ') || (chunk == '\n') || (chunk == '\t') || (chunk == '\r');
+    auto is_code = !is_whitespace;
+
+    if (stdx::none_of(is_code)) {
+        return 16; // all whitespace, keep moving
+    }
+    return stdx::find_first_set(is_code);
+}
+
 }
 
 Lexer::Lexer(std::string source)
@@ -177,9 +194,49 @@ Token Lexer::make_token(Token_Type type)
     return token;
 }
 
+void Lexer::skip_whitespace()
+{
+    using char_v = stdx::fixed_size_simd<char, 16>;
+
+    for (;;) {
+        char_v chunk(cursor_, stdx::element_aligned);
+
+        auto is_whitespace = (chunk == ' ') || (chunk == '\n') ||
+                             (chunk == '\t') || (chunk == '\r');
+        auto is_code = !is_whitespace;
+
+        // FAST PATH: The entire 16-byte chunk is whitespace
+        if (stdx::none_of(is_code)) {
+            auto newlines = (chunk == '\n');
+            int nl_count = stdx::popcount(newlines); // Count total '\n' in chunk
+
+            if (nl_count > 0) {
+                line_ += nl_count;
+                // find_last_set returns the index (0-15) of the final newline.
+                // subtracting it from 16 gives us the remaining column characters.
+                int last_nl_idx = stdx::find_last_set(newlines);
+                column_ = 16 - last_nl_idx;
+            } else {
+                column_ += 16;
+            }
+
+            cursor_ += 16;
+            continue;
+        }
+
+        int offset = stdx::find_first_set(is_code);
+
+        advance_line_column(cursor_, cursor_ + offset);
+
+        cursor_ += offset;
+        break;
+    }
+}
+
 Token Lexer::next()
 {
     for (;;) {
+        skip_whitespace();
         token_start_ = cursor_;
         /*!re2c
         re2c:define:YYCTYPE = char;
@@ -189,7 +246,6 @@ Token Lexer::next()
         re2c:yyfill:enable = 0;
 
         end           = "\x00";
-        ws            = [ \t\r\n]+;
         line_comment  = "//" [^\r\n]*;
         block_comment = "/*" ([^*] | ("*" [^/]))* "*" "/";
 
@@ -201,7 +257,6 @@ Token Lexer::next()
         string_lit    = "\"" ( "\\" [^\x00] | [^"\\\r\n\x00] )* "\"";
 
         end             { return make_token(Token_Type::END_OF_FILE); }
-        ws              { advance_line_column(token_start_, cursor_); continue; }
         line_comment    { advance_line_column(token_start_, cursor_); continue; }
         block_comment   { advance_line_column(token_start_, cursor_); continue; }
 
