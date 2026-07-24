@@ -25,18 +25,18 @@
 #include "inserter.h"                        // for Expression_Inserter
 #include "memory.h"                          // for Memory_Accessor, Instru...
 #include "stack.h"                           // for Stack
-#include "syscall.h"
-#include <credence/ir/checker.h>            // for Type_Checker
-#include <credence/ir/object.h>             // for Object, Function, Label
-#include <credence/target/common/runtime.h> // for is_stdlib_function, is_...
-#include <deque>                            // for deque
-#include <matchit.h>                        // for App, Wildcard, Ds, app
-#include <memory>                           // for shared_ptr
-#include <string>                           // for basic_string, char_traits
-#include <string_view>                      // for basic_string_view
-#include <tuple>                            // for get, tuple
-#include <utility>                          // for pair
-#include <variant>                          // for variant
+#include "syscall.h"                         // for syscall
+#include <credence/ir/checker.h>             // for Type_Checker
+#include <credence/ir/object.h>              // for Object, Function, Label
+#include <credence/target/common/runtime.h>  // for is_stdlib_function, is_...
+#include <deque>                             // for deque
+#include <matchit.h>                         // for App, Wildcard, Ds, app
+#include <memory>                            // for shared_ptr
+#include <string>                            // for basic_string, char_traits
+#include <string_view>                       // for basic_string_view
+#include <tuple>                             // for get, tuple
+#include <utility>                           // for pair
+#include <variant>                           // for variant
 
 /****************************************************************************
  *
@@ -197,7 +197,7 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
     auto inserter = Invocation_Inserter{ accessor_ };
     auto function_name = type::get_label_as_human_readable(std::get<1>(inst));
     auto is_syscall_function = [&](Label const& label) {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
         return common::runtime::is_syscall_function(label,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::X8664);
@@ -213,7 +213,7 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 #endif
     };
     auto is_stdlib_function = [&](Label const& label) {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::X8664);
@@ -360,7 +360,7 @@ void IR_Instruction_Visitor::from_leave_ita()
         if (accessor_->table_accessor.get_table()
                 ->stack_frame_contains_call_instruction(stack_frame_.symbol,
                     *accessor_->table_accessor.get_table()
-                        ->get_ir_instructions())) {
+                         ->get_ir_instructions())) {
             auto size = u32_int_immediate(
                 accessor_->stack->get_stack_frame_allocation_size());
             x8664_add__asm(accessor_->instruction_accessor->get_instructions(),

@@ -219,7 +219,7 @@ enum class Arch_Type
 
 constexpr OS_Type get_os_type()
 {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     return OS_Type::Linux;
 
 #elif defined(__APPLE__) || defined(__bsdi__)

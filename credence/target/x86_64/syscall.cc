@@ -162,7 +162,7 @@ void make_syscall(
     memory::Memory_Access* accessor)
 {
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::Linux,
         target::common::assembly::Arch_Type::X8664);
@@ -188,7 +188,7 @@ void make_syscall(
     auto [argument_storage_qword, argument_storage_dword] =
         get_argument_general_purpose_registers();
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     auto syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
 #elif defined(__APPLE__) || defined(__bsdi__)

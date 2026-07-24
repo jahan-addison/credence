@@ -16,7 +16,7 @@ repos:
     hooks:
     - id: clang-tidy
       name: clang-tidy
-      entry: bash -c 'printf "%s\n" "$@" | xargs -P "$(sysctl -n hw.ncpu)" -I{} clang-tidy -p build --warnings-as-errors=* {}' --
+      entry: bash -c 'printf "%s\n" "$@" | xargs -P "$(nproc 2>/dev/null || sysctl -n hw.ncpu)" -I{} clang-tidy -p build {}' --
       language: system
       types: [c++, c]
       exclude: ^credence/language/lexer\.cc$

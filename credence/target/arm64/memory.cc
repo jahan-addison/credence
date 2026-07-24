@@ -250,9 +250,9 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
                     auto offset_storage =
                         vector_accessor.get_offset_address(lvalue, offset);
                     auto global_offset =
-                        direct_immediate(fmt::format("{}@PAGE", lhs));
+                        assembly::page_offset_upper_immediate(lhs);
                     auto global_offset_page =
-                        direct_immediate(fmt::format("{}@PAGEOFF", lhs));
+                        assembly::page_offset_lower_immediate(lhs);
                     auto vector_offset = direct_immediate(
                         fmt::format("[x6, #{}]", offset_storage.first));
                     auto address_offset = offset_storage.first == 0UL

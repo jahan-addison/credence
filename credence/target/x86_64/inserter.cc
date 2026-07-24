@@ -311,20 +311,23 @@ Storage Operand_Inserter::get_operand_storage_from_immediate(
     auto immediate = type::get_rvalue_datatype_from_string(rvalue);
     auto type = type::get_type_from_rvalue_data_type(immediate);
     if (type == "string") {
-        storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                .buffer_accessor.get_string_address_offset(
+        storage = assembly::make_asciz_immediate(
+            accessor_->address_accessor.buffer_accessor
+                .get_string_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
     if (type == "float") {
-        storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                .buffer_accessor.get_float_address_offset(
+        storage = assembly::make_asciz_immediate(
+            accessor_->address_accessor.buffer_accessor
+                .get_float_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
     if (type == "double") {
-        storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                .buffer_accessor.get_double_address_offset(
+        storage = assembly::make_asciz_immediate(
+            accessor_->address_accessor.buffer_accessor
+                .get_double_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
@@ -346,7 +349,7 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
     if (stack->is_allocated(rvalue))
         return get_operand_storage_from_stack(rvalue);
 
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
     if (!stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::Linux,
@@ -899,12 +902,14 @@ void Binary_Operator_Inserter::from_binary_operator_expression(
                 // accumulator instead so it matches rhs's width (e.g. eax,
                 // not rax, for a dword rhs), and the preceding instruction
                 // that computed this temporary.
-                lhs_s = is_temporary(lhs)
-                            ? assembly::Storage{ accumulator
-                                      .get_accumulator_register_from_size(
-                                          stack->get(rhs).second) }
-                            : registers.get_register_for_binary_operator(
-                                  lhs, stack);
+                lhs_s =
+                    is_temporary(lhs)
+                        ? assembly::
+                              Storage{ accumulator
+                                           .get_accumulator_register_from_size(
+                                               stack->get(rhs).second) }
+                        : registers.get_register_for_binary_operator(
+                              lhs, stack);
                 rhs_s = stack->get(rhs).first;
                 if (table_accessor.last_ir_instruction_is_assignment()) {
                     auto acc = accumulator.get_accumulator_register_from_size(
@@ -1070,7 +1075,7 @@ void Expression_Inserter::insert_from_rvalue(RValue const& rvalue)
     };
 
     auto is_stdlib_function = [&](Label const& label) {
-#if defined(CREDENCE_TEST) || defined(__linux__)
+#if defined(__linux__)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::X8664);

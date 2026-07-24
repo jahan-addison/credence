@@ -115,7 +115,7 @@ _start:
     mov w9, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -182,13 +182,13 @@ _start:
     ldr w10, [sp, #20]
     mov w10, w8
     str w10, [sp, #20]
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
     ldr w1, [sp, #20]
     bl printf
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -266,7 +266,7 @@ _start:
     mov w10, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -333,7 +333,7 @@ _start:
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -399,7 +399,7 @@ _start:
     add w10, w10, #1
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -457,7 +457,7 @@ _start:
     add w10, w10, #1
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -519,7 +519,7 @@ _start:
     mov w10, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -578,7 +578,7 @@ _start:
     mov w11, #0
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -637,7 +637,7 @@ _start:
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -703,7 +703,7 @@ _start:
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -770,7 +770,7 @@ _start:
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -836,7 +836,7 @@ _start:
     mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -896,7 +896,7 @@ _start:
     mov w11, #10
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -956,7 +956,7 @@ _start:
     mov x14, x6
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1017,7 +1017,7 @@ _start:
     str w8, [x9]
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1083,7 +1083,7 @@ _start:
     str x10, [sp, #16]
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1155,7 +1155,7 @@ _start:
     str w8, [x9]
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1211,18 +1211,18 @@ TEST_CASE("target/arm64: fixture: string_1.b")
 _start:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    adrp x6, ._L_str1__@PAGE
-    add x6, x6, ._L_str1__@PAGEOFF
+    adrp x6, ._L_str1__
+    add x6, x6, :lo12:._L_str1__
     mov x9, x6
-    adrp x6, ._L_str2__@PAGE
-    add x6, x6, ._L_str2__@PAGEOFF
+    adrp x6, ._L_str2__
+    add x6, x6, :lo12:._L_str2__
     mov x10, x6
-    adrp x6, ._L_str1__@PAGE
-    add x6, x6, ._L_str1__@PAGEOFF
+    adrp x6, ._L_str1__
+    add x6, x6, :lo12:._L_str1__
     mov x11, x6
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1296,7 +1296,7 @@ _start:
     mov w9, #10
     ldp x29, x30, [sp], #48
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1367,7 +1367,7 @@ _start:
     mov w9, #10
     ldp x29, x30, [sp], #64
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1436,13 +1436,13 @@ _start:
     mov w8, #2
     str w8, [x15]
     add x15, sp, #48
-    adrp x6, ._L_str1__@PAGE
-    add x6, x6, ._L_str1__@PAGEOFF
+    adrp x6, ._L_str1__
+    add x6, x6, :lo12:._L_str1__
     str x6, [x15]
     mov x15, x6
     add x15, sp, #40
-    adrp x6, ._L_str2__@PAGE
-    add x6, x6, ._L_str2__@PAGEOFF
+    adrp x6, ._L_str2__
+    add x6, x6, :lo12:._L_str2__
     str x6, [x15]
     mov x15, x6
     ldr w10, [sp, #76]
@@ -1454,7 +1454,7 @@ _start:
     bl print
     ldp x29, x30, [sp], #80
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1535,15 +1535,15 @@ TEST_CASE("target/arm64: fixture: globals 1, 2")
 _start:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    adrp x6, unit@PAGE
-    add x6, x6, unit@PAGEOFF
+    adrp x6, unit
+    add x6, x6, :lo12:unit
     ldr w9, [x6]
-    adrp x6, mess@PAGE
-    add x6, x6, mess@PAGEOFF
+    adrp x6, mess
+    add x6, x6, :lo12:mess
     ldr x10, [x6, #8]
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1639,13 +1639,13 @@ _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
     ldr w10, [sp, #20]
-    adrp x6, unit@PAGE
-    add x6, x6, unit@PAGEOFF
+    adrp x6, unit
+    add x6, x6, :lo12:unit
     ldr w10, [x6]
     str w10, [sp, #20]
     ldr x10, [sp, #28]
-    adrp x6, mess@PAGE
-    add x6, x6, mess@PAGEOFF
+    adrp x6, mess
+    add x6, x6, :lo12:mess
     ldr x10, [x6, #8]
     str x10, [sp, #28]
     ldr x0, [sp, #28]
@@ -1653,7 +1653,7 @@ _start:
     bl print
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1757,36 +1757,36 @@ _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
     ldr w10, [sp, #20]
-    adrp x6, unit@PAGE
-    add x6, x6, unit@PAGEOFF
+    adrp x6, unit
+    add x6, x6, :lo12:unit
     ldr w10, [x6]
     str w10, [sp, #20]
     ldr x10, [sp, #28]
-    adrp x6, mess@PAGE
-    add x6, x6, mess@PAGEOFF
+    adrp x6, mess
+    add x6, x6, :lo12:mess
     ldr x10, [x6]
     str x10, [sp, #28]
     mov w0, #1
     ldr x1, [sp, #28]
     mov w2, #6
-    mov x8, #4
+    mov x8, #64
     svc #0
-    adrp x6, mess@PAGE
-    add x6, x6, mess@PAGEOFF
+    adrp x6, mess
+    add x6, x6, :lo12:mess
     mov w0, #1
     ldr x1, [x6, #8]
     mov w2, #6
-    mov x8, #4
+    mov x8, #64
     svc #0
     mov w0, #1
-    adrp x1, ._L_str2__@PAGE
-    add x1, x1, ._L_str2__@PAGEOFF
+    adrp x1, ._L_str2__
+    add x1, x1, :lo12:._L_str2__
     mov w2, #21
-    mov x8, #4
+    mov x8, #64
     svc #0
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -1901,36 +1901,36 @@ _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
     ldr w10, [sp, #20]
-    adrp x6, unit@PAGE
-    add x6, x6, unit@PAGEOFF
+    adrp x6, unit
+    add x6, x6, :lo12:unit
     ldr w10, [x6]
     str w10, [sp, #20]
     ldr x10, [sp, #28]
-    adrp x6, mess@PAGE
-    add x6, x6, mess@PAGEOFF
+    adrp x6, mess
+    add x6, x6, :lo12:mess
     ldr x10, [x6]
     str x10, [sp, #28]
-    adrp x0, ._L_str2__@PAGE
-    add x0, x0, ._L_str2__@PAGEOFF
+    adrp x0, ._L_str2__
+    add x0, x0, :lo12:._L_str2__
     mov w1, #13
     bl print
     ldr x0, [sp, #28]
     mov w1, #6
     bl print
-    adrp x6, mess@PAGE
-    add x6, x6, mess@PAGEOFF
+    adrp x6, mess
+    add x6, x6, :lo12:mess
     ldr x0, [x6, #8]
     mov w1, #7
     bl print
     mov w0, #1
-    adrp x1, ._L_str3__@PAGE
-    add x1, x1, ._L_str3__@PAGEOFF
+    adrp x1, ._L_str3__
+    add x1, x1, :lo12:._L_str3__
     mov w2, #21
-    mov x8, #4
+    mov x8, #64
     svc #0
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -2050,8 +2050,8 @@ _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
     ldr x10, [sp, #24]
-    adrp x6, ._L_str1__@PAGE
-    add x6, x6, ._L_str1__@PAGEOFF
+    adrp x6, ._L_str1__
+    add x6, x6, :lo12:._L_str1__
     mov x10, x6
     str x10, [sp, #24]
     ldr x0, [sp, #24]
@@ -2065,7 +2065,7 @@ _start:
     bl print
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 
@@ -2142,8 +2142,8 @@ TEST_CASE("target/arm64: fixture: call_2")
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
     bl test
     mov x0, x0
     ldr x10, [sp, #24]
@@ -2156,7 +2156,7 @@ _start:
     bl print
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 
@@ -2234,8 +2234,8 @@ _start:
     str w0, [sp, #20]
     str x1, [sp, #28]
     ldr x10, [sp, #36]
-    adrp x6, ._L_str4__@PAGE
-    add x6, x6, ._L_str4__@PAGEOFF
+    adrp x6, ._L_str4__
+    add x6, x6, :lo12:._L_str4__
     mov x10, x6
     str x10, [sp, #36]
 ._L2__main:
@@ -2256,8 +2256,8 @@ _start:
     ldr x10, [sp, #28]
     ldr x1, [x10, #8]
     bl printf
-    adrp x6, strings@PAGE
-    add x6, x6, strings@PAGEOFF
+    adrp x6, strings
+    add x6, x6, :lo12:strings
     ldr x0, [x6]
     mov w1, #14
     bl print
@@ -2265,7 +2265,7 @@ _start:
 ._L1__main:
     ldp x29, x30, [sp], #48
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 
@@ -2407,7 +2407,7 @@ _start:
     bl putchar
     ldp x29, x30, [sp], #16
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -2495,8 +2495,8 @@ _start:
     cmp w8, #20
     b.lt ._L34__main
 ._L33__main:
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
     mov w1, #5
     bl print
     mov w8, 1
@@ -2508,45 +2508,45 @@ _start:
     ldr w10, [sp, #20]
     mov w10, #1
     str w10, [sp, #20]
-    adrp x0, ._L_str6__@PAGE
-    add x0, x0, ._L_str6__@PAGEOFF
+    adrp x0, ._L_str6__
+    add x0, x0, :lo12:._L_str6__
     mov w1, #5
     bl printf
     b ._L3__main
 ._L10__main:
-    adrp x0, ._L_str2__@PAGE
-    add x0, x0, ._L_str2__@PAGEOFF
+    adrp x0, ._L_str2__
+    add x0, x0, :lo12:._L_str2__
     mov w1, #10
     bl printf
     b ._L9__main
 ._L16__main:
-    adrp x0, ._L_str4__@PAGE
-    add x0, x0, ._L_str4__@PAGEOFF
+    adrp x0, ._L_str4__
+    add x0, x0, :lo12:._L_str4__
     mov w1, #5
     bl printf
     b ._L15__main
 ._L22__main:
-    adrp x0, ._L_str7__@PAGE
-    add x0, x0, ._L_str7__@PAGEOFF
+    adrp x0, ._L_str7__
+    add x0, x0, :lo12:._L_str7__
     mov w1, #5
     bl printf
     b ._L21__main
 ._L28__main:
-    adrp x0, ._L_str3__@PAGE
-    add x0, x0, ._L_str3__@PAGEOFF
+    adrp x0, ._L_str3__
+    add x0, x0, :lo12:._L_str3__
     mov w1, #8
     bl printf
     b ._L27__main
 ._L34__main:
-    adrp x0, ._L_str5__@PAGE
-    add x0, x0, ._L_str5__@PAGEOFF
+    adrp x0, ._L_str5__
+    add x0, x0, :lo12:._L_str5__
     mov w1, #20
     bl printf
     b ._L33__main
 ._L1__main:
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -2736,8 +2736,8 @@ _start:
     b.eq ._L13__main
     b ._L16__main
 ._L12__main:
-    adrp x0, ._L_str2__@PAGE
-    add x0, x0, ._L_str2__@PAGEOFF
+    adrp x0, ._L_str2__
+    add x0, x0, :lo12:._L_str2__
     ldr w1, [sp, #20]
     ldr w2, [sp, #24]
     bl printf
@@ -2762,21 +2762,21 @@ _start:
     str w10, [sp, #24]
     b ._L6__main
 ._L13__main:
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
     mov w1, #4
     bl print
     b ._L12__main
 ._L16__main:
-    adrp x0, ._L_str3__@PAGE
-    add x0, x0, ._L_str3__@PAGEOFF
+    adrp x0, ._L_str3__
+    add x0, x0, :lo12:._L_str3__
     mov w1, #6
     bl print
     b ._L12__main
 ._L1__main:
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -2926,8 +2926,8 @@ _start:
     mov w8, w10
     cmp w8, #1
     b.gt ._L10__main
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
     ldr w1, [sp, #20]
     bl printf
     b ._L7__main
@@ -2949,7 +2949,7 @@ _start:
 ._L1__main:
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -3052,8 +3052,8 @@ _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
     ldr x10, [sp, #28]
-    adrp x6, ._L_str1__@PAGE
-    add x6, x6, ._L_str1__@PAGEOFF
+    adrp x6, ._L_str1__
+    add x6, x6, :lo12:._L_str1__
     mov x10, x6
     str x10, [sp, #28]
     ldr w10, [sp, #20]
@@ -3072,22 +3072,22 @@ _start:
     b ._L1__main
 ._L4__main:
     ldr x10, [sp, #28]
-    adrp x6, ._L_str2__@PAGE
-    add x6, x6, ._L_str2__@PAGEOFF
+    adrp x6, ._L_str2__
+    add x6, x6, :lo12:._L_str2__
     mov x10, x6
     str x10, [sp, #28]
     b ._L3__main
 ._L6__main:
     ldr x10, [sp, #28]
-    adrp x6, ._L_str3__@PAGE
-    add x6, x6, ._L_str3__@PAGEOFF
+    adrp x6, ._L_str3__
+    add x6, x6, :lo12:._L_str3__
     mov x10, x6
     str x10, [sp, #28]
     b ._L3__main
 ._L1__main:
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -3192,19 +3192,19 @@ _start:
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    adrp x0, ._L_str2__@PAGE
-    add x0, x0, ._L_str2__@PAGEOFF
+    adrp x0, ._L_str2__
+    add x0, x0, :lo12:._L_str2__
     mov w1, #14
     bl print
     b ._L3__main
 ._L7__main:
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
-    adrp x1, ._L_str3__@PAGE
-    add x1, x1, ._L_str3__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
+    adrp x1, ._L_str3__
+    add x1, x1, :lo12:._L_str3__
     mov w2, #5
-    adrp x8, ._L_double4__@PAGE
-    ldr d3, [x8, ._L_double4__@PAGEOFF]
+    adrp x8, ._L_double4__
+    ldr d3, :lo12:._L_double4__
     mov w4, 120
     mov w5, #1
     bl printf
@@ -3212,7 +3212,7 @@ _start:
 ._L1__main:
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data
@@ -3311,28 +3311,28 @@ _start:
     mov x29, sp
     str w0, [sp, #20]
     str x1, [sp, #28]
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
+    adrp x0, ._L_str1__
+    add x0, x0, :lo12:._L_str1__
     ldr w1, [sp, #20]
     bl printf
-    adrp x0, ._L_str2__@PAGE
-    add x0, x0, ._L_str2__@PAGEOFF
+    adrp x0, ._L_str2__
+    add x0, x0, :lo12:._L_str2__
     ldr x10, [sp, #28]
     ldr x1, [x10, #8]
     bl printf
-    adrp x0, ._L_str3__@PAGE
-    add x0, x0, ._L_str3__@PAGEOFF
+    adrp x0, ._L_str3__
+    add x0, x0, :lo12:._L_str3__
     ldr x10, [sp, #28]
     ldr x1, [x10, #16]
     bl printf
-    adrp x0, ._L_str4__@PAGE
-    add x0, x0, ._L_str4__@PAGEOFF
+    adrp x0, ._L_str4__
+    add x0, x0, :lo12:._L_str4__
     ldr x10, [sp, #28]
     ldr x1, [x10, #24]
     bl printf
     ldp x29, x30, [sp], #32
     mov w0, #0
-    mov x8, #1
+    mov x8, #93
     svc #0
 
 .data

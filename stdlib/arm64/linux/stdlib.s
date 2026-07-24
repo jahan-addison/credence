@@ -121,7 +121,8 @@ printf:
     fmul    d0, d0, d2
     fcvtzs  x0, d0
 
-    mov     x1, #1000000
+    movz    x1, #0x4240
+    movk    x1, #0x000f, lsl #16
     mov     x2, #6
 .frac_loop:
     mov     x3, #10
