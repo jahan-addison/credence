@@ -23,9 +23,8 @@ unusedFunction
 cstyleCast
 
 // ignore dependencies
-// Use ** to match path separators (folders) for Cppcheck 2.18+
-*:*/**json**
-*:*/**test**
-*:*/**python**
-*:*/**cpm_modules**
-*:*/**_deps**
+*:*json*
+*:*test*
+*:*python*
+*:*cpm_modules*
+*:*_deps*

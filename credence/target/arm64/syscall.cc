@@ -112,8 +112,7 @@ void Syscall_Invocation_Inserter::make_syscall(
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::Linux,
         target::common::assembly::Arch_Type::ARM64);
-
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     auto syscall_list = target::common::syscall_ns::get_syscall_list(
         target::common::assembly::OS_Type::BSD,
         target::common::assembly::Arch_Type::ARM64);
@@ -128,8 +127,7 @@ void Syscall_Invocation_Inserter::make_syscall(
 
     target::common::syscall_ns::syscall_t syscall_entry{ 0, 0 };
 
-    syscall_entry =
-        target::common::syscall_ns::arm64::bsd_ns::syscall_list.at(syscall);
+    syscall_entry = syscall_list.at(syscall);
 
     credence_assert_equal(syscall_entry[1], arguments.size());
 
@@ -139,7 +137,7 @@ void Syscall_Invocation_Inserter::make_syscall(
     assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x8, syscall_number);
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     target::arm64::assembly::Storage syscall_number =
         target::common::assembly::make_numeric_immediate(syscall_entry[0]);
     arm64_add__asm(instructions, mov, x16, syscall_number);
@@ -154,7 +152,7 @@ void Syscall_Invocation_Inserter::make_syscall(
 #if defined(__linux__)
     arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0"));
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     arm64_add__asm(
         instructions, svc, common::assembly::make_direct_immediate("#0x80"));
 #elif defined(_WIN32) || defined(_WIN64)
@@ -187,9 +185,9 @@ void Syscall_Invocation_Inserter::syscall_operands_to_instructions(
         if (is_immediate_relative_address(arg)) {
             auto immediate =
                 type::get_value_from_rvalue_data_type(std::get<Immediate>(arg));
-            auto imm_1 = direct_immediate(fmt::format("{}@PAGE", immediate));
+            auto imm_1 = assembly::page_offset_upper_immediate(immediate);
             arm64_add__asm(instructions, adrp, storage, imm_1);
-            auto imm_2 = direct_immediate(fmt::format("{}@PAGEOFF", immediate));
+            auto imm_2 = assembly::page_offset_lower_immediate(immediate);
             arm64_add__asm(instructions, add, storage, storage, imm_2);
         } else if (assembly::is_immediate_pc_address_offset(arg)) {
             arm64_add__asm(instructions, ldr, storage, arg);

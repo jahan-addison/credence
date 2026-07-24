@@ -25,6 +25,7 @@ ARCH=''
 CREDENCE_HOME=$(<"$HOME/.credence")
 CREDENCE_BINARY="$CREDENCE_HOME/build/credence"
 UNAMESTR=$(uname -s)
+HOST_ARCH=$(uname -m)
 STDLIB_TYPE=''
 SOURCE_NAME=''
 
@@ -60,13 +61,53 @@ done
 
 "$CREDENCE_BINARY" "$@"
 
+check_tool() {
+  local cmd="$1"
+
+  if ! command -v "$cmd" &> /dev/null; then
+    echo "Error: Required tool '$cmd' not found on PATH." >&2
+    case "$cmd" in
+      aarch64-linux-gnu-*)
+        echo "Hint: Install the ARM64 cross-toolchain with:" >&2
+        echo "      sudo apt install binutils-aarch64-linux-gnu" >&2
+        ;;
+      x86_64-linux-gnu-*)
+        echo "Hint: Install the x86_64 cross-toolchain with:" >&2
+        echo "      sudo apt install binutils-x86-64-linux-gnu" >&2
+        ;;
+      *)
+        echo "Hint: Ensure standard development binutils are installed on your system." >&2
+        ;;
+    esac
+    exit 1
+  fi
+}
+
 if [[ ( "$ARCH" == "arm64" || "$ARCH" == "x86_64" ) && -n "$SOURCE_NAME" ]]; then
   STDLIB_PATH="$CREDENCE_HOME/stdlib/$ARCH/$STDLIB_TYPE/stdlib.o"
 
   if [[ "$UNAMESTR" == 'Linux' ]]; then
-    as -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
-    ld -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+    AS_CMD="as"
+    LD_CMD="ld"
+
+    if [[ "$ARCH" == "arm64" && "$HOST_ARCH" == "x86_64" ]]; then
+      AS_CMD="aarch64-linux-gnu-as"
+      LD_CMD="aarch64-linux-gnu-ld"
+    elif [[ "$ARCH" == "x86_64" && ( "$HOST_ARCH" == "aarch64" || "$HOST_ARCH" == "arm64" ) ]]; then
+      AS_CMD="x86_64-linux-gnu-as"
+      LD_CMD="x86_64-linux-gnu-ld"
+    fi
+
+    check_tool "$AS_CMD" "$ARCH"
+    check_tool "$LD_CMD" "$ARCH"
+
+    "$AS_CMD" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
+    "$LD_CMD" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+
   elif [[ "$UNAMESTR" == 'Darwin' ]]; then
+    check_tool "as" "$ARCH"
+    check_tool "ld" "$ARCH"
+
     as -arch "$ARCH" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
     if [[ "$ARCH" == "arm64" ]]; then
       SDK_PATH=$(xcrun --show-sdk-path)

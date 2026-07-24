@@ -1492,6 +1492,25 @@ constexpr std::string tabwidth(unsigned int t)
     return tab;
 }
 
+inline Immediate page_offset_upper_immediate(std::string_view str)
+{
+#if defined(__APPLE__) || defined(__bsdi__)
+    return Immediate{ fmt::format("{}@PAGE", str), "string", 8UL };
+#else
+    return Immediate{ str, "string", 8UL };
+#endif
+}
+
+inline Immediate page_offset_lower_immediate(std::string_view str)
+{
+
+#if defined(__APPLE__) || defined(__bsdi__)
+    return Immediate{ fmt::format("{}@PAGEOFF", str), "string", 8UL };
+#else
+    return Immediate{ fmt::format(":lo12:{}", str), "string", 8UL };
+#endif
+}
+
 /**
  * @brief Checks if two storage devices of any type are equal
  */

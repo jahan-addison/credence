@@ -95,7 +95,7 @@ void Table::build_from_ir_instructions()
     build_vector_definitions_from_globals();
 
     for (instruction_index = 0; instruction_index < instructions_->size();
-        instruction_index++) {
+         instruction_index++) {
         auto instruction = instructions_->at(instruction_index);
         m::match(std::get<Instruction>(instruction))(
             m::pattern | Instruction::FUNC_START =

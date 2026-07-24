@@ -336,7 +336,7 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64);
 
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
         return common::runtime::is_syscall_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64);
@@ -352,7 +352,7 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64);
 
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
         return common::runtime::is_stdlib_function(label,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64);

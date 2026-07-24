@@ -949,7 +949,7 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
                         common::assembly::OS_Type::Linux,
                         common::assembly::Arch_Type::ARM64))
                     return;
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
                 if (common::runtime::is_stdlib_function(stack_frame_.tail,
                         common::assembly::OS_Type::BSD,
                         common::assembly::Arch_Type::ARM64))
@@ -1175,7 +1175,7 @@ void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
             common::assembly::Arch_Type::ARM64) and
         stack_frame_.tail != "getchar")
         return;
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     if (common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64) and
@@ -1374,20 +1374,23 @@ Storage Operand_Inserter::get_operand_storage_from_immediate(
     auto immediate = type::get_rvalue_datatype_from_string(rvalue);
     auto type = type::get_type_from_rvalue_data_type(immediate);
     if (type == "string") {
-        storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                .buffer_accessor.get_string_address_offset(
+        storage = assembly::make_asciz_immediate(
+            accessor_->address_accessor.buffer_accessor
+                .get_string_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
     if (type == "float") {
-        storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                .buffer_accessor.get_float_address_offset(
+        storage = assembly::make_asciz_immediate(
+            accessor_->address_accessor.buffer_accessor
+                .get_float_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
     if (type == "double") {
-        storage = assembly::make_asciz_immediate(accessor_->address_accessor
-                .buffer_accessor.get_double_address_offset(
+        storage = assembly::make_asciz_immediate(
+            accessor_->address_accessor.buffer_accessor
+                .get_double_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
@@ -1448,7 +1451,7 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
             common::assembly::Arch_Type::ARM64))
         return get_operand_storage_from_return();
 
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     if (!stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
@@ -1488,7 +1491,7 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue_no_instructions(
             common::assembly::Arch_Type::ARM64))
         return get_operand_storage_from_return();
 
-#elif defined(CREDENCE_TEST) || defined(__APPLE__) || defined(__bsdi__)
+#elif defined(__APPLE__) || defined(__bsdi__)
     if (!stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
@@ -1609,10 +1612,10 @@ void Invocation_Inserter::insert_from_user_defined_function(
                         auto immediate = type::get_value_from_rvalue_data_type(
                             std::get<Immediate>(operand));
                         auto imm_1 =
-                            direct_immediate(fmt::format("{}@PAGE", immediate));
+                            assembly::page_offset_upper_immediate(immediate);
                         arm64_add__asm(instructions, adrp, arg_register, imm_1);
-                        auto imm_2 = direct_immediate(
-                            fmt::format("{}@PAGEOFF", immediate));
+                        auto imm_2 =
+                            assembly::page_offset_lower_immediate(immediate);
                         arm64_add__asm(instructions,
                             add,
                             arg_register,
@@ -1845,9 +1848,9 @@ void Expression_Inserter::insert_from_string(RValue const& str)
     auto immediate =
         accessor_->address_accessor.buffer_accessor.get_string_address_offset(
             str);
-    auto imm_1 = direct_immediate(fmt::format("{}@PAGE", immediate));
+    auto imm_1 = assembly::page_offset_upper_immediate(immediate);
     arm64_add__asm(instructions, adrp, x6, imm_1);
-    auto imm_2 = direct_immediate(fmt::format("{}@PAGEOFF", immediate));
+    auto imm_2 = assembly::page_offset_lower_immediate(immediate);
     arm64_add__asm(instructions, add, x6, x6, imm_2);
 }
 

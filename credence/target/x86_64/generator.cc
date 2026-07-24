@@ -529,7 +529,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-            index++) {
+             index++) {
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }
