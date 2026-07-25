@@ -352,7 +352,7 @@ TEST_CASE("target/x86_64: fixture: readme_2.b")
 #endif
 }
 
-TEST_CASE("target/x86_64: fixture: address_of_1.b")
+TEST_CASE("target/x86_64: fixture: address_of_2.b")
 {
     SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("address_of_1");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)

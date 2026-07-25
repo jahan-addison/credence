@@ -325,6 +325,14 @@ void Data_Emitter::set_data_globals()
     for (auto const& global : table->get_globals().get_pointers()) {
         credence_assert(table->get_vectors().contains(global));
         auto vector = table->get_vectors().at(global);
+        if (vector->get_size() == 1) {
+            auto align = get_alignment_size_from_rvalue_data_type(
+                type::get_type_from_rvalue_data_type(
+                    vector->get_data().at("0")));
+            insert_alignment_directive(instructions_, align);
+        } else {
+            insert_alignment_directive(instructions_, 3);
+        }
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
         for (auto const& item : vector->get_data()) {
@@ -332,14 +340,6 @@ void Data_Emitter::set_data_globals()
                 assembly::get_data_directive_from_rvalue_type(item.second);
             auto data = type::get_value_from_rvalue_data_type(item.second);
             vector->set_address_offset(item.first, address);
-            if (vector->get_size() == 1) {
-                auto align = get_alignment_size_from_rvalue_data_type(
-                    type::get_type_from_rvalue_data_type(
-                        vector->get_data().at("0")));
-                insert_alignment_directive(instructions_, align);
-            } else {
-                insert_alignment_directive(instructions_, 3);
-            }
             address += assembly::get_size_from_operand_size(
                 assembly::get_operand_size_from_rvalue_datatype(item.second));
 
@@ -572,7 +572,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-            index++) {
+             index++) {
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }

@@ -597,9 +597,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             "function_definition") {
         // callee saved registers are saved as "tokens" on the frame object
         if (!accessor_->get_frame_in_memory()
-                .get_stack_frame(s)
-                ->get_tokens()
-                .empty())
+                 .get_stack_frame(s)
+                 ->get_tokens()
+                 .empty())
             accessor_->stack->allocate(16);
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
@@ -756,7 +756,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-            index++) {
+             index++) {
             // // this branch
             // if (is_variant(
             //         assembly::Instruction, return_instructions_[index])) {

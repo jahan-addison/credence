@@ -28,21 +28,17 @@ _start:
 ._L_str3__:
     .asciz "tough luck"
 
+    .p2align 3
+
 mess:
-    .p2align 3
-
     .quad ._L_str2__
-
-    .p2align 3
 
     .quad ._L_str3__
 
-    .p2align 3
-
     .quad ._L_str1__
 
-unit:
     .p2align 2
 
+unit:
     .long 1
 

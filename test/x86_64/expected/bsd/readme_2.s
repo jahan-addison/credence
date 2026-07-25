@@ -65,16 +65,12 @@ identity:
 ._L_str4__:
     .asciz "hello, how are you, %s\n"
 
-strings:
     .p2align 3
 
+strings:
     .quad ._L_str1__
 
-    .p2align 3
-
     .quad ._L_str3__
-
-    .p2align 3
 
     .quad ._L_str2__
 

@@ -34,16 +34,12 @@ _start:
 ._L_str3__:
     .asciz "two"
 
-strings:
     .p2align 3
 
+strings:
     .quad ._L_str1__
 
-    .p2align 3
-
     .quad ._L_str3__
-
-    .p2align 3
 
     .quad ._L_str2__
 

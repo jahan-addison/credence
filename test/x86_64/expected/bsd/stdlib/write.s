@@ -49,17 +49,15 @@ _start:
 ._L_str3__:
     .asciz "world\n"
 
+    .p2align 3
+
 mess:
-    .p2align 3
-
     .quad ._L_str1__
-
-    .p2align 3
 
     .quad ._L_str3__
 
-unit:
     .p2align 2
 
+unit:
     .long 0
 
