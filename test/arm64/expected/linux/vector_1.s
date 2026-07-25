@@ -1,0 +1,27 @@
+
+.text
+
+    .align 3
+
+    .global _start
+
+_start:
+    stp x29, x30, [sp, #-48]!
+    mov x29, sp
+    add x15, sp, #40
+    mov w8, #0
+    str w8, [x15]
+    add x15, sp, #32
+    mov w8, #1
+    str w8, [x15]
+    add x15, sp, #24
+    mov w8, #2
+    str w8, [x15]
+    mov w9, #10
+    ldp x29, x30, [sp], #48
+    mov w0, #0
+    mov x8, #93
+    svc #0
+
+.data
+
