@@ -1,29 +1,15 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "good afternoon"
-
-._L_str2__:
-    .asciz "good evening"
-
-._L_str3__:
-    .asciz "good morning"
-
-._L_str4__:
-    .asciz "hello, how are you, %s\n"
-
-strings:
-    .quad ._L_str1__
-
-    .quad ._L_str3__
-
-    .quad ._L_str2__
-
 .text
+
+    .p2align 4
+
     .global _start
+    .extern getchar
+    .extern print
+    .extern printf
+    .extern putchar
 
 _start:
     lea r15, [rsp]
@@ -65,4 +51,30 @@ identity:
     mov rax, rdi
     pop rbp
     ret
+
+.data
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good evening"
+
+._L_str3__:
+    .asciz "good morning"
+
+._L_str4__:
+    .asciz "hello, how are you, %s\n"
+
+strings:
+    .p2align 3
+
+    .quad ._L_str1__
+
+    .p2align 3
+
+    .quad ._L_str3__
+
+    .p2align 3
+
+    .quad ._L_str2__
 

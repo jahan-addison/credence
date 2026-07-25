@@ -80,6 +80,32 @@ inline std::filesystem::path get_root_path()
             credence::target::common::assembly::Arch_Type::ARM64,              \
             syscall);                                                          \
         credence::target::arm64::emit(                                         \
+            test, fixture_content[0], fixture_content[1], false);              \
+        auto expected_content = read_file_from_path(expected_path.string());   \
+        REQUIRE(test.str() == expected_content);                               \
+    } while (0)
+
+#define SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(                   \
+    path_name, os, syscall)                                                    \
+    do {                                                                       \
+        using namespace credence::target::arm64;                               \
+        auto test = std::ostringstream{};                                      \
+        auto fixture_path =                                                    \
+            get_root_path().append("test/fixtures/platform/ast");              \
+        auto expected_root =                                                   \
+            get_root_path().append(fmt::format("test/arm64/expected/{}", os)); \
+        auto file_path =                                                       \
+            fs::path(fixture_path).append(fmt::format("{}.json", path_name));  \
+        auto expected_path =                                                   \
+            fs::path(expected_root).append(fmt::format("{}.s", path_name));    \
+        auto fixture_content =                                                 \
+            easyjson::JSON::load_file(file_path.string()).to_deque();          \
+        credence::target::common::runtime::add_stdlib_functions_to_symbols(    \
+            fixture_content[0],                                                \
+            credence::target::common::assembly::OS_Type::BSD,                  \
+            credence::target::common::assembly::Arch_Type::ARM64,              \
+            syscall);                                                          \
+        credence::target::arm64::emit(                                         \
             test, fixture_content[0], fixture_content[1], true);               \
         auto expected_content = read_file_from_path(expected_path.string());   \
         REQUIRE(test.str() == expected_content);                               \
@@ -98,27 +124,6 @@ inline std::filesystem::path get_root_path()
         REQUIRE_THROWS(credence::target::arm64::emit(                        \
             test, fixture_content[0], fixture_content[1], true));            \
     } while (0)
-
-std::string replace_last_lines_in_string(std::string_view src,
-    std::string_view replacement,
-    int amount = 3)
-{
-    size_t pos = src.length();
-    int newlines = 0;
-    while (pos > 0) {
-        if (src[pos - 1] == '\n') {
-            newlines++;
-            if (newlines == amount) {
-                break;
-            }
-        }
-        pos--;
-    }
-    std::string result(src.substr(0, pos));
-    result += replacement;
-
-    return result;
-}
 
 TEST_CASE("target/arm64: fixture: math_constant.b")
 {
@@ -324,9 +329,11 @@ TEST_CASE("target/arm64: fixture: vector_4.b")
 {
 
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("vector_4", "linux", true);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "vector_4", "linux", true);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("vector_4", "bsd", true);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "vector_4", "bsd", true);
 #endif
 }
 
@@ -345,9 +352,11 @@ TEST_CASE("target/arm64: fixture: globals 3")
 {
 
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("globals_3", "linux", true);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "globals_3", "linux", true);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("globals_3", "bsd", true);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "globals_3", "bsd", true);
 #endif
 }
 
@@ -374,18 +383,20 @@ TEST_CASE("target/arm64: fixture: stdlib print")
 TEST_CASE("target/arm64: fixture: call_1")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("call_1", "linux", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "call_1", "linux", false);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("call_1", "bsd", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST("call_1", "bsd", false);
 #endif
 }
 
 TEST_CASE("target/arm64: fixture: call_2")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("call_2", "linux", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "call_2", "linux", false);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("call_2", "bsd", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST("call_2", "bsd", false);
 #endif
 }
 
@@ -412,19 +423,21 @@ TEST_CASE("target/arm64: fixture: stdlib putchar")
 TEST_CASE("target/arm64: fixture: relational/if_1.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("relational/if_1", "linux", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "relational/if_1", "linux", false);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("relational/if_1", "bsd", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "relational/if_1", "bsd", false);
 #endif
 }
 
 TEST_CASE("target/arm64: fixture: relational while")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/while_1", "linux", false);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/while_1", "bsd", false);
 #endif
 }
@@ -432,10 +445,10 @@ TEST_CASE("target/arm64: fixture: relational while")
 TEST_CASE("target/arm64: fixture: relational switch")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/switch_1", "linux", false);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/switch_1", "bsd", false);
 #endif
 }
@@ -443,9 +456,11 @@ TEST_CASE("target/arm64: fixture: relational switch")
 TEST_CASE("target/arm64: fixture: relational if 2")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("relational/if_2", "linux", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "relational/if_2", "linux", false);
 #else
-    SETUP_ARM64_WITH_STDLIB_FIXTURE_AND_TEST("relational/if_2", "bsd", false);
+    SETUP_ARM64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "relational/if_2", "bsd", false);
 #endif
 }
 

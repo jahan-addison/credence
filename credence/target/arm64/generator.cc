@@ -306,7 +306,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
     os << assembly::Directive::data;
 #endif
 
-    assembly::newline(os, 1);
+    assembly::newline(os, 2);
 
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
@@ -827,9 +827,8 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 /**
  * @brief Code Generator
  *
- * Test emit factory
+ * Emit factory with no stdlib option for testing
  */
-#ifdef CREDENCE_TEST
 void emit(std::ostream& os,
     util::AST_Node& symbols,
     util::AST_Node const& ast,
@@ -846,6 +845,5 @@ void emit(std::ostream& os,
     emitter.text_.test_no_stdlib = no_stdlib;
     emitter.emit(os);
 }
-#endif
 
 } // namespace credence::target::arm64

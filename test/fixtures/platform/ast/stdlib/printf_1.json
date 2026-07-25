@@ -133,7 +133,7 @@
                             "right": [
                               {
                                 "node": "string_literal",
-                                "root": "\"%s %d %g %c %b\""
+                                "root": "\"%s %d %g %f %c %b\""
                               },
                               {
                                 "node": "string_literal",
@@ -146,6 +146,10 @@
                               {
                                 "node": "double_literal",
                                 "root": 5.200000
+                              },
+                              {
+                                "node": "float_literal",
+                                "root": 5.330000
                               },
                               {
                                 "node": "constant_literal",

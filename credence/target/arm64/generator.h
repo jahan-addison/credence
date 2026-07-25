@@ -102,6 +102,11 @@ using Operand_Stack = std::deque<Storage>;
 
 void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
 
+void emit(std::ostream& os,
+    util::AST_Node& symbols,
+    util::AST_Node const& ast,
+    bool no_stdlib = true);
+
 constexpr std::string emit_immediate_storage(Immediate const& immediate);
 
 constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
@@ -212,10 +217,8 @@ class Text_Emitter
     void emit_function_epilogue(std::ostream& os);
     void emit_epilogue_jump(std::ostream& os);
 
-    // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
+  public:
     bool test_no_stdlib{ false };
-    // clang-format on
 
   private:
     memory::Memory_Access accessor_;
@@ -296,14 +299,9 @@ class Assembly_Emitter
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Data_Emitter data_{ accessor_ };
-    Text_Emitter text_{ accessor_ };
     // clang-format on
+  public:
+    Text_Emitter text_{ accessor_ };
 };
 
-#ifdef CREDENCE_TEST
-void emit(std::ostream& os,
-    util::AST_Node& symbols,
-    util::AST_Node const& ast,
-    bool no_stdlib = true);
-#endif
 } // namespace credence::target::arm64

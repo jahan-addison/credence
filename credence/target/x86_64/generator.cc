@@ -625,9 +625,8 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 /**
  * @brief Code Generator
  *
- * Test emit factory
+ * Emit factory with no stdlib option for testing
  */
-#ifdef CREDENCE_TEST
 void emit(std::ostream& os,
     util::AST_Node& symbols,
     util::AST_Node const& ast,
@@ -644,6 +643,5 @@ void emit(std::ostream& os,
     emitter.text_.test_no_stdlib = no_stdlib;
     emitter.emit(os);
 }
-#endif
 
 } // namespace x86_64

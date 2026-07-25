@@ -6,6 +6,10 @@
     .p2align 4
 
     .global _start
+    .extern getchar
+    .extern print
+    .extern printf
+    .extern putchar
 
 _start:
     push rbp
@@ -20,15 +24,16 @@ _start:
 ._L3__main:
     jmp ._L1__main
 ._L4__main:
-    lea rdi, [rip + ._L_str3__]
+    lea rdi, [rip + ._L_str4__]
     mov esi, 14
     call print
     jmp ._L3__main
 ._L7__main:
-    lea rdi, [rip + ._L_str2__]
-    lea rsi, [rip + ._L_str4__]
+    lea rdi, [rip + ._L_str3__]
+    lea rsi, [rip + ._L_str5__]
     mov edx, 5
-    movsd xmm0, [rip + ._L_double1__]
+    movsd xmm0, [rip + ._L_double2__]
+    movss xmm1, [rip + ._L_float1__]
     mov ecx, 120
     mov r8d, 1
     call printf
@@ -40,17 +45,22 @@ _start:
     syscall
 
 .data
+    .p2align 2
+
+._L_float1__:
+    .float 5.33
+
     .p2align 3
 
-._L_double1__:
+._L_double2__:
     .double 5.2
 
-._L_str2__:
-    .asciz "%s %d %g %c %b"
-
 ._L_str3__:
-    .asciz "greater than 5"
+    .asciz "%s %d %g %f %c %b"
 
 ._L_str4__:
+    .asciz "greater than 5"
+
+._L_str5__:
     .asciz "hello"
 

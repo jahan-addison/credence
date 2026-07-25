@@ -39,7 +39,8 @@ _start:
 
 .section __DATA,__data
 
-.p2align 3
+    .p2align 3
+
 
 mess:
     .xword ._L_str2__
@@ -48,7 +49,8 @@ mess:
 
     .xword ._L_str1__
 
-.p2align 2
+    .p2align 2
+
 
 unit:
     .long 1

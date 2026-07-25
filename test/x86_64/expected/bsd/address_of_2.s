@@ -1,25 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "one"
-
-._L_str2__:
-    .asciz "three"
-
-._L_str3__:
-    .asciz "two"
-
-strings:
-    .quad ._L_str1__
-
-    .quad ._L_str3__
-
-    .quad ._L_str2__
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -38,4 +23,27 @@ _start:
     mov rax, 33554433
     mov rdi, 0
     syscall
+
+.data
+._L_str1__:
+    .asciz "one"
+
+._L_str2__:
+    .asciz "three"
+
+._L_str3__:
+    .asciz "two"
+
+strings:
+    .p2align 3
+
+    .quad ._L_str1__
+
+    .p2align 3
+
+    .quad ._L_str3__
+
+    .p2align 3
+
+    .quad ._L_str2__
 

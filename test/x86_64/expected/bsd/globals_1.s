@@ -1,28 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "that sucks"
-
-._L_str2__:
-    .asciz "too bad"
-
-._L_str3__:
-    .asciz "tough luck"
-
-mess:
-    .quad ._L_str2__
-
-    .quad ._L_str3__
-
-    .quad ._L_str1__
-
-unit:
-    .long 1
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -35,4 +17,32 @@ _start:
     mov rax, 33554433
     mov rdi, 0
     syscall
+
+.data
+._L_str1__:
+    .asciz "that sucks"
+
+._L_str2__:
+    .asciz "too bad"
+
+._L_str3__:
+    .asciz "tough luck"
+
+mess:
+    .p2align 3
+
+    .quad ._L_str2__
+
+    .p2align 3
+
+    .quad ._L_str3__
+
+    .p2align 3
+
+    .quad ._L_str1__
+
+unit:
+    .p2align 2
+
+    .long 1
 

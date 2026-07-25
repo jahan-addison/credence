@@ -68,19 +68,23 @@ int main(int argc, const char* argv[])
         cxxopts::Options options("Credence", "Credence :: B Language Compiler");
         options.show_positional_help();
 
-        options.add_options()("a,ast-loader",
-            "AST Loader [parser, json]",
-            cxxopts::value<std::string>()->default_value("parser"))("t,target",
-            "Target [ir, ast, arm64, x86_64]",
-            cxxopts::value<std::string>()->default_value("ir"))("d,debug",
-            "[Debug] Dump symbol table",
-            cxxopts::value<bool>()->default_value("false"))("q,dump-queue",
-            "[Debug] Dump each expression's queue form to stdout",
-            cxxopts::value<bool>()->default_value("false"))("o,output",
-            "Output file",
-            cxxopts::value<std::string>()->default_value("stdout"))(
-            "h,help", "Print usage")(
-            "source-code", "B Source file", cxxopts::value<std::string>());
+        // clang-format off
+        options.add_options()
+            ("a,ast-loader", "AST Loader [parser, json]",
+                cxxopts::value<std::string>()->default_value("parser"))
+            ("t,target", "Target [ir, ast, arm64, x86_64]",
+                cxxopts::value<std::string>()->default_value("ir"))
+            ("s,symbols", "[Debug] Dump symbol table",
+                cxxopts::value<bool>()->default_value("false"))
+            ("n,nostdlib", "[Debug] Do not add stdlib symbols",
+                cxxopts::value<bool>()->default_value("false"))
+            ("q,dump-queue", "[Debug] Dump each expression's queue form to stdout",
+                cxxopts::value<bool>()->default_value("false"))
+            ("o,output", "Output file",
+                cxxopts::value<std::string>()->default_value("stdout"))
+            ("h,help", "Print usage")
+            ("source-code", "B Source file", cxxopts::value<std::string>());
+        // clang-format on
 
         options.parse_positional({ "source-code" });
 
@@ -94,6 +98,7 @@ int main(int argc, const char* argv[])
         auto type = result["ast-loader"].as<std::string>();
         auto target = result["target"].as<std::string>();
         auto output = result["output"].as<std::string>();
+        bool no_stdlib = result["nostdlib"].as<bool>();
 
         if (result["dump-queue"].as<bool>())
             credence::ir::queue_dump_stream = &std::cout;
@@ -131,7 +136,7 @@ int main(int argc, const char* argv[])
                 os_type,
                 credence::target::common::assembly::Arch_Type::ARM64);
 
-        if (result["debug"].count() and target != "ast")
+        if (result["symbols"].count() and target != "ast")
             std::cout << "> Symbol Table:" << std::endl << symbols << std::endl;
 
         std::ostringstream out_to{};
@@ -145,18 +150,19 @@ int main(int argc, const char* argv[])
         m::match(target)(
             m::pattern | "arm64" =
                 [&]() {
-                    credence::target::arm64::emit(out_to, symbols, ast["root"]);
+                    credence::target::arm64::emit(
+                        out_to, symbols, ast["root"], no_stdlib);
                 },
             m::pattern | "x86_64" =
                 [&]() {
                     credence::target::x86_64::emit(
-                        out_to, symbols, ast["root"]);
+                        out_to, symbols, ast["root"], no_stdlib);
                 },
             m::pattern | "ir" =
                 [&]() { credence::ir::emit(out_to, symbols, ast["root"]); },
             m::pattern | "ast" =
                 [&]() {
-                    if (result["debug"].count()) {
+                    if (result["symbols"].count()) {
                         auto group = credence::util::AST::array();
                         group[0] = symbols;
                         group[1] = ast["root"];
@@ -176,6 +182,10 @@ int main(int argc, const char* argv[])
     } catch (cxxopts::exceptions::option_has_no_value const&) {
         std::cout << "Credence :: See \"--help\" for usage overview"
                   << std::endl;
+    } catch (cxxopts::exceptions::no_such_option const&) {
+        std::cout
+            << "Credence :: Invalid option, See \"--help\" for usage overview"
+            << std::endl;
     } catch (std::filesystem::filesystem_error const& e) {
         std::cerr << "Credence :: Invalid file path: " << e.path1()
                   << std::endl;

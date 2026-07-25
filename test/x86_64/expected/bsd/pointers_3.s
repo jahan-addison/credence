@@ -1,9 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -17,4 +18,6 @@ _start:
     mov rax, 33554433
     mov rdi, 0
     syscall
+
+.data
 

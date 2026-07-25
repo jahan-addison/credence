@@ -1,15 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "hello"
-
-._L_str2__:
-    .asciz "world"
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -24,4 +19,11 @@ _start:
     mov rax, 33554433
     mov rdi, 0
     syscall
+
+.data
+._L_str1__:
+    .asciz "hello"
+
+._L_str2__:
+    .asciz "world"
 

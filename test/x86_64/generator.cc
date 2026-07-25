@@ -75,6 +75,32 @@ inline std::filesystem::path get_root_path()
             credence::target::common::assembly::Arch_Type::X8664,             \
             syscall);                                                         \
         credence::target::x86_64::emit(                                       \
+            test, fixture_content[0], fixture_content[1], false);             \
+        auto expected_content = read_file_from_path(expected_path.string());  \
+        REQUIRE(test.str() == expected_content);                              \
+    } while (0)
+
+#define SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(                 \
+    path_name, os, syscall)                                                   \
+    do {                                                                      \
+        using namespace credence::target::x86_64;                             \
+        auto test = std::ostringstream{};                                     \
+        auto fixture_path =                                                   \
+            get_root_path().append("test/fixtures/platform/ast");             \
+        auto expected_root = get_root_path().append(                          \
+            fmt::format("test/x86_64/expected/{}", os));                      \
+        auto file_path =                                                      \
+            fs::path(fixture_path).append(fmt::format("{}.json", path_name)); \
+        auto expected_path =                                                  \
+            fs::path(expected_root).append(fmt::format("{}.s", path_name));   \
+        auto fixture_content =                                                \
+            easyjson::JSON::load_file(file_path.string()).to_deque();         \
+        credence::target::common::runtime::add_stdlib_functions_to_symbols(   \
+            fixture_content[0],                                               \
+            credence::target::common::assembly::OS_Type::Linux,               \
+            credence::target::common::assembly::Arch_Type::X8664,             \
+            syscall);                                                         \
+        credence::target::x86_64::emit(                                       \
             test, fixture_content[0], fixture_content[1], true);              \
         auto expected_content = read_file_from_path(expected_path.string());  \
         REQUIRE(test.str() == expected_content);                              \
@@ -298,18 +324,22 @@ TEST_CASE("target/x86_64: fixture: stdlib print")
 TEST_CASE("target/x86_64: fixture: call_1.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("call_1", "linux", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "call_1", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("call_1", "bsd", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "call_1", "bsd", false);
 #endif
 }
 
 TEST_CASE("target/x86_64: fixture: call_2.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("call_2", "linux", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "call_2", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("call_2", "bsd", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "call_2", "bsd", false);
 #endif
 }
 
@@ -326,18 +356,22 @@ TEST_CASE("target/x86_64: fixture: address_of_1.b")
 {
     SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("address_of_1");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("address_of_2", "linux", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "address_of_2", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("address_of_2", "bsd", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "address_of_2", "bsd", false);
 #endif
 }
 
 TEST_CASE("target/x86_64: fixture: string_3.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("string_3", "linux", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "string_3", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("string_3", "bsd", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "string_3", "bsd", false);
 #endif
 }
 
@@ -355,20 +389,21 @@ TEST_CASE("target/x86_64: fixture: stdlib putchar")
 TEST_CASE("target/x86_64: fixture: relational/if_1.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/if_1", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("relational/if_1", "bsd", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "relational/if_1", "bsd", false);
 #endif
 }
 
 TEST_CASE("target/x86_64: fixture: relational/while_1.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/while_1", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/while_1", "bsd", false);
 #endif
 }
@@ -376,10 +411,10 @@ TEST_CASE("target/x86_64: fixture: relational/while_1.b")
 TEST_CASE("target/x86_64: fixture: relational/switch_1.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/switch_1", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/switch_1", "bsd", false);
 #endif
 }
@@ -387,10 +422,11 @@ TEST_CASE("target/x86_64: fixture: relational/switch_1.b")
 TEST_CASE("target/x86_64: fixture: relational/if_2.b")
 {
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "relational/if_2", "linux", false);
 #else
-    SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("relational/if_2", "bsd", false);
+    SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
+        "relational/if_2", "bsd", false);
 #endif
 }
 

@@ -4,6 +4,10 @@
     .p2align 3
 
     .global _start
+    .global _getchar
+    .global _print
+    .global _printf
+    .global _putchar
 
 _start:
     stp x29, x30, [sp, #-32]!
@@ -57,14 +61,16 @@ _start:
 
 .section __DATA,__data
 
-.p2align 3
+    .p2align 3
+
 
 mess:
     .xword ._L_str1__
 
     .xword ._L_str4__
 
-.p2align 2
+    .p2align 2
+
 
 unit:
     .long 0

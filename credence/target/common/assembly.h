@@ -221,10 +221,11 @@ constexpr OS_Type get_os_type()
 {
 #if defined(__linux__)
     return OS_Type::Linux;
-
 #elif defined(__APPLE__) || defined(__bsdi__)
     return OS_Type::BSD;
 #elif defined(_WIN32) || defined(_WIN64)
+    return OS_Type::Linux;
+#else
     return OS_Type::Linux;
 #endif
 }

@@ -4,6 +4,10 @@
     .p2align 3
 
     .global _start
+    .global _getchar
+    .global _print
+    .global _printf
+    .global _putchar
 
 _start:
     stp x29, x30, [sp, #-16]!

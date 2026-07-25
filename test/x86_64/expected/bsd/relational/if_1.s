@@ -1,30 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "done!"
-
-._L_str2__:
-    .asciz "equal to %d\n"
-
-._L_str3__:
-    .asciz "greater than %d\n"
-
-._L_str4__:
-    .asciz "greater than or equal to %d\n"
-
-._L_str5__:
-    .asciz "less than %d\n"
-
-._L_str6__:
-    .asciz "less than or equal to %d\n"
-
-._L_str7__:
-    .asciz "not equal to %d\n"
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -104,4 +84,26 @@ _start:
     mov rax, 33554433
     mov rdi, 0
     syscall
+
+.data
+._L_str1__:
+    .asciz "done!"
+
+._L_str2__:
+    .asciz "equal to %d\n"
+
+._L_str3__:
+    .asciz "greater than %d\n"
+
+._L_str4__:
+    .asciz "greater than or equal to %d\n"
+
+._L_str5__:
+    .asciz "less than %d\n"
+
+._L_str6__:
+    .asciz "less than or equal to %d\n"
+
+._L_str7__:
+    .asciz "not equal to %d\n"
 

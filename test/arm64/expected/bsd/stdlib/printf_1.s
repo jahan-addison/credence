@@ -4,6 +4,10 @@
     .p2align 3
 
     .global _start
+    .global _getchar
+    .global _print
+    .global _printf
+    .global _putchar
 
 _start:
     stp x29, x30, [sp, #-32]!
@@ -20,21 +24,23 @@ _start:
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    adrp x0, ._L_str2__@PAGE
-    add x0, x0, ._L_str2__@PAGEOFF
+    adrp x0, ._L_str4__@PAGE
+    add x0, x0, ._L_str4__@PAGEOFF
     mov w1, #14
     bl _print
     b ._L3__main
 ._L7__main:
-    adrp x0, ._L_str1__@PAGE
-    add x0, x0, ._L_str1__@PAGEOFF
-    adrp x1, ._L_str3__@PAGE
-    add x1, x1, ._L_str3__@PAGEOFF
+    adrp x0, ._L_str3__@PAGE
+    add x0, x0, ._L_str3__@PAGEOFF
+    adrp x1, ._L_str5__@PAGE
+    add x1, x1, ._L_str5__@PAGEOFF
     mov w2, #5
-    adrp x8, ._L_double4__@PAGE
-    ldr d3, ._L_double4__@PAGEOFF
-    mov w4, 120
-    mov w5, #1
+    adrp x8, ._L_double2__@PAGE
+    ldr d3, [x8, ._L_double2__@PAGEOFF]
+    adrp x8, ._L_float1__@PAGE
+    ldr s4, [x8, ._L_float1__@PAGEOFF]
+    mov w5, 120
+    mov w6, #1
     bl _printf
     b ._L3__main
 ._L1__main:
@@ -45,16 +51,23 @@ _start:
 
 .section	__TEXT,__cstring,cstring_literals
 
-._L_str1__:
-    .asciz "%s %d %g %c %b"
+    .p2align 2
 
-._L_str2__:
-    .asciz "greater than 5"
+
+._L_float1__:
+    .float 5.33
+
+    .p2align 3
+
+
+._L_double2__:
+    .double 5.2
 
 ._L_str3__:
+    .asciz "%s %d %g %f %c %b"
+
+._L_str4__:
+    .asciz "greater than 5"
+
+._L_str5__:
     .asciz "hello"
-
-.section __DATA,__data
-
-._L_double4__:
-    .double 5.2
