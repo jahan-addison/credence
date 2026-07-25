@@ -255,13 +255,11 @@ void Data_Emitter::set_data_section()
 void Data_Emitter::set_data_strings()
 {
     auto& table = accessor_->table_accessor.get_table();
-    fmt::println("size: {}", table->get_strings().size());
     for (auto const& string : table->get_strings()) {
         auto data_instruction =
             assembly::asciz(accessor_->address_accessor.buffer_accessor
                                 .get_constant_size_index(),
                 string);
-        fmt::println("str: {}", string);
         accessor_->address_accessor.buffer_accessor.insert_string_literal(
             string, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
@@ -377,9 +375,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
                         else
                             os << " "
                                << assembly::literal_type_to_string(s.second);
-                        if (s.first == Directive::align or
-                            s.first == Directive::p2align)
-                            assembly::newline(os);
+                        assembly::newline(os);
                         if (index < instructions_.size() - 1)
                             assembly::newline(os);
                     },
