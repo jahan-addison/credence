@@ -200,6 +200,7 @@ std::size_t get_alignment_size_from_rvalue_data_type(
 
 /**
  * @brief Set string in the data section with .asciz directive
+ *  Note: strings should come last for hardware alignment
  */
 void Data_Emitter::set_data_strings()
 {
@@ -223,6 +224,8 @@ void Data_Emitter::set_data_strings()
 void Data_Emitter::set_data_floats()
 {
     auto& table = accessor_->table_accessor.get_table();
+    if (!table->get_floats().empty())
+        insert_arm64_alignment_directive(instructions_, 2);
     for (auto const& floatz : table->get_floats()) {
         auto data_instruction =
             assembly::floatz(accessor_->address_accessor.buffer_accessor
@@ -240,6 +243,9 @@ void Data_Emitter::set_data_floats()
 void Data_Emitter::set_data_doubles()
 {
     auto& table = accessor_->table_accessor.get_table();
+
+    if (!table->get_doubles().empty())
+        insert_arm64_alignment_directive(instructions_, 3);
     for (auto const& doublez : table->get_doubles()) {
         auto data_instruction =
             assembly::doublez(accessor_->address_accessor.buffer_accessor
@@ -261,15 +267,15 @@ void Data_Emitter::set_data_globals()
     for (auto const& global : table->get_globals().get_pointers()) {
         credence_assert(table->get_vectors().contains(global));
         auto vector = table->get_vectors().at(global);
+        // trivial vectors: e.g. `num 1;`
         if (vector->get_size() == 1) {
             auto align = get_alignment_size_from_rvalue_data_type(
                 type::get_type_from_rvalue_data_type(
                     vector->get_data().at("0")));
             insert_arm64_alignment_directive(instructions_, align);
-        }
-
-        else
+        } else {
             insert_arm64_alignment_directive(instructions_, 3);
+        }
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
         for (auto const& item : vector->get_data()) {
@@ -301,7 +307,8 @@ void Data_Emitter::emit_data_section(std::ostream& os)
 #elif defined(_WIN32) || defined(_WIN64)
     os << assembly::Directive::data;
 #endif
-    assembly::newline(os, 2);
+
+    assembly::newline(os, 1);
 
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
@@ -316,11 +323,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
                 util::overload{
                     [&](Label const& s) { os << s << ":" << std::endl; },
                     [&](assembly::Data_Pair const& s) {
-                        if (s.first != Directive::align and
-                            s.first != Directive::p2align)
-                            os << assembly::tabwidth(4) << s.first;
-                        else
-                            os << s.first;
+                        os << assembly::tabwidth(4) << s.first;
                         if (s.first == assembly::Directive::asciz)
                             os << " " << "\""
                                << assembly::literal_type_to_string(s.second)
@@ -329,6 +332,9 @@ void Data_Emitter::emit_data_section(std::ostream& os)
                             os << " "
                                << assembly::literal_type_to_string(s.second);
                         assembly::newline(os);
+                        if (s.first == Directive::align or
+                            s.first == Directive::p2align)
+                            assembly::newline(os);
                         if (index < instructions_.size() - 1)
                             assembly::newline(os);
                     },
@@ -386,38 +392,26 @@ constexpr std::string emit_register_storage(Register device,
 /**
  * @brief Emit the alignment directive
  */
-void emit_arm64_alignment_directive(std::ostream& os,
+inline void emit_arm64_alignment_directive(std::ostream& os,
     std::size_t align,
     std::size_t newline)
 {
-#if defined(__linux__)
-    os << assembly::tabwidth(4) << ".align " << align;
-#elif defined(__APPLE__) || defined(__bsdi__)
     os << assembly::tabwidth(4) << ".p2align " << align;
-#elif defined(_WIN32) || defined(_WIN64)
-    os << assembly::tabwidth(4) << ".align " << align;
-#endif
     assembly::newline(os, newline);
 }
 
 void insert_arm64_alignment_directive(assembly::Directives& instructions,
     std::size_t align)
 {
-#if defined(__linux__)
-    assembly::inserter(instructions, assembly::align(std::to_string(align)));
-#elif defined(__APPLE__) || defined(__bsdi__)
     assembly::inserter(instructions, assembly::p2align(std::to_string(align)));
-#elif defined(_WIN32) || defined(_WIN64)
-    assembly::inserter(instructions, assembly::align(std::to_string(align)));
-#endif
 }
 
 void Data_Emitter::set_data_section()
 {
-    set_data_strings();
     set_data_floats();
     set_data_doubles();
     set_data_globals();
+    set_data_strings();
 }
 
 /**

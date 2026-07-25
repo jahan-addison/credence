@@ -14,7 +14,7 @@
 .intel_syntax noprefix
 
 .data
-    .align 16
+    .p2align 3
 .L_mask:
     .quad 0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 .L_ten_mil:
@@ -51,6 +51,7 @@ printf:
     mov     [rbp - 72], r8
     mov     [rbp - 80], r9
 
+    # Save Float Args
     movups  [rbp - 112], xmm0
     movups  [rbp - 128], xmm1
     movups  [rbp - 144], xmm2
@@ -60,157 +61,137 @@ printf:
     movups  [rbp - 208], xmm6
     movups  [rbp - 224], xmm7
 
-    mov     r12, rdi
-    xor     r13, r13
-    xor     r14, r14
-    xor     r15, r15
+    mov     r12, rdi         # r12 = Format string pointer
+    xor     r13, r13         # r13 = Buffer index
+    mov     r14, -48         # r14 = Integer offset (starts at -48, steps by -8)
+    mov     r15, -112        # r15 = Float offset (starts at -112, steps by -16)
+    lea     rbx, [rbp - 1232]# rbx = Output buffer base pointer
 
 .loop:
     mov     al, [r12]
+    inc     r12
     test    al, al
     jz      .flush
     cmp     al, '%'
     je      .handle_specifier
-    lea     rbx, [rbp - 1232]
     mov     [rbx + r13], al
     inc     r13
-    inc     r12
     jmp     .loop
 
 .handle_specifier:
-    inc     r12
     mov     al, [r12]
     inc     r12
     cmp     al, 'd'
-    je      .get_gp
-    cmp     al, 's'
-    je      .get_gp
-    cmp     al, 'c'
-    je      .get_gp
-    cmp     al, 'b'
-    je      .get_gp
-    cmp     al, 'f'
-    je      .get_xmm
-    cmp     al, 'g'
-    je      .get_xmm
-    jmp     .loop
-
-.get_gp:
-    cmp     r14, 5
-    jl      .gp_from_reg
-    mov     rax, r14
-    sub     rax, 5
-    mov     rax, [rbp + 16 + rax * 8]
-    jmp     .dispatch_gp
-.gp_from_reg:
-    mov     rax, r14
-    neg     rax
-    mov     rax, [rbp - 48 + rax * 8]
-.dispatch_gp:
-    inc     r14
-    mov     r11, rax
-    mov     bl, [r12 - 1]
-    cmp     bl, 'd'
     je      .do_int
-    cmp     bl, 's'
+    cmp     al, 's'
     je      .do_str
-    cmp     bl, 'c'
+    cmp     al, 'c'
     je      .do_char
-    jmp     .do_bool
-
-.get_xmm:
-    cmp     r15, 8
-    jl      .xmm_from_reg
-    mov     rax, r15
-    sub     rax, 8
-    movq    xmm0, [rbp + 16 + rax * 8]
-    jmp     .do_float
-.xmm_from_reg:
-    mov     rax, r15
-    shl     rax, 4
-    neg     rax
-    movups  xmm0, [rbp - 112 + rax]
-
-.do_float:
-    cvttsd2si rbx, xmm0
-    cvtsi2sd  xmm1, rbx
-    subsd     xmm0, xmm1
-    andpd     xmm0, [rip + .L_mask]
-    mulsd     xmm0, [rip + .L_ten_mil]
-    cvttsd2si r10, xmm0
-
-    mov     rax, rbx
-    push    r10
-    call    .itoa
-    pop     r10
-
-    lea     rbx, [rbp - 1232]
-    mov     byte ptr [rbx + r13], '.'
-    inc     r13
-
-    mov     rax, r10
-    mov     rbx, 10
-    sub     rsp, 16
-    mov     rcx, 6
-.frac_extract_loop:
-    xor     rdx, rdx
-    div     rbx
-    add     dl, '0'
-    mov     [rsp + rcx - 1], dl
-    loop    .frac_extract_loop
-
-    mov     rcx, 6
-    xor     rdi, rdi
-.frac_copy_loop:
-    mov     al, [rsp + rdi]
-    lea     rdx, [rbp - 1232]
-    mov     [rdx + r13], al
-    inc     r13
-    inc     rdi
-    loop    .frac_copy_loop
-
-    add     rsp, 16
-    inc     r15
+    cmp     al, 'b'
+    je      .do_bool
+    cmp     al, 'f'
+    je      .do_float32
+    cmp     al, 'g'
+    je      .do_float64
     jmp     .loop
 
 .do_int:
-    mov     rax, r11
-    call    .itoa
+    mov     rdi, [rbp + r14]
+    sub     r14, 8
+    call    itoa
     jmp     .loop
 
 .do_str:
-    mov     rsi, r11
+    mov     rsi, [rbp + r14]
+    sub     r14, 8
+    test    rsi, rsi
+    jz      .loop
 .s_copy:
     mov     al, [rsi]
+    inc     rsi
     test    al, al
     jz      .loop
-    lea     rbx, [rbp - 1232]
     mov     [rbx + r13], al
     inc     r13
-    inc     rsi
     jmp     .s_copy
 
 .do_char:
-    lea     rbx, [rbp - 1232]
-    mov     al, r11b
+    mov     rax, [rbp + r14]
+    sub     r14, 8
     mov     [rbx + r13], al
     inc     r13
     jmp     .loop
 
 .do_bool:
-    test    r11, r11
-    setnz   al
+    mov     rax, [rbp + r14]
+    sub     r14, 8
+    test    rax, rax
+    setne   al
     add     al, '0'
-    lea     rbx, [rbp - 1232]
     mov     [rbx + r13], al
     inc     r13
     jmp     .loop
 
+.do_float32:
+    movss   xmm0, dword ptr [rbp + r15]
+    sub     r15, 16
+    cvtss2sd xmm0, xmm0
+    jmp     .L_float_common
+
+.do_float64:
+    movsd   xmm0, qword ptr [rbp + r15]
+    sub     r15, 16
+    jmp     .L_float_common
+
+.L_float_common:
+    movq    rax, xmm0
+    test    rax, rax
+    jns     .L_float_pos
+    mov     byte ptr [rbx + r13], '-'
+    inc     r13
+    btr     rax, 63             # Clear sign bit (fabs)
+    movq    xmm0, rax
+
+.L_float_pos:
+    cvttsd2si rdi, xmm0
+    call    itoa
+    mov     byte ptr [rbx + r13], '.'
+    inc     r13
+
+    cvttsd2si rax, xmm0
+    cvtsi2sd xmm1, rax
+    subsd   xmm0, xmm1
+    movsd   xmm2, qword ptr [rip + .L_ten_mil]
+    mulsd   xmm0, xmm2
+
+    cvttsd2si r10, xmm0         # r10 = integer fraction payload
+    mov     r11, 1000000        # r11 = divisor
+    mov     rcx, 6              # loop counter
+
+.frac_loop:
+    mov     rax, r11
+    xor     rdx, rdx
+    mov     r8, 10
+    div     r8
+    mov     r11, rax            # r11 = r11 / 10
+
+    mov     rax, r10
+    xor     rdx, rdx
+    div     r11                 # rax = digit, rdx = remainder
+    add     al, '0'
+    mov     [rbx + r13], al
+    inc     r13
+
+    mov     r10, rdx            # update payload to remainder
+    dec     rcx
+    jnz     .frac_loop
+    jmp     .loop
+
 .flush:
-    mov     rax, 1
-    mov     rdi, 1
-    lea     rsi, [rbp - 1232]
-    mov     rdx, r13
+    mov     rax, 1              # Syscall 1 (sys_write)
+    mov     rdi, 1              # stdout
+    mov     rsi, rbx            # buffer pointer
+    mov     rdx, r13            # buffer length
     syscall
 
     add     rsp, 1232
@@ -219,52 +200,37 @@ printf:
     pop     r14
     pop     r13
     pop     r12
+    mov     rsp, rbp
     pop     rbp
     ret
 
-.itoa:
-    push    rbx
-    push    rcx
-    push    rdx
-    push    rdi
-    test    rax, rax
-    jns     .pos
-    neg     rax
-    lea     rdi, [rbp - 1232]
-    mov     byte ptr [rdi + r13], '-'
+itoa:
+    test    rdi, rdi
+    jns     .pos_itoa
+    neg     rdi
+    mov     byte ptr [rbx + r13], '-'
     inc     r13
-.pos:
-    mov     rbx, 10
+.pos_itoa:
+    mov     rax, rdi
+    mov     r8, 10
     sub     rsp, 32
-    xor     rcx, rcx
-    test    rax, rax
-    jnz     .div_loop
-    lea     rdx, [rbp - 1232]
-    mov     byte ptr [rdx + r13], '0'
-    inc     r13
-    jmp     .done_itoa
-.div_loop:
+    mov     rcx, 0
+.div_loop_itoa:
     xor     rdx, rdx
-    div     rbx
+    div     r8                  # rax = rax / 10, rdx = rax % 10
     add     dl, '0'
-    mov     [rsp + rcx], dl
+    mov     byte ptr [rsp + rcx], dl
     inc     rcx
     test    rax, rax
-    jnz     .div_loop
-.rev_loop:
+    jnz     .div_loop_itoa
+.rev_loop_itoa:
     dec     rcx
-    mov     al, [rsp + rcx]
-    lea     rdx, [rbp - 1232]
-    mov     [rdx + r13], al
+    mov     dl, byte ptr [rsp + rcx]
+    mov     [rbx + r13], dl
     inc     r13
     test    rcx, rcx
-    jnz     .rev_loop
-.done_itoa:
+    jnz     .rev_loop_itoa
     add     rsp, 32
-    pop     rdi
-    pop     rdx
-    pop     rcx
-    pop     rbx
     ret
 
 ####################################################

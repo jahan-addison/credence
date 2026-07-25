@@ -26,6 +26,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     PUBLIC
       -DCREDENCE_TEST
       -DROOT_TEST_PATH=${CMAKE_CURRENT_SOURCE_DIR}
+      -DCREDENCE_TEST_FIXTURES_X8664_AST="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/x86_64/ast"
       -DCREDENCE_TEST_FIXTURES_ARM64_AST="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/arm64/ast"
       -DDEBUG
       -Wall
@@ -41,7 +42,12 @@ enable_testing()
 
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
 
-doctest_discover_tests(Test_Suite)
+if(CMAKE_CROSSCOMPILING)
+    # When cross-compiling, do not attempt to run the binary on the host.
+    add_test(NAME Test_Suite COMMAND Test_Suite)
+else()
+    doctest_discover_tests(Test_Suite)
+endif()
 
 if(ENABLE_TEST_COVERAGE)
   message(STATUS "Clang coverage enabled: adding -fprofile-instr-generate")

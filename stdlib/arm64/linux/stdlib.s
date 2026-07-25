@@ -35,11 +35,11 @@ printf:
 
     sub     sp, sp, #1024
     mov     x19, x0
-    mov     x20, #0
+    mov     x20, #8
     mov     x21, #0
     mov     x22, #0
     mov     x23, sp
-    sub     x26, x29, #128
+    sub     x26, x29, #136
     sub     x25, x29, #72
 
 .loop:
@@ -62,9 +62,9 @@ printf:
     cmp     w0, #'b'
     b.eq    .do_bool
     cmp     w0, #'f'
-    b.eq    .do_float
+    b.eq    .do_float32
     cmp     w0, #'g'
-    b.eq    .do_float
+    b.eq    .do_float64
     b       .loop
 
 .do_int:
@@ -101,9 +101,27 @@ printf:
     add     x22, x22, #1
     b       .loop
 
-.do_float:
-    ldr     d0, [x25, x21]
-    add     x21, x21, #8
+.do_float32:
+    ldr     w0, [x25, x20]
+    add     x20, x20, #8
+    fmov    s0, w0
+    fcvt    d0, s0
+    b       .L_float_common
+
+.do_float64:
+    ldr     d0, [x25, x20]
+    add     x20, x20, #8
+    b       .L_float_common
+
+.L_float_common:
+    fmov    x1, d0
+    tbz     x1, #63, .L_float_pos
+    mov     w1, #'-'
+    strb    w1, [x23, x22]
+    add     x22, x22, #1
+    fabs    d0, d0
+
+.L_float_pos:
     adrp    x0, .L_ten_mil
     ldr     d2, [x0, :lo12:.L_ten_mil]
 
@@ -117,7 +135,6 @@ printf:
     fcvtzs  x24, d0
     scvtf   d1, x24
     fsub    d0, d0, d1
-    fabs    d0, d0
     fmul    d0, d0, d2
     fcvtzs  x0, d0
 

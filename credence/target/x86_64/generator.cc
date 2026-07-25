@@ -113,13 +113,11 @@ void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
 void Assembly_Emitter::emit(std::ostream& os)
 {
     emit_x86_64_assembly_intel_prologue(os);
-    data_.emit_data_section(os);
-    if (!data_.instructions_.empty())
-        assembly::newline(os);
+    data_.set_data_section();
     auto inserter = Instruction_Inserter{ accessor_ };
     inserter.from_ir_instructions(ir_instructions_);
     text_.emit_text_section(os);
-    assembly::newline(os);
+    data_.emit_data_section(os);
 }
 
 /**
@@ -176,9 +174,26 @@ constexpr std::string emit_register_storage(assembly::Register device,
 /**
  * @brief Emit the intel syntax directive
  */
-void emit_x86_64_assembly_intel_prologue(std::ostream& os)
+inline void emit_x86_64_assembly_intel_prologue(std::ostream& os)
 {
     os << std::endl << ".intel_syntax noprefix" << std::endl << std::endl;
+}
+
+inline void emit_alignment_directive(std::ostream& os,
+    std::size_t align,
+    std::size_t newline)
+{
+    os << assembly::tabwidth(4) << ".p2align " << align;
+    assembly::newline(os, newline);
+}
+
+/**
+ * @brief Insert the alignment directive
+ */
+inline void insert_alignment_directive(assembly::Directives& instructions,
+    std::size_t align)
+{
+    assembly::inserter(instructions, assembly::p2align(std::to_string(align)));
 }
 
 /**
@@ -226,6 +241,14 @@ Directives Data_Emitter::get_instructions_from_directive_type(
     return instructions;
 }
 
+void Data_Emitter::set_data_section()
+{
+    set_data_floats();
+    set_data_doubles();
+    set_data_globals();
+    set_data_strings();
+}
+
 /**
  * @brief Set string in the data section with .asciz directive
  */
@@ -249,6 +272,8 @@ void Data_Emitter::set_data_strings()
 void Data_Emitter::set_data_floats()
 {
     auto& table = accessor_->table_accessor.get_table();
+    if (!table->get_floats().empty())
+        insert_alignment_directive(instructions_, 2);
     for (auto const& floatz : table->get_floats()) {
         auto data_instruction =
             assembly::floatz(accessor_->address_accessor.buffer_accessor
@@ -266,6 +291,8 @@ void Data_Emitter::set_data_floats()
 void Data_Emitter::set_data_doubles()
 {
     auto& table = accessor_->table_accessor.get_table();
+    if (!table->get_doubles().empty())
+        insert_alignment_directive(instructions_, 3);
     for (auto const& doublez : table->get_doubles()) {
         auto data_instruction =
             assembly::doublez(accessor_->address_accessor.buffer_accessor
@@ -309,14 +336,9 @@ void Data_Emitter::set_data_globals()
  */
 void Data_Emitter::emit_data_section(std::ostream& os)
 {
+    assembly::newline(os, 1);
     os << assembly::Directive::data;
-
-    set_data_strings();
-    set_data_floats();
-    set_data_doubles();
-    set_data_globals();
-
-    assembly::newline(os, 2);
+    assembly::newline(os, 1);
 
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
@@ -333,13 +355,16 @@ void Data_Emitter::emit_data_section(std::ostream& os)
                         else
                             os << " "
                                << assembly::literal_type_to_string(s.second);
-                        assembly::newline(os);
+                        if (s.first == Directive::align or
+                            s.first == Directive::p2align)
+                            assembly::newline(os);
                         if (index < instructions_.size() - 1)
                             assembly::newline(os);
                     },
                 },
                 data_item);
         }
+    assembly::newline(os);
 }
 
 /**
@@ -558,6 +583,8 @@ void Text_Emitter::emit_text_section(std::ostream& os)
 void Text_Emitter::emit_text_directives(std::ostream& os)
 {
     os << assembly::Directive::text << std::endl;
+    assembly::newline(os, 1);
+    emit_alignment_directive(os, 4, 2);
     os << assembly::tabwidth(4) << assembly::Directive::start;
     assembly::newline(os, 1);
     emit_stdlib_externs(os);

@@ -164,7 +164,8 @@ void Library_Call_Inserter::
                     std::get<Immediate>(argument));
                 auto imm_1 = assembly::page_offset_upper_immediate(immediate);
                 arm64_add__asm(instructions, adrp, x8, imm_1);
-                auto imm = assembly::page_offset_lower_immediate(immediate);
+                auto imm = assembly::load_offset_lower_immediate(
+                    Register::x8, immediate);
                 arm64_add__asm(instructions, ldr, storage, imm);
             },
         m::pattern | m::_ =

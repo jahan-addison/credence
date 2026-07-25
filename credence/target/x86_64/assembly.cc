@@ -65,6 +65,20 @@ Directive_Pair floatz(std::size_t* index, type::semantic::RValue const& rvalue)
     return { label, directives };
 }
 
+Directives align(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::align, rvalue });
+    return directives;
+}
+
+Directives p2align(type::semantic::RValue const& rvalue)
+{
+    auto directives = make_directives();
+    directives.emplace_back(Data_Pair{ Directive::p2align, rvalue });
+    return directives;
+}
+
 Directive_Pair doublez(std::size_t* index, type::semantic::RValue const& rvalue)
 {
     auto directives = make_directives();

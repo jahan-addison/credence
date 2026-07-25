@@ -1511,6 +1511,22 @@ inline Immediate page_offset_lower_immediate(std::string_view str)
 #endif
 }
 
+inline Immediate load_offset_lower_immediate(Register const& storage,
+    std::string_view str)
+{
+    auto device =
+        common::assembly::get_storage_as_string<assembly::Register>(storage);
+#if defined(__APPLE__) || defined(__bsdi__)
+    return Immediate{
+        fmt::format("[{}, {}@PAGEOFF]", device, str), "string", 8UL
+    };
+#else
+    return Immediate{
+        fmt::format("[{}, #:lo12:{}]", device, str), "string", 8UL
+    };
+#endif
+}
+
 /**
  * @brief Checks if two storage devices of any type are equal
  */

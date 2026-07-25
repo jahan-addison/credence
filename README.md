@@ -92,7 +92,23 @@ The generated machine code is compliant with the Application Binary Interface (A
 
 Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
 
-## Test Suite
+## Building
+
+The recommended build commands:
+
+```bash
+cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF
+cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+```
+
+There is a docker image and cross-compilation toolchain available to run the compiler in arm64 on a x86_64 host:
+
+```bash
+cmake -B build-arm64 -DCMAKE_TOOLCHAIN_FILE=aarch64-toolchain.cmake -DUSE_SANITIZER=OFF -DCMAKE_BUILD_TYPE=Debug -DIWYU=OFF
+cmake --build build-arm64 --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+```
+
+### Test Suite
 
 Credence [line and function code coverage](https://jahan-addison.github.io/credence/) is available with exhaustive type checking, ast, and code generation test suites.
 

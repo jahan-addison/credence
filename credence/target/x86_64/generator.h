@@ -195,6 +195,7 @@ class Data_Emitter
     void set_data_strings();
     void set_data_floats();
     void set_data_doubles();
+    void set_data_section();
 
   private:
     assembly::Directives get_instructions_from_directive_type(

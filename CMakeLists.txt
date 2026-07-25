@@ -24,7 +24,6 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-# set(CMAKE_CXX_COMPILER "/opt/homebrew/bin/g++-15")
 
 project(
   credence
@@ -43,7 +42,7 @@ else()
         "${CMAKE_CXX_FLAGS} -g -Wall -Wextra -Werror -Wpedantic -DDEBUG")
   else()
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -O2 -march=native")
+        "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wpedantic -O3")
   endif()
 endif()
 
@@ -117,10 +116,7 @@ cpmaddpackage(NAME matchit VERSION 1.0.1 GITHUB_REPOSITORY BowenFu/matchit.cpp)
 # re2c (B language lexer)
 # ##############################################################################
 
-# credence/language/lexer.cc is generated from lexer.re and committed to the
-# repo (re2c output is plain, dependency-free C++, so a normal build doesn't
-# need re2c at all -- it's picked up like any other source below). This target
-# is only for regenerating lexer.cc after editing lexer.re.
+# credence/language/lexer.cc is generated from lexer.re
 find_program(RE2C_EXECUTABLE re2c)
 if(RE2C_EXECUTABLE)
   add_custom_target(
@@ -135,7 +131,7 @@ else()
   message(
     STATUS "re2c not found. `regenerate_lexer` target unavailable (lexer.cc is "
            "already generated and committed, so this only matters if you edit "
-           "lexer.re). Install with e.g. `brew install re2c`.")
+           "lexer.re).")
 endif()
 
 # ##############################################################################

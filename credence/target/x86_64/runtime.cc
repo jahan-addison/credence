@@ -135,7 +135,7 @@ void Library_Call_Inserter::
             assembly::Mnemonic::lea, storage, argument });
     } else if (arg_type == "float") {
         instructions.emplace_back(assembly::Instruction{
-            assembly::Mnemonic::movsd, storage, argument });
+            assembly::Mnemonic::movss, storage, argument });
     } else if (arg_type == "double") {
         instructions.emplace_back(assembly::Instruction{
             assembly::Mnemonic::movsd, storage, argument });
