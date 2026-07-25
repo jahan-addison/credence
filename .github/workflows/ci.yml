@@ -84,12 +84,12 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - platform: { name: "x86_64 macOS", os: macos-26-intel, arch: x86_64 }
-            compiler: clang++
-            cxx: clang++
-          - platform: { name: "ARM64 macOS", os: macos-latest, arch: arm64 }
-            compiler: clang++
-            cxx: clang++
+            - platform: { name: "ARM64 macOS", os: macos-14, arch: arm64 }
+              compiler: clang++
+              cxx: clang++
+            # - platform: { name: "x86_64 macOS", os: macos-13, arch: x86_64 }
+            #   compiler: clang++
+            #   cxx: clang++
 
     steps:
       - name: checkout

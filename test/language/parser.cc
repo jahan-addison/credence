@@ -10,20 +10,26 @@ namespace fs = std::filesystem;
 
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
-#define SETUP_PARSE_FIXTURE_AND_TEST_AST(name)                             \
-    do {                                                                   \
-        auto fixture_path =                                                \
-            fs::path(ROOT_PATH).append("test/fixtures/language");          \
-        auto source_path =                                                 \
-            fs::path(fixture_path).append(fmt::format("{}.b", name));      \
-        auto expected_path = fs::path(fixture_path)                        \
-                                 .append("ast")                            \
-                                 .append(fmt::format("{}.json", name));    \
-        auto source =                                                      \
-            credence::util::read_file_from_path(source_path.string());     \
-        auto actual = credence::language::Parser::parse(source);           \
-        auto expected = easyjson::JSON::load_file(expected_path.string()); \
-        CHECK(actual == expected);                                         \
+inline std::filesystem::path get_root_path()
+{
+    if (const char* env_root = std::getenv("CREDENCE_TEST_ROOT"))
+        return fs::path(env_root);
+    return fs::path(ROOT_PATH);
+}
+
+#define SETUP_PARSE_FIXTURE_AND_TEST_AST(name)                                \
+    do {                                                                      \
+        auto fixture_path = get_root_path().append("test/fixtures/language"); \
+        auto source_path =                                                    \
+            fs::path(fixture_path).append(fmt::format("{}.b", name));         \
+        auto expected_path = fs::path(fixture_path)                           \
+                                 .append("ast")                               \
+                                 .append(fmt::format("{}.json", name));       \
+        auto source =                                                         \
+            credence::util::read_file_from_path(source_path.string());        \
+        auto actual = credence::language::Parser::parse(source);              \
+        auto expected = easyjson::JSON::load_file(expected_path.string());    \
+        CHECK(actual == expected);                                            \
     } while (0)
 
 TEST_CASE("parser.cc: function definition with no parameters")

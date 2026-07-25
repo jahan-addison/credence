@@ -43,12 +43,13 @@ namespace util {
  * @brief Create and write to a file by one std::ostream to another
  */
 void write_to_file_from_string_stream(std::string_view file_name,
-    std::ostringstream const& oss)
+    std::ostringstream const& oss,
+    std::string_view ext)
 {
     if (file_name == "stdout") {
         std::cout << oss.str();
     } else {
-        std::ofstream file_(fmt::format("{}", file_name));
+        std::ofstream file_(fmt::format("{}.{}", file_name, ext));
         if (file_.is_open()) {
             file_ << oss.str();
             file_.close();

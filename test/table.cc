@@ -30,11 +30,18 @@ namespace fs = std::filesystem;
 #define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
 #define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
+inline std::filesystem::path get_root_path()
+{
+    if (const char* env_root = std::getenv("CREDENCE_TEST_ROOT"))
+        return fs::path(env_root);
+    return fs::path(ROOT_PATH);
+}
+
 #define SETUP_TABLE_FIXTURE_AND_TEST_FROM_AST(ast_path, expected)            \
     do {                                                                     \
         using namespace credence::ir;                                        \
         auto test = std::ostringstream{};                                    \
-        auto fixture_path = fs::path(ROOT_PATH);                             \
+        auto fixture_path = get_root_path();                                 \
         fixture_path.append("test/fixtures/ast");                            \
         auto file_path =                                                     \
             fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
@@ -127,7 +134,7 @@ TEST_CASE_FIXTURE(Table_Fixture, "Type Checking")
         true, true
     };
     // clang-format on
-    auto type_fixtures_path = fs::path(ROOT_PATH);
+    auto type_fixtures_path = get_root_path();
     type_fixtures_path.append("test/fixtures/types/ast");
     for (std::size_t i = 1; i <= statuses.size(); i++) {
         auto* status = statuses.begin() + i - 1;

@@ -67,7 +67,6 @@ int main(int argc, const char* argv[])
     try {
         cxxopts::Options options("Credence", "Credence :: B Language Compiler");
         options.show_positional_help();
-
         // clang-format off
         options.add_options()
             ("a,ast-loader", "AST Loader [parser, json]",
@@ -85,7 +84,6 @@ int main(int argc, const char* argv[])
             ("h,help", "Print usage")
             ("source-code", "B Source file", cxxopts::value<std::string>());
         // clang-format on
-
         options.parse_positional({ "source-code" });
 
         auto result = options.parse(argc, argv);
@@ -141,6 +139,12 @@ int main(int argc, const char* argv[])
 
         std::ostringstream out_to{};
 
+        const std::string_view extension = m::match(target)(
+            m::pattern |
+                m::or_(sv("x86_64"), sv("arm64")) = [&] { return "bs"; },
+            m::pattern | sv("ast") = [&] { return "bast"; },
+            m::pattern | m::_ = [&] { return "bo"; });
+
         m::match(target)(
             m::pattern | "arm64" =
                 [&]() {
@@ -170,7 +174,8 @@ int main(int argc, const char* argv[])
                               << std::endl;
                 });
 
-        credence::util::write_to_file_from_string_stream(output, out_to);
+        credence::util::write_to_file_from_string_stream(
+            output, out_to, extension);
 
     } catch (cxxopts::exceptions::option_has_no_value const&) {
         std::cout << "Credence :: See \"--help\" for usage overview"

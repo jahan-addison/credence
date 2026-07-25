@@ -47,7 +47,7 @@ if [[ "$1" == "stdlib_putchar_test" ]]; then
   printf -v expected_output '%s' "lol"
 fi
 if [[ "$1" == "stdlib_printf_test" ]]; then
-  printf -v expected_output '%s' "hello 5 5.200000 x 1"
+  printf -v expected_output '%s' "hello 5 5.200000 5.329999 x 1"
 fi
 if [[ "$1" == "vector_4" ]]; then
   printf -v expected_output '%s' "good afternoon"
