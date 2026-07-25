@@ -191,13 +191,11 @@ std::size_t get_alignment_size_from_rvalue_data_type(
     using T = type::semantic::Type;
     return m::match(type)(
         m::pattern |
-            m::or_(T{ "int" }, T{ "float" }, T{ "double" }, T{ "long" }) =
-            [&] { return 2UL; },
+            m::or_(T{ "int" }, T{ "float" }, T{ "long" }) = [&] { return 2UL; },
         m::pattern | T{ "char" } = [&] { return 1UL; },
-        m::pattern | T{ "string" } = [&] { return 3UL; },
+        m::pattern | m::or_(T{ "string" }, T{ "double" }) = [&] { return 3UL; },
         m::pattern | m::_ = [&] { return 3UL; });
 }
-
 /**
  * @brief Set string in the data section with .asciz directive
  *  Note: strings should come last for hardware alignment
@@ -410,8 +408,8 @@ void Data_Emitter::set_data_section()
 {
     set_data_floats();
     set_data_doubles();
-    set_data_globals();
     set_data_strings();
+    set_data_globals();
 }
 
 /**
@@ -599,9 +597,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             "function_definition") {
         // callee saved registers are saved as "tokens" on the frame object
         if (!accessor_->get_frame_in_memory()
-                 .get_stack_frame(s)
-                 ->get_tokens()
-                 .empty())
+                .get_stack_frame(s)
+                ->get_tokens()
+                .empty())
             accessor_->stack->allocate(16);
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
@@ -758,7 +756,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-             index++) {
+            index++) {
             // // this branch
             // if (is_variant(
             //         assembly::Instruction, return_instructions_[index])) {

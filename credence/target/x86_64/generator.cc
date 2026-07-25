@@ -245,8 +245,8 @@ void Data_Emitter::set_data_section()
 {
     set_data_floats();
     set_data_doubles();
-    set_data_globals();
     set_data_strings();
+    set_data_globals();
 }
 
 /**
@@ -255,11 +255,13 @@ void Data_Emitter::set_data_section()
 void Data_Emitter::set_data_strings()
 {
     auto& table = accessor_->table_accessor.get_table();
+    fmt::println("size: {}", table->get_strings().size());
     for (auto const& string : table->get_strings()) {
         auto data_instruction =
             assembly::asciz(accessor_->address_accessor.buffer_accessor
                                 .get_constant_size_index(),
                 string);
+        fmt::println("str: {}", string);
         accessor_->address_accessor.buffer_accessor.insert_string_literal(
             string, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
@@ -304,6 +306,18 @@ void Data_Emitter::set_data_doubles()
     }
 }
 
+std::size_t get_alignment_size_from_rvalue_data_type(
+    type::semantic::Type const& type)
+{
+    using T = type::semantic::Type;
+    return m::match(type)(
+        m::pattern |
+            m::or_(T{ "int" }, T{ "float" }, T{ "long" }) = [&] { return 2UL; },
+        m::pattern | T{ "char" } = [&] { return 1UL; },
+        m::pattern | m::or_(T{ "string" }, T{ "double" }) = [&] { return 3UL; },
+        m::pattern | m::_ = [&] { return 3UL; });
+}
+
 /**
  * @brief Set global data in the data section from the table vectors
  */
@@ -320,6 +334,14 @@ void Data_Emitter::set_data_globals()
                 assembly::get_data_directive_from_rvalue_type(item.second);
             auto data = type::get_value_from_rvalue_data_type(item.second);
             vector->set_address_offset(item.first, address);
+            if (vector->get_size() == 1) {
+                auto align = get_alignment_size_from_rvalue_data_type(
+                    type::get_type_from_rvalue_data_type(
+                        vector->get_data().at("0")));
+                insert_alignment_directive(instructions_, align);
+            } else {
+                insert_alignment_directive(instructions_, 3);
+            }
             address += assembly::get_size_from_operand_size(
                 assembly::get_operand_size_from_rvalue_datatype(item.second));
 
@@ -554,7 +576,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-             index++) {
+            index++) {
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }
