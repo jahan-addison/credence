@@ -1,3 +1,4 @@
+
 .intel_syntax noprefix
 
 .text
@@ -21,3 +22,4 @@ _start:
     syscall
 
 .data
+

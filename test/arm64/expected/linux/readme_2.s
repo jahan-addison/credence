@@ -1,9 +1,13 @@
 
 .text
 
-    .align 3
+    .p2align 3
 
     .global _start
+    .global getchar
+    .global print
+    .global printf
+    .global putchar
 
 _start:
     stp x29, x30, [sp, #-48]!
@@ -67,7 +71,8 @@ identity:
 ._L_str4__:
     .asciz "hello, how are you, %s\n"
 
-.align 3
+    .p2align 3
+
 
 strings:
     .xword ._L_str1__

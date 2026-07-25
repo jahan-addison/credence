@@ -1,7 +1,7 @@
 
 .text
 
-    .align 3
+    .p2align 3
 
     .global _start
 
@@ -37,7 +37,8 @@ _start:
 ._L_str3__:
     .asciz "tough luck"
 
-.align 3
+    .p2align 3
+
 
 mess:
     .xword ._L_str2__
@@ -46,7 +47,8 @@ mess:
 
     .xword ._L_str1__
 
-.align 2
+    .p2align 2
+
 
 unit:
     .long 1

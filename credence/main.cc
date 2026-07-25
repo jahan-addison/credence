@@ -141,12 +141,6 @@ int main(int argc, const char* argv[])
 
         std::ostringstream out_to{};
 
-        const std::string_view extension = m::match(target)(
-            m::pattern |
-                m::or_(sv("x86_64"), sv("arm64")) = [&] { return "bs"; },
-            m::pattern | sv("ast") = [&] { return "bast"; },
-            m::pattern | m::_ = [&] { return "bo"; });
-
         m::match(target)(
             m::pattern | "arm64" =
                 [&]() {
@@ -176,8 +170,7 @@ int main(int argc, const char* argv[])
                               << std::endl;
                 });
 
-        credence::util::write_to_file_from_string_stream(
-            output, out_to, extension);
+        credence::util::write_to_file_from_string_stream(output, out_to);
 
     } catch (cxxopts::exceptions::option_has_no_value const&) {
         std::cout << "Credence :: See \"--help\" for usage overview"

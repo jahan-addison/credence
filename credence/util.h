@@ -334,8 +334,7 @@ constexpr unsigned int align_up_to_8(unsigned int n)
 ////////////////
 
 void write_to_file_from_string_stream(std::string_view file_name,
-    std::ostringstream const& oss,
-    std::string_view ext = "bo");
+    std::ostringstream const& oss);
 
 std::string read_file_from_path(std::string_view path);
 

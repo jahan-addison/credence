@@ -1,10 +1,15 @@
 
 .intel_syntax noprefix
 
-.data
-
 .text
+
+    .p2align 4
+
     .global _start
+    .extern getchar
+    .extern print
+    .extern printf
+    .extern putchar
 
 _start:
     push rbp
@@ -20,4 +25,6 @@ _start:
     mov rax, 60
     mov rdi, 0
     syscall
+
+.data
 

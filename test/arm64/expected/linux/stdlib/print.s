@@ -1,9 +1,13 @@
 
 .text
 
-    .align 3
+    .p2align 3
 
     .global _start
+    .global getchar
+    .global print
+    .global printf
+    .global putchar
 
 _start:
     stp x29, x30, [sp, #-32]!
@@ -55,14 +59,16 @@ _start:
 ._L_str4__:
     .asciz "world\n"
 
-.align 3
+    .p2align 3
+
 
 mess:
     .xword ._L_str1__
 
     .xword ._L_str4__
 
-.align 2
+    .p2align 2
+
 
 unit:
     .long 0

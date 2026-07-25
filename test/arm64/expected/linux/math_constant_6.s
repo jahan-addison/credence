@@ -1,7 +1,7 @@
 
 .text
 
-    .align 3
+    .p2align 3
 
     .global _start
 

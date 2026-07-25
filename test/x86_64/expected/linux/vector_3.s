@@ -1,15 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "good afternoon"
-
-._L_str2__:
-    .asciz "good morning"
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -26,4 +21,11 @@ _start:
     mov rax, 60
     mov rdi, 0
     syscall
+
+.data
+._L_str1__:
+    .asciz "good afternoon"
+
+._L_str2__:
+    .asciz "good morning"
 

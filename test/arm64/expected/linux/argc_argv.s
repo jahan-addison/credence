@@ -1,9 +1,13 @@
 
 .text
 
-    .align 3
+    .p2align 3
 
     .global _start
+    .global getchar
+    .global print
+    .global printf
+    .global putchar
 
 _start:
     stp x29, x30, [sp, #-32]!

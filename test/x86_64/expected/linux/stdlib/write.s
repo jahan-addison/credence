@@ -6,6 +6,10 @@
     .p2align 4
 
     .global _start
+    .extern getchar
+    .extern print
+    .extern printf
+    .extern putchar
 
 _start:
     push rbp
@@ -14,10 +18,10 @@ _start:
     mov eax, dword ptr [rip + unit]
     mov dword ptr [rbp - 4], eax
     mov rax, qword ptr [rip + mess]
-    mov qword ptr [rbp - 16], rax
+    mov qword ptr [rbp - 12], rax
     mov rax, 1
     mov edi, 1
-    mov rsi, qword ptr [rbp - 16]
+    mov rsi, qword ptr [rbp - 12]
     mov edx, 6
     syscall
     mov rax, 1
@@ -45,16 +49,15 @@ _start:
 ._L_str3__:
     .asciz "world\n"
 
+    .p2align 3
+
 mess:
-    .p2align 3
-
     .quad ._L_str1__
-
-    .p2align 3
 
     .quad ._L_str3__
 
-unit:
     .p2align 2
 
+unit:
     .long 0
+

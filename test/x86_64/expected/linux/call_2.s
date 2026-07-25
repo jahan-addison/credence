@@ -1,12 +1,10 @@
 
 .intel_syntax noprefix
 
-.data
-
-._L_str1__:
-    .asciz "hello world"
-
 .text
+
+    .p2align 4
+
     .global _start
 
 _start:
@@ -33,4 +31,8 @@ test:
     mov rax, rdi
     pop rbp
     ret
+
+.data
+._L_str1__:
+    .asciz "hello world"
 

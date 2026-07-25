@@ -1,9 +1,13 @@
 
 .text
 
-    .align 3
+    .p2align 3
 
     .global _start
+    .global getchar
+    .global print
+    .global printf
+    .global putchar
 
 _start:
     stp x29, x30, [sp, #-32]!
@@ -20,21 +24,23 @@ _start:
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    adrp x0, ._L_str2__
-    add x0, x0, :lo12:._L_str2__
+    adrp x0, ._L_str4__
+    add x0, x0, :lo12:._L_str4__
     mov w1, #14
     bl print
     b ._L3__main
 ._L7__main:
-    adrp x0, ._L_str1__
-    add x0, x0, :lo12:._L_str1__
-    adrp x1, ._L_str3__
-    add x1, x1, :lo12:._L_str3__
+    adrp x0, ._L_str3__
+    add x0, x0, :lo12:._L_str3__
+    adrp x1, ._L_str5__
+    add x1, x1, :lo12:._L_str5__
     mov w2, #5
-    adrp x8, ._L_double4__
-    ldr d3, :lo12:._L_double4__
-    mov w4, 120
-    mov w5, #1
+    adrp x8, ._L_double2__
+    ldr d3, [x8, #:lo12:._L_double2__]
+    adrp x8, ._L_float1__
+    ldr s4, [x8, #:lo12:._L_float1__]
+    mov w5, 120
+    mov w6, #1
     bl printf
     b ._L3__main
 ._L1__main:
@@ -45,14 +51,23 @@ _start:
 
 .data
 
-._L_str1__:
-    .asciz "%s %d %g %c %b"
+    .p2align 2
 
-._L_str2__:
-    .asciz "greater than 5"
+
+._L_float1__:
+    .float 5.33
+
+    .p2align 3
+
+
+._L_double2__:
+    .double 5.2
 
 ._L_str3__:
-    .asciz "hello"
+    .asciz "%s %d %g %f %c %b"
 
-._L_double4__:
-    .double 5.2
+._L_str4__:
+    .asciz "greater than 5"
+
+._L_str5__:
+    .asciz "hello"

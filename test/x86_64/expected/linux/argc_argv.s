@@ -6,6 +6,10 @@
     .p2align 4
 
     .global _start
+    .extern getchar
+    .extern print
+    .extern printf
+    .extern putchar
 
 _start:
     lea r15, [rsp]
