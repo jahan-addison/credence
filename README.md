@@ -79,18 +79,37 @@ Note that windows is not supported. Please open an issue or pull request for any
 
 ## Targets
 
-A complete assembler and linking tool is installed via the installation script. See [usage details](#usage) below.
-
-#### x86-64 for Linux and BSD, Darwin : Done ✅
-
-#### ARM64 for Linux and BSD, Darwin : Done ✅
-
 The generated machine code is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
 
+Support:
+ - Linux:
+    - Arm64, AArch64
+    - x86-64
+ - BSD (Darwin)
+    - Arm64, AArch64
+    - x86-64 (Intel)
 
 ## Installation
 
 Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
+
+## Usage
+
+```
+Credence :: B Language Compiler
+Usage:
+  Credence [OPTION...] positional parameters
+
+  -a, --ast-loader arg   AST Loader [parser, json] (default: parser)
+  -t, --target arg       Target [ir, ast, arm64, x86_64] (default: ir)
+  -s, --symbols          [Debug] Dump symbol table
+  -n, --nostdlib         [Debug] Do not add stdlib symbols
+  -q, --dump-queue       [Debug] Dump each expression's queue form to
+                         stdout
+  -o, --output arg       Output file (default: stdout)
+  -h, --help             Print usage
+      --source-code arg  B Source file
+```
 
 ## Building
 
@@ -126,7 +145,7 @@ cmake --build build --target coverage
 
 ### [The Standard Library](credence/target/common/runtime.h#34)
 
-Credence provides a few useful standard library functions that **do not** depend on libc or an external runtime. The standard library object file is pre-compiled in `stdlib/` for each platform and ISA:
+Credence provides a few useful standard library functions that **do not** depend on libc or an external runtime. The standard library object file is pre-compiled in `stdlib/` for each platform and ISA.
 
 In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h).
 
@@ -155,9 +174,9 @@ strings [3] "Good afternoon", "Good morning", "Good evening";
 ```
 #### Result (ARM64, Darwin):
 
-Check out additional code generation examples in the [arm64 test suite](/test/arm64/generator.cc#95) and [x86_64 test suite](/test/x86_64/generator.cc#71).
+Check out additional code generation examples in the [arm64 test suite](/test/arm64/expected/) and [x86_64 test suite](/test/x86_64/expected/).
 
-<img src="docs/images/credence-example-3.png" width="700px" alt="example"> </img>
+<img src="docs/images/credence-example-3.png" width="800px" alt="example"> </img>
 
 
 ```asm
@@ -252,7 +271,7 @@ strings:
 
 Here is an example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
 
-<img src="docs/images/credence-out-of-range-2.png" width="700px" alt="error"> </img>
+<img src="docs/images/credence-out-of-range-2.png" width="800px" alt="error"> </img>
 
 
 ## Intermediate Representation
@@ -373,23 +392,6 @@ _L1:
     LEAVE;
  EndFunc ;
 
-```
-
-## Usage
-
-```
-Credence :: B Language Compiler
-Usage:
-  Credence [OPTION...] positional parameters
-
-  -a, --ast-loader arg   AST Loader [parser, json] (default: parser)
-  -t, --target arg       Target [ir, ast, arm64, x86_64] (default: ir)
-  -d, --debug            [Debug] Dump symbol table
-  -q, --dump-queue       [Debug] Dump each expression's queue form to
-                         stdout
-  -o, --output arg       Output file (default: stdout)
-  -h, --help             Print usage
-      --source-code arg  B Source file
 ```
 
 ## Dependencies
