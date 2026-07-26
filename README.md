@@ -93,6 +93,8 @@ Support:
 
 Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
 
+A complete assembler and linking tool is installed via the installation script.
+
 ## Usage
 
 ```
