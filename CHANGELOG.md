@@ -1,12 +1,32 @@
-## [1.1.1] - 2026-07-08
+## [1.2.0] - 2026-07-26
 
-- chore: v1.1.1
+- feat(backend): arm64 argc, argv register selection and alignment improvements
+- feat(backend): improve arm64 linux support, testing, and emulation tools
+
+- fix(backend): arm64 argc, argv darwin vs linux register selection normalization
+- fix(backend): arm64 darwin Mach-O data section improvements
+
+- chore: v1.2.0
+- chore: update readme 🚂
+- chore(backend): AArch64 dockerfile and cross-compilation, data alignment improvements, printf stdlib improvements
+- chore(backend): AArch64 dockerfile and cross-compilation, data alignment improvements, printf stdlib improvements
+- chore(backend): AArch64 dockerfile and cross-compilation, data alignment improvements, printf stdlib improvements
+- chore: move vscode plugin to project root
+- chore: update CHANGELOG.md for v1.1.1
 - chore: bin/credence and install.sh improvements, main.cc runtime symbols on ir target
 - chore: renamed Node_Parser to RValue_Parser; corrected the frontend and IR README diagrams and text, since Shunting_Yard and RValue_Parser are only invoked per-expression by the IR's statement walk
 - chore: fixed a bug in expression queue formation where right-associative operator chains never actually got flattened before precedence resolution. Fixing that surfaced two more bugs, in the x86-64 and ARM64 backends, where an accumulator register was getting overwritten with a stale value instead of the real one. Also renamed Expression_Resolver to Node_Parser, added a --dump-queue flag for looking at the shunting-yard output directly, moved clang-tidy onto a parallel deduplicated CMake target, and added a few Mermaid diagrams plus a short decision log to the docs.
 - chore: minimum windows support, documentation improvements, build
 - chore: update CHANGELOG.md for v1.1.0
 
+- test(backend): machine code code generation test fixes
+- test(backend): arm64 machine code code generation test fixes
+- refactor(backend): x86_64 invalid alignment directive placement
+- test(backend): x86_64 machine code code generation test fixes
+- test(backend): extract inline x86_64 and arm64 expected assembly into expected/ fixture files
+- ci: improve macOS CI build parallelism
+- refactor: rvalue and expression type clean up, documentation
+- Merge pull request #14 from jahan-addison/chore/changelog-v1.1.1
 - Merge pull request #13 from jahan-addison/chore/changelog-v1.1.0
 ## [1.1.0] - 2026-07-05
 
