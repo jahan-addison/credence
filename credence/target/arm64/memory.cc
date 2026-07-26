@@ -53,6 +53,7 @@
  *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
+ *   x19      = The argc, argv scratch register
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -370,7 +371,7 @@ Device_Accessor::Device Device_Accessor::get_device_by_lvalue(
     LValue const& lvalue)
 {
     if (lvalue == "argc")
-        return stack_->get(lvalue).first;
+        return Register::x19;
     else if (stack_->is_allocated(lvalue))
         return stack_->get(lvalue).first;
     else

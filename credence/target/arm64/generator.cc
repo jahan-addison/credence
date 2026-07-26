@@ -97,6 +97,7 @@
  *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
+ *   x19      = The argc, argv scratch register
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -473,6 +474,14 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                     operand = u32_int_immediate(allocation);
                 },
             m::pattern | m::ds(m::app(instruction_contains_flag(
+                                          detail::flags::Align_S2_Folded),
+                                   true),
+                             m::app(operand_source_is(Source::s_2), true)) =
+                [&] {
+                    operand = u32_int_immediate(
+                        stack->get_stack_frame_allocation_size(frame_name_));
+                },
+            m::pattern | m::ds(m::app(instruction_contains_flag(
                                           detail::flags::Align_S3_Folded),
                                    true),
                              m::app(operand_source_is(Source::s_3), true)) =
@@ -607,9 +616,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             "function_definition") {
         // callee saved registers are saved as "tokens" on the frame object
         if (!accessor_->get_frame_in_memory()
-                .get_stack_frame(s)
-                ->get_tokens()
-                .empty())
+                 .get_stack_frame(s)
+                 ->get_tokens()
+                 .empty())
             accessor_->stack->allocate(16);
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
@@ -766,7 +775,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-            index++) {
+             index++) {
             // // this branch
             // if (is_variant(
             //         assembly::Instruction, return_instructions_[index])) {

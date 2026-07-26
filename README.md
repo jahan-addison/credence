@@ -166,24 +166,22 @@ Check out additional code generation examples in the [arm64 test suite](/test/ar
 
     .p2align 3
 
-    .global _start
     .global _print
     .global _printf
 
 _start:
     stp x29, x30, [sp, #-48]!
+    str x19, [sp, #16]
     mov x29, sp
-    str w0, [sp, #20]
-    str x1, [sp, #28]
+    add x19, sp, #48
     ldr x10, [sp, #36]
     adrp x6, ._L_str4__@PAGE
     add x6, x6, ._L_str4__@PAGEOFF
     mov x10, x6
     str x10, [sp, #36]
 ._L2__main:
-    ldr w10, [sp, #20]
-    mov w8, w10
-    cmp w8, #1
+    mov x8, x19
+    cmp x8, #1
     b.gt ._L4__main
 ._L3__main:
     b ._L1__main
@@ -195,8 +193,7 @@ _start:
     mov x0, x0
     bl identity
     ldr x0, [sp, #36]
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #8]
+    ldr x1, [x19, #8]
     bl _printf
     adrp x6, strings@PAGE
     add x6, x6, strings@PAGEOFF
@@ -205,6 +202,7 @@ _start:
     bl _print
     b ._L3__main
 ._L1__main:
+    ldr x19, [sp, #16]
     ldp x29, x30, [sp], #48
     mov w0, #0
     mov x16, #1
@@ -218,23 +216,26 @@ identity:
     ldp x29, x30, [sp], #16
     ret
 
+.section	__TEXT,__const
+
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
-    .asciz "Good afternoon"
+    .asciz "good afternoon"
 
 ._L_str2__:
-    .asciz "Good evening"
+    .asciz "good evening"
 
 ._L_str3__:
-    .asciz "Good morning"
+    .asciz "good morning"
 
 ._L_str4__:
-    .asciz "Hello, how are you, %s!\n"
+    .asciz "hello, how are you, %s\n"
 
-.section __DATA,__data
+.section	__DATA,__data
 
-.p2align 3
+    .p2align 3
+
 
 strings:
     .xword ._L_str1__

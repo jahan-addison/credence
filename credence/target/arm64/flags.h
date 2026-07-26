@@ -48,7 +48,8 @@ enum ARM64_Instruction_Flag : common::flag::flags
     Align_S3_Folded = 1 << 10,
     Align_SP_Local = 1 << 11,
     Callee_Saved = 1 << 12,
-    Vector_Storage = 1 << 13
+    Vector_Storage = 1 << 13,
+    Align_S2_Folded = 1 << 14,
 };
 
 } // namespace credence::target::arm64::detail::flags

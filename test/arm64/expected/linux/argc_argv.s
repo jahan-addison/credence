@@ -11,28 +11,26 @@
 
 _start:
     stp x29, x30, [sp, #-32]!
+    str x19, [sp, #16]
     mov x29, sp
-    str w0, [sp, #20]
-    str x1, [sp, #28]
+    add x19, sp, #32
     adrp x0, ._L_str1__
     add x0, x0, :lo12:._L_str1__
-    ldr w1, [sp, #20]
+    ldr w1, [x19]
     bl printf
     adrp x0, ._L_str2__
     add x0, x0, :lo12:._L_str2__
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #8]
+    ldr x1, [x19, #8]
     bl printf
     adrp x0, ._L_str3__
     add x0, x0, :lo12:._L_str3__
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #16]
+    ldr x1, [x19, #16]
     bl printf
     adrp x0, ._L_str4__
     add x0, x0, :lo12:._L_str4__
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #24]
+    ldr x1, [x19, #24]
     bl printf
+    ldr x19, [sp, #16]
     ldp x29, x30, [sp], #32
     mov w0, #0
     mov x8, #93

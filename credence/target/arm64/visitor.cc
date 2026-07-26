@@ -73,6 +73,7 @@
  *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
+ *   x19      = The argc, argv scratch register
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -102,6 +103,11 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     table->reset_frame_calls();
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
+    if (name == "main" and
+        common::runtime::argc_argv_kernel_runtime_access(stack_frame_).first) {
+        auto argv_imm = direct_immediate("[sp, #16]");
+        arm64_add__asm(instructions, str, x19, argv_imm);
+    }
     arm64_add__asm(instructions, mov, x29, sp);
     // setup argc and argv for the main function
     if (name == "main") {
@@ -109,14 +115,13 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
             common::runtime::argc_argv_kernel_runtime_access(stack_frame_);
         if (argc_argv.first) {
             accessor_->stack->set_address_from_size("argc");
-            arm64_add__asm(
-                instructions, str, w0, accessor_->stack->get("argc").first);
+            // add     x19, sp, #32
+            set_alignment_flag(Align_S2_Folded);
+            arm64_add__asm(instructions, add, x19, sp, 0);
         }
         if (argc_argv.second) {
             accessor_->stack->set_address_from_size(
                 "argv", Operand_Size::Doubleword);
-            arm64_add__asm(
-                instructions, str, x1, accessor_->stack->get("argv").first);
         }
     }
 }
@@ -254,6 +259,14 @@ void IR_Instruction_Visitor::from_leave_ita()
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
+
+    if (stack_frame_.symbol == "main") {
+        auto argv_imm = direct_immediate("[sp, #16]");
+        auto argc_argv =
+            common::runtime::argc_argv_kernel_runtime_access(stack_frame_);
+        if (argc_argv.first)
+            arm64_add__asm(instructions, ldr, x19, argv_imm);
+    }
 
     auto sp_imm = direct_immediate("[sp]");
     // replaced safely in the code generator

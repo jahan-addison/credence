@@ -11,28 +11,26 @@
 
 _start:
     stp x29, x30, [sp, #-32]!
+    str x19, [sp, #16]
     mov x29, sp
-    str w0, [sp, #20]
-    str x1, [sp, #28]
+    add x19, sp, #32
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    ldr w1, [sp, #20]
+    ldr w1, [x19]
     bl _printf
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #8]
+    ldr x1, [x19, #8]
     bl _printf
     adrp x0, ._L_str3__@PAGE
     add x0, x0, ._L_str3__@PAGEOFF
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #16]
+    ldr x1, [x19, #16]
     bl _printf
     adrp x0, ._L_str4__@PAGE
     add x0, x0, ._L_str4__@PAGEOFF
-    ldr x10, [sp, #28]
-    ldr x1, [x10, #24]
+    ldr x1, [x19, #24]
     bl _printf
+    ldr x19, [sp, #16]
     ldp x29, x30, [sp], #32
     mov w0, #0
     mov x16, #1

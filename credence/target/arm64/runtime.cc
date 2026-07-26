@@ -67,6 +67,7 @@
  *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
+ *   x19      = The argc, argv scratch register
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -179,11 +180,22 @@ void Library_Call_Inserter::
                     return;
                 }
                 if (is_variant(common::Stack_Offset, argument) or
-                    assembly::is_immediate_pc_address_offset(argument))
+                    assembly::is_immediate_pc_address_offset(argument)) {
+                    if (is_variant(common::Stack_Offset, argument)) {
+                        auto argument_lvalue =
+                            accessor_->stack->get_lvalue_from_offset(
+                                std::get<common::Stack_Offset>(argument));
+                        if (argument_lvalue == "argc") {
+                            auto argc_imm = direct_immediate("[x19]");
+                            arm64_add__asm(
+                                instructions, ldr, storage, argc_imm);
+                            return;
+                        }
+                    }
                     arm64_add__asm(instructions, ldr, storage, argument);
-                else if (is_variant(Register, argument) and
-                         assembly::is_word_register(
-                             std::get<Register>(argument))) {
+                } else if (is_variant(Register, argument) and
+                           assembly::is_word_register(
+                               std::get<Register>(argument))) {
                     auto storage_dword =
                         assembly::get_word_register_from_doubleword(storage);
                     arm64_add__asm(instructions, mov, storage_dword, argument);
@@ -205,11 +217,9 @@ bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
         if (stack_frame_.symbol == "main" and
             type::from_lvalue_offset(locals.at(index)) == "argv") {
             auto offset = type::from_decay_offset(locals.at(index));
-            auto argv_address = accessor_->stack->get("argv").first;
             auto offset_integer = type::integral_from_type_ulint(offset);
-            auto argv_offset =
-                direct_immediate(fmt::format("[x10, #{}]", 8 * offset_integer));
-            arm64_add__asm(instructions, ldr, x10, argv_address);
+            auto argv_offset = direct_immediate(
+                fmt::format("[x19, #{}]", (8 * offset_integer)));
             auto storage =
                 assembly::get_doubleword_register_from_word(argument_storage);
             arm64_add__asm(instructions, ldr, storage, argv_offset);

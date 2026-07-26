@@ -78,6 +78,7 @@
  *   x10      = The stack move register; additional scratch register
  *   x9 - x18 = If there are no function calls in a stack frame, local scope
  *             variables are stored in x9-x18, after which the stack is used
+ *   x19      = The argc, argv scratch register
  *
  *   Vectors and vector offsets will always be on the stack
  *
@@ -1156,9 +1157,9 @@ void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
 /**
  * @brief
  *
- * Resolve the return rvalue to store in an lvalue, we take special care with
- * `getchar' which is the only standard library function that may return a
- * value:
+ * Resolve the return rvalue to store in an lvalue, we take special care
+ * with `getchar' which is the only standard library function that may
+ * return a value:
  *
  *  auto x = getchar();
  *  putchar(x);
@@ -1411,7 +1412,7 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
     // the argc and argv special cases
     if (frame->get_symbol() == "main") {
         if (index_of == 0)
-            return accessor_->stack->get("argc").first;
+            return Register::x19;
         if (index_of == 1) {
             if (!is_vector_offset(rvalue))
                 common::runtime::throw_runtime_error(
@@ -1421,8 +1422,8 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
                 not accessor_->address_accessor.is_lvalue_storage_type(
                     offset, "int"))
                 common::runtime::throw_runtime_error(
-                    fmt::format(
-                        "invalid argv access, argv has malformed offset '{}'",
+                    fmt::format("invalid argv access, argv has malformed "
+                                "offset '{}'",
                         offset),
                     rvalue);
         }
