@@ -71,12 +71,10 @@ namespace credence::target::x86_64 {
 
 using Instruction_Pair = assembly::Instruction_Pair;
 
-void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
-
 void emit(std::ostream& os,
     util::AST_Node& symbols,
     util::AST_Node const& ast,
-    bool no_stdlib = true);
+    bool no_stdlib);
 
 constexpr std::string emit_immediate_storage(
     assembly::Immediate const& immediate);

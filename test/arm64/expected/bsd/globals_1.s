@@ -19,6 +19,8 @@ _start:
     mov x16, #1
     svc #0x80
 
+.section	__TEXT,__const
+
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
@@ -30,7 +32,7 @@ _start:
 ._L_str3__:
     .asciz "tough luck"
 
-.section __DATA,__data
+.section	__DATA,__data
 
     .p2align 3
 

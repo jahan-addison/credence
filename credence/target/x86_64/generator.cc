@@ -94,7 +94,10 @@ namespace m = matchit;
  *
  * Emit a complete x86-64 program from an AST and symbols
  */
-void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
+void emit(std::ostream& os,
+    util::AST_Node& symbols,
+    util::AST_Node const& ast,
+    bool no_stdlib)
 {
     auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
     auto table = std::make_shared<ir::Table>(
@@ -104,6 +107,7 @@ void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
     auto accessor = std::make_shared<memory::Memory_Accessor>(
         table->get_table_object(), stack);
     auto emitter = Assembly_Emitter{ accessor };
+    emitter.text_.test_no_stdlib = no_stdlib;
     emitter.emit(os);
 }
 
@@ -572,7 +576,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-             index++) {
+            index++) {
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }
@@ -620,28 +624,6 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
             assembly::newline(os);
         }
     assembly::newline(os);
-}
-
-/**
- * @brief Code Generator
- *
- * Emit factory with no stdlib option for testing
- */
-void emit(std::ostream& os,
-    util::AST_Node& symbols,
-    util::AST_Node const& ast,
-    bool no_stdlib)
-{
-    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
-    auto table = std::make_shared<ir::Table>(
-        ir::Table{ symbols, instructions, globals });
-    table->build_from_ir_instructions();
-    auto stack = std::make_shared<assembly::Stack>();
-    auto accessor = std::make_shared<memory::Memory_Accessor>(
-        table->get_table_object(), stack);
-    auto emitter = Assembly_Emitter{ accessor };
-    emitter.text_.test_no_stdlib = no_stdlib;
-    emitter.emit(os);
 }
 
 } // namespace x86_64

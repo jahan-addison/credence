@@ -100,12 +100,10 @@ using Immediate = assembly::Immediate;
 using Operand_Stack = std::deque<Storage>;
 }
 
-void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast);
-
 void emit(std::ostream& os,
     util::AST_Node& symbols,
     util::AST_Node const& ast,
-    bool no_stdlib = true);
+    bool no_stdlib);
 
 constexpr std::string emit_immediate_storage(Immediate const& immediate);
 
@@ -270,6 +268,7 @@ class Data_Emitter
     assembly::Directives instructions_;
 
   private:
+    std::size_t index_before_strings{ 0 };
     std::size_t index_after_strings{ 0 };
 };
 

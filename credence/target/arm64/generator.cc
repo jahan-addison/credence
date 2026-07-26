@@ -109,7 +109,10 @@ namespace m = matchit;
 /**
  * @brief Assembly Emitter Factory
  */
-void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
+void emit(std::ostream& os,
+    util::AST_Node& symbols,
+    util::AST_Node const& ast,
+    bool no_stdlib)
 {
     auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
     auto table = std::make_shared<ir::Table>(
@@ -119,6 +122,7 @@ void emit(std::ostream& os, util::AST_Node& symbols, util::AST_Node const& ast)
     auto accessor = std::make_shared<memory::Memory_Accessor>(
         table->get_table_object(), stack);
     auto emitter = Assembly_Emitter{ accessor };
+    emitter.text_.test_no_stdlib = no_stdlib;
     emitter.emit(os);
 }
 
@@ -202,6 +206,7 @@ std::size_t get_alignment_size_from_rvalue_data_type(
  */
 void Data_Emitter::set_data_strings()
 {
+    index_before_strings = instructions_.size();
     auto& table = accessor_->table_accessor.get_table();
     for (auto const& string : table->get_strings()) {
         auto data_instruction =
@@ -212,7 +217,6 @@ void Data_Emitter::set_data_strings()
             string, data_instruction.first);
         assembly::inserter(instructions_, data_instruction.second);
     }
-
     index_after_strings = instructions_.size();
 }
 
@@ -301,7 +305,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
 #if defined(__linux__)
     os << assembly::Directive::data;
 #elif defined(__APPLE__) || defined(__bsdi__)
-    os << ".section	__TEXT,__cstring,cstring_literals";
+    os << ".section\t__TEXT,__const";
 #elif defined(_WIN32) || defined(_WIN64)
     os << assembly::Directive::data;
 #endif
@@ -311,9 +315,15 @@ void Data_Emitter::emit_data_section(std::ostream& os)
     if (!instructions_.empty())
         for (std::size_t index = 0; index < instructions_.size(); index++) {
             auto data_item = instructions_[index];
+            if (index == index_before_strings) {
+#if defined(__APPLE__) || defined(__bsdi__)
+                os << ".section\t__TEXT,__cstring,cstring_literals";
+                assembly::newline(os, 2);
+#endif
+            }
             if (index == index_after_strings) {
 #if defined(__APPLE__) || defined(__bsdi__)
-                os << ".section __DATA,__data";
+                os << ".section\t__DATA,__data";
                 assembly::newline(os, 2);
 #endif
             }
@@ -597,9 +607,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             "function_definition") {
         // callee saved registers are saved as "tokens" on the frame object
         if (!accessor_->get_frame_in_memory()
-                 .get_stack_frame(s)
-                 ->get_tokens()
-                 .empty())
+                .get_stack_frame(s)
+                ->get_tokens()
+                .empty())
             accessor_->stack->allocate(16);
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
@@ -756,7 +766,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-             index++) {
+            index++) {
             // // this branch
             // if (is_variant(
             //         assembly::Instruction, return_instructions_[index])) {
@@ -823,27 +833,4 @@ void Text_Emitter::emit_stdlib_externs(std::ostream& os)
         }
     assembly::newline(os);
 }
-
-/**
- * @brief Code Generator
- *
- * Emit factory with no stdlib option for testing
- */
-void emit(std::ostream& os,
-    util::AST_Node& symbols,
-    util::AST_Node const& ast,
-    bool no_stdlib)
-{
-    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
-    auto table = std::make_shared<ir::Table>(
-        ir::Table{ symbols, instructions, globals });
-    table->build_from_ir_instructions();
-    auto stack = std::make_shared<assembly::Stack>();
-    auto accessor = std::make_shared<memory::Memory_Accessor>(
-        table->get_table_object(), stack);
-    auto emitter = Assembly_Emitter{ accessor };
-    emitter.text_.test_no_stdlib = no_stdlib;
-    emitter.emit(os);
-}
-
 } // namespace credence::target::arm64

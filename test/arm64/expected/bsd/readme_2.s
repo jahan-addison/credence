@@ -57,6 +57,8 @@ identity:
     ldp x29, x30, [sp], #16
     ret
 
+.section	__TEXT,__const
+
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
@@ -71,7 +73,7 @@ identity:
 ._L_str4__:
     .asciz "hello, how are you, %s\n"
 
-.section __DATA,__data
+.section	__DATA,__data
 
     .p2align 3
 

@@ -68,6 +68,8 @@ _start:
     mov x16, #1
     svc #0x80
 
+.section	__TEXT,__const
+
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:

@@ -17,5 +17,5 @@ _start:
     mov x16, #1
     svc #0x80
 
-.section	__TEXT,__cstring,cstring_literals
+.section	__TEXT,__const
 

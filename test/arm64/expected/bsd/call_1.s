@@ -35,6 +35,8 @@ identity:
     ldp x29, x30, [sp], #16
     ret
 
+.section	__TEXT,__const
+
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:

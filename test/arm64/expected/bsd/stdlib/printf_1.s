@@ -49,7 +49,7 @@ _start:
     mov x16, #1
     svc #0x80
 
-.section	__TEXT,__cstring,cstring_literals
+.section	__TEXT,__const
 
     .p2align 2
 
@@ -62,6 +62,8 @@ _start:
 
 ._L_double2__:
     .double 5.2
+
+.section	__TEXT,__cstring,cstring_literals
 
 ._L_str3__:
     .asciz "%s %d %g %f %c %b"
