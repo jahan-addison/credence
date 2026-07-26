@@ -13,10 +13,11 @@ _start:
     stp x29, x30, [sp, #-32]!
     str x19, [sp, #16]
     mov x29, sp
-    add x19, sp, #32
+    str w0, [sp, #20]
+    mov x19, x1
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    ldr w1, [x19]
+    ldr w1, [sp, #20]
     bl _printf
     adrp x0, ._L_str2__@PAGE
     add x0, x0, ._L_str2__@PAGEOFF

@@ -181,18 +181,13 @@ void Library_Call_Inserter::
                 }
                 if (is_variant(common::Stack_Offset, argument) or
                     assembly::is_immediate_pc_address_offset(argument)) {
-                    if (is_variant(common::Stack_Offset, argument)) {
-                        auto argument_lvalue =
-                            accessor_->stack->get_lvalue_from_offset(
-                                std::get<common::Stack_Offset>(argument));
-                        if (argument_lvalue == "argc") {
-                            auto argc_imm = direct_immediate("[x19]");
-                            arm64_add__asm(
-                                instructions, ldr, storage, argc_imm);
-                            return;
-                        }
-                    }
                     arm64_add__asm(instructions, ldr, storage, argument);
+                } else if (is_variant(Register, argument) and
+                           std::get<Register>(argument) == Register::x19) {
+                    // argc, argv register
+                    auto argc_imm = direct_immediate("[x19]");
+                    arm64_add__asm(instructions, ldr, storage, argc_imm);
+
                 } else if (is_variant(Register, argument) and
                            assembly::is_word_register(
                                std::get<Register>(argument))) {

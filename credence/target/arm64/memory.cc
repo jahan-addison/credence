@@ -217,6 +217,10 @@ Device_Accessor::Device Device_Accessor::get_operand_rvalue_device(
     else if (is_lvalue_allocated_in_memory(rvalue))
         return get_device_by_lvalue(rvalue);
     else {
+#if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
+        if (rvalue == "argc")
+            return Register::x19;
+#endif
         auto frame = stack_frame_.get_stack_frame();
         auto size = assembly::get_operand_size_from_size(
             address_accessor_.table_->lvalue_size_at_temporary_object_address(

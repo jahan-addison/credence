@@ -1375,23 +1375,20 @@ Storage Operand_Inserter::get_operand_storage_from_immediate(
     auto immediate = type::get_rvalue_datatype_from_string(rvalue);
     auto type = type::get_type_from_rvalue_data_type(immediate);
     if (type == "string") {
-        storage = assembly::make_asciz_immediate(
-            accessor_->address_accessor.buffer_accessor
-                .get_string_address_offset(
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_string_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
     if (type == "float") {
-        storage = assembly::make_asciz_immediate(
-            accessor_->address_accessor.buffer_accessor
-                .get_float_address_offset(
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_float_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
     if (type == "double") {
-        storage = assembly::make_asciz_immediate(
-            accessor_->address_accessor.buffer_accessor
-                .get_double_address_offset(
+        storage = assembly::make_asciz_immediate(accessor_->address_accessor
+                .buffer_accessor.get_double_address_offset(
                     type::get_value_from_rvalue_data_type(immediate)));
         return storage;
     }
@@ -1411,8 +1408,13 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
     credence_assert_nequal(index_of, -1);
     // the argc and argv special cases
     if (frame->get_symbol() == "main") {
-        if (index_of == 0)
+        if (index_of == 0) {
+#if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
             return Register::x19;
+#elif defined(__APPLE__) || defined(__bsdi__)
+            return accessor_->stack->get("argc").first;
+#endif
+        }
         if (index_of == 1) {
             if (!is_vector_offset(rvalue))
                 common::runtime::throw_runtime_error(

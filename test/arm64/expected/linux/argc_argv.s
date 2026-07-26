@@ -16,7 +16,7 @@ _start:
     add x19, sp, #32
     adrp x0, ._L_str1__
     add x0, x0, :lo12:._L_str1__
-    ldr w1, [x19]
+    ldr x1, [x19]
     bl printf
     adrp x0, ._L_str2__
     add x0, x0, :lo12:._L_str2__

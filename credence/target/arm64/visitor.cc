@@ -114,14 +114,24 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
         auto argc_argv =
             common::runtime::argc_argv_kernel_runtime_access(stack_frame_);
         if (argc_argv.first) {
-            accessor_->stack->set_address_from_size("argc");
-            // add     x19, sp, #32
+#if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
+            // On linux, argc, argv are at the top of the stcak
+            // add x19, sp, #32
             set_alignment_flag(Align_S2_Folded);
             arm64_add__asm(instructions, add, x19, sp, 0);
+#elif defined(__APPLE__) || defined(__bsdi__)
+            // On darwin, argc, argv are in x0 and x1
+            accessor_->stack->set_address_from_size("argc");
+            arm64_add__asm(
+                instructions, str, w0, accessor_->stack->get("argc").first);
+            arm64_add__asm(instructions, mov, x19, x1);
+#endif
         }
         if (argc_argv.second) {
+#if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
             accessor_->stack->set_address_from_size(
                 "argv", Operand_Size::Doubleword);
+#endif
         }
     }
 }

@@ -23,7 +23,8 @@ set -e
 
 ARCH=''
 CREDENCE_HOME=$(<"$HOME/.credence")
-CREDENCE_BINARY="$CREDENCE_HOME/build/credence"
+CREDENCE_BUILD="${CREDENCE_BUILD:-"build"}"
+CREDENCE_BINARY="$CREDENCE_HOME/$CREDENCE_BUILD/credence"
 UNAMESTR=$(uname -s)
 HOST_ARCH=$(uname -m)
 STDLIB_TYPE=''
