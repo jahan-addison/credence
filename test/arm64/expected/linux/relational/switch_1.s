@@ -71,4 +71,4 @@ _start:
 .data
 
 ._L_str1__:
-    .asciz "should say 1: %d, %b\n"
+    .asciz "should say 1: %d\n"

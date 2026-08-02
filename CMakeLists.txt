@@ -116,15 +116,15 @@ cpmaddpackage(NAME matchit VERSION 1.0.1 GITHUB_REPOSITORY BowenFu/matchit.cpp)
 # re2c (B language lexer)
 # ##############################################################################
 
-# credence/language/lexer.cc is generated from lexer.re
+# credence/frontend/lexer.cc is generated from lexer.re
 find_program(RE2C_EXECUTABLE re2c)
 if(RE2C_EXECUTABLE)
   add_custom_target(
     regenerate_lexer
     COMMAND
       ${RE2C_EXECUTABLE} -o
-      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/language/lexer.cc"
-      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/language/lexer.re" -W
+      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/frontend/lexer.cc"
+      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/frontend/lexer.re" -W
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Regenerating B language lexer (re2c) from lexer.re")
 else()
@@ -140,7 +140,7 @@ endif()
 
 # Files matching this regex are skipped by the `tidy` target below.
 set(CLANG_TIDY_IGNORE_REGEX
-    "^(?!.*/(test|\\.cache)/)(?!.*language/lexer\\.cc).*\\.cc$"
+    "^(?!.*/(test|\\.cache)/)(?!.*frontend/lexer\\.cc).*\\.cc$"
     CACHE STRING "run-clang-tidy file filter regex")
 
 find_program(CLANG_TIDY_EXECUTABLE clang-tidy)

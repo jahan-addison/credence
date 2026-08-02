@@ -1,0 +1,17 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+      block_statement
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            binary_expression "<"
+              integer_literal 5
+              ternary_expression
+                integer_literal 4
+                integer_literal 10
+                integer_literal 1

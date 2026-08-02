@@ -13,21 +13,24 @@
 
 #pragma once
 
-#include <compare>           // for _CmpUnspecifiedParam, operator<, strong...
-#include <credence/symbol.h> // for Symbol_Table
-#include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
-#include <deque>             // for deque, operator<=>, operator==
-#include <easyjson.h>        // for JSON, object
-#include <iomanip>           // for operator<<, setw
-#include <optional>          // for nullopt, nullopt_t, optional
-#include <source_location>   // for source_location
-#include <sstream>           // for basic_ostream, basic_ostringstream, ope...
-#include <stack>             // for stack
-#include <string>            // for basic_string, char_traits, allocator
-#include <string_view>       // for string_view
-#include <tuple>             // for tuple, get, make_tuple
-#include <utility>           // for pair, make_pair
-#include <vector>            // for vector
+#include <compare> // for _CmpUnspecifiedParam, operator<, strong...
+#include <credence/frontend/hir/hir.h> // for Unit, Node_Index
+#include <credence/ir/operand.h>       // for Literal
+#include <credence/ir/symbols.h>       // for hoisted_symbols
+#include <credence/symbol.h>           // for Symbol_Table
+#include <credence/util.h> // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
+#include <deque>           // for deque, operator<=>, operator==
+#include <easyjson.h>      // for JSON, object
+#include <iomanip>         // for operator<<, setw
+#include <optional>        // for nullopt, nullopt_t, optional
+#include <source_location> // for source_location
+#include <sstream>         // for basic_ostream, basic_ostringstream, ope...
+#include <stack>           // for stack
+#include <string>          // for basic_string, char_traits, allocator
+#include <string_view>     // for string_view
+#include <tuple>           // for tuple, get, make_tuple
+#include <utility>         // for pair, make_pair
+#include <vector>          // for vector
 
 /****************************************************************************
  * Instruction Tuple Abstraction
@@ -130,32 +133,6 @@ constexpr inline Quadruple make_temporary(int* temporary_size)
 }
 
 namespace detail {
-
-/**
- * @brief Create a statement AST from an rvalue statement or others
- */
-inline util::AST_Node make_block_statement(
-    std::deque<util::AST_Node> const& blocks)
-{
-    auto block_statement = util::AST::object();
-    block_statement["node"] = util::AST_Node{ "statement" };
-    block_statement["root"] = util::AST_Node{ "block" };
-    block_statement["left"] = util::AST_Node{ blocks };
-
-    return block_statement;
-}
-
-/**
- * @brief Create a statement AST from an rvalue statement or others
- */
-inline util::AST_Node make_block_statement(util::AST_Node block)
-{
-    auto block_statement = util::AST::object();
-    block_statement["node"] = util::AST_Node{ "statement" };
-    block_statement["root"] = util::AST_Node{ "block" };
-    block_statement["left"].append(block);
-    return block_statement;
-}
 
 constexpr std::ostream& operator<<(std::ostream& os, Instruction const& op)
 {
@@ -336,13 +313,28 @@ class ITA
 #endif
     ~ITA() = default;
     explicit ITA() = default;
-    explicit ITA(util::AST_Node const& internal_symbols)
-        : internal_symbols_(internal_symbols)
+    explicit ITA(frontend::hir::Unit const& unit)
+        : unit_(&unit)
+        , details_(hoisted_symbols(unit))
+    {
+    }
+
+    /**
+     * @brief Build against a symbol table the caller has already extended
+     *
+     * The standard library adds its own names after the frontend has run,
+     * so a call resolves against what the caller knows and not against
+     * the unit alone.
+     */
+    explicit ITA(frontend::hir::Unit const& unit, util::AST_Node const& details)
+        : unit_(&unit)
+        , details_(details)
     {
     }
 
   public:
-    using Node = util::AST_Node;
+    // a statement or an expression of the lowered unit
+    using Node = frontend::hir::Node_Index;
 
   public:
     friend constexpr std::ostream& detail::operator<<(std::ostream& os,
@@ -391,35 +383,41 @@ class ITA
      * @brief Instructions factory methods
      */
     static inline Instructions make_ita_instructions(
-        ITA::Node const& internal_symbols,
-        ITA::Node const& node)
+        frontend::hir::Unit const& unit)
     {
-        auto ita = ITA{ internal_symbols };
-        return ita.build_from_definitions(node);
+        auto ita = ITA{ unit };
+        return ita.build_from_definitions();
     }
     static inline Instruction_Pair make_ita_instructions_with_globals(
-        ITA::Node const& internal_symbols,
-        ITA::Node const& node)
+        frontend::hir::Unit const& unit,
+        util::AST_Node const& details)
     {
-        auto ita = ITA{ internal_symbols };
+        auto ita = ITA{ unit, details };
         return std::pair<Symbol_Table<>&, Instructions>(
-            ita.globals_, ita.build_from_definitions(node));
+            ita.globals_, ita.build_from_definitions());
     }
 
   public:
-    Instructions build_from_definitions(Node const& node);
+    Instructions build_from_definitions();
 
+  private:
+    std::string_view symbol_name_of(Node node) const;
+    void check_call_is_resolvable(Node node);
+    operand::Literal literal_of(Node node) const;
+
+  public:
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_function_definition(Node const& node);
-    void build_from_vector_definition(Node const& node);
+    Instructions build_from_function_definition(Node node);
+    void build_from_vector_definition(Node node);
+    void build_from_union_definition(Node node);
     constexpr std::string build_function_label_from_parameters(
         std::string_view name,
         Parameters const& parameters);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_block_statement(
-    Node const& node,
+    Node node,
     bool root_function_scope = false);
   private:
     void build_statement_setup_branches(
@@ -431,45 +429,45 @@ class ITA
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Branch_Instructions build_from_switch_statement(
-        Node const& node);
+        Node node);
     Branch_Instructions build_from_case_statement(
-        Node const& node,
+        Node node,
         std::string const& switch_label,
         detail::Branch::Last_Branch const& tail);
     Branch_Instructions build_from_while_statement(
-        Node const& node);
+        Node node);
     Branch_Instructions build_from_if_statement(
-        Node const& node);
+        Node node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_label_statement(Node const& node);
-    Instructions build_from_goto_statement(Node const& node);
-    Instructions build_from_return_statement(Node const& node);
+    Instructions build_from_label_statement(Node node);
+    Instructions build_from_goto_statement(Node node);
+    Instructions build_from_return_statement(Node node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void build_from_auto_statement(
-        Node const& node,
+        Node node,
         Instructions& instructions);
     void build_from_extrn_statement(
-        Node const& node,
+        Node node,
         Instructions& instructions);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    Instructions build_from_rvalue_statement(Node const& node);
+    Instructions build_from_rvalue_statement(Node node);
 
   private:
     void insert_branch_block_instructions(
-        Node const& block,
+        Node block,
         Instructions& branch_instructions);
     void insert_branch_jump_and_resume_instructions(
-        Node const& block,
+        Node block,
         Instructions& predicate_instructions,
         Instructions& branch_instructions,
         Quadruple const& label,
         detail::Branch::Last_Branch const& tail = std::nullopt);
 
     std::string build_from_branch_comparator_rvalue(
-        Node const& block,
+        Node block,
         Instructions& instructions);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
@@ -499,7 +497,11 @@ class ITA
         temporary = 0;
         branch.set_root_branch(&temporary);
     }
-    util::AST_Node internal_symbols_;
+    frontend::hir::Unit const* unit_{ nullptr };
+
+    // the shape of every declared name, which a call reads to know
+    // whether it leaves a value behind
+    util::AST_Node details_{};
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
 };
@@ -507,11 +509,10 @@ class ITA
 // clang-format on
 
 inline ITA::Instruction_Pair make_ita_instructions(
-    util::AST_Node const& internals_symbols,
-    util::AST_Node const& definitions)
+    frontend::hir::Unit const& unit,
+    util::AST_Node const& details)
 {
-    return ITA::make_ita_instructions_with_globals(
-        internals_symbols, definitions);
+    return ITA::make_ita_instructions_with_globals(unit, details);
 }
 
 std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(

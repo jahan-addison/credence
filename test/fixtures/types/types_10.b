@@ -1,5 +1,7 @@
 main() {
-  // should pass
+  // should fail
+  // "m = &strs[2]" is a pointer to a string pointer, which the
+  // checker does not allow
   auto *k,m,*z;
   extrn nmbrs;
   extrn strs;

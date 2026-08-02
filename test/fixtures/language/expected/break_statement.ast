@@ -1,0 +1,11 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+      while_statement
+        identifier "x"
+        block_statement
+          break_statement

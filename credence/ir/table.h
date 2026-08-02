@@ -13,8 +13,9 @@
 
 #pragma once
 
-#include <credence/error.h>     // for throw_compiletime_error
-#include <credence/ir/ita.h>    // for Quadruple, Instructions, ITA
+#include <credence/error.h>            // for throw_compiletime_error
+#include <credence/frontend/hir/hir.h> // for Unit
+#include <credence/ir/ita.h>           // for Quadruple, Instructions, ITA
 #include <credence/ir/object.h> // for Object, LValue, Label, RValue, Instr...
 #include <credence/symbol.h>    // for Symbol_Table
 #include <credence/types.h>     // for Data_Type, Address, Parameters, RVal...
@@ -30,11 +31,11 @@
 /****************************************************************************
  * Table
  *
- * Table constructor for language objects. A visitor pattern on ITA instructions
- * to construct the object table of a program, including function frames,
- * vectors, locals, and globals. In addition, performs type checking on all
- * assignments. The result is stored in an ir::object::Object for backend
- * passes.
+ * A Table of program objects and stack frames. A visitor pattern on ITA
+ * instructions to construct the object table of a program, including function
+ * frames, vectors, locals, and globals. The result is stored in an
+ * ir::object::Object
+ * for backend passes.
  *
  *  Example table construction:
  *
@@ -55,7 +56,7 @@ namespace credence::ir {
 
 void emit(std::ostream& os,
     util::AST_Node const& symbols,
-    util::AST_Node const& ast);
+    frontend::hir::Unit const& unit);
 
 class Table
 {
@@ -65,16 +66,16 @@ class Table
     ~Table() = default;
 
 #ifdef CREDENCE_TEST
-    explicit Table(ITA::Node const& hoisted_symbols)
+    explicit Table(util::AST_Node const& symbols)
     {
         objects_ = std::make_shared<object::Object>(object::Object{});
-        objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
+        objects_->get_hoisted_symbols() = std::move(symbols);
         instructions_ = std::make_shared<ir::Instructions>();
         objects_->get_ir_instructions() = instructions_;
         objects_->get_globals() = Symbol_Table<>{};
     }
 #endif
-    explicit Table(ITA::Node hoisted_symbols,
+    explicit Table(util::AST_Node symbols,
         Instructions& instructions,
         Symbol_Table<> const& globals)
     {
@@ -82,7 +83,7 @@ class Table
         instructions_ =
             std::make_shared<ir::Instructions>(std::move(instructions));
         objects_->get_ir_instructions() = instructions_;
-        objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
+        objects_->get_hoisted_symbols() = std::move(symbols);
         objects_->get_globals() = globals;
     }
 

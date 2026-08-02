@@ -1,0 +1,11 @@
+program
+  function_definition
+    identifier "add"
+    block_statement
+      identifier "a"
+      identifier "b"
+    block_statement
+      return_statement
+        binary_expression "+"
+          identifier "a"
+          identifier "b"

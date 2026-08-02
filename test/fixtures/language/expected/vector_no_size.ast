@@ -1,0 +1,5 @@
+program
+  vector_definition
+    identifier "nums"
+    integer_literal 5
+    block_statement

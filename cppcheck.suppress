@@ -28,3 +28,10 @@ cstyleCast
 *:*python*
 *:*cpm_modules*
 *:*_deps*
+// Preferences rather than defects
+//   variableScope        declarations kept at the top of a function body
+//   unusedPrivateFunction  a private helper kept for a later pass
+//   useStlAlgorithm      a raw loop reads better than an accumulate here
+variableScope
+unusedPrivateFunction
+useStlAlgorithm

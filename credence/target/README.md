@@ -28,6 +28,14 @@ The `Memory_Accessor` and `Instruction_Inserter` template instantiation is where
 
 Check out the test suites in `test/x86_64/generator.cc` and `test/arm64/generator.cc` to see what the machine code looks like for each platform.
 
+Each of those compares against a golden file under `test/{x86_64,arm64}/expected/{linux,bsd}/`. The `.b` fixture is the source of truth, since `test/compiled-test.sh` compiles and runs it, so a golden always follows its source. Regenerate them through the same emit call the tests compare with:
+
+```sh
+CREDENCE_BLESS=1 ./build/Test_Suite
+```
+
+Review the diff afterwards, as a change there means the machine code changed. Only the goldens for the host OS are rewritten, so a change that affects both needs a run on each.
+
 ## Accessor
 #### A set of pure virtual and template classes that enable platform-dependent memory access
 ## Inserter

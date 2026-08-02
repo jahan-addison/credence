@@ -6,7 +6,7 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-* Language grammar: [here](credence/language/grammar.lark)
+* Language grammar: [here](credence/frontend/grammar.lark)
 * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 
@@ -14,9 +14,9 @@
 
 The compiler works in 3 stages:
 
-* A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h).
-    * See details [here](/credence/language/README.md)
-* An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
+* A frontend that translates source code to a type checked HIR - a Lexer generated with [re2c](https://github.com/skvadrik/re2c), a hand-written [Recursive-Descent Parser](/credence/frontend/parser.h) that builds a flat AST, and the lowering and type checking passes over it
+    * See details [here](/credence/frontend/README.md)
+* A middle-end IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
     * See details [here](/credence/ir/README.md)
 * The target platforms, instruction selection and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
     * See details [here](/credence/target/README.md)
@@ -26,7 +26,9 @@ flowchart LR
     subgraph Frontend [" "]
         direction LR
         A[B source] --> B(Lexer)
-        B --> C(Parser)
+        B --> C(Flat AST)
+        C --> H(HIR)
+        H --> I(Typed HIR)
     end
     subgraph Middle [" "]
         direction LR
@@ -38,13 +40,15 @@ flowchart LR
         F(x86-64)
         G(ARM64)
     end
-    C --> D --> E
+    I --> D --> E
     E --> F
     E --> G
 
     style A fill:#2d2d2d,stroke:#888,color:#fff
     style B fill:#2d2d2d,stroke:#888,color:#fff
     style C fill:#2d2d2d,stroke:#888,color:#fff
+    style H fill:#2d2d2d,stroke:#888,color:#fff
+    style I fill:#2d2d2d,stroke:#888,color:#fff
     style D fill:#2d2d2d,stroke:#888,color:#fff
     style E fill:#2d2d2d,stroke:#888,color:#fff
     style F fill:#2d2d2d,stroke:#888,color:#fff
@@ -102,12 +106,15 @@ Credence :: B Language Compiler
 Usage:
   Credence [OPTION...] positional parameters
 
-  -a, --ast-loader arg   AST Loader [parser, json] (default: parser)
-  -t, --target arg       Target [ir, ast, arm64, x86_64] (default: ir)
+  -t, --target arg       Target [ast, hir, ir, arm64, x86_64] (default: ir)
   -s, --symbols          [Debug] Dump symbol table
   -n, --nostdlib         [Debug] Do not add stdlib symbols
   -q, --dump-queue       [Debug] Dump each expression's queue form to
                          stdout
+  -v, --verbose          [Debug] Add node indices and source positions to
+                         an ast or hir dump
+  -l, --linear           [Debug] Dump the hir target in the linear form the
+                         IR reads
   -o, --output arg       Output file (default: stdout)
   -h, --help             Print usage
       --source-code arg  B Source file

@@ -13,38 +13,38 @@
 
 #include <credence/ir/table.h>
 
-#include <array>                        // for array
-#include <credence/error.h>             // for credence_assert
-#include <credence/ir/checker.h>        // for Type_Checker
-#include <credence/ir/ita.h>            // for Instruction, Quadruple, emit
-#include <credence/ir/object.h>         // for Object, Function, LValue
-#include <credence/language/datatype.h> // for datatype_to_string
-#include <credence/map.h>               // for Ordered_Map
-#include <credence/symbol.h>            // for Symbol_Table
-#include <credence/types.h>             // for get_rvalue_datatype_from_string
-#include <credence/util.h>              // for contains, AST_Node, str_trim_ws
-#include <cstddef>                      // for size_t
-#include <deque>                        // for deque
-#include <easyjson.h>                   // for JSON
-#include <fmt/format.h>                 // for format
-#include <limits>                       // for numeric_limits
-#include <map>                          // for operator!=
-#include <matchit.h>                    // for pattern, PatternHelper, Patt...
-#include <optional>                     // for optional
-#include <string>                       // for basic_string, char_traits
-#include <string_view>                  // for basic_string_view, string_view
-#include <tuple>                        // for get, tuple, operator==
-#include <utility>                      // for pair, get
-#include <vector>                       // for vector
+#include <array>                 // for array
+#include <credence/error.h>      // for credence_assert
+#include <credence/ir/checker.h> // for Type_Checker
+#include <credence/ir/ita.h>     // for Instruction, Quadruple, emit
+#include <credence/ir/object.h>  // for Object, Function, LValue
+#include <credence/ir/operand.h> // for operand_to_string
+#include <credence/map.h>        // for Ordered_Map
+#include <credence/symbol.h>     // for Symbol_Table
+#include <credence/types.h>      // for get_data_type_from_string
+#include <credence/util.h>       // for contains, AST_Node, str_trim_ws
+#include <cstddef>               // for size_t
+#include <deque>                 // for deque
+#include <easyjson.h>            // for JSON
+#include <fmt/format.h>          // for format
+#include <limits>                // for numeric_limits
+#include <map>                   // for operator!=
+#include <matchit.h>             // for pattern, PatternHelper, Patt...
+#include <optional>              // for optional
+#include <string>                // for basic_string, char_traits
+#include <string_view>           // for basic_string_view, string_view
+#include <tuple>                 // for get, tuple, operator==
+#include <utility>               // for pair, get
+#include <vector>                // for vector
 
 /****************************************************************************
  * Table
  *
- * Table constructor for language objects. A visitor pattern on ITA instructions
- * to construct the object table of a program, including function frames,
- * vectors, locals, and globals. In addition, performs type checking on all
- * assignments. The result is stored in an ir::object::Object for backend
- * passes.
+ * A Table of program objects and stack frames. A visitor pattern on ITA
+ * instructions to construct the object table of a program, including function
+ * frames, vectors, locals, and globals. The result is stored in an
+ * ir::object::Object
+ * for backend passes.
  *
  *  Example table construction:
  *
@@ -75,9 +75,9 @@ namespace m = matchit;
  */
 void emit(std::ostream& os,
     util::AST_Node const& symbols,
-    util::AST_Node const& ast)
+    frontend::hir::Unit const& unit)
 {
-    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
+    auto [globals, instructions] = ir::make_ita_instructions(unit, symbols);
     auto table = ir::Table{ symbols, instructions, globals };
     table.build_from_ir_instructions();
     detail::emit(os, *table.get_table_instructions());
@@ -95,7 +95,7 @@ void Table::build_from_ir_instructions()
     build_vector_definitions_from_globals();
 
     for (instruction_index = 0; instruction_index < instructions_->size();
-         instruction_index++) {
+        instruction_index++) {
         auto instruction = instructions_->at(instruction_index);
         m::match(std::get<Instruction>(instruction))(
             m::pattern | Instruction::FUNC_START =
@@ -209,8 +209,8 @@ void Table::build_vector_definitions_from_globals()
                     object::Vector{ symbol.first, symbol.second.size() });
             for (auto const& item : symbol.second) {
                 auto key = std::to_string(index++);
-                auto value = type::get_rvalue_datatype_from_string(
-                    language::datatype::datatype_to_string(item, false));
+                auto value = type::get_data_type_from_string(
+                    operand::operand_to_string(item, false));
                 insert_address_storage_rvalue(value);
                 objects_->get_vectors()[symbol.first]->get_data()[key] = value;
             }
@@ -290,7 +290,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
         rvalue_symbol = type::Data_Type{ rhs, "word", sizeof(void*) };
 
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and rvalue.second.empty())
-        rvalue_symbol = type::get_rvalue_datatype_from_string(rhs);
+        rvalue_symbol = type::get_data_type_from_string(rhs);
     if (rvalue_symbol == type::NULL_RVALUE_LITERAL and
         type::is_unary_expression(rvalue.second))
         rvalue_symbol = from_rvalue_unary_expression(lhs, rhs, rvalue.second);
@@ -423,11 +423,11 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
             // is the rhs a scaler rvalue? e.g. (10:"int":4UL)
             if (type::is_rvalue_data_type(rvalue)) {
                 // update the lhs vector, if applicable
-                auto value = type::get_rvalue_datatype_from_string(rvalue);
+                auto value = type::get_data_type_from_string(rvalue);
                 insert_address_storage_rvalue(value);
                 if (vectors.contains(lhs_lvalue))
                     vectors[lhs_lvalue]->get_data()[offset] =
-                        type::get_rvalue_datatype_from_string(rvalue);
+                        type::get_data_type_from_string(rvalue);
             }
         }
         return;
@@ -612,7 +612,7 @@ void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
             }
             if (type::is_rvalue_data_type(rvalue_reference)) {
                 auto [_, type, size] =
-                    type::get_rvalue_datatype_from_string(rvalue_reference);
+                    type::get_data_type_from_string(rvalue_reference);
                 locals.set_symbol_by_name(lhs, { rvalue, type, size });
                 return;
             }
@@ -632,7 +632,7 @@ void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
     if (lhs.starts_with("_p"))
         frame->get_locals().set_symbol_by_name(lhs, rhs);
     if (type::is_rvalue_data_type(rhs)) {
-        auto data_type = type::get_rvalue_datatype_from_string(rhs);
+        auto data_type = type::get_data_type_from_string(rhs);
         insert_address_storage_rvalue(data_type);
     }
 }
@@ -694,7 +694,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
         auto temp_rvalue =
             type::get_unary_rvalue_reference(frame->get_temporary()[lvalue]);
         credence_assert(type::is_rvalue_data_type(temp_rvalue));
-        auto rdt = type::get_rvalue_datatype_from_string(temp_rvalue);
+        auto rdt = type::get_data_type_from_string(temp_rvalue);
         type_checker.assert_integral_unary_expression(
             frame->get_temporary()[lvalue], std::get<1>(rdt));
         return rdt;
@@ -708,7 +708,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                 auto rhs = type::get_unary_rvalue_reference(symbol_value);
                 local_rvalue = locals.is_defined(rhs)
                                    ? locals.get_symbol_by_name(rhs)
-                                   : type::get_rvalue_datatype_from_string(rhs);
+                                   : type::get_data_type_from_string(rhs);
             } else {
                 local_rvalue = symbol;
             }

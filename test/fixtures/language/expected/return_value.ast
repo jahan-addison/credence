@@ -1,0 +1,9 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      return_statement
+        binary_expression "+"
+          integer_literal 1
+          integer_literal 2

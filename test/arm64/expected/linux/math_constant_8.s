@@ -40,4 +40,4 @@ _start:
 .data
 
 ._L_str1__:
-    .asciz "m is %d\n"
+    .asciz "m is %d"

@@ -100,12 +100,12 @@ class Stack::Stack_IMPL
      * @brief Dynamically set an operand size for vector indices, which pushes
      * downward on a chunk
      */
-    constexpr void set(Offset offset, Operand_Size size)
+    constexpr void set(Offset offset, Operand_Size operand)
     {
         using namespace fmt::literals;
         stack_address.insert(
             fmt::format("__internal_vector_offset_{}"_cf, ++vectors),
-            Entry{ offset, size });
+            Entry{ offset, operand });
     }
 
     /**
@@ -146,8 +146,7 @@ class Stack::Stack_IMPL
     {
         if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        auto operand_size =
-            assembly::get_operand_size_from_rvalue_datatype(rvalue);
+        auto operand_size = assembly::get_operand_size_from_data_type(rvalue);
         auto value_size = assembly::get_size_from_operand_size(operand_size);
         allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }
@@ -239,7 +238,7 @@ class Stack::Stack_IMPL
                     search = true;
                 if (!search)
                     offset -= assembly::get_size_from_operand_size(
-                        assembly::get_operand_size_from_rvalue_datatype(
+                        assembly::get_operand_size_from_data_type(
                             entry.second));
                 return offset;
             });
@@ -253,17 +252,16 @@ class Stack::Stack_IMPL
     Size get_stack_size_from_table_vector(ir::object::Vector const& vector)
     {
         auto vector_size =
-            size +
-            std::accumulate(vector.get_data().begin(),
-                vector.get_data().end(),
-                0UL,
-                [&](type::semantic::Size offset,
-                    ir::object::Vector::Entry const& entry) {
-                    return offset +
-                           assembly::get_size_from_operand_size(
-                               assembly::get_operand_size_from_rvalue_datatype(
-                                   entry.second));
-                });
+            size + std::accumulate(vector.get_data().begin(),
+                       vector.get_data().end(),
+                       0UL,
+                       [&](type::semantic::Size offset,
+                           ir::object::Vector::Entry const& entry) {
+                           return offset +
+                                  assembly::get_size_from_operand_size(
+                                      assembly::get_operand_size_from_data_type(
+                                          entry.second));
+                       });
 
         return vector_size < 16UL ? vector_size
                                   : util::align_up_to_16(vector_size);
@@ -273,12 +271,12 @@ class Stack::Stack_IMPL
      * @brief Set and allocate an address from an arbitrary offset
      */
     constexpr void set_address_from_size(LValue const& lvalue,
-        Offset allocate,
+        Offset allocation,
         assembly::Operand_Size operand = assembly::Operand_Size::Dword)
     {
         if (stack_address[lvalue].second != assembly::Operand_Size::Empty)
             return;
-        size += allocate;
+        size += allocation;
         stack_address.insert(lvalue, { size, operand });
     }
 
@@ -388,10 +386,10 @@ Size Stack::get_stack_size_from_table_vector(ir::object::Vector const& vector)
     return pimpl->get_stack_size_from_table_vector(vector);
 }
 void Stack::set_address_from_size(LValue const& lvalue,
-    Offset allocate,
+    Offset allocation,
     assembly::Operand_Size operand)
 {
-    pimpl->set_address_from_size(lvalue, allocate, operand);
+    pimpl->set_address_from_size(lvalue, allocation, operand);
 }
 std::string Stack::get_lvalue_from_offset(Offset offset) const
 {

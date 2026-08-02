@@ -406,7 +406,7 @@ constexpr Operand_Size get_operand_size_from_register(Register acc)
     }
 }
 
-constexpr Operand_Size get_operand_size_from_rvalue_datatype(
+constexpr Operand_Size get_operand_size_from_data_type(
     type::Data_Type const& rvalue)
 {
     namespace m = matchit;

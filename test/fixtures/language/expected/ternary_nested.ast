@@ -1,0 +1,23 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+        identifier "a"
+        identifier "b"
+        identifier "c"
+        identifier "d"
+        identifier "e"
+      block_statement
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            ternary_expression
+              identifier "a"
+              identifier "b"
+              ternary_expression
+                identifier "c"
+                identifier "d"
+                identifier "e"

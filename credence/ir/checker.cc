@@ -115,7 +115,7 @@ void Type_Checker::type_safe_assign_pointer(LValue const& lvalue,
 
     auto human_symbol = type::is_rvalue_data_type(rvalue)
                             ? type::get_value_from_rvalue_data_type(
-                                  type::get_rvalue_datatype_from_string(rvalue))
+                                  type::get_data_type_from_string(rvalue))
                             : rvalue;
     if (indirection) {
         if (!locals.is_pointer(lvalue) or
@@ -355,7 +355,12 @@ void Type_Checker::type_safe_assign_pointer_or_vector_lvalue(
                     "invalid pointer dereference assignment, "
                     "right-hand-side is a NULL pointer!",
                     lvalue);
-            if (is_trivial_vector_assignment(lvalue, value)) {
+            // a pointer lvalue goes through the pointer path below, which
+            // accepts a vector that holds a string. A pointer local lives
+            // in the address table of the frame, so the trivial vector
+            // path has no entry to read its type from
+            if (!locals.is_pointer(lvalue) and
+                is_trivial_vector_assignment(lvalue, value)) {
                 type_safe_assign_trivial_vector(lvalue, value);
                 return; // Done
             }
@@ -407,7 +412,7 @@ void Type_Checker::type_safe_assign_pointer_or_vector_lvalue(
  */
 Type Type_Checker::get_type_from_rvalue_data_type(LValue const& lvalue)
 {
-    auto& locals = get_stack_frame_locals();
+    auto const& locals = get_stack_frame_locals();
     auto& vectors = objects_->get_vectors();
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
@@ -423,7 +428,7 @@ Type Type_Checker::get_type_from_rvalue_data_type(LValue const& lvalue)
  */
 Size Type_Checker::get_size_from_local_lvalue(LValue const& lvalue)
 {
-    auto& locals = get_stack_frame_locals();
+    auto const& locals = get_stack_frame_locals();
     auto& vectors = objects_->get_vectors();
     if (util::contains(lvalue, "[")) {
         is_boundary_out_of_range(lvalue);
@@ -482,7 +487,7 @@ void Type_Checker::is_boundary_out_of_range(RValue const& rvalue)
                     ul_offset),
                 rvalue);
     } else {
-        auto& locals = get_stack_frame_locals();
+        auto const& locals = get_stack_frame_locals();
         if (!locals.is_defined(offset) and
             not stack_frame_->is_scaler_parameter(offset))
             throw_type_check_error(
@@ -545,7 +550,7 @@ void Type_Checker::type_invalid_assignment_check(
 void Type_Checker::type_invalid_assignment_check(LValue const& lvalue,
     RValue const& rvalue)
 {
-    auto& locals = get_stack_frame_locals();
+    auto const& locals = get_stack_frame_locals();
     if (get_type_from_rvalue_data_type(lvalue) == "null")
         return;
     if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue))

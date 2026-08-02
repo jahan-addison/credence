@@ -18,10 +18,10 @@ _start:
     mov eax, dword ptr [rip + unit]
     mov dword ptr [rbp - 4], eax
     mov rax, qword ptr [rip + mess]
-    mov qword ptr [rbp - 12], rax
+    mov qword ptr [rbp - 16], rax
     mov rax, 33554436
     mov edi, 1
-    mov rsi, qword ptr [rbp - 12]
+    mov rsi, qword ptr [rbp - 16]
     mov edx, 6
     syscall
     mov rax, 33554436

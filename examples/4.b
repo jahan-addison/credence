@@ -1,3 +1,7 @@
+////////////////////////////////////////////////////////
+// Note: This is a draft and currently does not compile
+////////////////////////////////////////////////////////
+
 union data_t {
     ab "",
     cd 0,
@@ -9,20 +13,21 @@ union data_t {
 
 main () {
   auto x[50], w, *y;
-  extrn mess, k;
+  extrn mess;
   data_t m;
   k.ll = 5.555f;
   m.ab = "hello world";
   y = m.ab;
+
   if (m is data_t.ab) {
     printf("%s\n%s\n", m.ab, mess[5]);
   }
+
   if (k is data_t.ll) {
     printf("%f\n"m k.ll);
   }
-}
 
-data_t k;
+}
 
 unit 10;
 

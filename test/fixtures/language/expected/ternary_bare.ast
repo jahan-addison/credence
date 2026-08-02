@@ -1,0 +1,16 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+        identifier "y"
+      block_statement
+        expression_statement
+          assignment_expression "="
+            identifier "y"
+            ternary_expression
+              identifier "x"
+              integer_literal 10
+              integer_literal 1

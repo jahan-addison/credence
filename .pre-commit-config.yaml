@@ -10,7 +10,7 @@ repos:
     hooks:
       - id: clang-format
         args: [--style=file]
-        exclude: ^credence/language/lexer\.cc$
+        exclude: ^credence/frontend/lexer\.cc$
 
   - repo: local
     hooks:
@@ -19,11 +19,14 @@ repos:
       entry: bash -c 'printf "%s\n" "$@" | xargs -P "$(nproc 2>/dev/null || sysctl -n hw.ncpu)" -I{} clang-tidy -p build {}' --
       language: system
       types: [c++, c]
-      exclude: ^credence/language/lexer\.cc$
+      exclude: ^credence/frontend/lexer\.cc$
     - id: cppcheck
       name: cppcheck
+      # one invocation at a time - parallel batches share the build dir and
+      # corrupt each other's analysis cache
+      require_serial: true
       entry: cppcheck
       args: ["--enable=warning,performance,portability,style", --inline-suppr, --error-exitcode=1, --cppcheck-build-dir=./build, --language=c++, -I., --suppressions-list=./cppcheck.suppress]
       language: system
       types: [c++, c]
-      exclude: ^credence/language/lexer\.cc$
+      exclude: ^credence/frontend/lexer\.cc$

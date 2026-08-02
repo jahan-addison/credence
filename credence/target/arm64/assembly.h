@@ -135,23 +135,23 @@ enum class Register;
         return { s, std::move(instructions) };                         \
     } while (false)
 
-#define arm64__make_and_ret_with_immediate(op)                 \
-    do {                                                       \
-        if (is_variant(Immediate, ss1)) {                      \
-            auto inst = make_empty();                          \
-            auto size = get_operand_size_from_rvalue_datatype( \
-                std::get<Immediate>(ss1));                     \
-            if (size == Operand_Size::Doubleword) {            \
-                arm64_add__asm(inst, mov, x7, ss1);            \
-                arm64_add__asm(inst, op, ss0, ss0, x7);        \
-                return { ss0, inst };                          \
-            } else {                                           \
-                arm64_add__asm(inst, mov, w7, ss1);            \
-                arm64_add__asm(inst, op, ss0, ss0, w7);        \
-                return { ss0, inst };                          \
-            }                                                  \
-        } else                                                 \
-            arm64__make_and_ret(op, ss0, ss0, ss1);            \
+#define arm64__make_and_ret_with_immediate(op)                             \
+    do {                                                                   \
+        if (is_variant(Immediate, ss1)) {                                  \
+            auto inst = make_empty();                                      \
+            auto size =                                                    \
+                get_operand_size_from_data_type(std::get<Immediate>(ss1)); \
+            if (size == Operand_Size::Doubleword) {                        \
+                arm64_add__asm(inst, mov, x7, ss1);                        \
+                arm64_add__asm(inst, op, ss0, ss0, x7);                    \
+                return { ss0, inst };                                      \
+            } else {                                                       \
+                arm64_add__asm(inst, mov, w7, ss1);                        \
+                arm64_add__asm(inst, op, ss0, ss0, w7);                    \
+                return { ss0, inst };                                      \
+            }                                                              \
+        } else                                                             \
+            arm64__make_and_ret(op, ss0, ss0, ss1);                        \
     } while (false)
 
 #define arm64_add__asm(inst, op, ...)                               \
@@ -950,7 +950,7 @@ constexpr Operand_Size get_operand_size_from_register(Register acc)
     }
 }
 
-constexpr Operand_Size get_operand_size_from_rvalue_datatype(
+constexpr Operand_Size get_operand_size_from_data_type(
     type::Data_Type const& rvalue)
 {
     namespace m = matchit;
@@ -1795,8 +1795,7 @@ constexpr common::Size get_size_from_type(Type const& type_)
 /**
  * @brief Get the size in bytes from an rvalue data type
  */
-constexpr type::semantic::Size get_size_from_rvalue_datatype(
-    Immediate const& rvalue)
+constexpr type::semantic::Size get_size_from_data_type(Immediate const& rvalue)
 {
     using Size = common::Size;
     using Type = common::Type;

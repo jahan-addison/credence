@@ -173,7 +173,7 @@ struct Accumulator_Accessor : public X8664_Accumulator_Accessor
     assembly::Operand_Size get_operand_size_from_immediate(
         Immediate const& immediate) override
     {
-        return assembly::get_operand_size_from_rvalue_datatype(immediate);
+        return assembly::get_operand_size_from_data_type(immediate);
     }
 
     Register get_accumulator_register_from_size(
@@ -219,7 +219,7 @@ struct Vector_Accessor : public X8664_Vector_Accessor
     }
     Entry_Size get_size_from_vector_offset(Immediate const& immediate) override
     {
-        return assembly::get_operand_size_from_rvalue_datatype(immediate);
+        return assembly::get_operand_size_from_data_type(immediate);
     }
 };
 

@@ -112,10 +112,10 @@ namespace m = matchit;
  */
 void emit(std::ostream& os,
     util::AST_Node& symbols,
-    util::AST_Node const& ast,
+    frontend::hir::Unit const& unit,
     bool no_stdlib)
 {
-    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
+    auto [globals, instructions] = ir::make_ita_instructions(unit, symbols);
     auto table = std::make_shared<ir::Table>(
         ir::Table{ symbols, instructions, globals });
     table->build_from_ir_instructions();
@@ -288,7 +288,7 @@ void Data_Emitter::set_data_globals()
             vector->set_address_offset(item.first, address);
             auto type = type::get_type_from_rvalue_data_type(item.second);
             address += assembly::get_size_from_operand_size(
-                assembly::get_operand_size_from_rvalue_datatype(item.second));
+                assembly::get_operand_size_from_data_type(item.second));
 
             auto instructions =
                 get_instructions_from_directive_type(directive, data);
@@ -616,9 +616,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
             "function_definition") {
         // callee saved registers are saved as "tokens" on the frame object
         if (!accessor_->get_frame_in_memory()
-                 .get_stack_frame(s)
-                 ->get_tokens()
-                 .empty())
+                .get_stack_frame(s)
+                ->get_tokens()
+                .empty())
             accessor_->stack->allocate(16);
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s) {
@@ -643,10 +643,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
     // branch labels
     if (set_label and label_size_ > 1) {
         branch_ = s;
-        auto label = util::get_numbers_from_string(s);
         auto label_before_reserved =
             table->get_functions().at(frame_)->get_label_before_reserved();
-        if (set_label and s == "_L1") {
+        if (s == "_L1") {
             // In the IR, labels are linear until _L1 and then branching starts.
             // So as soon as _L1 would be emitted, add a jump to _L1 instead
             emit_epilogue_jump(os);
@@ -775,7 +774,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-             index++) {
+            index++) {
             // // this branch
             // if (is_variant(
             //         assembly::Instruction, return_instructions_[index])) {

@@ -1,0 +1,23 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      extrn_statement
+        identifier "f"
+        identifier "g"
+      block_statement
+        expression_statement
+          function_expression
+            identifier "f"
+            block_statement
+              integer_literal 1
+              integer_literal 2
+              function_expression
+                identifier "g"
+                block_statement
+                  integer_literal 3
+        expression_statement
+          function_expression
+            identifier "f"
+            block_statement

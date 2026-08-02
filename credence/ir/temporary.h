@@ -13,26 +13,25 @@
 
 #pragma once
 
-#include <credence/ir/ita.h>                 // for Instructions
-#include <credence/language/datatype.h>      // for Datatype, Size
-#include <credence/language/operators.h>     // for Operator
-#include <credence/language/shunting_yard.h> // for Shunting_Yard
-#include <credence/symbol.h>                 // for Symbol_Table
-#include <credence/util.h>                   // for AST_Node, range_contains
-#include <initializer_list>                  // for initializer_list
-#include <ostream>                           // for ostream
-#include <stack>                             // for stack
-#include <string>                            // for basic_string, string
-#include <utility>                           // for pair
-#include <vector>                            // for vector
+#include <credence/frontend/hir/hir.h> // for Unit, Node_Index
+#include <credence/ir/ita.h>           // for Instructions
+#include <credence/ir/operand.h>       // for Datatype, Size
+#include <credence/ir/operators.h>     // for Operator
+#include <credence/ir/queue.h>         // for Queue
+#include <credence/symbol.h>           // for Symbol_Table
+#include <credence/util.h>             // for AST_Node, range_contains
+#include <initializer_list>            // for initializer_list
+#include <ostream>                     // for ostream
+#include <stack>                       // for stack
+#include <string>                      // for basic_string, string
+#include <utility>                     // for pair
+#include <vector>                      // for vector
 
 /****************************************************************************
- * Temporary LValue Constructor
+ * Temporary Constructor
  *
  * A set of algorithms that construct temporary lvalues "_tX" that aid in
- * breaking expressions into 3- or 4- tuples for linear instructions. Uses the
- * rvalue queue from shunting_yard.h of expressions, which should be ordered
- * by operator preedence.
+ * breaking expressions into 3- or 4- tuples for linear instructions.
  *
  *  Example:
  *
@@ -57,8 +56,7 @@ namespace credence {
 
 namespace ir {
 
-using Expression_Instructions = std::pair<ir::Instructions,
-    language::shunting_yard::detail::Shunting_Yard::Container>;
+using Expression_Instructions = std::pair<ir::Instructions, Queue>;
 using Temporary_Instructions = std::pair<std::string, ir::Instructions>;
 
 namespace detail {
@@ -115,23 +113,21 @@ class Temporary
     }
 
   public:
-    using Operand = language::datatype::Datatype::Type_Pointer;
+    using Operand = operand::Operand::Type_Pointer;
     using Operands = std::vector<Operand>;
-    using Operator = language::type::Operator;
+    using Operator = operators::Operator;
     using Instructions = ir::Instructions;
     using Operand_Stack = std::stack<Operand>;
     using Temporary_Stack = std::stack<std::string>;
 
-    language::datatype::Size insert_and_create_temporary_from_operand(
-        Operand& operand);
+    operand::Size insert_and_create_temporary_from_operand(Operand& operand);
 
   public:
-    void unary_operand_to_temporary_stack(language::type::Operator op);
+    void unary_operand_to_temporary_stack(operators::Operator op);
     void assignment_operands_to_temporary_stack();
-    void binary_operands_to_temporary_stack(language::type::Operator op);
-    void binary_operands_balanced_temporary_stack(language::type::Operator op);
-    void binary_operands_unbalanced_temporary_stack(
-        language::type::Operator op);
+    void binary_operands_to_temporary_stack(operators::Operator op);
+    void binary_operands_balanced_temporary_stack(operators::Operator op);
+    void binary_operands_unbalanced_temporary_stack(operators::Operator op);
 
   public:
     void from_call_operands_to_temporary_instructions(
@@ -151,29 +147,28 @@ class Temporary
     Temporary_Stack temporary_stack{};
 };
 
-constexpr bool is_in_place_unary_operator(language::type::Operator op)
+constexpr bool is_in_place_unary_operator(operators::Operator op)
 {
-    const auto unary_types = { language::type::Operator::PRE_DEC,
-        language::type::Operator::POST_DEC,
-        language::type::Operator::PRE_INC,
-        language::type::Operator::POST_INC };
+    const auto unary_types = { operators::Operator::PRE_DEC,
+        operators::Operator::POST_DEC,
+        operators::Operator::PRE_INC,
+        operators::Operator::POST_INC };
     return util::range_contains(op, unary_types);
 }
 
 } // namespace detail
 
-// When set, ast_to_ita_instructions writes each expression's queue form
+// When set, hir_to_ita_instructions writes each expression's queue form
 // here as it's computed - a debug hook into the pass with no effect on
 // the instructions actually returned. Off (nullptr) by default.
 inline std::ostream* queue_dump_stream = nullptr;
 
-Instructions queue_to_ita_instructions(
-    language::shunting_yard::detail::Shunting_Yard::Container const& queue,
+Instructions queue_to_ita_instructions(Queue const& queue,
     util::AST_Node const& details,
     int* temporary_index);
 
-Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
-    util::AST_Node const& node,
+Expression_Instructions hir_to_ita_instructions(frontend::hir::Unit const& unit,
+    frontend::hir::Node_Index node,
     util::AST_Node const& details,
     int* temporary_index,
     int* identifier_index);

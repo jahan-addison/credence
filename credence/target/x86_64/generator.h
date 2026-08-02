@@ -16,6 +16,7 @@
 #include "assembly.h"                     // for Operand_Size, Storage, Dir...
 #include "memory.h"                       // for Memory_Access, Operand_Size
 #include "stack.h"                        // for Stack
+#include <credence/frontend/hir/hir.h>    // for Unit
 #include <credence/ir/ita.h>              // for Instructions
 #include <credence/ir/object.h>           // for Label, Object, RValue
 #include <credence/target/common/flags.h> // for flags
@@ -73,7 +74,7 @@ using Instruction_Pair = assembly::Instruction_Pair;
 
 void emit(std::ostream& os,
     util::AST_Node& symbols,
-    util::AST_Node const& ast,
+    frontend::hir::Unit const& unit,
     bool no_stdlib);
 
 constexpr std::string emit_immediate_storage(

@@ -41,6 +41,7 @@ jobs:
       - name: install extras
         if: matrix.compiler == 'g++'
         run: |
+          sudo apt-get update
           sudo apt-get install -y valgrind
 
       - name: configure build

@@ -1,12 +1,17 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
+#include <credence/frontend/compile.h>        // for compile
+#include <credence/frontend/hir/hir.h>        // for Unit
+#include <credence/ir/symbols.h>              // for hoisted_symbols
 #include <credence/target/x86_64/generator.h> // for emit
 #include <credence/target/x86_64/runtime.h>   // for library
 #include <easyjson.h>                         // for JSON
 #include <filesystem>                         // for path
 #include <fmt/format.h>                       // for format
-#include <sstream>                            // for char_traits, basic_ost...
-#include <string>                             // for basic_string, allocator
+#include <fstream>
+#include <sstream> // for char_traits, basic_ost...
+#include <string>  // for basic_string, allocator
+#include <utility> // for pair
 
 using namespace credence;
 using namespace credence::target::x86_64;
@@ -35,89 +40,124 @@ inline std::filesystem::path get_root_path()
     return fs::path(ROOT_PATH);
 }
 
-#define SETUP_X86_64_FIXTURE_AND_TEST(path_name, os)                          \
-    do {                                                                      \
-        using namespace credence::target::x86_64;                             \
-        auto test = std::ostringstream{};                                     \
-        auto fixture_path =                                                   \
-            get_root_path().append("test/fixtures/platform/ast");             \
-        auto expected_root = get_root_path().append(                          \
-            fmt::format("test/x86_64/expected/{}", os));                      \
-        auto file_path =                                                      \
-            fs::path(fixture_path).append(fmt::format("{}.json", path_name)); \
-        auto expected_path =                                                  \
-            fs::path(expected_root).append(fmt::format("{}.s", path_name));   \
-        auto fixture_content =                                                \
-            easyjson::JSON::load_file(file_path.string()).to_deque();         \
-        credence::target::x86_64::emit(                                       \
-            test, fixture_content[0], fixture_content[1], true);              \
-        auto expected_content = read_file_from_path(expected_path.string());  \
-        REQUIRE(test.str() == expected_content);                              \
+/**
+ * @brief Whether the run should rewrite the golden files instead of testing
+ */
+inline bool blessing_fixtures()
+{
+    return std::getenv("CREDENCE_BLESS") != nullptr;
+}
+
+/**
+ * @brief Compare generated machine code against its golden file
+ *
+ * Running the suite with CREDENCE_BLESS set rewrites the golden from the
+ * backend instead of comparing against it, through the same emit call the
+ * comparison uses, so the two cannot disagree about what was generated.
+ *
+ * The .b source is what the runtime tests in compiled-test.sh compile and
+ * execute, so a golden follows its source and never the other way around.
+ * Review the diff afterwards, as a change means the machine code changed.
+ */
+inline void check_against_golden(std::string const& actual,
+    fs::path const& expected_path)
+{
+    if (blessing_fixtures()) {
+        fs::create_directories(expected_path.parent_path());
+        std::ofstream out(expected_path, std::ios::binary);
+        out << actual;
+        MESSAGE("blessed " << expected_path.string());
+        return;
+    }
+    REQUIRE(actual == read_file_from_path(expected_path.string()));
+}
+
+/**
+ * @brief Parse a fixture source into the symbols and unit that emit takes
+ *
+ * The tests read the .b source rather than a stored tree, so the input of a
+ * code generation test is the program itself and cannot drift from it.
+ * Every fixture reaches the backend through here.
+ */
+struct Fixture
+{
+    credence::util::AST_Node symbols;
+    credence::frontend::hir::Unit unit;
+};
+
+inline Fixture parse_platform_fixture(std::string_view name)
+{
+    auto source_path = fs::path(get_root_path())
+                           .append("test/fixtures/platform")
+                           .append(fmt::format("{}.b", name));
+    auto source = read_file_from_path(source_path.string());
+
+    auto program = credence::frontend::compile(source);
+    auto symbols = credence::ir::hoisted_symbols(program.unit);
+
+    return Fixture{ std::move(symbols), std::move(program.unit) };
+}
+
+#define SETUP_X86_64_FIXTURE_AND_TEST(path_name, os)                        \
+    do {                                                                    \
+        using namespace credence::target::x86_64;                           \
+        auto test = std::ostringstream{};                                   \
+        auto expected_root = get_root_path().append(                        \
+            fmt::format("test/x86_64/expected/{}", os));                    \
+        auto expected_path =                                                \
+            fs::path(expected_root).append(fmt::format("{}.s", path_name)); \
+        auto fixture = parse_platform_fixture(path_name);                   \
+        credence::target::x86_64::emit(                                     \
+            test, fixture.symbols, fixture.unit, true);                     \
+        check_against_golden(test.str(), expected_path);                    \
     } while (0)
 
-#define SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(path_name, os, syscall)     \
-    do {                                                                      \
-        using namespace credence::target::x86_64;                             \
-        auto test = std::ostringstream{};                                     \
-        auto fixture_path =                                                   \
-            get_root_path().append("test/fixtures/platform/ast");             \
-        auto expected_root = get_root_path().append(                          \
-            fmt::format("test/x86_64/expected/{}", os));                      \
-        auto file_path =                                                      \
-            fs::path(fixture_path).append(fmt::format("{}.json", path_name)); \
-        auto expected_path =                                                  \
-            fs::path(expected_root).append(fmt::format("{}.s", path_name));   \
-        auto fixture_content =                                                \
-            easyjson::JSON::load_file(file_path.string()).to_deque();         \
-        credence::target::common::runtime::add_stdlib_functions_to_symbols(   \
-            fixture_content[0],                                               \
-            credence::target::common::assembly::OS_Type::Linux,               \
-            credence::target::common::assembly::Arch_Type::X8664,             \
-            syscall);                                                         \
-        credence::target::x86_64::emit(                                       \
-            test, fixture_content[0], fixture_content[1], false);             \
-        auto expected_content = read_file_from_path(expected_path.string());  \
-        REQUIRE(test.str() == expected_content);                              \
+#define SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(path_name, os, syscall)   \
+    do {                                                                    \
+        using namespace credence::target::x86_64;                           \
+        auto test = std::ostringstream{};                                   \
+        auto expected_root = get_root_path().append(                        \
+            fmt::format("test/x86_64/expected/{}", os));                    \
+        auto expected_path =                                                \
+            fs::path(expected_root).append(fmt::format("{}.s", path_name)); \
+        auto fixture = parse_platform_fixture(path_name);                   \
+        credence::target::common::runtime::add_stdlib_functions_to_symbols( \
+            fixture.symbols,                                                \
+            credence::target::common::assembly::OS_Type::Linux,             \
+            credence::target::common::assembly::Arch_Type::X8664,           \
+            syscall);                                                       \
+        credence::target::x86_64::emit(                                     \
+            test, fixture.symbols, fixture.unit, false);                    \
+        check_against_golden(test.str(), expected_path);                    \
     } while (0)
 
-#define SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(                 \
-    path_name, os, syscall)                                                   \
-    do {                                                                      \
-        using namespace credence::target::x86_64;                             \
-        auto test = std::ostringstream{};                                     \
-        auto fixture_path =                                                   \
-            get_root_path().append("test/fixtures/platform/ast");             \
-        auto expected_root = get_root_path().append(                          \
-            fmt::format("test/x86_64/expected/{}", os));                      \
-        auto file_path =                                                      \
-            fs::path(fixture_path).append(fmt::format("{}.json", path_name)); \
-        auto expected_path =                                                  \
-            fs::path(expected_root).append(fmt::format("{}.s", path_name));   \
-        auto fixture_content =                                                \
-            easyjson::JSON::load_file(file_path.string()).to_deque();         \
-        credence::target::common::runtime::add_stdlib_functions_to_symbols(   \
-            fixture_content[0],                                               \
-            credence::target::common::assembly::OS_Type::Linux,               \
-            credence::target::common::assembly::Arch_Type::X8664,             \
-            syscall);                                                         \
-        credence::target::x86_64::emit(                                       \
-            test, fixture_content[0], fixture_content[1], true);              \
-        auto expected_content = read_file_from_path(expected_path.string());  \
-        REQUIRE(test.str() == expected_content);                              \
+#define SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(               \
+    path_name, os, syscall)                                                 \
+    do {                                                                    \
+        using namespace credence::target::x86_64;                           \
+        auto test = std::ostringstream{};                                   \
+        auto expected_root = get_root_path().append(                        \
+            fmt::format("test/x86_64/expected/{}", os));                    \
+        auto expected_path =                                                \
+            fs::path(expected_root).append(fmt::format("{}.s", path_name)); \
+        auto fixture = parse_platform_fixture(path_name);                   \
+        credence::target::common::runtime::add_stdlib_functions_to_symbols( \
+            fixture.symbols,                                                \
+            credence::target::common::assembly::OS_Type::Linux,             \
+            credence::target::common::assembly::Arch_Type::X8664,           \
+            syscall);                                                       \
+        credence::target::x86_64::emit(                                     \
+            test, fixture.symbols, fixture.unit, true);                     \
+        check_against_golden(test.str(), expected_path);                    \
     } while (0)
 
-#define SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST(ast_path)                 \
-    do {                                                                     \
-        using namespace credence::target::x86_64;                            \
-        auto test = std::ostringstream{};                                    \
-        auto fixture_path = get_root_path();                                 \
-        fixture_path.append("test/fixtures/platform/ast");                   \
-        auto file_path =                                                     \
-            fs::path(fixture_path).append(fmt::format("{}.json", ast_path)); \
-        auto fixture_content =                                               \
-            easyjson::JSON::load_file(file_path.string()).to_deque();        \
-        REQUIRE_THROWS(credence::target::x86_64::emit(                       \
-            test, fixture_content[0], fixture_content[1], true));            \
+#define SETUP_X86_64_FIXTURE_SHOULD_THROW(path_name)      \
+    do {                                                  \
+        using namespace credence::target::x86_64;         \
+        auto test = std::ostringstream{};                 \
+        auto fixture = parse_platform_fixture(path_name); \
+        REQUIRE_THROWS(credence::target::x86_64::emit(    \
+            test, fixture.symbols, fixture.unit, true));  \
     } while (0)
 
 TEST_CASE("target/x86_64: fixture: math_constant.b")
@@ -257,7 +297,7 @@ TEST_CASE("target/x86_64: fixture: pointers_4.b")
 
 TEST_CASE("target/x86_64: fixture: strings")
 {
-    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("string_2");
+    SETUP_X86_64_FIXTURE_SHOULD_THROW("string_2");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
     SETUP_X86_64_FIXTURE_AND_TEST("string_1", "linux");
 #else
@@ -294,7 +334,7 @@ TEST_CASE("target/x86_64: fixture: vector_3.b")
 
 TEST_CASE("target/x86_64: fixture: globals")
 {
-    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("globals_2");
+    SETUP_X86_64_FIXTURE_SHOULD_THROW("globals_2");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
     SETUP_X86_64_FIXTURE_AND_TEST("globals_1", "linux");
 #else
@@ -313,7 +353,7 @@ TEST_CASE("target/x86_64: fixture: syscall kernel write")
 
 TEST_CASE("target/x86_64: fixture: stdlib print")
 {
-    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/print_2");
+    SETUP_X86_64_FIXTURE_SHOULD_THROW("stdlib/print_2");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST("stdlib/print", "linux", true);
 #else
@@ -354,7 +394,7 @@ TEST_CASE("target/x86_64: fixture: readme_2.b")
 
 TEST_CASE("target/x86_64: fixture: address_of_2.b")
 {
-    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("address_of_1");
+    SETUP_X86_64_FIXTURE_SHOULD_THROW("address_of_1");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
     SETUP_X86_64_WITH_STDLIB_NO_SYMBOLS_FIXTURE_AND_TEST(
         "address_of_2", "linux", false);
@@ -377,7 +417,7 @@ TEST_CASE("target/x86_64: fixture: string_3.b")
 
 TEST_CASE("target/x86_64: fixture: stdlib putchar")
 {
-    SETUP_X86_64_FIXTURE_SHOULD_THROW_FROM_AST("stdlib/putchar_2");
+    SETUP_X86_64_FIXTURE_SHOULD_THROW("stdlib/putchar_2");
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
     SETUP_X86_64_WITH_STDLIB_FIXTURE_AND_TEST(
         "stdlib/putchar_1", "linux", false);

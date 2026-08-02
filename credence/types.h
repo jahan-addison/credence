@@ -30,11 +30,10 @@
 #include <variant>           // for variant
 #include <vector>            // for vector
 
-#include <credence/language/datatype.h> // for Datatype
+#include <credence/ir/operand.h> // for Operand
 
 /****************************************************************************
  * Type category, string, and numeric utilities
- *   See values.h for details on literals and data types
  *****************************************************************************/
 
 namespace credence::type {
@@ -64,7 +63,7 @@ using Strings = std::set<semantic::RValue>;
 using RValues = Strings;
 using Floats = std::set<float>;
 using Doubles = std::set<double>;
-using Globals = language::datatype::Array;
+using Globals = operand::Array;
 using Binary_Expression =
     std::tuple<semantic::RValue, std::string, semantic::RValue>;
 using RValue_Reference_Type = std::variant<semantic::RValue, Data_Type>;
@@ -289,9 +288,9 @@ constexpr bool is_unary_expression(RValue_Reference rvalue)
     });
 }
 
-constexpr bool is_unary_data_type_expression(Data_Type const& datatype)
+constexpr bool is_unary_data_type_expression(Data_Type const& data_type)
 {
-    auto rvalue = type::get_value_from_rvalue_data_type(datatype);
+    auto rvalue = type::get_value_from_rvalue_data_type(data_type);
     if (util::substring_count_of(rvalue, " ") >= 2)
         return false;
     return std::ranges::any_of(unary_operators, [&](std::string_view x) {
@@ -348,7 +347,7 @@ constexpr bool is_temporary(RValue_Reference rvalue)
  *
  * e.g. "(10:int:4)" -> (10, "int", 4UL)
  */
-inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue,
+inline Data_Type get_data_type_from_string(semantic::RValue const& rvalue,
     std::source_location const& location = std::source_location::current())
 {
     credence::detail::assert_impl(location,
@@ -384,9 +383,9 @@ constexpr Binary_Expression from_rvalue_binary_expression(
 }
 
 constexpr Binary_Expression from_rvalue_binary_expression(
-    Data_Type const& datatype)
+    Data_Type const& data_type)
 {
-    auto rvalue = type::get_value_from_rvalue_data_type(datatype);
+    auto rvalue = type::get_value_from_rvalue_data_type(data_type);
     auto lhs = rvalue.find_first_of(" ");
     auto rhs = rvalue.find_last_of(" ");
     auto lhs_lvalue = std::string{ rvalue.begin(), rvalue.begin() + lhs };
@@ -439,7 +438,7 @@ constexpr semantic::Type get_value_from_rvalue_data_type(
 {
     if (is_rvalue_data_type(rvalue)) {
         return get_value_from_rvalue_data_type(
-            get_rvalue_datatype_from_string(rvalue));
+            get_data_type_from_string(rvalue));
     } else
         return "null";
 }
@@ -457,7 +456,7 @@ constexpr semantic::Type get_type_from_rvalue_data_type(
 {
     if (is_rvalue_data_type(rvalue)) {
         return get_type_from_rvalue_data_type(
-            get_rvalue_datatype_from_string(rvalue));
+            get_data_type_from_string(rvalue));
     } else
         return "null";
 }
@@ -476,7 +475,7 @@ constexpr bool is_rvalue_data_type_a_type(type::semantic::RValue const& rvalue,
 {
     if (is_rvalue_data_type(rvalue)) {
         return get_type_from_rvalue_data_type(
-                   get_rvalue_datatype_from_string(rvalue)) == type_;
+                   get_data_type_from_string(rvalue)) == type_;
     } else
         return false;
 }
@@ -521,7 +520,7 @@ constexpr semantic::Size get_size_from_rvalue_data_type(
 {
     if (is_rvalue_data_type(rvalue)) {
         return get_size_from_rvalue_data_type(
-            get_rvalue_datatype_from_string(rvalue));
+            get_data_type_from_string(rvalue));
     } else
         return 0UL;
 }
@@ -555,9 +554,27 @@ constexpr semantic::RValue from_decay_offset(RValue_Reference rvalue)
 }
 
 /**
+ * @brief Get the offset of a vector lvalue, where a bare name addresses the
+ *   first element
+ *   * v[20] = 20
+ *   * v     = 0
+ *
+ * from_decay_offset gives back the whole rvalue when it holds no subscript,
+ * which names the vector and not a place inside it. Resolving storage from
+ * that offset walks back into the same lvalue, so a vector reached by name
+ * takes its first element here.
+ */
+constexpr semantic::RValue from_vector_offset(RValue_Reference lvalue)
+{
+    if (!util::contains(lvalue, "["))
+        return "0";
+    return from_decay_offset(lvalue);
+}
+
+/**
  * @brief Check if symbol is an expression with two symbol::Data_Types
  */
-constexpr bool is_binary_datatype_expression(semantic::RValue const& rvalue)
+constexpr bool is_binary_data_type_expression(semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -569,9 +586,9 @@ constexpr bool is_binary_datatype_expression(semantic::RValue const& rvalue)
     return true;
 }
 
-constexpr bool is_binary_datatype_expression(Data_Type const& datatype)
+constexpr bool is_binary_data_type_expression(Data_Type const& data_type)
 {
-    auto rvalue = get_value_from_rvalue_data_type(datatype);
+    auto rvalue = get_value_from_rvalue_data_type(data_type);
 
     if (util::substring_count_of(rvalue, " ") != 2)
         return false;
@@ -587,7 +604,7 @@ constexpr bool is_binary_datatype_expression(Data_Type const& datatype)
  *
  * @brief Check if symbol is an expression with two temporaries
  */
-constexpr bool is_temporary_datatype_binary_expression(
+constexpr bool is_temporary_data_type_binary_expression(
     semantic::RValue const& rvalue)
 {
     if (util::substring_count_of(rvalue, " ") != 2)
@@ -599,11 +616,11 @@ constexpr bool is_temporary_datatype_binary_expression(
     return true;
 }
 
-constexpr bool is_temporary_datatype_binary_expression(
-    Data_Type const& datatype)
+constexpr bool is_temporary_data_type_binary_expression(
+    Data_Type const& data_type)
 {
-    return is_temporary_datatype_binary_expression(
-        get_value_from_rvalue_data_type(datatype));
+    return is_temporary_data_type_binary_expression(
+        get_value_from_rvalue_data_type(data_type));
 }
 
 /**
@@ -632,15 +649,15 @@ constexpr bool is_binary_expression(semantic::RValue const& rvalue)
         return false;
     return is_binary_arithmetic_expression(rvalue) or
            is_relation_binary_expression(rvalue) or
-           is_temporary_datatype_binary_expression(rvalue) or
+           is_temporary_data_type_binary_expression(rvalue) or
            is_bitwise_binary_expression(rvalue);
 }
 
 constexpr std::string is_temporary_operand_binary_expression(
-    Data_Type const& datatype)
+    Data_Type const& data_type)
 {
     return is_temporary_operand_binary_expression(
-        get_value_from_rvalue_data_type(datatype));
+        get_value_from_rvalue_data_type(data_type));
 }
 
 } // namespace type

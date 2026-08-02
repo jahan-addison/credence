@@ -1,0 +1,11 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+        identifier "y"
+        vector_identifier
+          identifier "v"
+          integer_literal 5

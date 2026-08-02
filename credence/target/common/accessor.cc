@@ -16,7 +16,7 @@
 #include <credence/error.h>                     // for credence_assert, thr...
 #include <credence/ir/ita.h>                    // for Instruction
 #include <credence/ir/object.h>                 // for Object, Function
-#include <credence/language/datatype.h>         // for is_integer_string
+#include <credence/ir/operand.h>                // for is_integer_string
 #include <credence/target/common/memory.h>      // for is_vector_offset
 #include <credence/target/common/stack_frame.h> // for Stack_Frame, Locals
 #include <credence/types.h>                     // for get_size_from_rvalue...
@@ -78,7 +78,7 @@ const Stack_Frame& Memory_Accessor::get_frame_in_memory() const
 
 struct Buffer_Accessor::impl
 {
-    impl(Table_Pointer& table)
+    explicit impl(Table_Pointer& table)
         : table(table)
         , constant_size_index(0)
     {
@@ -100,7 +100,7 @@ Buffer_Accessor::~Buffer_Accessor() = default;
 
 struct Table_Accessor::impl
 {
-    impl(Table_Pointer& table)
+    explicit impl(Table_Pointer& table)
         : table_(table)
     {
     }
@@ -130,20 +130,19 @@ Size Buffer_Accessor::get_size_of_return_string(Stack_Frame const& stack_frame)
         if (last_stack_frame->get_locals().is_pointer(
                 tail_frame->get_ret()->first)) {
             return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(
+                type::get_data_type_from_string(
                     last_stack_frame->get_locals().get_pointer_by_name(
                         tail_frame->get_ret()->first)));
         }
         if (type::is_rvalue_data_type(tail_frame->get_ret()->first))
             return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(
-                    tail_frame->get_ret()->first));
+                type::get_data_type_from_string(tail_frame->get_ret()->first));
         return type::get_size_from_rvalue_data_type(
             last_stack_frame->get_locals().get_symbol_by_name(
                 tail_frame->get_ret()->first));
     }
     return type::get_size_from_rvalue_data_type(
-        type::get_rvalue_datatype_from_string(tail_frame->get_ret()->first));
+        type::get_data_type_from_string(tail_frame->get_ret()->first));
 }
 
 Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
@@ -154,7 +153,7 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
     if (locals.is_pointer(lvalue) and
         type::is_rvalue_data_type_string(locals.get_pointer_by_name(lvalue))) {
         return type::get_size_from_rvalue_data_type(
-            type::get_rvalue_datatype_from_string(
+            type::get_data_type_from_string(
                 locals.get_pointer_by_name(lvalue)));
     }
     if (locals.is_pointer(lvalue)) {
@@ -170,8 +169,7 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
             pimpl->table->get_functions().contains(stack_frame.tail));
         auto tail_frame = pimpl->table->get_functions().at(stack_frame.tail);
         return type::get_size_from_rvalue_data_type(
-            type::get_rvalue_datatype_from_string(
-                tail_frame->get_ret()->first));
+            type::get_data_type_from_string(tail_frame->get_ret()->first));
     }
     return type::get_size_from_rvalue_data_type(local_symbol);
 }
@@ -235,7 +233,7 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
 
     if (is_immediate(lvalue))
         return type::get_size_from_rvalue_data_type(
-            type::get_rvalue_datatype_from_string(lvalue));
+            type::get_data_type_from_string(lvalue));
     else
         return type::get_size_from_rvalue_data_type(
             ir::object::get_rvalue_at_lvalue_object_storage(
@@ -420,7 +418,7 @@ void Vector_Accessor<Entry>::type_check_invalid_vector_symbol(
     RValue const& offset)
 {
     if (!table_->get_hoisted_symbols().has_key(offset) and
-        not language::datatype::is_integer_string(offset))
+        not operand::is_integer_string(offset))
         throw_compiletime_error(
             fmt::format("Invalid index '{}' on vector lvalue", offset), vector);
 }
@@ -475,7 +473,7 @@ auto Vector_Accessor<Entry>::get_offset_address(LValue const& lvalue,
     if (table_->get_hoisted_symbols().has_key(offset))
         return get_offset_from_hoisted_symbols(vector, offset);
 
-    if (language::datatype::is_integer_string(offset))
+    if (operand::is_integer_string(offset))
         return get_offset_from_integer_rvalue(vector, offset);
 
     return std::make_pair(0UL,

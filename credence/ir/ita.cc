@@ -13,20 +13,20 @@
 
 #include <credence/ir/ita.h>
 
-#include <credence/error.h>             // for assert_equal_impl, credence_...
-#include <credence/ir/temporary.h>      // for ast_to_ita_instructions
-#include <credence/language/datatype.h> // for datatype_to_string, WORD_LIT...
-#include <credence/language/rvalue.h>   // for RValue_Parser
-#include <credence/symbol.h>            // for Symbol_Table
-#include <credence/types.h>             // for get_unary_operator, is_unary...
-#include <credence/util.h>              // for range_contains, AST_Node
-#include <easyjson.h>                   // for JSON
-#include <fmt/format.h>                 // for format
-#include <initializer_list>             // for initializer_list
-#include <matchit.h>                    // for pattern, PatternHelper, Patt...
-#include <memory>                       // for shared_ptr
-#include <utility>                      // for get, pair, cmp_not_equal
-#include <variant>                      // for monostate, get, variant
+#include <credence/error.h>        // for assert_equal_impl, credence_...
+#include <credence/ir/hir_queue.h> // for queue_from_hir
+#include <credence/ir/operand.h>   // for operand_to_string, WORD_LIT...
+#include <credence/ir/temporary.h> // for hir_to_ita_instructions
+#include <credence/symbol.h>       // for Symbol_Table
+#include <credence/types.h>        // for get_unary_operator, is_unary...
+#include <credence/util.h>         // for range_contains, AST_Node
+#include <easyjson.h>              // for JSON
+#include <fmt/format.h>            // for format
+#include <initializer_list>        // for initializer_list
+#include <matchit.h>               // for pattern, PatternHelper, Patt...
+#include <memory>                  // for shared_ptr
+#include <utility>                 // for get, pair, cmp_not_equal
+#include <variant>                 // for monostate, get, variant
 
 /****************************************************************************
  * Instruction Tuple Abstraction
@@ -59,6 +59,31 @@
 namespace credence {
 
 namespace ir {
+
+namespace hir = credence::frontend::hir;
+
+namespace {
+
+/**
+ * @brief The statement name the branch machinery keys its stack on
+ */
+constexpr std::string_view branch_name_of(hir::Type type)
+{
+    switch (type) {
+        case hir::Type::If:
+            return "if";
+        case hir::Type::While:
+            return "while";
+        case hir::Type::Case:
+            return "case";
+        case hir::Type::Switch:
+            return "switch";
+        default:
+            return "";
+    }
+}
+
+} // namespace
 
 namespace m = matchit;
 
@@ -99,21 +124,99 @@ std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
 
  *  Note that vector definitions are scanned first
  */
-Instructions ITA::build_from_definitions(Node const& node)
+/**
+ * @brief The name of a declaration node
+ */
+std::string_view ITA::symbol_name_of(Node node) const
 {
-    credence_assert_equal(node["root"].to_string(), "definitions");
-    Instructions instructions{};
-    auto definitions = node["left"].array_range();
-    for (auto& definition : definitions)
-        if (definition["node"].to_string() == "vector_definition")
-            build_from_vector_definition(definition);
-    for (auto& definition : definitions) {
-        if (definition["node"].to_string() == "function_definition") {
-            auto function_instructions =
-                build_from_function_definition(definition);
-            ir::insert(instructions, function_instructions);
+    return unit_->symbol_name(unit_->nodes[node].data.symbol);
+}
+
+/**
+ * @brief The literal value of a constant node
+ */
+operand::Literal ITA::literal_of(Node node) const
+{
+    auto const& value = unit_->nodes[node];
+    switch (value.type) {
+        case hir::Type::Integer:
+            return { static_cast<int>(value.data.integer),
+                operand::TYPE_LITERAL.at("int") };
+        case hir::Type::Double:
+            return { value.data.real, operand::TYPE_LITERAL.at("double") };
+        case hir::Type::Float:
+            return { static_cast<float>(value.data.real),
+                operand::TYPE_LITERAL.at("float") };
+        case hir::Type::Bool:
+            return { unit_->string(value.data.string) == "true" ? 1 : 0,
+                operand::TYPE_LITERAL.at("bool") };
+        case hir::Type::Char: {
+            auto text = std::string{ unit_->string(value.data.string) };
+            if (text.size() >= 2 and text.front() == '"')
+                text = text.substr(1, text.size() - 2);
+            return { text.empty() ? char{} : text.front(),
+                operand::TYPE_LITERAL.at("char") };
         }
+        case hir::Type::String: {
+            auto text = std::string{ unit_->string(value.data.string) };
+            if (text.size() >= 2 and text.front() == '"')
+                text = text.substr(1, text.size() - 2);
+            auto size = text.size();
+            return {
+                text, operand::Size{ "string", size }
+            };
+        }
+        case hir::Type::Symbol_Ref:
+            return { std::string{ unit_->symbol_name(value.data.symbol) },
+                operand::WORD_LITERAL.second };
+        default:
+            return operand::NULL_LITERAL;
     }
+}
+
+/**
+ * @brief Reject a call to a name nothing in reach defines
+ *
+ * The frontend lets a call name anything, since the standard library adds
+ * its own names only once the frontend has run. By the time the IR builds,
+ * the table holds everything the program can reach, so a name still absent
+ * here is one the linker could not resolve either.
+ */
+void ITA::check_call_is_resolvable(Node node)
+{
+    auto const& call = unit_->nodes[node];
+    auto callee = call.data.binary.lhs;
+
+    if (unit_->nodes[callee].type != hir::Type::Symbol_Ref)
+        return;
+
+    auto symbol = unit_->nodes[callee].data.symbol;
+    if (!unit_->symbol_table.at(symbol).assumed)
+        return;
+
+    auto name = std::string{ unit_->symbol_name(symbol) };
+    if (!details_.has_key(name))
+        ita_error("identifier does not exist in current scope, did you mean "
+                  "to use extrn?",
+            name);
+}
+
+Instructions ITA::build_from_definitions()
+{
+    Instructions instructions{};
+
+    // vectors are placed before any function body refers to them
+    for (auto definition : unit_->definitions)
+        if (unit_->nodes[definition].type == hir::Type::Vector)
+            build_from_vector_definition(definition);
+
+    for (auto definition : unit_->definitions) {
+        if (unit_->nodes[definition].type != hir::Type::Function)
+            continue;
+        auto function_instructions = build_from_function_definition(definition);
+        ir::insert(instructions, function_instructions);
+    }
+
     ir::insert(instructions_, instructions);
     return instructions;
 }
@@ -121,59 +224,48 @@ Instructions ITA::build_from_definitions(Node const& node)
 /**
  * @brief Construct a set of ita instructions from a function definition
  */
-Instructions ITA::build_from_function_definition(Node const& node)
+Instructions ITA::build_from_function_definition(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "function_definition");
     Instructions instructions{};
-    auto name = node["root"].to_string();
-    auto parameters = node["left"];
+    auto span = unit_->nodes[node].data.span;
+
+    // [name, parameter..., body]
+    auto name = std::string{ symbol_name_of(unit_->extra[span.start]) };
+    auto body = unit_->extra[span.start + span.count - 1];
+
     Parameters parameter_lvalues{};
-    auto block = node["right"];
+    symbols_.set_symbol_by_name(name, operand::WORD_LITERAL);
 
-    symbols_.set_symbol_by_name(name, language::datatype::WORD_LITERAL);
+    for (std::uint32_t i = 1; i + 1 < span.count; ++i) {
+        auto parameter = unit_->extra[span.start + i];
+        auto symbol = unit_->nodes[parameter].data.symbol;
+        auto const& declared = unit_->symbol_table.at(symbol);
+        auto parameter_name = std::string{ unit_->symbol_name(symbol) };
 
-    if (parameters.JSON_type() == util::AST_Node::Class::Array and
-        !parameters.to_deque().front().is_null()) {
-        for (auto& ident : parameters.array_range()) {
-            m::match(ident["node"].to_string())(
-                m::pattern | "lvalue" =
-                    [&] {
-                        parameter_lvalues.emplace_back(
-                            ident["root"].to_string());
-                        symbols_.set_symbol_by_name(ident["root"].to_string(),
-                            language::datatype::NULL_LITERAL);
-                    },
-                m::pattern | "vector_lvalue" =
-                    [&] {
-                        parameter_lvalues.emplace_back(
-                            ident["root"].to_string());
-                        auto size = ident["left"]["root"].to_int();
-                        symbols_.set_symbol_by_name(ident["root"].to_string(),
-                            {
-                                static_cast<unsigned char>('0'),
-                                { "byte", size }
-                        });
-                    },
-                m::pattern | "indirect_lvalue" =
-                    [&] {
-                        parameter_lvalues.emplace_back(fmt::format(
-                            "*{}", ident["left"]["root"].to_string())),
-                            symbols_.set_symbol_by_name(
-                                ident["left"]["root"].to_string(),
-                                language::datatype::WORD_LITERAL);
-                    });
+        if (declared.indirect) {
+            parameter_lvalues.emplace_back(fmt::format("*{}", parameter_name));
+            symbols_.set_symbol_by_name(parameter_name, operand::WORD_LITERAL);
+        } else if (declared.storage == hir::Storage::Vector) {
+            parameter_lvalues.emplace_back(parameter_name);
+            symbols_.set_symbol_by_name(parameter_name,
+                {
+                    static_cast<unsigned char>('0'),
+                    { "byte", static_cast<std::size_t>(declared.count) }
+            });
+        } else {
+            parameter_lvalues.emplace_back(parameter_name);
+            symbols_.set_symbol_by_name(parameter_name, operand::NULL_LITERAL);
         }
     }
 
-    auto label = build_function_label_from_parameters(
-        node["root"].to_string(), parameter_lvalues);
+    auto label = build_function_label_from_parameters(name, parameter_lvalues);
 
     instructions.emplace_back(make_quadruple(Instruction::LABEL, label));
     instructions.emplace_back(make_quadruple(Instruction::FUNC_START));
 
     make_root_branch();
 
-    auto block_instructions = build_from_block_statement(block, true);
+    auto block_instructions = build_from_block_statement(body, true);
 
     ir::insert(instructions, block_instructions);
 
@@ -212,33 +304,32 @@ constexpr std::string ITA::build_function_label_from_parameters(
 /**
  * @brief Construct ita instructions from a vector definition
  */
-void ITA::build_from_vector_definition(Node const& node)
+void ITA::build_from_vector_definition(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "vector_definition");
-    credence_assert(node.has_key("right"));
-    auto name = node["root"].to_string();
-    auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
-    auto right_child_node = node["right"];
-    std::vector<language::datatype::Literal> values_at{};
+    auto span = unit_->nodes[node].data.span;
 
-    if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
+    // [name, value...]
+    auto symbol = unit_->nodes[unit_->extra[span.start]].data.symbol;
+    auto name = std::string{ unit_->symbol_name(symbol) };
+    auto declared_size = unit_->symbol_table.at(symbol).count;
+    auto values = span.count - 1;
+
+    std::vector<operand::Literal> values_at{};
+
+    if (std::cmp_less(declared_size, values))
         ita_error(
             fmt::format(
                 "invalid vector definition, right-hand-side allocation of "
                 "\"{}\" items is out of range; expected no more than "
                 "\"{}\" "
                 "items ",
-                right_child_node.to_deque().size(),
-                size),
+                values,
+                declared_size),
             name);
 
     globals_.set_symbol_by_name(name, values_at);
-    for (auto& child_node : right_child_node.array_range()) {
-        auto rvalue = language::RValue_Parser::parse(
-            child_node, internal_symbols_, symbols_, globals_);
-        auto datatype = std::get<language::datatype::Literal>(rvalue.value);
-        values_at.emplace_back(datatype);
-    }
+    for (std::uint32_t i = 1; i < span.count; ++i)
+        values_at.emplace_back(literal_of(unit_->extra[span.start + i]));
 
     globals_.set_symbol_by_name(name, values_at);
 }
@@ -277,72 +368,70 @@ void ITA::build_statement_teardown_branches(std::string_view type,
  *
  * @brief Construct a set of ita instructions from a block statement
  */
-Instructions ITA::build_from_block_statement(Node const& node,
+Instructions ITA::build_from_block_statement(Node node,
     bool root_function_scope)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "block");
-
     auto [instructions, branches] = make_statement_instructions();
-    auto statements = node["left"];
+    auto span = unit_->nodes[node].data.span;
 
-    for (auto& statement : statements.array_range()) {
-        auto statement_type = statement["root"].to_string();
+    for (std::uint32_t i = 0; i < span.count; ++i) {
+        auto statement = unit_->extra[span.start + i];
+        auto kind = unit_->nodes[statement].type;
+        auto statement_type = branch_name_of(kind);
 
         build_statement_setup_branches(statement_type, instructions);
 
-        m::match(statement_type)(
-            m::pattern | "auto" =
+        m::match(kind)(
+            m::pattern | hir::Type::Auto =
                 [&] { build_from_auto_statement(statement, instructions); },
-            m::pattern | "extrn" =
+            m::pattern | hir::Type::Extrn =
                 [&] { build_from_extrn_statement(statement, instructions); },
-            m::pattern | "if" =
+            m::pattern | hir::Type::If =
                 [&] {
                     auto [jump_instructions, if_instructions] =
                         build_from_if_statement(statement);
                     ir::insert(instructions, jump_instructions);
                     ir::insert(branches, if_instructions);
                 },
-            m::pattern | "switch" =
+            m::pattern | hir::Type::Switch =
                 [&] {
                     auto [jump_instructions, switch_statements] =
                         build_from_switch_statement(statement);
                     ir::insert(instructions, jump_instructions);
                     ir::insert(branches, switch_statements);
                 },
-            m::pattern | "while" =
+            m::pattern | hir::Type::While =
                 [&] {
                     auto [jump_instructions, while_instructions] =
                         build_from_while_statement(statement);
                     ir::insert(instructions, jump_instructions);
                     ir::insert(branches, while_instructions);
                 },
-            m::pattern | "rvalue" =
-                [&] {
-                    auto rvalue_instructions =
-                        build_from_rvalue_statement(statement);
-                    ir::insert(instructions, rvalue_instructions);
-                },
-            m::pattern | "label" =
+            m::pattern | hir::Type::Label =
                 [&] {
                     auto label_instructions =
                         build_from_label_statement(statement);
                     ir::insert(instructions, label_instructions);
                 },
-            m::pattern | "goto" =
+            m::pattern | hir::Type::Goto =
                 [&] {
                     auto goto_instructions =
                         build_from_goto_statement(statement);
                     ir::insert(instructions, goto_instructions);
                 },
-            m::pattern | "return" =
+            m::pattern | hir::Type::Return =
                 [&] {
                     auto return_instructions =
                         build_from_return_statement(statement);
                     ir::insert(instructions, return_instructions);
-                }
-
-        );
+                },
+            // anything else in a statement position holds an expression
+            m::pattern | m::_ =
+                [&] {
+                    auto rvalue_instructions =
+                        build_from_rvalue_statement(statement);
+                    ir::insert(instructions, rvalue_instructions);
+                });
 
         build_statement_teardown_branches(statement_type, branches);
     }
@@ -364,7 +453,7 @@ Instructions ITA::build_from_block_statement(Node const& node,
  * Note that generally the build_from_block_statement add
  * the GOTO, we add it here during stacks of branches
  */
-void ITA::insert_branch_jump_and_resume_instructions(Node const& block,
+void ITA::insert_branch_jump_and_resume_instructions(Node block,
     Instructions& predicate_instructions,
     Instructions& branch_instructions,
     Quadruple const& label,
@@ -385,54 +474,75 @@ void ITA::insert_branch_jump_and_resume_instructions(Node const& block,
 /**
  * @brief Construct block statement ita instructions for a branch
  */
-void ITA::insert_branch_block_instructions(Node const& block,
+void ITA::insert_branch_block_instructions(Node block,
     Instructions& branch_instructions)
 {
-    if (block["root"].to_string() == "block") {
-        auto block_instructions = build_from_block_statement(block, false);
-        ir::insert(branch_instructions, block_instructions);
-
-    } else {
-        auto block_statement = detail::make_block_statement(block);
-        insert_branch_block_instructions(block_statement, branch_instructions);
-    }
+    if (block == hir::null_node_index)
+        return;
+    auto block_instructions = build_from_block_statement(block, false);
+    ir::insert(branch_instructions, block_instructions);
 }
 
 /**
  * @brief Turn an rvalue into a "truthy" comparator for statement
  * predicates
  */
-std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
+std::string ITA::build_from_branch_comparator_rvalue(Node block,
     Instructions& instructions)
 {
     std::string temp_lvalue{};
-    auto rvalue =
-        language::RValue_Parser::parse(block, internal_symbols_, symbols_);
-    auto comparator_instructions = ast_to_ita_instructions(
-        symbols_, block, internal_symbols_, &temporary, &identifier)
+    auto comparator_instructions = hir_to_ita_instructions(
+        *unit_, block, details_, &temporary, &identifier)
                                        .first;
 
-    m::match(language::datatype::get_expression_type(rvalue.value))(
-        m::pattern | m::or_(std::string{ "relation" },
-                         std::string{ "unary" },
-                         std::string{ "symbol" },
-                         std::string{ "array" }) =
+    auto kind = unit_->nodes[block].type;
+
+    m::match(kind)(
+        // a comparison or a computed value leaves its result in the last
+        // instruction it emitted
+        m::pattern | m::or_(hir::Type::Binary,
+                         hir::Type::Unary,
+                         hir::Type::Subscript,
+                         hir::Type::Dereference,
+                         hir::Type::Address_Of,
+                         hir::Type::Pre_Inc_Dec,
+                         hir::Type::Post_Inc_Dec,
+                         hir::Type::Assign,
+                         hir::Type::Ternary) =
             [&] {
                 ir::insert(instructions, comparator_instructions);
                 temp_lvalue =
                     std::get<1>(instructions[instructions.size() - 1]);
             },
-        m::pattern | m::or_(std::string{ "lvalue" }, std::string{ "literal" }) =
+
+        // a name is compared by what it holds, so the comparison names it
+        // and does not stand it up as a value
+        m::pattern | hir::Type::Symbol_Ref =
             [&] {
                 auto rhs = fmt::format("{} {}",
                     detail::instruction_to_string(Instruction::CMP),
-                    language::datatype::datatype_to_string(
-                        rvalue.value, false));
+                    symbol_name_of(block));
                 auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
             },
-        m::pattern | std::string{ "function" } =
+
+        // a constant is compared directly
+        m::pattern | m::or_(hir::Type::Integer,
+                         hir::Type::Double,
+                         hir::Type::Bool,
+                         hir::Type::Char,
+                         hir::Type::String) =
+            [&] {
+                auto rhs = fmt::format("{} {}",
+                    detail::instruction_to_string(Instruction::CMP),
+                    operand::literal_to_string(literal_of(block)));
+                auto temp = ir::make_temporary(&temporary, rhs);
+                instructions.emplace_back(temp);
+                temp_lvalue = std::get<1>(temp);
+            },
+
+        m::pattern | hir::Type::Call =
             [&] {
                 ir::insert(instructions, comparator_instructions);
                 auto rhs = fmt::format(
@@ -441,6 +551,7 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
             },
+
         m::pattern | m::_ =
             [&] {
                 ir::insert(instructions, comparator_instructions);
@@ -454,42 +565,37 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
 /**
  * @brief Construct ita instructions from a case statement in a switch
  */
-ITA::Branch_Instructions ITA::build_from_case_statement(Node const& node,
+ITA::Branch_Instructions ITA::build_from_case_statement(Node node,
     std::string const& switch_label,
     detail::Branch::Last_Branch const& tail)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "case");
-
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
     bool break_statement = false;
     auto jump = make_temporary();
-    auto statements = node["right"].to_deque();
-    auto case_statement = detail::make_block_statement(statements);
 
-    auto condition = language::RValue_Parser::parse(
-        node["left"], internal_symbols_, symbols_);
+    auto value = unit_->nodes[node].data.binary.lhs;
+    auto body = unit_->nodes[node].data.binary.rhs;
 
     predicate_instructions.emplace_back(make_quadruple(Instruction::JMP_E,
         switch_label,
-        language::datatype::datatype_to_string(condition.value, false),
+        operand::literal_to_string(literal_of(value)),
         std::get<1>(jump)));
     if (branch.stack.size() > 2) {
-        auto jump = tail.value_or(branch.get_parent_branch(true).value());
+        auto parent = tail.value_or(branch.get_parent_branch(true).value());
         branch_instructions.emplace_back(
-            make_quadruple(Instruction::GOTO, std::get<1>(jump)));
+            make_quadruple(Instruction::GOTO, std::get<1>(parent)));
     }
     branch_instructions.emplace_back(jump);
 
-    // resolve all blocks in the statement
-    if (!statements.empty() and
-        statements.back()["root"].to_string() == "break") {
+    // a trailing break leaves the switch and does not fall through
+    auto body_span = unit_->nodes[body].data.span;
+    if (body_span.count > 0 and
+        unit_->nodes[unit_->extra[body_span.start + body_span.count - 1]]
+                .type == hir::Type::Break)
         break_statement = true;
-        statements.pop_back();
-    }
 
-    insert_branch_block_instructions(case_statement, branch_instructions);
+    insert_branch_block_instructions(body, branch_instructions);
 
     if (break_statement)
         if (branch_instructions.empty() or
@@ -504,21 +610,23 @@ ITA::Branch_Instructions ITA::build_from_case_statement(Node const& node,
 /**
  * @brief Construct ita instructions from a switch statement
  */
-ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
+ITA::Branch_Instructions ITA::build_from_switch_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "switch");
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
-    auto predicate = node["left"];
-    auto blocks = node["right"];
+    auto predicate = unit_->nodes[node].data.binary.lhs;
+    auto blocks = unit_->nodes[node].data.binary.rhs;
+
     // get the parent label of the switch statement
     auto tail = branch.get_parent_branch();
     auto cases = std::stack<detail::Branch::Last_Branch>{};
     auto switch_label =
         build_from_branch_comparator_rvalue(predicate, predicate_instructions);
     branch.stack.emplace(tail);
-    for (auto& statement : blocks.array_range()) {
+
+    auto case_span = unit_->nodes[blocks].data.span;
+    for (std::uint32_t i = 0; i < case_span.count; ++i) {
+        auto statement = unit_->extra[case_span.start + i];
         auto start = make_temporary();
         branch.stack.emplace(start);
         auto [jump_instructions, case_statements] =
@@ -540,15 +648,12 @@ ITA::Branch_Instructions ITA::build_from_switch_statement(Node const& node)
 /**
  * @brief Construct ita instructions from a while statement
  */
-ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
+ITA::Branch_Instructions ITA::build_from_while_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "while");
-
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
-    auto predicate = node["left"];
-    auto blocks = node["right"].to_deque();
+    auto predicate = unit_->nodes[node].data.binary.lhs;
+    auto body = unit_->nodes[node].data.binary.rhs;
 
     auto tail = branch.get_parent_branch(true);
     auto jump = make_temporary();
@@ -563,7 +668,7 @@ ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 
     branch_instructions.emplace_back(jump);
 
-    insert_branch_block_instructions(blocks.at(0), branch_instructions);
+    insert_branch_block_instructions(body, branch_instructions);
 
     return { predicate_instructions, branch_instructions };
 }
@@ -571,16 +676,16 @@ ITA::Branch_Instructions ITA::build_from_while_statement(Node const& node)
 /**
  * @brief Construct ita instructions from an if statement
  */
-ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
+ITA::Branch_Instructions ITA::build_from_if_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "if");
-
     auto [predicate_instructions, branch_instructions] =
         make_statement_instructions();
 
-    auto predicate = node["left"];
-    auto blocks = node["right"].to_deque();
+    // [condition, then, else or null]
+    auto span = unit_->nodes[node].data.span;
+    auto predicate = unit_->extra[span.start];
+    auto then_branch = unit_->extra[span.start + 1];
+    auto else_branch = unit_->extra[span.start + 2];
 
     auto start = make_temporary();
     auto jump = make_temporary();
@@ -591,14 +696,14 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
     branch_instructions.emplace_back(jump);
     branch.stack.emplace(start);
 
-    insert_branch_block_instructions(blocks.at(0), branch_instructions);
+    insert_branch_block_instructions(then_branch, branch_instructions);
 
     // no else statement
-    if (blocks.at(1).is_null())
+    if (else_branch == hir::null_node_index)
         predicate_instructions.emplace_back(start);
 
     // else statement
-    if (!blocks.at(1).is_null()) {
+    if (else_branch != hir::null_node_index) {
         auto else_label = make_temporary();
         if (!branch.last_instruction_is_jump(branch_instructions.back()))
             branch_instructions.emplace_back(make_quadruple(Instruction::GOTO,
@@ -607,7 +712,7 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
         predicate_instructions.emplace_back(
             make_quadruple(Instruction::GOTO, std::get<1>(else_label)));
         branch_instructions.emplace_back(else_label);
-        insert_branch_block_instructions(blocks.at(1), branch_instructions);
+        insert_branch_block_instructions(else_branch, branch_instructions);
         predicate_instructions.emplace_back(start);
     }
 
@@ -617,14 +722,10 @@ ITA::Branch_Instructions ITA::build_from_if_statement(Node const& node)
 /**
  * @brief Construct ita instructions from a label statement
  */
-Instructions ITA::build_from_label_statement(Node const& node)
+Instructions ITA::build_from_label_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "label");
-    credence_assert(node.has_key("left"));
     Instructions instructions{};
-    auto statement = node["left"];
-    auto label = statement.to_deque().front().to_string();
+    auto label = std::string{ symbol_name_of(node) };
     instructions.emplace_back(
         make_quadruple(Instruction::LABEL, fmt::format("__L{}", label), ""));
     return instructions;
@@ -633,19 +734,10 @@ Instructions ITA::build_from_label_statement(Node const& node)
 /**
  * @brief Construct a set of ita instructions from a goto statement
  */
-Instructions ITA::build_from_goto_statement(Node const& node)
+Instructions ITA::build_from_goto_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "goto");
-    credence_assert(node.has_key("left"));
     Instructions instructions{};
-    language::RValue_Parser parser{ internal_symbols_, symbols_ };
-    auto statement = node["left"];
-    auto label = statement.to_deque().front().to_string();
-    if (!parser.is_defined(label))
-        credence_error(
-            fmt::format("Error: label \"{}\" does not exist", label));
-
+    auto label = std::string{ symbol_name_of(node) };
     instructions.emplace_back(
         make_quadruple(Instruction::GOTO, fmt::format("__L{}", label), ""));
     return instructions;
@@ -654,22 +746,25 @@ Instructions ITA::build_from_goto_statement(Node const& node)
 /**
  * @brief Construct a set of ita instructions from a block statement
  */
-Instructions ITA::build_from_return_statement(Node const& node)
+Instructions ITA::build_from_return_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "return");
-    credence_assert(node.has_key("left"));
     Instructions instructions{};
-    auto return_statement = node["left"];
-    auto return_instructions = ast_to_ita_instructions(
-        symbols_, return_statement, internal_symbols_, &temporary, &identifier);
+    auto value = unit_->nodes[node].data.unary;
+
+    if (value == hir::null_node_index) {
+        instructions.emplace_back(make_quadruple(Instruction::RETURN, ""));
+        return instructions;
+    }
+
+    auto return_instructions = hir_to_ita_instructions(
+        *unit_, value, details_, &temporary, &identifier);
     ir::insert(instructions, return_instructions.first);
+
     if (!return_instructions.second.empty() and instructions.empty()) {
-        auto last_rvalue = std::get<language::datatype::Datatype::Type_Pointer>(
+        auto last_rvalue = std::get<operand::Operand::Type_Pointer>(
             return_instructions.second.back());
-        instructions.emplace_back(make_quadruple(Instruction::RETURN,
-            language::datatype::datatype_to_string(*last_rvalue),
-            ""));
+        instructions.emplace_back(make_quadruple(
+            Instruction::RETURN, operand::operand_to_string(*last_rvalue)));
     } else {
         auto last = instructions[instructions.size() - 1];
         instructions.emplace_back(
@@ -681,20 +776,16 @@ Instructions ITA::build_from_return_statement(Node const& node)
 /**
  * @brief Symbol construction from extrn declaration statements
  */
-void ITA::build_from_extrn_statement(Node const& node,
-    Instructions& instructions)
+void ITA::build_from_extrn_statement(Node node, Instructions& instructions)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "extrn");
-    credence_assert(node.has_key("left"));
-    auto left_child_node = node["left"];
-    for (auto& ident : left_child_node.array_range()) {
-        auto name = ident["root"].to_string();
+    auto span = unit_->nodes[node].data.span;
+    for (std::uint32_t i = 0; i < span.count; ++i) {
+        auto declaration = unit_->extra[span.start + i];
+        auto name = std::string{ symbol_name_of(declaration) };
         if (globals_.is_defined(name)) {
             auto global_symbol = globals_.get_pointer_by_name(name);
             symbols_.set_symbol_by_name(name, global_symbol);
             instructions.emplace_back(make_quadruple(Instruction::GLOBL, name));
-
         } else {
             ita_error("symbol not defined in global scope", name);
         }
@@ -704,78 +795,59 @@ void ITA::build_from_extrn_statement(Node const& node,
 /**
  * @brief Symbol construction from auto declaration statements
  */
-void ITA::build_from_auto_statement(Node const& node,
-    Instructions& instructions)
+void ITA::build_from_auto_statement(Node node, Instructions& instructions)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "auto");
-    credence_assert(node.has_key("left"));
-    auto left_child_node = node["left"];
-    for (auto& ident : left_child_node.array_range()) {
-        m::match(ident["node"].to_string())(
-            m::pattern | "lvalue" =
-                [&] {
-                    auto name = ident["root"].to_string();
-#ifndef CREDENCE_TEST
-                    if (symbols_.is_defined(name))
-                        ita_error("identifier is already defined in auto "
-                                  "declaration",
-                            name);
+    auto span = unit_->nodes[node].data.span;
+    for (std::uint32_t i = 0; i < span.count; ++i) {
+        auto declaration = unit_->extra[span.start + i];
+        auto symbol = unit_->nodes[declaration].data.symbol;
+        auto const& declared = unit_->symbol_table.at(symbol);
+        auto name = std::string{ unit_->symbol_name(symbol) };
 
-#endif
-                    instructions.emplace_back(
-                        make_quadruple(Instruction::LOCL, name));
-                    symbols_.set_symbol_by_name(
-                        name, language::datatype::NULL_LITERAL);
-                },
-            m::pattern | "vector_lvalue" =
-                [&] {
-                    auto size = ident["left"]["root"].to_int();
-                    auto name = ident["root"].to_string();
-#ifndef CREDENCE_TEST
-                    if (symbols_.is_defined(name))
-                        ita_error("identifier is already defined in auto "
-                                  "declaration",
-                            name);
-
-#endif
-                    instructions.emplace_back(
-                        make_quadruple(Instruction::LOCL, name));
-                    symbols_.set_symbol_by_name(name,
-                        {
-                            static_cast<unsigned char>('0'),
-                            { "byte", size }
-                    });
-                },
-            m::pattern | "indirect_lvalue" =
-                [&] {
-                    auto name = ident["left"]["root"].to_string();
-#ifndef CREDENCE_TEST
-                    if (symbols_.is_defined(name))
-                        ita_error("identifier is already defined in auto "
-                                  "declaration",
-                            name);
-
-#endif
-                    instructions.emplace_back(make_quadruple(
-                        Instruction::LOCL, fmt::format("*{}", name)));
-                    symbols_.set_symbol_by_name(
-                        name, language::datatype::WORD_LITERAL);
-                });
+        if (declared.storage == hir::Storage::Vector) {
+            instructions.emplace_back(make_quadruple(Instruction::LOCL, name));
+            symbols_.set_symbol_by_name(name,
+                {
+                    static_cast<unsigned char>('0'),
+                    { "byte", static_cast<std::size_t>(declared.count) }
+            });
+        } else if (declared.indirect) {
+            instructions.emplace_back(
+                make_quadruple(Instruction::LOCL, fmt::format("*{}", name)));
+            symbols_.set_symbol_by_name(name, operand::WORD_LITERAL);
+        } else {
+            instructions.emplace_back(make_quadruple(Instruction::LOCL, name));
+            symbols_.set_symbol_by_name(name, operand::NULL_LITERAL);
+        }
     }
 }
 
 /**
  * @brief Construct a set of ita instructions from an rvalue statement
  */
-Instructions ITA::build_from_rvalue_statement(Node const& node)
+Instructions ITA::build_from_rvalue_statement(Node node)
 {
-    credence_assert_equal(node["node"].to_string(), "statement");
-    credence_assert_equal(node["root"].to_string(), "rvalue");
-    credence_assert(node.has_key("left"));
-    auto statement = node["left"];
-    return ast_to_ita_instructions(
-        symbols_, statement, internal_symbols_, &temporary, &identifier)
+    auto const& statement = unit_->nodes[node];
+
+    for (auto index = unit_->first[node]; index <= node; ++index)
+        if (unit_->nodes[index].type == hir::Type::Call)
+            check_call_is_resolvable(index);
+
+    // a block of expression statements, each of which may be empty
+    if (statement.type == hir::Type::Block or
+        statement.type == hir::Type::Expression) {
+        Instructions instructions{};
+        auto span = statement.data.span;
+        for (std::uint32_t i = 0; i < span.count; ++i) {
+            auto child = unit_->extra[span.start + i];
+            auto child_instructions = build_from_rvalue_statement(child);
+            ir::insert(instructions, child_instructions);
+        }
+        return instructions;
+    }
+
+    return hir_to_ita_instructions(
+        *unit_, node, details_, &temporary, &identifier)
         .first;
 }
 
@@ -909,7 +981,7 @@ inline void ITA::ita_error(std::string_view message,
     std::string_view symbol,
     std::source_location const& location)
 {
-    credence_compile_error(location, message, symbol, internal_symbols_);
+    credence_compile_error(location, message, symbol, util::AST_Node{});
 }
 
 } // namespace ir

@@ -73,4 +73,4 @@ _start:
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
-    .asciz "should say 1: %d, %b\n"
+    .asciz "should say 1: %d\n"

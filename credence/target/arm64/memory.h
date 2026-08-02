@@ -147,12 +147,12 @@ Register get_second_register_for_binary_operand(assembly::Operand_Size size);
 
 bool is_doubleword_storage_size(assembly::Storage const& storage,
     Stack_Pointer& stack,
-    Stack_Frame& stack_frame);
+    Stack_Frame const& stack_frame);
 
 inline assembly::Operand_Size get_word_size_from_storage(
     assembly::Storage const& storage,
     Stack_Pointer& stack,
-    Stack_Frame& stack_frame)
+    Stack_Frame const& stack_frame)
 {
     return is_doubleword_storage_size(storage, stack, stack_frame)
                ? assembly::Operand_Size::Doubleword
@@ -201,7 +201,7 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
     assembly::Operand_Size get_operand_size_from_immediate(
         Immediate const& immediate) override
     {
-        return assembly::get_operand_size_from_rvalue_datatype(immediate);
+        return assembly::get_operand_size_from_data_type(immediate);
     }
 
     Register get_accumulator_register_from_size(

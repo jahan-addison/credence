@@ -416,6 +416,10 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
         assembly::make_label(std::get<1>(inst), stack_frame_.symbol));
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
+    // make_direct_immediate copies the view into the owning string of
+    // the Immediate, so the label outlives the temporary it was made
+    // from. cppcheck sees only the string to string_view conversion
+    // cppcheck-suppress danglingTemporaryLifetime
     arm64_add__asm(instructions, b, label);
 }
 
@@ -466,7 +470,7 @@ void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
             .get_arm64_lvalue_and_insertion_instructions(
                 of_comparator, instructions.size(), accessor_->device_accessor)
             .first;
-    auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
+    auto with_rvalue_storage = type::get_data_type_from_string(with);
     auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
     auto comparator_instructions = assembly::r_eq(
         of_rvalue_storage, with_rvalue_storage, jump_label, Register::w8);

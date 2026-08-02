@@ -1,0 +1,8 @@
+program
+  vector_definition
+    identifier "nums"
+    integer_literal 3
+    block_statement
+      integer_literal 1
+      integer_literal 2
+      integer_literal 3

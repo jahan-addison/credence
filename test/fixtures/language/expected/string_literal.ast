@@ -1,0 +1,12 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+      block_statement
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            string_literal "\"hello world\""

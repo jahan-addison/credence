@@ -1,0 +1,8 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      goto_statement "loop"
+      label_statement "loop"
+      return_statement

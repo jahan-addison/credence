@@ -42,4 +42,4 @@ _start:
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
-    .asciz "m is %d\n"
+    .asciz "m is %d"

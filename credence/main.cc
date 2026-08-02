@@ -12,10 +12,13 @@
  ****************************************************************************/
 
 #include <credence/error.h>                   // for Credence_Exception
+#include <credence/frontend/compile.h>        // for compile
+#include <credence/frontend/hir/hir.h>        // for Unit
+#include <credence/frontend/hir/serialize.h>  // for dump
+#include <credence/frontend/serialize.h>      // for dump
+#include <credence/ir/symbols.h>              // for hoisted_symbols
 #include <credence/ir/table.h>                // for emit
 #include <credence/ir/temporary.h>            // for queue_dump_stream
-#include <credence/language/parser.h>         // for Parser
-#include <credence/language/symbol_table.h>   // for Symbol_Table_Builder
 #include <credence/target/arm64/generator.h>  // for emit
 #include <credence/target/common/assembly.h>  // for Arch_Type
 #include <credence/target/common/runtime.h>   // for add_stdlib_functions_t...
@@ -24,6 +27,7 @@
 #include <cxxopts.hpp>                        // for value, Options, ParseR...
 #include <easyjson.h>                         // for JSON, operator<<, array
 #include <filesystem>                         // for filesystem_error, oper...
+#include <fmt/format.h>                       // for format
 #include <iostream>                           // for ostringstream, cerr, cout
 #include <matchit.h>                          // for pattern, Or, PatternHe...
 #include <memory>                             // for shared_ptr
@@ -37,9 +41,10 @@
  *
  * The compiler works in 3 stages:
  *
- * 1. Lexer/Parser: re2c Lexer Generator and Recursive-Descent Parser
- *    See language/README.md for details
- * 2. IR Generation: Converts AST to ITA, see ir/README.md for details
+ * 1. Frontend: re2c Lexer Generator, Recursive-Descent Parser, and the
+ *    lowering and type checking passes over the flat AST
+ *      * See frontend/README.md for details
+ * 2. IR Generation: Converts HIR to ITA, see ir/README.md for details
  * 3. Code Generation: Emits x86-64 or ARM64 assembly from the IR
  *      * See target/README.md for details
  *
@@ -61,6 +66,31 @@
  *
  *****************************************************************************/
 
+namespace {
+
+struct Frontend
+{
+    credence::frontend::Program program;
+    credence::util::AST_Node symbols;
+};
+
+} // namespace
+
+/**
+ * @brief Build the frontend, reporting anything it rejected
+ */
+Frontend build_frontend(std::string source)
+{
+    auto program = credence::frontend::compile(std::move(source));
+    credence::frontend::report(std::cerr, program);
+
+    if (program.failed())
+        exit(1);
+
+    auto symbols = credence::ir::hoisted_symbols(program.unit);
+    return Frontend{ std::move(program), std::move(symbols) };
+}
+
 int main(int argc, const char* argv[])
 {
     namespace m = matchit;
@@ -69,15 +99,17 @@ int main(int argc, const char* argv[])
         options.show_positional_help();
         // clang-format off
         options.add_options()
-            ("a,ast-loader", "AST Loader [parser, json]",
-                cxxopts::value<std::string>()->default_value("parser"))
-            ("t,target", "Target [ir, ast, arm64, x86_64]",
+            ("t,target", "Target [ast, hir, ir, arm64, x86_64]",
                 cxxopts::value<std::string>()->default_value("ir"))
             ("s,symbols", "[Debug] Dump symbol table",
                 cxxopts::value<bool>()->default_value("false"))
             ("n,nostdlib", "[Debug] Do not add stdlib symbols",
                 cxxopts::value<bool>()->default_value("false"))
             ("q,dump-queue", "[Debug] Dump each expression's queue form to stdout",
+                cxxopts::value<bool>()->default_value("false"))
+            ("v,verbose", "[Debug] Add node indices and source positions to an ast or hir dump",
+                cxxopts::value<bool>()->default_value("false"))
+            ("l,linear", "[Debug] Dump the hir target in the linear form the IR reads",
                 cxxopts::value<bool>()->default_value("false"))
             ("o,output", "Output file",
                 cxxopts::value<std::string>()->default_value("stdout"))
@@ -92,11 +124,11 @@ int main(int argc, const char* argv[])
             std::cout << options.help() << std::endl;
             exit(0);
         }
-        credence::util::AST_Node ast, symbols;
-        auto type = result["ast-loader"].as<std::string>();
         auto target = result["target"].as<std::string>();
         auto output = result["output"].as<std::string>();
         bool no_stdlib = result["nostdlib"].as<bool>();
+        bool verbose = result["verbose"].as<bool>();
+        bool linear = result["linear"].as<bool>();
 
         if (result["dump-queue"].as<bool>())
             credence::ir::queue_dump_stream = &std::cout;
@@ -104,22 +136,9 @@ int main(int argc, const char* argv[])
         auto source = credence::util::read_file_from_path(
             result["source-code"].as<std::string>());
 
-        m::match(type)(
-            m::pattern | "parser" =
-                [&] {
-                    auto parser = credence::language::Parser{ source };
-                    ast["root"] = parser.parse_program();
-                    symbols = credence::language::Symbol_Table_Builder::build(
-                        ast["root"]);
-                },
-            m::pattern | "json" =
-                [&] { ast["root"] = credence::util::AST_Node::load(source); },
-            m::pattern | m::_ =
-                [&] {
-                    std::cerr << "Credence :: No source file provided"
-                              << std::endl;
-                    exit(1);
-                });
+        auto frontend = build_frontend(source);
+        auto& unit = frontend.program.unit;
+        auto& symbols = frontend.symbols;
 
         // Populate the symbol table with standard library functions
         auto os_type = credence::target::common::assembly::get_os_type();
@@ -134,7 +153,7 @@ int main(int argc, const char* argv[])
                 os_type,
                 credence::target::common::assembly::Arch_Type::ARM64);
 
-        if (result["symbols"].count() and target != "ast")
+        if (result["symbols"].count() and target != "ast" and target != "hir")
             std::cout << "> Symbol Table:" << std::endl << symbols << std::endl;
 
         std::ostringstream out_to{};
@@ -143,30 +162,44 @@ int main(int argc, const char* argv[])
             m::pattern |
                 m::or_(sv("x86_64"), sv("arm64")) = [&] { return "bs"; },
             m::pattern | sv("ast") = [&] { return "bast"; },
+            m::pattern | sv("hir") = [&] { return "bhir"; },
             m::pattern | m::_ = [&] { return "bo"; });
 
         m::match(target)(
             m::pattern | "arm64" =
                 [&]() {
                     credence::target::arm64::emit(
-                        out_to, symbols, ast["root"], no_stdlib);
+                        out_to, symbols, unit, no_stdlib);
                 },
             m::pattern | "x86_64" =
                 [&]() {
                     credence::target::x86_64::emit(
-                        out_to, symbols, ast["root"], no_stdlib);
+                        out_to, symbols, unit, no_stdlib);
                 },
-            m::pattern | "ir" =
-                [&]() { credence::ir::emit(out_to, symbols, ast["root"]); },
+            m::pattern |
+                "ir" = [&]() { credence::ir::emit(out_to, symbols, unit); },
             m::pattern | "ast" =
                 [&]() {
-                    if (result["symbols"].count()) {
-                        auto group = credence::util::AST::array();
-                        group[0] = symbols;
-                        group[1] = ast["root"];
-                        out_to << group << std::endl;
-                    } else
-                        out_to << ast["root"] << std::endl;
+                    if (result["symbols"].count())
+                        out_to << "> Symbol Table:" << std::endl
+                               << symbols << std::endl;
+                    credence::frontend::ast::dump(out_to,
+                        frontend.program.tree,
+                        { .indices = verbose, .positions = verbose });
+                },
+            m::pattern | "hir" =
+                [&]() {
+                    if (result["symbols"].count())
+                        out_to << "> Symbol Table:" << std::endl
+                               << symbols << std::endl;
+                    if (linear) {
+                        for (auto definition : unit.definitions)
+                            credence::frontend::hir::dump_linear(
+                                out_to, unit, definition);
+                        return;
+                    }
+                    credence::frontend::hir::dump(
+                        out_to, unit, { .indices = verbose });
                 },
             m::pattern | m::_ =
                 [&]() {

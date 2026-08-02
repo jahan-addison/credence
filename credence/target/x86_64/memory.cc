@@ -91,7 +91,7 @@ assembly::Storage Register_Accessor::get_register_for_binary_operator(
             fmt::format("[r15 + 8 * {}]", offset_integer));
     }
     if (type::is_rvalue_data_type(rvalue))
-        return type::get_rvalue_datatype_from_string(rvalue);
+        return type::get_data_type_from_string(rvalue);
 
     if (stack->contains(rvalue))
         return stack->get(rvalue).first;

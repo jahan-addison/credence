@@ -1,0 +1,55 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      auto_statement
+        identifier "x"
+        identifier "a"
+        identifier "b"
+      block_statement
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            unary_expression "-"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            unary_expression "+"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            unary_expression "!"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            unary_expression "~"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            pre_inc_dec_expression "++"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            pre_inc_dec_expression "--"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            post_inc_dec_expression "++"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            post_inc_dec_expression "--"
+              identifier "a"
+        expression_statement
+          assignment_expression "="
+            identifier "x"
+            address_of_expression "&"
+              identifier "b"

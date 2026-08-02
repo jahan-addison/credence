@@ -62,7 +62,6 @@ struct Vector::Vector_IMPL
 {
     Storage data{};
     Offset offset{};
-    int decay_index{ 0 };
     std::size_t size{ 0 };
     Label symbol{};
 };
@@ -99,14 +98,6 @@ Vector::Offset const& Vector::get_offset() const
 void Vector::set_address_offset(Label const& index, Address address)
 {
     pimpl->offset.insert(index, address);
-}
-int& Vector::get_decay_index()
-{
-    return pimpl->decay_index;
-}
-int Vector::get_decay_index() const
-{
-    return pimpl->decay_index;
 }
 std::size_t& Vector::get_size()
 {
@@ -541,7 +532,7 @@ bool Vector_Offset::is_valid_vector_address_offset(LValue const& lvalue)
 {
     auto lvalue_reference = type::get_unary_rvalue_reference(lvalue);
     auto address = type::from_lvalue_offset(lvalue_reference);
-    auto offset = type::from_decay_offset(lvalue_reference);
+    auto offset = type::from_vector_offset(lvalue_reference);
     if (pimpl->stack_frame_->is_parameter(offset)) {
         return true;
     }
@@ -608,10 +599,15 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
         return get_rvalue_at_lvalue_object_storage(
             address_at, stack_frame, vectors, location);
     }
+    // a parameter holds no value until the call, so a name that reaches
+    // here on its own is a word. The subscript branch below covers the
+    // "v[errno]" form, this covers the bare name a subscript resolves
+    if (stack_frame->is_parameter(lvalue_reference))
+        return type::Data_Type{ lvalue, "word", sizeof(void*) };
     if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
         auto vector_offset = detail::Vector_Offset{ stack_frame, vectors };
         auto address = type::from_lvalue_offset(lvalue_reference);
-        auto offset = type::from_decay_offset(lvalue_reference);
+        auto offset = type::from_vector_offset(lvalue_reference);
         auto offset_rvalue = vector_offset.get_rvalue_offset_of_vector(offset);
         if (stack_frame->is_parameter(offset)) {
             return type::Data_Type{ lvalue, "word", 8UL };
@@ -628,7 +624,7 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
         return vectors.at(address)->get_data()[offset_rvalue];
     }
     if (type::is_rvalue_data_type(lvalue))
-        return type::get_rvalue_datatype_from_string(lvalue);
+        return type::get_data_type_from_string(lvalue);
 
     return locals.get_symbol_by_name(lvalue_reference, location);
 }
@@ -660,10 +656,10 @@ Size Object::get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
 {
     auto& locals = stack_frame->get_locals();
     credence_assert(locals.is_defined(lvalue));
-    auto datatype = locals.get_symbol_by_name(lvalue);
-    if (type::is_rvalue_data_type_word(datatype))
+    auto data_type = locals.get_symbol_by_name(lvalue);
+    if (type::is_rvalue_data_type_word(data_type))
         return lvalue_size_at_temporary_object_address(
-            type::get_value_from_rvalue_data_type(datatype), stack_frame);
+            type::get_value_from_rvalue_data_type(data_type), stack_frame);
     else
         return type::get_size_from_rvalue_data_type(
             locals.get_symbol_by_name(lvalue));
@@ -693,35 +689,35 @@ Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
             not type::is_rvalue_data_type_word(right))
             return type::get_size_from_rvalue_data_type(right);
         if (locals.is_defined(left) and not locals.is_pointer(left)) {
-            auto datatype = locals.get_symbol_by_name(left);
-            if (type::is_rvalue_data_type_word(datatype))
+            auto data_type = locals.get_symbol_by_name(left);
+            if (type::is_rvalue_data_type_word(data_type))
                 return lvalue_size_at_temporary_object_address(
-                    type::get_value_from_rvalue_data_type(datatype),
+                    type::get_value_from_rvalue_data_type(data_type),
                     stack_frame);
             else
                 return type::get_size_from_rvalue_data_type(
                     locals.get_symbol_by_name(left));
         }
         if (locals.is_defined(right) and not locals.is_pointer(right)) {
-            auto datatype = locals.get_symbol_by_name(right);
-            if (type::is_rvalue_data_type_word(datatype))
+            auto data_type = locals.get_symbol_by_name(right);
+            if (type::is_rvalue_data_type_word(data_type))
                 return lvalue_size_at_temporary_object_address(
-                    type::get_value_from_rvalue_data_type(datatype),
+                    type::get_value_from_rvalue_data_type(data_type),
                     stack_frame);
             else
                 return type::get_size_from_rvalue_data_type(
                     locals.get_symbol_by_name(right));
         }
     }
-    if (type::is_temporary_datatype_binary_expression(rvalue)) {
+    if (type::is_temporary_data_type_binary_expression(rvalue)) {
         auto [left, right, op] = type::from_rvalue_binary_expression(rvalue);
         return lvalue_size_at_temporary_object_address(left, stack_frame);
     }
     if (locals.is_defined(rvalue)) {
-        auto datatype = locals.get_symbol_by_name(rvalue);
-        if (type::is_rvalue_data_type_word(datatype))
+        auto data_type = locals.get_symbol_by_name(rvalue);
+        if (type::is_rvalue_data_type_word(data_type))
             return lvalue_size_at_temporary_object_address(
-                type::get_value_from_rvalue_data_type(datatype), stack_frame);
+                type::get_value_from_rvalue_data_type(data_type), stack_frame);
         else
             return type::get_size_from_rvalue_data_type(
                 locals.get_symbol_by_name(rvalue));
@@ -779,9 +775,6 @@ void set_stack_frame_return_value(RValue const& rvalue,
     Function_PTR& frame,
     Object_PTR& objects)
 {
-    auto is_vector_lvalue = [&](LValue const& lvalue) {
-        return util::contains(lvalue, "[") and util::contains(lvalue, "]");
-    };
     auto local_contains = [&](LValue const& lvalue) {
         const auto& locals = frame->get_locals();
         return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
@@ -818,8 +811,9 @@ void set_stack_frame_return_value(RValue const& rvalue,
             },
         m::pattern | m::app(type::is_rvalue_data_type, true) =
             [&] {
-                auto datatype = type::get_rvalue_datatype_from_string(rvalue);
-                auto value_at = type::get_value_from_rvalue_data_type(datatype);
+                auto data_type = type::get_data_type_from_string(rvalue);
+                auto value_at =
+                    type::get_value_from_rvalue_data_type(data_type);
                 frame->get_ret() = std::make_pair(value_at, rvalue);
             },
         m::pattern | m::app(is_vector_lvalue, true) =

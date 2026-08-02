@@ -2,11 +2,11 @@
 
 The intermediate representation (IR) is formalized as a linear four-tuple, named the Instruction Tuple Abstraction (ITA). The ITA comprises a collection of platform-independent  instructions that approximate the structure and semantics of a target machine language.
 
-`ast_to_ita_instructions` walks the program's `AST_Node` tree statement by statement. For a statement holding an expression, it first gets a queue back from `RValue_Parser` and `Shunting_Yard` (see [the language frontend](/credence/language/README.md) for that part) and rvalues in reverse polish form. From there it's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from that queue, and the temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/temporary.h#L68).
+`ITA` walks the definitions of the `hir::Unit` the frontend returns, statement by statement. For a statement holding an expression, `hir_to_ita_instructions` first gets a queue back from `queue_from_hir` (see [the frontend](/credence/frontend/README.md) for that part) with the operands in reverse polish form - the HIR is already in post-order with precedence resolved, so the queue is the subtree read front to back. From there it's constructed by two stacks, an operand stack and a temporary stack: the operand stack is derived from that queue, and the temporary stack serves to decouple operands, enabling data types to be encoded within a three- or four-tuple framework. The detailed algorithm for temporary stack construction is provided [here](https://github.com/jahan-addison/credence/blob/d9eb0ce3dafc5606a32eff7cf457e3ed985ea650/credence/ir/temporary.h#L68).
 
 ```mermaid
 flowchart LR
-    A(AST_Node statement) -->|ast_to_ita_instructions| B(queue)
+    A(hir::Unit statement) -->|queue_from_hir| B(queue)
     B -->|Temporary, operand + temporary stacks| C(Quadruples)
     C -->|ir::Table| D(Object)
     D -->|checker.h| E[Type-checked ITA]
@@ -17,6 +17,12 @@ flowchart LR
     style D fill:#2d2d2d,stroke:#888,color:#fff
     style E fill:#2d2d2d,stroke:#888,color:#fff
 ```
+
+## Operands
+
+An operand of a quadruple is an [`operand::Operand`](/credence/ir/operand.h) - either an lvalue, a literal, or nothing. It is what the IR prints as the `(value : type : size)` tuple seen throughout the examples below, and the type and size in that tuple come from the `Type_Index` the frontend assigned the node.
+
+The hoisted symbol table in [`symbols.h`](/credence/ir/symbols.h) is built from the same unit and gives the object table and the backends the shape of every name - `function_definition`, `vector_definition`, `lvalue`, `indirect_lvalue`, `vector_lvalue`, or `label` - along with the size of a vector.
 
 ## Instructions
 
@@ -54,14 +60,15 @@ Local scoped labels:
 
 ```asm
 _L2:
+_L4:
     _t5 = x > y;
-    IF _t5 GOTO _L4;
-_L3:
+    IF _t5 GOTO _L3;
     x = (0:int:4);
 _L1:
     LEAVE;
-_L4:
-    x = x - 1;
+_L3:
+    _t6 = x - (1:int:4);
+    x = _t6;
     GOTO _L2;
 ```
 
@@ -75,8 +82,11 @@ Symbolic labels that are global scope and added in the symbol table:
 ```asm
 __main():
  BeginFunc ;
+    LOCL x;
+    LOCL y;
     x = (5:int:4);
     y = (1:int:4);
+_L1:
     LEAVE;
  EndFunc ;
 ```
@@ -146,38 +156,38 @@ __main():
     _t2 = & c;
     a = _t2;
     i = (1:int:4);
-    _p1 = c;
-    _p3 = c;
-    _p4 = i;
-    PUSH _p4;
-    PUSH _p3;
+    _p3_1 = c;
+    _p5_3 = c;
+    _p6_4 = i;
+    PUSH _p6_4;
+    PUSH _p5_3;
     CALL sub;
     POP 16;
-    _t3 = RET;
-    _p2 = _t3;
-    PUSH _p2;
-    PUSH _p1;
+    _t7 = RET;
+    _p4_2 = _t7;
+    PUSH _p4_2;
+    PUSH _p3_1;
     CALL add;
     POP 16;
-    _t4 = RET;
-    _t5 = _t4;
-    j = (2:int:4) - _t5;
-_L6:
-    _t9 = c > i;
-    IF _t9 GOTO _L8;
-_L7:
+    _t8 = RET;
+    _t9 = _t8;
+    j = (2:int:4) - _t9;
+_L10:
+    _t13 = c > i;
+    IF _t13 GOTO _L12;
+_L11:
     c = (0:int:4);
 _L1:
     LEAVE;
-_L8:
-_L10:
 _L12:
-    _t13 = j > i;
-    IF _t13 GOTO _L11;
-    GOTO _L7;
-_L11:
+_L14:
+_L16:
+    _t17 = j > i;
+    IF _t17 GOTO _L15;
+    GOTO _L11;
+_L15:
     j = --j;
-    GOTO _L10;
+    GOTO _L14;
  EndFunc ;
 
 
@@ -206,6 +216,5 @@ __sub(x,y):
 _L1:
     LEAVE;
  EndFunc ;
-
 
 ```

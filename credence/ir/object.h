@@ -110,8 +110,6 @@ struct Vector
     Storage const& get_data() const;
     Offset& get_offset();
     Offset const& get_offset() const;
-    int& get_decay_index();
-    int get_decay_index() const;
     std::size_t& get_size();
     std::size_t get_size() const;
     Label& get_symbol();

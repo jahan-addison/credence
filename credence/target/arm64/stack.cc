@@ -200,8 +200,7 @@ class Stack::Stack_IMPL
     {
         if (stack_address[lvalue].second != Operand_Size::Empty)
             return;
-        auto operand_size =
-            assembly::get_operand_size_from_rvalue_datatype(rvalue);
+        auto operand_size = assembly::get_operand_size_from_data_type(rvalue);
         auto value_size = assembly::get_size_from_operand_size(operand_size);
         allocate_aligned_lvalue(lvalue, value_size, operand_size);
     }

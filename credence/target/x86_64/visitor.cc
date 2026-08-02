@@ -318,7 +318,7 @@ void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
                                  .get_lvalue_address_and_insertion_instructions(
                                      of_comparator, instructions.size())
                                  .first;
-    auto with_rvalue_storage = type::get_rvalue_datatype_from_string(with);
+    auto with_rvalue_storage = type::get_data_type_from_string(with);
     auto jump_label = assembly::make_label(jump, stack_frame_.symbol);
     auto comparator_instructions = assembly::r_eq(
         of_rvalue_storage, with_rvalue_storage, jump_label, Register::eax);
@@ -334,6 +334,10 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
         assembly::make_label(std::get<1>(inst), stack_frame_.symbol));
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
+    // make_direct_immediate copies the view into the owning string of
+    // the Immediate, so the label outlives the temporary it was made
+    // from. cppcheck sees only the string to string_view conversion
+    // cppcheck-suppress danglingTemporaryLifetime
     x8664_add__asm(instructions, goto_, label);
 }
 
@@ -360,7 +364,7 @@ void IR_Instruction_Visitor::from_leave_ita()
         if (accessor_->table_accessor.get_table()
                 ->stack_frame_contains_call_instruction(stack_frame_.symbol,
                     *accessor_->table_accessor.get_table()
-                         ->get_ir_instructions())) {
+                        ->get_ir_instructions())) {
             auto size = u32_int_immediate(
                 accessor_->stack->get_stack_frame_allocation_size());
             x8664_add__asm(accessor_->instruction_accessor->get_instructions(),

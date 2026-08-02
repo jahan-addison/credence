@@ -98,7 +98,7 @@ assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
         m::pattern | m::as<assembly::Stack::Offset>(s) =
             [&] { return stack->get_operand_size_from_offset(*s); },
         m::pattern | m::as<Immediate>(i) =
-            [&] { return assembly::get_operand_size_from_rvalue_datatype(*i); },
+            [&] { return assembly::get_operand_size_from_data_type(*i); },
         m::pattern | m::as<Register>(r) =
             [&] { return assembly::get_operand_size_from_register(*r); },
         m::pattern | m::_ = [&] { return assembly::Operand_Size::Empty; });
@@ -110,7 +110,7 @@ assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
 
 bool is_doubleword_storage_size(assembly::Storage const& storage,
     Stack_Pointer& stack,
-    Stack_Frame& stack_frame)
+    Stack_Frame const& stack_frame)
 {
     auto result{ false };
     auto frame = stack_frame.get_stack_frame();
@@ -160,7 +160,7 @@ namespace detail {
 /**
  * @brief Unary template instantiation for matchit from credence/types.h
  */
-constexpr bool arm64_is_binary_datatype_expression(Immediate const& immediate)
+constexpr bool arm64_is_binary_data_type_expression(Immediate const& immediate)
 {
     auto rvalue = type::get_value_from_rvalue_data_type(immediate);
 
@@ -177,10 +177,10 @@ constexpr bool arm64_is_binary_datatype_expression(Immediate const& immediate)
 /**
  * @brief Unary template instantiation for matchit from credence/types.h
  */
-constexpr bool arm64_is_temporary_datatype_binary_expression(
+constexpr bool arm64_is_temporary_data_type_binary_expression(
     Immediate const& immediate)
 {
-    return type::is_temporary_datatype_binary_expression(
+    return type::is_temporary_data_type_binary_expression(
         type::get_value_from_rvalue_data_type(immediate));
 }
 
@@ -213,7 +213,7 @@ Device_Accessor::Device Device_Accessor::get_operand_rvalue_device(
     RValue const& rvalue)
 {
     if (type::is_rvalue_data_type(rvalue))
-        return type::get_rvalue_datatype_from_string(rvalue);
+        return type::get_data_type_from_string(rvalue);
     else if (is_lvalue_allocated_in_memory(rvalue))
         return get_device_by_lvalue(rvalue);
     else {
@@ -440,7 +440,7 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
         stack_frame_.symbol, *table_->get_ir_instructions());
     auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->get_vectors(), DEBUG_SOURCE);
-    auto operand = assembly::get_operand_size_from_rvalue_datatype(rvalue);
+    auto operand = assembly::get_operand_size_from_data_type(rvalue);
 
     switch (operand) {
         case assembly::Operand_Size::Empty:
@@ -509,12 +509,12 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
 
     return m::match(rvalue)(
         m::pattern |
-            m::app(arm64_is_temporary_datatype_binary_expression, true) =
+            m::app(arm64_is_temporary_data_type_binary_expression, true) =
             [&] {
                 return table_->get_size_of_temporary_binary_rvalue(
                     type::get_value_from_rvalue_data_type(rvalue), frame);
             },
-        m::pattern | m::app(arm64_is_binary_datatype_expression, true) =
+        m::pattern | m::app(arm64_is_binary_data_type_expression, true) =
             [&] {
                 auto [left, right, _] =
                     type::from_rvalue_binary_expression(rvalue);

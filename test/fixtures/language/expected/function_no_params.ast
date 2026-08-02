@@ -1,0 +1,6 @@
+program
+  function_definition
+    identifier "main"
+    block_statement
+    block_statement
+      return_statement
