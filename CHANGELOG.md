@@ -1,3 +1,14 @@
+## [1.3.0] - 2026-08-03
+
+- feat(frontend): formal flat AST and HIR lowering type checking, replacing previous language/ code
+- feat: SIMD whitespace chunk scanner
+
+- chore: v1.3.0
+- chore: designing the memory-safe tagged union
+- chore: update readme
+- chore: update CHANGELOG.md for v1.2.0
+
+- Merge pull request #15 from jahan-addison/chore/changelog-v1.2.0
 ## [1.2.0] - 2026-07-26
 
 - feat(backend): arm64 argc, argv register selection and alignment improvements
