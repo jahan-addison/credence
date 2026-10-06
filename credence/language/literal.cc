@@ -11,26 +11,24 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include "datatype.h"
+#include "literal.h"
 
-#include "operators.h"     // for Operator
 #include <credence/util.h> // for overload
-#include <memory>          // for shared_ptr, make_shared
 #include <sstream>         // for basic_ostringstream, ostringstream
 #include <string>          // for basic_string, string, char_traits
 #include <string_view>     // for basic_string_view, string_view, oper...
 #include <utility>         // for pair, get, move, make_pair
 #include <variant>         // for get, monostate, variant, visit
-#include <vector>          // for vector
 
 /****************************************************************************
  *
- * Language internal value representation
+ * Type Data
  *
  * The internal representation of values and types during code translation.
  *
  * We enforce strict typing via type inference by storing all data types
- * assigned through a data structure called internally "Rvalue Data Type."
+ * assigned through a data structure called internally "Type Data" - the
+ * leaves of the HIR in hir.h.
  *
  *  I.e. A tuple of ( Value : Type : Size )
  *
@@ -46,14 +44,14 @@
  *   main() {
  *     auto x, y, z;
  *     x = 42;           // x is (42:int:4)
- *     y = 3.14;         // y is (3.14:double:4)
+ *     y = 3.14;         // y is (3.14:double:8)
  *   }
  *****************************************************************************/
 
-namespace credence::language::datatype {
+namespace credence::language::literal {
 
 /**
- * @brief datatype::Datatype tuple as a string
+ * @brief literal::Literal tuple as a string
  */
 std::string literal_to_string(Literal const& literal,
     std::string_view separator)
@@ -114,42 +112,4 @@ std::string literal_to_string(Literal const& literal,
     return os.str();
 }
 
-/**
- * @brief Datatype types to string in reverse polish notation
- */
-std::string datatype_to_string(Datatype::Type const& item,
-    bool separate,
-    std::string_view separator)
-{
-    auto oss = std::ostringstream();
-    auto space = separate ? " " : "";
-    std::visit(
-        util::overload{ [&](std::monostate) {},
-            [&](Datatype::Pointer const&) {},
-            [&](Literal const& s) {
-                oss << literal_to_string(s, separator) << space;
-            },
-            [&](Array const& s) {
-                for (auto const& value : s) {
-                    oss << literal_to_string(value, separator) << space;
-                }
-            },
-            [&](Datatype::LValue const& s) { oss << s.first << space; },
-            [&](Datatype::Unary const& s) {
-                oss << s.first
-                    << datatype_to_string(s.second->value, true, separator)
-                    << space;
-            },
-            [&](Datatype::Relation const& s) {
-                for (auto const& relation : s.second) {
-                    oss << datatype_to_string(relation->value, true, separator)
-                        << space;
-                }
-            },
-            [&](Datatype::Function const& s) { oss << s.first.first << space; },
-            [&](Datatype::Symbol const& s) { oss << s.first.first << space; } },
-        item);
-    return oss.str();
-}
-
-} // namespace datatype
+} // namespace literal

@@ -630,7 +630,7 @@ bool Parser::at_binary_operator() const
  * recursing into parse_rvalue() again for the right-hand side in each
  * case. See parser.h for why this, rather than real precedence, is the
  * correct thing to reproduce: the shunting-yard Shunting_Yard in
- * shunting_yard.h is what recovers correct precedence downstream, not this
+ * precedence.h is what recovers correct precedence downstream, not this
  * parse tree's shape.
  */
 util::AST_Node Parser::parse_rvalue()

@@ -13,26 +13,27 @@
 
 #pragma once
 
-#include <credence/ir/ita.h>                 // for Instructions
-#include <credence/language/datatype.h>      // for Datatype, Size
-#include <credence/language/operators.h>     // for Operator
-#include <credence/language/shunting_yard.h> // for Shunting_Yard
-#include <credence/symbol.h>                 // for Symbol_Table
-#include <credence/util.h>                   // for AST_Node, range_contains
-#include <initializer_list>                  // for initializer_list
-#include <ostream>                           // for ostream
-#include <stack>                             // for stack
-#include <string>                            // for basic_string, string
-#include <utility>                           // for pair
-#include <vector>                            // for vector
+#include <credence/ir/ita.h>              // for Instructions
+#include <credence/language/hir.h>        // for Data_Kind
+#include <credence/language/literal.h>    // for Size
+#include <credence/language/operators.h>  // for Operator
+#include <credence/language/precedence.h> // for Shunting_Yard
+#include <credence/symbol.h>              // for Symbol_Table
+#include <credence/util.h>                // for AST_Node, range_contains
+#include <initializer_list>               // for initializer_list
+#include <ostream>                        // for ostream
+#include <stack>                          // for stack
+#include <string>                         // for basic_string, string
+#include <utility>                        // for pair
+#include <vector>                         // for vector
 
 /****************************************************************************
  * Temporary LValue Constructor
  *
  * A set of algorithms that construct temporary lvalues "_tX" that aid in
  * breaking expressions into 3- or 4- tuples for linear instructions. Uses the
- * rvalue queue from shunting_yard.h of expressions, which should be ordered
- * by operator preedence.
+ * rvalue queue from precedence.h of expressions, which should be ordered
+ * by operator precedence.
  *
  *  Example:
  *
@@ -58,7 +59,7 @@ namespace credence {
 namespace ir {
 
 using Expression_Instructions = std::pair<ir::Instructions,
-    language::shunting_yard::detail::Shunting_Yard::Container>;
+    language::precedence::detail::Shunting_Yard::Container>;
 using Temporary_Instructions = std::pair<std::string, ir::Instructions>;
 
 namespace detail {
@@ -115,14 +116,14 @@ class Temporary
     }
 
   public:
-    using Operand = language::datatype::Datatype::Type_Pointer;
+    using Operand = language::hir::Data_Kind::Kind_Pointer;
     using Operands = std::vector<Operand>;
     using Operator = language::type::Operator;
     using Instructions = ir::Instructions;
     using Operand_Stack = std::stack<Operand>;
     using Temporary_Stack = std::stack<std::string>;
 
-    language::datatype::Size insert_and_create_temporary_from_operand(
+    language::literal::Size insert_and_create_temporary_from_operand(
         Operand& operand);
 
   public:
@@ -168,7 +169,7 @@ constexpr bool is_in_place_unary_operator(language::type::Operator op)
 inline std::ostream* queue_dump_stream = nullptr;
 
 Instructions queue_to_ita_instructions(
-    language::shunting_yard::detail::Shunting_Yard::Container const& queue,
+    language::precedence::detail::Shunting_Yard::Container const& queue,
     util::AST_Node const& details,
     int* temporary_index);
 

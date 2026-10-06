@@ -13,29 +13,29 @@
 
 #include <credence/ir/table.h>
 
-#include <array>                        // for array
-#include <credence/error.h>             // for credence_assert
-#include <credence/ir/checker.h>        // for Type_Checker
-#include <credence/ir/ita.h>            // for Instruction, Quadruple, emit
-#include <credence/ir/object.h>         // for Object, Function, LValue
-#include <credence/language/datatype.h> // for datatype_to_string
-#include <credence/map.h>               // for Ordered_Map
-#include <credence/symbol.h>            // for Symbol_Table
-#include <credence/types.h>             // for get_rvalue_datatype_from_string
-#include <credence/util.h>              // for contains, AST_Node, str_trim_ws
-#include <cstddef>                      // for size_t
-#include <deque>                        // for deque
-#include <easyjson.h>                   // for JSON
-#include <fmt/format.h>                 // for format
-#include <limits>                       // for numeric_limits
-#include <map>                          // for operator!=
-#include <matchit.h>                    // for pattern, PatternHelper, Patt...
-#include <optional>                     // for optional
-#include <string>                       // for basic_string, char_traits
-#include <string_view>                  // for basic_string_view, string_view
-#include <tuple>                        // for get, tuple, operator==
-#include <utility>                      // for pair, get
-#include <vector>                       // for vector
+#include <array>                   // for array
+#include <credence/error.h>        // for credence_assert
+#include <credence/ir/checker.h>   // for Type_Checker
+#include <credence/ir/ita.h>       // for Instruction, Quadruple, emit
+#include <credence/ir/object.h>    // for Object, Function, LValue
+#include <credence/language/hir.h> // for data_kind_to_string
+#include <credence/map.h>          // for Ordered_Map
+#include <credence/symbol.h>       // for Symbol_Table
+#include <credence/types.h>        // for get_rvalue_datatype_from_string
+#include <credence/util.h>         // for contains, AST_Node, str_trim_ws
+#include <cstddef>                 // for size_t
+#include <deque>                   // for deque
+#include <easyjson.h>              // for JSON
+#include <fmt/format.h>            // for format
+#include <limits>                  // for numeric_limits
+#include <map>                     // for operator!=
+#include <matchit.h>               // for pattern, PatternHelper, Patt...
+#include <optional>                // for optional
+#include <string>                  // for basic_string, char_traits
+#include <string_view>             // for basic_string_view, string_view
+#include <tuple>                   // for get, tuple, operator==
+#include <utility>                 // for pair, get
+#include <vector>                  // for vector
 
 /****************************************************************************
  * Table
@@ -95,7 +95,7 @@ void Table::build_from_ir_instructions()
     build_vector_definitions_from_globals();
 
     for (instruction_index = 0; instruction_index < instructions_->size();
-         instruction_index++) {
+        instruction_index++) {
         auto instruction = instructions_->at(instruction_index);
         m::match(std::get<Instruction>(instruction))(
             m::pattern | Instruction::FUNC_START =
@@ -210,7 +210,7 @@ void Table::build_vector_definitions_from_globals()
             for (auto const& item : symbol.second) {
                 auto key = std::to_string(index++);
                 auto value = type::get_rvalue_datatype_from_string(
-                    language::datatype::datatype_to_string(item, false));
+                    language::hir::data_kind_to_string(item, false));
                 insert_address_storage_rvalue(value);
                 objects_->get_vectors()[symbol.first]->get_data()[key] = value;
             }

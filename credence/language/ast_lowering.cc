@@ -11,9 +11,10 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include "rvalue.h"
+#include "ast_lowering.h"
 
-#include "datatype.h"        // for make_lvalue, RValue, TYPE_LITERAL
+#include "hir.h"             // for make_lvalue, Data_Kind
+#include "literal.h"         // for TYPE_LITERAL, WORD_LITERAL
 #include "operators.h"       // for Operator, BINARY_OPERATORS
 #include <algorithm>         // for __find, find
 #include <credence/error.h>  // for assert_equal_impl, credence_assert_equal
@@ -31,23 +32,29 @@
 
 /****************************************************************************
  *
- * RValue_Parser - second pass, AST_Node -> Datatype
+ * AST Lowering
  *
- * Walks Parser's right-associative AST_Node expression nodes into the
- * algebraic Datatype type, checking lvalues against declared storage
- * along the way. Statement and non-expression nodes are out of scope
- * here.
+ * The second pass, Parser::AST_Node -> HIR
+ *
+ * The Parser produces a right-associative AST_Node tree with no real
+ * operator precedence. AST_Lowering lowers that tree's expression nodes into
+ * the HIR - a tree of the algebraic Data_Kind type from hir.h - checking
+ * lvalues against declared storage along the way. Statement and
+ * non-expression nodes are out of scope here - Shunting_Yard (precedence.h)
+ * is the next pass, fixing precedence over the HIR this class produces.
  *
  *   B source:  x = 5 + 3 * 2
  *
- *   ast node:  {"node": "assignment",
- *               "left": {"name": "x"},
- *               "right": {"node": "binary_op", "op": "+", ...}}
+ *   ast node:  {"node": "assignment_expression",
+ *               "root": ["="],
+ *               "left": {"node": "lvalue", "root": "x"},
+ *               "right": {"node": "relation_expression",
+ *                         "root": ["+"], ...}}
  *
- *   Datatype:  Assignment(lvalue="x",
- *                        rvalue=BinaryOp(ADD,
- *                                       Literal(5),
- *                                       BinaryOp(MUL, ...)))
+ *   HIR:  Symbol(LValue("x"),
+ *                Relation(B_ADD,
+ *                         Literal(5:int:4),
+ *                         Relation(B_MUL, ...)))
  *
  *****************************************************************************/
 
@@ -56,12 +63,12 @@ namespace credence::language {
 namespace m = matchit;
 
 /**
- * @brief Parse expression ast node into RValue struct type pointer
+ * @brief Lower an expression ast node into its Data_Kind
  */
-RValue_Parser::RValue RValue_Parser::parse_from_node(Node const& node)
+hir::Data_Kind AST_Lowering::lower_from_node(Node const& node)
 {
 
-    auto expression = RValue{};
+    auto expression = Data_Kind{};
     auto node_type = node["node"].to_string();
 
     // pointer indirection assignment:
@@ -69,7 +76,7 @@ RValue_Parser::RValue RValue_Parser::parse_from_node(Node const& node)
     if (node.has_key("left") and
         node["left"]["node"].to_string() == "assignment_expression") {
         expression.value =
-            std::make_shared<RValue>(from_assignment_expression_node(node));
+            std::make_shared<Data_Kind>(from_assignment_expression_node(node));
         return expression;
     }
 
@@ -92,35 +99,35 @@ RValue_Parser::RValue RValue_Parser::parse_from_node(Node const& node)
             [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "function_expression" =
             [&] {
-                expression.value = std::make_shared<RValue>(
+                expression.value = std::make_shared<Data_Kind>(
                     from_function_expression_node(node));
             },
         m::pattern | "evaluated_expression" =
             [&] {
-                expression.value = std::make_shared<RValue>(
+                expression.value = std::make_shared<Data_Kind>(
                     from_evaluated_expression_node(node));
             },
         m::pattern | "relation_expression" =
             [&] {
-                expression.value = std::make_shared<RValue>(
+                expression.value = std::make_shared<Data_Kind>(
                     from_relation_expression_node(node));
             },
         m::pattern | "ternary_expression" =
             [&] {
-                expression.value = std::make_shared<RValue>(
+                expression.value = std::make_shared<Data_Kind>(
                     from_ternary_expression_node(node));
             },
         m::pattern | "indirect_lvalue" =
             [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "assignment_expression" =
             [&] {
-                expression.value = std::make_shared<RValue>(
+                expression.value = std::make_shared<Data_Kind>(
                     from_assignment_expression_node(node));
             },
         m::pattern | m::_ =
             [&] {
                 if (util::range_contains(node_type, unary_types)) {
-                    expression.value = std::make_shared<RValue>(
+                    expression.value = std::make_shared<Data_Kind>(
                         from_unary_expression_node(node));
                 } else {
                     credence_error(
@@ -133,12 +140,11 @@ RValue_Parser::RValue RValue_Parser::parse_from_node(Node const& node)
 /**
  * @brief Build expression from function call expression
  */
-RValue_Parser::RValue RValue_Parser::from_function_expression_node(
-    Node const& node)
+hir::Data_Kind AST_Lowering::from_function_expression_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "function_expression");
     credence_assert(node["right"].to_deque().size() >= 1);
-    RValue expression{};
+    Data_Kind expression{};
     Parameters parameters{};
     auto param_node = node["right"].to_deque();
     // if the size of parameters is 1 and its only
@@ -148,18 +154,17 @@ RValue_Parser::RValue RValue_Parser::from_function_expression_node(
             parameters.emplace_back(make_expression_pointer_from_ast(param));
         }
     auto lhs = from_lvalue_expression_node(node["left"]);
-    expression.value = datatype::Datatype::Function{ lhs, parameters };
+    expression.value = hir::Data_Kind::Function{ lhs, parameters };
     return expression;
 }
 
 /**
  * @brief An expression wrapped in parenthesis, pre-evaluated
  */
-RValue_Parser::RValue RValue_Parser::from_evaluated_expression_node(
-    Node const& node)
+hir::Data_Kind AST_Lowering::from_evaluated_expression_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "evaluated_expression");
-    RValue expression{};
+    Data_Kind expression{};
     expression.value = make_expression_pointer_from_ast(node["root"]);
     return expression;
 }
@@ -167,10 +172,9 @@ RValue_Parser::RValue RValue_Parser::from_evaluated_expression_node(
 /**
  * @brief Ternary relation expression
  */
-RValue_Parser::RValue RValue_Parser::from_ternary_expression_node(
-    Node const& node)
+hir::Data_Kind AST_Lowering::from_ternary_expression_node(Node const& node)
 {
-    RValue expression{};
+    Data_Kind expression{};
     Parameters blocks{};
     auto conditional = node["left"];
     auto ternary = node["right"];
@@ -189,11 +193,10 @@ RValue_Parser::RValue RValue_Parser::from_ternary_expression_node(
 /**
  * @brief Relation to sum type of operator and chain of expressions
  */
-RValue_Parser::RValue RValue_Parser::from_relation_expression_node(
-    Node const& node)
+hir::Data_Kind AST_Lowering::from_relation_expression_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "relation_expression");
-    RValue expression{};
+    Data_Kind expression{};
     Parameters blocks{};
     if (node.has_key("right") and
         node["right"]["node"].to_string() == "ternary_expression") {
@@ -211,8 +214,7 @@ RValue_Parser::RValue RValue_Parser::from_relation_expression_node(
 /**
  * @brief Unary operator expression to algebraic pair
  */
-RValue_Parser::RValue RValue_Parser::from_unary_expression_node(
-    Node const& node)
+hir::Data_Kind AST_Lowering::from_unary_expression_node(Node const& node)
 {
     using namespace type;
     auto unary_type = node["node"].to_string();
@@ -220,7 +222,7 @@ RValue_Parser::RValue RValue_Parser::from_unary_expression_node(
     credence_assert_message(util::range_contains(unary_type, unary_types),
         fmt::format("Invalid unary expression type `{}`", unary_type));
 
-    RValue expression{};
+    Data_Kind expression{};
     std::map<std::string, Operator> const other_unary = {
         { "!", Operator::U_NOT             },
         { "~", Operator::U_ONES_COMPLEMENT },
@@ -240,26 +242,26 @@ RValue_Parser::RValue RValue_Parser::from_unary_expression_node(
         m::pattern | "pre_inc_dec_expression" =
             [&] {
                 if (op == "++") {
-                    auto rhs =
-                        std::make_shared<RValue>(parse_from_node(node["left"]));
+                    auto rhs = std::make_shared<Data_Kind>(
+                        lower_from_node(node["left"]));
                     expression.value = std::make_pair(Operator::PRE_INC, rhs);
 
                 } else if (op == "--") {
-                    auto rhs =
-                        std::make_shared<RValue>(parse_from_node(node["left"]));
+                    auto rhs = std::make_shared<Data_Kind>(
+                        lower_from_node(node["left"]));
                     expression.value = std::make_pair(Operator::PRE_DEC, rhs);
                 }
             },
         m::pattern | "post_inc_dec_expression" =
             [&] {
                 if (op == "++") {
-                    auto rhs = std::make_shared<RValue>(
-                        parse_from_node(node["right"]));
+                    auto rhs = std::make_shared<Data_Kind>(
+                        lower_from_node(node["right"]));
                     expression.value = std::make_pair(Operator::POST_INC, rhs);
 
                 } else if (op == "--") {
-                    auto rhs = std::make_shared<RValue>(
-                        parse_from_node(node["right"]));
+                    auto rhs = std::make_shared<Data_Kind>(
+                        lower_from_node(node["right"]));
                     expression.value =
                         std::make_pair(Operator::POST_DEC, std::move(rhs));
                 }
@@ -281,8 +283,7 @@ RValue_Parser::RValue RValue_Parser::from_unary_expression_node(
 /**
  * @brief Parse assignment expression into pairs of LHS and RHS
  */
-RValue_Parser::RValue RValue_Parser::from_assignment_expression_node(
-    Node const& node)
+hir::Data_Kind AST_Lowering::from_assignment_expression_node(Node const& node)
 {
     if (node["left"]["node"].to_string() == "assignment_expression") {
         // pointer indirection assignment:
@@ -294,12 +295,12 @@ RValue_Parser::RValue RValue_Parser::from_assignment_expression_node(
         auto left_child_node = indirect_node;
         auto right_child_node = node["left"]["right"];
         if (!is_symbol(left_child_node["left"]))
-            expression_parser_error("identifier of assignment not "
-                                    "declared with 'auto' or 'extrn'",
+            lowering_error("identifier of assignment not "
+                           "declared with 'auto' or 'extrn'",
                 left_child_node["left"]["root"].to_string());
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
-        RValue expression = RValue{};
+        Data_Kind expression = Data_Kind{};
         expression.value = make_pair(lhs, rhs);
         return expression;
     } else {
@@ -312,13 +313,13 @@ RValue_Parser::RValue RValue_Parser::from_assignment_expression_node(
         auto left_child_node = node["left"];
         auto right_child_node = node["right"];
         if (!is_symbol(left_child_node))
-            expression_parser_error("identifier of assignment not "
-                                    "declared with 'auto' or 'extrn'",
+            lowering_error("identifier of assignment not "
+                           "declared with 'auto' or 'extrn'",
                 left_child_node["root"].to_string());
 
         auto lhs = from_lvalue_expression_node(left_child_node);
         auto rhs = make_expression_pointer_from_ast(right_child_node);
-        RValue expression = RValue{};
+        Data_Kind expression = Data_Kind{};
         expression.value = make_pair(lhs, rhs);
 
         return expression;
@@ -328,7 +329,7 @@ RValue_Parser::RValue RValue_Parser::from_assignment_expression_node(
 /**
  * @brief Parse lvalue expression data types
  */
-RValue_Parser::RValue::LValue RValue_Parser::from_lvalue_expression_node(
+hir::Data_Kind::LValue AST_Lowering::from_lvalue_expression_node(
     Node const& node)
 {
     auto constant_type = node["node"].to_string();
@@ -344,23 +345,23 @@ RValue_Parser::RValue::LValue RValue_Parser::from_lvalue_expression_node(
         if (internal_symbols_.has_key(name)) {
             if (internal_symbols_.at(name)["type"].to_string() !=
                 "function_definition")
-                expression_parser_error("identifier does not exist in "
-                                        "current scope, did you mean "
-                                        "to use extrn?",
+                lowering_error("identifier does not exist in "
+                               "current scope, did you mean "
+                               "to use extrn?",
                     name);
             else
-                symbols_.set_symbol_by_name(name, datatype::WORD_LITERAL);
+                symbols_.set_symbol_by_name(name, literal::WORD_LITERAL);
         }
     }
-    RValue::LValue lvalue{};
+    Data_Kind::LValue lvalue{};
     m::match(node["node"].to_string())(
         m::pattern | "lvalue" =
             [&] {
                 auto name = node["root"].to_string();
                 if (symbols_.is_pointer(name))
-                    lvalue = datatype::make_lvalue(name);
+                    lvalue = hir::make_lvalue(name);
                 else
-                    lvalue = datatype::make_lvalue(
+                    lvalue = hir::make_lvalue(
                         name, symbols_.get_symbol_by_name(name));
             },
         m::pattern | "vector_lvalue" =
@@ -368,21 +369,21 @@ RValue_Parser::RValue::LValue RValue_Parser::from_lvalue_expression_node(
                 auto offset_value = node["left"]["root"];
                 if (offset_value.JSON_type() ==
                     util::AST_Node::Class::Integral) {
-                    lvalue = datatype::make_lvalue(fmt::format("{}[{}]",
+                    lvalue = hir::make_lvalue(fmt::format("{}[{}]",
                         node["root"].to_string(),
                         offset_value.to_int()));
                 } else
-                    lvalue = datatype::make_lvalue(fmt::format("{}[{}]",
+                    lvalue = hir::make_lvalue(fmt::format("{}[{}]",
                         node["root"].to_string(),
                         offset_value.to_string()));
             },
         m::pattern | "indirect_lvalue" =
             [&] {
                 if (node["left"].has_key("left")) {
-                    lvalue = datatype::make_lvalue(fmt::format(
+                    lvalue = hir::make_lvalue(fmt::format(
                         "*{}", node["left"]["left"]["root"].to_string()));
                 } else
-                    lvalue = datatype::make_lvalue(
+                    lvalue = hir::make_lvalue(
                         fmt::format("*{}", node["left"]["root"].to_string()));
             });
     return lvalue;
@@ -391,7 +392,7 @@ RValue_Parser::RValue::LValue RValue_Parser::from_lvalue_expression_node(
 /**
  * @brief Parse constant expression data types
  */
-RValue_Parser::Literal RValue_Parser::from_constant_expression_node(
+AST_Lowering::Literal AST_Lowering::from_constant_expression_node(
     Node const& node)
 {
     return m::match(node["node"].to_string())(
@@ -414,15 +415,15 @@ RValue_Parser::Literal RValue_Parser::from_constant_expression_node(
 /**
  * @brief Parse lvalue to pointer data type
  */
-RValue_Parser::Literal RValue_Parser::from_indirect_identifier_node(
+AST_Lowering::Literal AST_Lowering::from_indirect_identifier_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "indirect_lvalue");
     credence_assert(node.has_key("left"));
     if (!is_symbol(node["left"]))
-        expression_parser_error("indirect identifier not defined, did you "
-                                "forget to declare with "
-                                "auto or extrn?",
+        lowering_error("indirect identifier not defined, did you "
+                       "forget to declare with "
+                       "auto or extrn?",
             node["root"].to_string());
 
     return symbols_.get_symbol_by_name(node["left"]["root"].to_string());
@@ -431,15 +432,14 @@ RValue_Parser::Literal RValue_Parser::from_indirect_identifier_node(
 /**
  * @brief Parse fixed-size vector (array) lvalue
  */
-RValue_Parser::Literal RValue_Parser::from_vector_idenfitier_node(
+AST_Lowering::Literal AST_Lowering::from_vector_idenfitier_node(
     Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "vector_lvalue");
 
     if (!is_symbol(node))
-        expression_parser_error(
-            "vector not defined, did you forget to declare with "
-            "auto or extrn? No symbol found",
+        lowering_error("vector not defined, did you forget to declare with "
+                       "auto or extrn? No symbol found",
             node["root"].to_string());
 
     return symbols_.get_symbol_by_name(node["root"].to_string());
@@ -448,48 +448,47 @@ RValue_Parser::Literal RValue_Parser::from_vector_idenfitier_node(
 /**
  * @brief Parse integer literal node into symbols
  */
-RValue_Parser::Literal RValue_Parser::from_integer_literal_node(
-    Node const& node)
+AST_Lowering::Literal AST_Lowering::from_integer_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "integer_literal");
     return { static_cast<int>(node["root"].to_int()),
-        datatype::TYPE_LITERAL.at("int") };
+        literal::TYPE_LITERAL.at("int") };
 }
 
 /**
  * @brief Parse float literal node into symbols
  */
-RValue_Parser::Literal RValue_Parser::from_float_literal_node(Node const& node)
+AST_Lowering::Literal AST_Lowering::from_float_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "float_literal");
     return { static_cast<float>(node["root"].to_float()),
-        datatype::TYPE_LITERAL.at("float") };
+        literal::TYPE_LITERAL.at("float") };
 }
 
 /**
  * @brief Parse double literal node into symbols
  */
-RValue_Parser::Literal RValue_Parser::from_double_literal_node(Node const& node)
+AST_Lowering::Literal AST_Lowering::from_double_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "double_literal");
     return { static_cast<double>(node["root"].to_float()),
-        datatype::TYPE_LITERAL.at("double") };
+        literal::TYPE_LITERAL.at("double") };
 }
 
 /**
  * @brief Parse bool literal node into symbols
  */
-RValue_Parser::Literal RValue_Parser::from_bool_literal_node(Node const& node)
+AST_Lowering::Literal AST_Lowering::from_bool_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "bool_literal");
     return { node["root"].to_string() == "true" ? 1 : 0,
-        datatype::TYPE_LITERAL.at("bool") };
+        literal::TYPE_LITERAL.at("bool") };
 }
 
 /**
  * @brief Parse string literal node into symbols
  */
-RValue_Parser::Literal RValue_Parser::from_string_literal_node(Node const& node)
+AST_Lowering::Literal AST_Lowering::from_string_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "string_literal");
     auto string_literal = util::unescape_string(node["root"].to_string());
@@ -502,18 +501,17 @@ RValue_Parser::Literal RValue_Parser::from_string_literal_node(Node const& node)
 /**
  * @brief Parse constant literal node into symbols
  */
-RValue_Parser::Literal RValue_Parser::from_constant_literal_node(
-    Node const& node)
+AST_Lowering::Literal AST_Lowering::from_constant_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "constant_literal");
     return { static_cast<char>(node["root"].to_string()[0]),
-        datatype::TYPE_LITERAL.at("char") };
+        literal::TYPE_LITERAL.at("char") };
 }
 
 /**
- * @brief Raise error expressing parsing error
+ * @brief Raise a compile error found while lowering
  */
-inline void RValue_Parser::expression_parser_error(std::string_view message,
+inline void AST_Lowering::lowering_error(std::string_view message,
     std::string_view symbol,
     std::source_location const& location)
 {

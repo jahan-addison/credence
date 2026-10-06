@@ -20,9 +20,13 @@
  *
  * B language Symbol Table
  *
- * Rebuilds the flat "name -> {type, size?, void?}"" symbol map that augur's
+ * Rebuilds the flat "name -> {type, size?, void?}" symbol map that augur's
  * transformer.py used to build as a side effect of its own AST transform, by
  * walking the finished AST_Node tree parser.cc produces instead.
+ *
+ * Not to be confused with the Symbol_Table template in symbol.h -
+ * Symbol_Builder builds the program-wide "internal symbols" table handed to
+ * AST_Lowering and the IR, alongside the per-scope Symbol_Table instances.
  *
  * https://github.com/jahan-addison/augur/blob/master/augur/transformer.py
  *
@@ -30,22 +34,28 @@
 
 namespace credence::language {
 
-class Symbol_Table_Builder
+/**
+ * @brief
+ * Post-order AST_Node walk into the internal symbol table.
+ *
+ * See Symbol_Builder::build.
+ */
+class Symbol_Builder
 {
   public:
-    Symbol_Table_Builder(Symbol_Table_Builder const&) = delete;
-    Symbol_Table_Builder& operator=(Symbol_Table_Builder const&) = delete;
+    Symbol_Builder(Symbol_Builder const&) = delete;
+    Symbol_Builder& operator=(Symbol_Builder const&) = delete;
 
   public:
     static util::AST_Node build(util::AST_Node const& program)
     {
-        Symbol_Table_Builder builder{};
+        Symbol_Builder builder{};
         builder.visit(program);
         return builder.table_;
     }
 
   private:
-    Symbol_Table_Builder() = default;
+    Symbol_Builder() = default;
 
     // clang-format off
 

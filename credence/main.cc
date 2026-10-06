@@ -15,7 +15,7 @@
 #include <credence/ir/table.h>                // for emit
 #include <credence/ir/temporary.h>            // for queue_dump_stream
 #include <credence/language/parser.h>         // for Parser
-#include <credence/language/symbol_table.h>   // for Symbol_Table_Builder
+#include <credence/language/symbol_builder.h> // for Symbol_Builder
 #include <credence/target/arm64/generator.h>  // for emit
 #include <credence/target/common/assembly.h>  // for Arch_Type
 #include <credence/target/common/runtime.h>   // for add_stdlib_functions_t...
@@ -109,8 +109,8 @@ int main(int argc, const char* argv[])
                 [&] {
                     auto parser = credence::language::Parser{ source };
                     ast["root"] = parser.parse_program();
-                    symbols = credence::language::Symbol_Table_Builder::build(
-                        ast["root"]);
+                    symbols =
+                        credence::language::Symbol_Builder::build(ast["root"]);
                 },
             m::pattern | "json" =
                 [&] { ast["root"] = credence::util::AST_Node::load(source); },

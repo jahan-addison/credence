@@ -13,7 +13,8 @@
 
 #pragma once
 
-#include "datatype.h"        // for RValue, Literal
+#include "hir.h"             // for Data_Kind
+#include "literal.h"         // for Literal
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
@@ -26,25 +27,29 @@
 
 /****************************************************************************
  *
- * RValue_Parser - second pass, AST_Node -> Datatype
+ * AST Lowering
  *
- * The Parser produces a right-associative AST_Node tree with no
- * real operator precedence. RValue_Parser walks that tree's expression
- * nodes into the algebraic type from datatype.h, checking lvalues against
- * declared storage along the way. Statement and non-expression nodes are
- * out of scope here - Shunting_Yard (shunting_yard.h) is the next pass,
- * fixing precedence over the Datatype tree this class produces.
+ * The second pass, Parser::AST_Node -> HIR
+ *
+ * The Parser produces a right-associative AST_Node tree with no real
+ * operator precedence. AST_Lowering lowers that tree's expression nodes into
+ * the HIR - a tree of the algebraic Data_Kind type from hir.h - checking
+ * lvalues against declared storage along the way. Statement and
+ * non-expression nodes are out of scope here - Shunting_Yard (precedence.h)
+ * is the next pass, fixing precedence over the HIR this class produces.
  *
  *   B source:  x = 5 + 3 * 2
  *
- *   ast node:  {"node": "assignment",
- *               "left": {"name": "x"},
- *               "right": {"node": "binary_op", "op": "+", ...}}
+ *   ast node:  {"node": "assignment_expression",
+ *               "root": ["="],
+ *               "left": {"node": "lvalue", "root": "x"},
+ *               "right": {"node": "relation_expression",
+ *                         "root": ["+"], ...}}
  *
- *   Datatype:  Assignment(lvalue="x",
- *                        rvalue=BinaryOp(ADD,
- *                                       Literal(5),
- *                                       BinaryOp(MUL, ...)))
+ *   HIR:  Symbol(LValue("x"),
+ *                Relation(B_ADD,
+ *                         Literal(5:int:4),
+ *                         Relation(B_MUL, ...)))
  *
  *****************************************************************************/
 
@@ -52,36 +57,34 @@ namespace credence::language {
 
 /**
  * @brief
- * Second-pass parser: AST_Node expression nodes to the algebraic
- * type in datatype.h, checking lvalue declarations along the way.
+ * Second pass: lowers AST_Node expression nodes into the HIR, the algebraic
+ * Data_Kind type in hir.h, checking lvalue declarations along the way.
  *
- * See datatype.h for details.
+ * See hir.h for details.
  */
-class RValue_Parser
+class AST_Lowering
 {
 
   public:
-    RValue_Parser(RValue_Parser const&) = delete;
-    RValue_Parser& operator=(RValue_Parser const&) = delete;
-
-  private:
-    using RValue = datatype::Datatype;
-    using Literal = datatype::Literal;
+    AST_Lowering(AST_Lowering const&) = delete;
+    AST_Lowering& operator=(AST_Lowering const&) = delete;
+    ~AST_Lowering() = default;
 
   public:
-    using RValue_PTR = datatype::Datatype::Pointer;
+    using Data_Kind = hir::Data_Kind;
+    using Literal = literal::Literal;
     using Node = util::AST_Node;
-    using Parameters = std::vector<RValue_PTR>;
+    using Parameters = std::vector<Data_Kind::Pointer>;
 
   public:
-    explicit RValue_Parser(util::AST_Node const& internal_symbols,
+    explicit AST_Lowering(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols = {})
         : internal_symbols_(internal_symbols)
         , symbols_(symbols)
     {
     }
 
-    explicit RValue_Parser(util::AST_Node const& internal_symbols,
+    explicit AST_Lowering(util::AST_Node const& internal_symbols,
         Symbol_Table<> const& symbols,
         Symbol_Table<> const& globals)
         : internal_symbols_(internal_symbols)
@@ -90,29 +93,22 @@ class RValue_Parser
     {
     }
 
-    ~RValue_Parser() = default;
-
   public:
-    static inline RValue parse(util::AST_Node const& node,
+    static inline Data_Kind lower(util::AST_Node const& node,
         util::AST_Node const& internals,
         Symbol_Table<> const& symbols = {},
         Symbol_Table<> const& globals = {})
     {
-        auto expression = RValue_Parser{ internals, symbols, globals };
-        return expression.parse_from_node(node);
+        auto lowering = AST_Lowering{ internals, symbols, globals };
+        return lowering.lower_from_node(node);
     }
 
   public:
-    RValue parse_from_node(Node const& node);
+    Data_Kind lower_from_node(Node const& node);
 
-    inline RValue_PTR make_expression_pointer_from_ast(Node const& node)
+    inline Data_Kind::Pointer make_expression_pointer_from_ast(Node const& node)
     {
-        return std::make_shared<datatype::Datatype>(parse_from_node(node));
-    }
-
-    inline RValue from_expression_node(Node const& node)
-    {
-        return parse_from_node(node);
+        return std::make_shared<Data_Kind>(lower_from_node(node));
     }
 
   public:
@@ -129,25 +125,25 @@ class RValue_Parser
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_evaluated_expression_node(Node const& node);
-    RValue from_function_expression_node(Node const& node);
+    Data_Kind from_evaluated_expression_node(Node const& node);
+    Data_Kind from_function_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_relation_expression_node(Node const& node);
+    Data_Kind from_relation_expression_node(Node const& node);
 
   private:
-    RValue from_ternary_expression_node(Node const& node);
+    Data_Kind from_ternary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_unary_expression_node(Node const& node);
+    Data_Kind from_unary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue::LValue from_lvalue_expression_node(Node const& node);
+    Data_Kind::LValue from_lvalue_expression_node(Node const& node);
     Literal from_indirect_identifier_node(Node const& node);
     Literal from_vector_idenfitier_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    RValue from_assignment_expression_node(Node const& node);
+    Data_Kind from_assignment_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Literal from_constant_expression_node(Node const& node);
@@ -159,7 +155,7 @@ class RValue_Parser
     Literal from_constant_literal_node(Node const& node);
 
   private:
-    void expression_parser_error(
+    void lowering_error(
         std::string_view message,
         std::string_view symbol,
         std::source_location const& location = std::source_location::current());
@@ -181,14 +177,13 @@ class RValue_Parser
 
 // clang-format on
 
-inline RValue_Parser::RValue_PTR parse_node_as_rvalue(
-    util::AST_Node const& node,
+inline hir::Data_Kind::Pointer lower_node_to_hir(util::AST_Node const& node,
     util::AST_Node const& internals,
     Symbol_Table<> const& symbols = {},
     Symbol_Table<> const& globals = {})
 {
-    return std::make_shared<datatype::Datatype>(
-        RValue_Parser::parse(node, internals, symbols, globals));
+    return std::make_shared<hir::Data_Kind>(
+        AST_Lowering::lower(node, internals, symbols, globals));
 }
 
 } // namespace language

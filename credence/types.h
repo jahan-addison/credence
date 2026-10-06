@@ -30,7 +30,7 @@
 #include <variant>           // for variant
 #include <vector>            // for vector
 
-#include <credence/language/datatype.h> // for Datatype
+#include <credence/language/literal.h> // for Array
 
 /****************************************************************************
  * Type category, string, and numeric utilities
@@ -64,7 +64,7 @@ using Strings = std::set<semantic::RValue>;
 using RValues = Strings;
 using Floats = std::set<float>;
 using Doubles = std::set<double>;
-using Globals = language::datatype::Array;
+using Globals = language::literal::Array;
 using Binary_Expression =
     std::tuple<semantic::RValue, std::string, semantic::RValue>;
 using RValue_Reference_Type = std::variant<semantic::RValue, Data_Type>;

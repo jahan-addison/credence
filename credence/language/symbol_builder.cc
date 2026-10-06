@@ -11,7 +11,7 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include <credence/language/symbol_table.h>
+#include "symbol_builder.h"
 
 #include <easyjson.h> // for JSON
 #include <matchit.h>  // for match, pattern
@@ -26,7 +26,7 @@ namespace m = matchit;
  * Children are visited before their parent acts on them, matching the
  * bottom-up order augur's Lark transform.
  */
-void Symbol_Table_Builder::visit(util::AST_Node const& node)
+void Symbol_Builder::visit(util::AST_Node const& node)
 {
     m::match(node.JSON_type())(
         m::pattern | util::AST_Node::Class::Array =
@@ -64,7 +64,7 @@ void Symbol_Table_Builder::visit(util::AST_Node const& node)
 /**
  * @brief Create a function_definition entry and whether it returns a value
  */
-void Symbol_Table_Builder::visit_function_definition(util::AST_Node const& node)
+void Symbol_Builder::visit_function_definition(util::AST_Node const& node)
 {
     auto name = node["root"].to_string();
     auto body = node["right"]["left"].to_deque();
@@ -82,7 +82,7 @@ void Symbol_Table_Builder::visit_function_definition(util::AST_Node const& node)
 /**
  * @brief Create a vector_definition entry and its size, if given
  */
-void Symbol_Table_Builder::visit_vector_definition(util::AST_Node const& node)
+void Symbol_Builder::visit_vector_definition(util::AST_Node const& node)
 {
     auto name = node["root"].to_string();
     table_[name] = util::AST::object();
@@ -95,7 +95,7 @@ void Symbol_Table_Builder::visit_vector_definition(util::AST_Node const& node)
 /**
  * @brief Create a label entry
  */
-void Symbol_Table_Builder::visit_label_statement(util::AST_Node const& node)
+void Symbol_Builder::visit_label_statement(util::AST_Node const& node)
 {
     auto name = node["left"].to_deque().front().to_string();
     table_[name] = util::AST::object();
@@ -105,7 +105,7 @@ void Symbol_Table_Builder::visit_label_statement(util::AST_Node const& node)
 /**
  * @brief Create a plain lvalue entry the first time a name is referenced
  */
-void Symbol_Table_Builder::visit_lvalue(util::AST_Node const& node)
+void Symbol_Builder::visit_lvalue(util::AST_Node const& node)
 {
     auto name = node["root"].to_string();
     if (!table_.has_key(name)) {
@@ -117,7 +117,7 @@ void Symbol_Table_Builder::visit_lvalue(util::AST_Node const& node)
 /**
  * @brief Resolve a simple lvalue operand's entry to indirect_lvalue
  */
-void Symbol_Table_Builder::visit_indirect_lvalue(util::AST_Node const& node)
+void Symbol_Builder::visit_indirect_lvalue(util::AST_Node const& node)
 {
     auto operand = node["left"];
     if (operand["root"].JSON_type() != util::AST_Node::Class::String)
@@ -134,7 +134,7 @@ void Symbol_Table_Builder::visit_indirect_lvalue(util::AST_Node const& node)
  * string, so unlike indirect_lvalue there is no separate lvalue node left
  * in the tree to have already seeded this entry.
  */
-void Symbol_Table_Builder::visit_vector_lvalue(util::AST_Node const& node)
+void Symbol_Builder::visit_vector_lvalue(util::AST_Node const& node)
 {
     auto name = node["root"].to_string();
     if (!table_.has_key(name)) {

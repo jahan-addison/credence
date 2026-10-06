@@ -13,20 +13,21 @@
 
 #include <credence/ir/ita.h>
 
-#include <credence/error.h>             // for assert_equal_impl, credence_...
-#include <credence/ir/temporary.h>      // for ast_to_ita_instructions
-#include <credence/language/datatype.h> // for datatype_to_string, WORD_LIT...
-#include <credence/language/rvalue.h>   // for RValue_Parser
-#include <credence/symbol.h>            // for Symbol_Table
-#include <credence/types.h>             // for get_unary_operator, is_unary...
-#include <credence/util.h>              // for range_contains, AST_Node
-#include <easyjson.h>                   // for JSON
-#include <fmt/format.h>                 // for format
-#include <initializer_list>             // for initializer_list
-#include <matchit.h>                    // for pattern, PatternHelper, Patt...
-#include <memory>                       // for shared_ptr
-#include <utility>                      // for get, pair, cmp_not_equal
-#include <variant>                      // for monostate, get, variant
+#include <credence/error.h>        // for assert_equal_impl, credence_...
+#include <credence/ir/temporary.h> // for ast_to_ita_instructions
+#include <credence/language/ast_lowering.h> // for AST_Lowering
+#include <credence/language/hir.h>     // for data_kind_to_string, get_kind_name
+#include <credence/language/literal.h> // for WORD_LITERAL, NULL_LITERAL
+#include <credence/symbol.h>           // for Symbol_Table
+#include <credence/types.h>            // for get_unary_operator, is_unary...
+#include <credence/util.h>             // for range_contains, AST_Node
+#include <easyjson.h>                  // for JSON
+#include <fmt/format.h>                // for format
+#include <initializer_list>            // for initializer_list
+#include <matchit.h>                   // for pattern, PatternHelper, Patt...
+#include <memory>                      // for shared_ptr
+#include <utility>                     // for get, pair, cmp_not_equal
+#include <variant>                     // for monostate, get, variant
 
 /****************************************************************************
  * Instruction Tuple Abstraction
@@ -130,7 +131,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
     Parameters parameter_lvalues{};
     auto block = node["right"];
 
-    symbols_.set_symbol_by_name(name, language::datatype::WORD_LITERAL);
+    symbols_.set_symbol_by_name(name, language::literal::WORD_LITERAL);
 
     if (parameters.JSON_type() == util::AST_Node::Class::Array and
         !parameters.to_deque().front().is_null()) {
@@ -141,7 +142,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
                         parameter_lvalues.emplace_back(
                             ident["root"].to_string());
                         symbols_.set_symbol_by_name(ident["root"].to_string(),
-                            language::datatype::NULL_LITERAL);
+                            language::literal::NULL_LITERAL);
                     },
                 m::pattern | "vector_lvalue" =
                     [&] {
@@ -160,7 +161,7 @@ Instructions ITA::build_from_function_definition(Node const& node)
                             "*{}", ident["left"]["root"].to_string())),
                             symbols_.set_symbol_by_name(
                                 ident["left"]["root"].to_string(),
-                                language::datatype::WORD_LITERAL);
+                                language::literal::WORD_LITERAL);
                     });
         }
     }
@@ -219,7 +220,7 @@ void ITA::build_from_vector_definition(Node const& node)
     auto name = node["root"].to_string();
     auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
     auto right_child_node = node["right"];
-    std::vector<language::datatype::Literal> values_at{};
+    std::vector<language::literal::Literal> values_at{};
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
         ita_error(
@@ -234,9 +235,9 @@ void ITA::build_from_vector_definition(Node const& node)
 
     globals_.set_symbol_by_name(name, values_at);
     for (auto& child_node : right_child_node.array_range()) {
-        auto rvalue = language::RValue_Parser::parse(
+        auto rvalue = language::AST_Lowering::lower(
             child_node, internal_symbols_, symbols_, globals_);
-        auto datatype = std::get<language::datatype::Literal>(rvalue.value);
+        auto datatype = std::get<language::literal::Literal>(rvalue.value);
         values_at.emplace_back(datatype);
     }
 
@@ -407,12 +408,12 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
 {
     std::string temp_lvalue{};
     auto rvalue =
-        language::RValue_Parser::parse(block, internal_symbols_, symbols_);
+        language::AST_Lowering::lower(block, internal_symbols_, symbols_);
     auto comparator_instructions = ast_to_ita_instructions(
         symbols_, block, internal_symbols_, &temporary, &identifier)
                                        .first;
 
-    m::match(language::datatype::get_expression_type(rvalue.value))(
+    m::match(language::hir::get_kind_name(rvalue.value))(
         m::pattern | m::or_(std::string{ "relation" },
                          std::string{ "unary" },
                          std::string{ "symbol" },
@@ -426,8 +427,7 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
             [&] {
                 auto rhs = fmt::format("{} {}",
                     detail::instruction_to_string(Instruction::CMP),
-                    language::datatype::datatype_to_string(
-                        rvalue.value, false));
+                    language::hir::data_kind_to_string(rvalue.value, false));
                 auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);
@@ -468,12 +468,12 @@ ITA::Branch_Instructions ITA::build_from_case_statement(Node const& node,
     auto statements = node["right"].to_deque();
     auto case_statement = detail::make_block_statement(statements);
 
-    auto condition = language::RValue_Parser::parse(
+    auto condition = language::AST_Lowering::lower(
         node["left"], internal_symbols_, symbols_);
 
     predicate_instructions.emplace_back(make_quadruple(Instruction::JMP_E,
         switch_label,
-        language::datatype::datatype_to_string(condition.value, false),
+        language::hir::data_kind_to_string(condition.value, false),
         std::get<1>(jump)));
     if (branch.stack.size() > 2) {
         auto jump = tail.value_or(branch.get_parent_branch(true).value());
@@ -639,10 +639,10 @@ Instructions ITA::build_from_goto_statement(Node const& node)
     credence_assert_equal(node["root"].to_string(), "goto");
     credence_assert(node.has_key("left"));
     Instructions instructions{};
-    language::RValue_Parser parser{ internal_symbols_, symbols_ };
+    language::AST_Lowering lowering{ internal_symbols_, symbols_ };
     auto statement = node["left"];
     auto label = statement.to_deque().front().to_string();
-    if (!parser.is_defined(label))
+    if (!lowering.is_defined(label))
         credence_error(
             fmt::format("Error: label \"{}\" does not exist", label));
 
@@ -665,10 +665,10 @@ Instructions ITA::build_from_return_statement(Node const& node)
         symbols_, return_statement, internal_symbols_, &temporary, &identifier);
     ir::insert(instructions, return_instructions.first);
     if (!return_instructions.second.empty() and instructions.empty()) {
-        auto last_rvalue = std::get<language::datatype::Datatype::Type_Pointer>(
+        auto last_rvalue = std::get<language::hir::Data_Kind::Kind_Pointer>(
             return_instructions.second.back());
         instructions.emplace_back(make_quadruple(Instruction::RETURN,
-            language::datatype::datatype_to_string(*last_rvalue),
+            language::hir::data_kind_to_string(*last_rvalue),
             ""));
     } else {
         auto last = instructions[instructions.size() - 1];
@@ -726,7 +726,7 @@ void ITA::build_from_auto_statement(Node const& node,
                     instructions.emplace_back(
                         make_quadruple(Instruction::LOCL, name));
                     symbols_.set_symbol_by_name(
-                        name, language::datatype::NULL_LITERAL);
+                        name, language::literal::NULL_LITERAL);
                 },
             m::pattern | "vector_lvalue" =
                 [&] {
@@ -760,7 +760,7 @@ void ITA::build_from_auto_statement(Node const& node,
                     instructions.emplace_back(make_quadruple(
                         Instruction::LOCL, fmt::format("*{}", name)));
                     symbols_.set_symbol_by_name(
-                        name, language::datatype::WORD_LITERAL);
+                        name, language::literal::WORD_LITERAL);
                 });
     }
 }

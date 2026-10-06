@@ -1,9 +1,10 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
-#include <credence/language/datatype.h> // for RValue, Type_
-#include <credence/language/rvalue.h>   // for RValue_Parser
+#include <credence/language/ast_lowering.h> // for AST_Lowering
+#include <credence/language/hir.h>          // for make_kind_pointer
+#include <credence/language/literal.h>      // for Literal, NULL_LITERAL
 
-#include <credence/language/shunting_yard.h> // for rvalues_to_queue, queue_of_rvalues_to_s...
+#include <credence/language/precedence.h> // for queue_from_expression_operands, queue_of_...
 
 #include <credence/symbol.h> // for Symbol_Table
 #include <easyjson.h>        // for JSON
@@ -13,7 +14,7 @@
 #include <variant>           // for monostate
 #include <vector>            // for vector
 
-TEST_CASE("shunting_yard.cc: rvalues_to_queue")
+TEST_CASE("precedence.cc: queue_from_expression_operands")
 {
     using namespace credence;
     using namespace credence::language::type;
@@ -351,14 +352,14 @@ TEST_CASE("shunting_yard.cc: rvalues_to_queue")
         "    \"root\" : \"exp\"\n                  },\n                  "
         "\"root\" : [\"=\", null]\n                }");
 
-    language::RValue_Parser parser{ obj };
-    language::datatype::Literal null = language::datatype::NULL_LITERAL;
-    parser.symbols_.table_.emplace("x", null);
-    parser.symbols_.table_.emplace("double", null);
-    parser.symbols_.table_.emplace("exp", null);
-    parser.symbols_.table_.emplace("sub", null);
-    parser.symbols_.table_.emplace("puts", null);
-    parser.symbols_.table_.emplace("y", null);
+    language::AST_Lowering lowering{ obj };
+    language::literal::Literal null = language::literal::NULL_LITERAL;
+    lowering.symbols_.table_.emplace("x", null);
+    lowering.symbols_.table_.emplace("double", null);
+    lowering.symbols_.table_.emplace("exp", null);
+    lowering.symbols_.table_.emplace("sub", null);
+    lowering.symbols_.table_.emplace("puts", null);
+    lowering.symbols_.table_.emplace("y", null);
 
     std::string complex_expected =
         "(5:int:4) (5:int:4) * exp _p1_1 (2:int:4) = _p2_2 (5:int:4) = _p1_1 "
@@ -380,104 +381,104 @@ TEST_CASE("shunting_yard.cc: rvalues_to_queue")
         "PUSH CALL = _p4_4 sub _p5_5 (1:int:4) = _p6_6 (2:int:4) = _p5_5 _p6_6 "
         "PUSH PUSH CALL = _p1_1 _p4_4 PUSH PUSH CALL = ";
 
-    std::vector<language::datatype::Array> rvalues{};
-    auto expressions = language::shunting_yard::Expressions{};
+    std::vector<language::literal::Array> rvalues{};
+    auto expressions = language::precedence::Expressions{};
     int parameter = 0;
     int identifier = 0;
-    std::unique_ptr<language::shunting_yard::detail::Shunting_Yard::Container>
+    std::unique_ptr<language::precedence::detail::Shunting_Yard::Container>
         queue{};
     std::string test{};
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["complex"]).value));
-    queue = language::shunting_yard::queue_from_expression_operands(
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["complex"]).value));
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == complex_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["unary"]).value));
-    queue = language::shunting_yard::queue_from_expression_operands(
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["unary"]).value));
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["equal"]).value));
-    queue = language::shunting_yard::queue_from_expression_operands(
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["equal"]).value));
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == equal_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["unary_relation"]).value));
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["unary_relation"]).value));
 
-    queue = language::shunting_yard::queue_from_expression_operands(
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == unary_relation_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["ternary"]).value));
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["ternary"]).value));
 
-    queue = language::shunting_yard::queue_from_expression_operands(
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == ternary_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["function"]).value));
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["function"]).value));
 
-    queue = language::shunting_yard::queue_from_expression_operands(
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == function_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["evaluated"]).value));
-    queue = language::shunting_yard::queue_from_expression_operands(
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["evaluated"]).value));
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["evaluated_2"]).value));
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["evaluated_2"]).value));
 
-    queue = language::shunting_yard::queue_from_expression_operands(
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == evaluated_expected_2);
     expressions.clear();
     parameter = 0;
     identifier = 0;
 
-    expressions.emplace_back(language::datatype::make_value_type_pointer(
-        parser.parse_from_node(obj["functions"]).value));
+    expressions.emplace_back(language::hir::make_kind_pointer(
+        lowering.lower_from_node(obj["functions"]).value));
 
-    queue = language::shunting_yard::queue_from_expression_operands(
+    queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::shunting_yard::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(*queue);
     CHECK(test == functions_expected);
     expressions.clear();
 }
