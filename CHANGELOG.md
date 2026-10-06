@@ -1,3 +1,13 @@
+## [1.3.0] - 2026-10-06
+
+- feat: SIMD whitespace chunk scanner
+
+- chore: designing the memory-safe tagged union
+- chore: update readme
+- chore: update CHANGELOG.md for v1.2.0
+
+- refactor(language): HIR and AST lowering, replacing RValue_Parser, Datatype, and the decision log
+- Merge pull request #15 from jahan-addison/chore/changelog-v1.2.0
 ## [1.2.0] - 2026-07-26
 
 - feat(backend): arm64 argc, argv register selection and alignment improvements
