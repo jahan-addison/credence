@@ -26,12 +26,12 @@
 
 /****************************************************************************
  *
- * Type Data
+ * Type Literal
  *
  * The internal representation of values and types during code translation.
  *
  * We enforce strict typing via type inference by storing all data types
- * assigned through a data structure called internally "Type Data" - the
+ * assigned through a data structure called internally "Type Literal" - the
  * leaves of the HIR in hir.h.
  *
  *  I.e. A tuple of ( Value : Type : Size )
@@ -101,14 +101,5 @@ constexpr bool is_integer_string(std::string_view const& str)
 
 std::string literal_to_string(Literal const& literal,
     std::string_view separator = ":");
-
-template<typename T>
-inline Literal make_literal_value(T value, Size size)
-{
-    static_assert(std::is_constructible_v<Literal, T>,
-        "Error: Type T is not a valid alternative in "
-        "literal::Literal");
-    return std::pair{ std::move(value), std::move(size) };
-}
 
 } // namespace literal

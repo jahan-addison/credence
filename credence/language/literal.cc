@@ -22,12 +22,12 @@
 
 /****************************************************************************
  *
- * Type Data
+ * Type Literal
  *
  * The internal representation of values and types during code translation.
  *
  * We enforce strict typing via type inference by storing all data types
- * assigned through a data structure called internally "Type Data" - the
+ * assigned through a data structure called internally "Type Literal" - the
  * leaves of the HIR in hir.h.
  *
  *  I.e. A tuple of ( Value : Type : Size )

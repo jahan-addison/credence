@@ -34,9 +34,6 @@
  * Function, and LValue. The leaves are the ( Value : Type : Size ) tuple
  * from literal.h.
  *
- * "Type" is kept for the middle of that tuple, the data type of a value.
- * "Kind" is which expression shape a node is.
- *
  *  Example:
  *
  *   main() {

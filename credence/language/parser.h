@@ -108,7 +108,7 @@ class Parser
 
   private:
     // lexer_ must outlive tokens_: Token::lexeme is a string_view into the
-    // buffer it owns (see lexer.h).
+    // buffer it owns
     Lexer lexer_;
     std::vector<Token> tokens_;
     std::size_t pos_{ 0 };
