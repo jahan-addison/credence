@@ -104,10 +104,7 @@ class Shunting_Yard
         std::vector<hir::Data_Kind::Pointer> const& blocks,
         Operator_Stack* operator_stack = nullptr);
 
-    inline std::unique_ptr<Container> get()
-    {
-        return std::make_unique<Container>(queue_);
-    }
+    inline Container& get() { return queue_; }
     ///////////////////////////////////////////////////////////////////////////////
     // Once an expression is fully shunted, its operator stack may still hold
     // operators nothing further will ever compare against (there's no next
@@ -141,13 +138,13 @@ class Shunting_Yard
 
 } // namespace detail;
 
-std::unique_ptr<detail::Shunting_Yard::Container>
-queue_from_expression_operands(Expressions const& items,
+detail::Shunting_Yard::Container queue_from_expression_operands(
+    Expressions const& items,
     int* parameter,
     int* identifier);
 
-std::unique_ptr<detail::Shunting_Yard::Container>
-queue_from_expression_operands(Expression const& item,
+detail::Shunting_Yard::Container queue_from_expression_operands(
+    Expression const& item,
     int* parameter,
     int* identifier);
 

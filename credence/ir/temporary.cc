@@ -729,11 +729,11 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             operands, temporary_index, identifier_index);
         if (queue_dump_stream)
             *queue_dump_stream
-                << language::precedence::queue_of_expressions_to_string(*queue)
+                << language::precedence::queue_of_expressions_to_string(queue)
                 << std::endl;
         auto instructions =
-            queue_to_ita_instructions(*queue, details, temporary_index);
-        return std::make_pair(instructions, *queue);
+            queue_to_ita_instructions(queue, details, temporary_index);
+        return std::make_pair(instructions, queue);
 
     } else {
         auto type_pointer = language::hir::make_kind_pointer(
@@ -742,11 +742,11 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             type_pointer, temporary_index, identifier_index);
         if (queue_dump_stream)
             *queue_dump_stream
-                << language::precedence::queue_of_expressions_to_string(*queue)
+                << language::precedence::queue_of_expressions_to_string(queue)
                 << std::endl;
         auto instructions =
-            queue_to_ita_instructions(*queue, details, temporary_index);
-        return std::make_pair(instructions, *queue);
+            queue_to_ita_instructions(queue, details, temporary_index);
+        return std::make_pair(instructions, queue);
     }
 }
 

@@ -287,8 +287,8 @@ void Shunting_Yard::shunt_expression_pointer_into_queue(
 /**
  * @brief List of expressions to queue of operators and operands
  */
-std::unique_ptr<detail::Shunting_Yard::Container>
-queue_from_expression_operands(Expressions const& items,
+detail::Shunting_Yard::Container queue_from_expression_operands(
+    Expressions const& items,
     int* parameter,
     int* identifier)
 {
@@ -308,8 +308,8 @@ queue_from_expression_operands(Expressions const& items,
 /**
  * @brief Single expression to queue of operators and operands
  */
-std::unique_ptr<detail::Shunting_Yard::Container>
-queue_from_expression_operands(Expression const& item,
+detail::Shunting_Yard::Container queue_from_expression_operands(
+    Expression const& item,
     int* parameter,
     int* identifier)
 {

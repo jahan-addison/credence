@@ -385,15 +385,14 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
     auto expressions = language::precedence::Expressions{};
     int parameter = 0;
     int identifier = 0;
-    std::unique_ptr<language::precedence::detail::Shunting_Yard::Container>
-        queue{};
+    language::precedence::detail::Shunting_Yard::Container queue{};
     std::string test{};
 
     expressions.emplace_back(language::hir::make_kind_pointer(
         lowering.lower_from_node(obj["complex"]).value));
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == complex_expected);
     expressions.clear();
     parameter = 0;
@@ -403,7 +402,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
         lowering.lower_from_node(obj["unary"]).value));
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == unary_expected);
     expressions.clear();
     parameter = 0;
@@ -413,7 +412,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
         lowering.lower_from_node(obj["equal"]).value));
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == equal_expected);
     expressions.clear();
     parameter = 0;
@@ -424,7 +423,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
 
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == unary_relation_expected);
     expressions.clear();
     parameter = 0;
@@ -435,7 +434,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
 
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == ternary_expected);
     expressions.clear();
     parameter = 0;
@@ -446,7 +445,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
 
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == function_expected);
     expressions.clear();
     parameter = 0;
@@ -456,7 +455,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
         lowering.lower_from_node(obj["evaluated"]).value));
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == evaluated_expected);
     expressions.clear();
     parameter = 0;
@@ -467,7 +466,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
 
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == evaluated_expected_2);
     expressions.clear();
     parameter = 0;
@@ -478,7 +477,7 @@ TEST_CASE("precedence.cc: queue_from_expression_operands")
 
     queue = language::precedence::queue_from_expression_operands(
         expressions, &parameter, &identifier);
-    test = language::precedence::queue_of_expressions_to_string(*queue);
+    test = language::precedence::queue_of_expressions_to_string(queue);
     CHECK(test == functions_expected);
     expressions.clear();
 }
