@@ -13,18 +13,18 @@
 
 #include "runtime.h"
 
-#include "credence/ir/object.h" // for Function
-#include "easyjson.h"           // for JSON, object
-#include "stack_frame.h"        // for Stack_Frame
-#include "syscall.h"            // for get_platform_syscall_symbols
-#include "types.h"              // for Label
-#include <algorithm>            // for __find, find
-#include <array>                // for array
-#include <credence/error.h>     // for assert_equal_impl, credence_assert_e...
-#include <credence/types.h>     // for Label
-#include <credence/util.h>      // for AST_Node, AST, __source__
-#include <string>               // for basic_string, string, operator==
-#include <string_view>          // for basic_string_view
+#include "easyjson.h"       // for JSON, object
+#include "stack_frame.h"    // for Stack_Frame
+#include "syscall.h"        // for get_platform_syscall_symbols
+#include "types.h"          // for Label
+#include <algorithm>        // for __find, find
+#include <array>            // for array
+#include <credence/error.h> // for assert_equal_impl, credence_assert_e...
+#include <credence/language/hir/binding.h> // for Function
+#include <credence/types.h>                // for Label
+#include <credence/util.h>                 // for AST_Node, AST, __source__
+#include <string>      // for basic_string, string, operator==
+#include <string_view> // for basic_string_view
 
 /****************************************************************************
  *
@@ -101,16 +101,16 @@ std::pair<bool, bool> argc_argv_kernel_runtime_access(
     memory::Stack_Frame& stack_frame)
 {
     credence_assert_equal(stack_frame.symbol, "main");
-    auto entry_point = stack_frame.get_stack_frame("main");
-    if (entry_point->get_parameters().size() > 2)
+    auto& entry_point = stack_frame.get_stack_frame("main");
+    if (entry_point.parameters.size() > 2)
         throw_runtime_error("invalid argument count, expected at most two for "
                             "'argc' and 'argv'",
             "main",
             __source__,
             "program invocation");
 
-    auto main_argc = entry_point->get_parameters().size() >= 1;
-    auto main_argv = entry_point->get_parameters().size() == 2;
+    auto main_argc = entry_point.parameters.size() >= 1;
+    auto main_argv = entry_point.parameters.size() == 2;
 
     return { main_argc, main_argv };
 }

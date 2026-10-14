@@ -644,3 +644,16 @@ constexpr std::string is_temporary_operand_binary_expression(
 }
 
 } // namespace type
+
+namespace credence {
+
+/**
+ * Semantic scaler types used throughout the compiler
+ */
+using LValue = type::semantic::LValue;
+using Type = type::semantic::Type;
+using Size = type::semantic::Size;
+using RValue = type::semantic::RValue;
+using Label = type::semantic::Label;
+
+} // namespace credence

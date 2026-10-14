@@ -16,7 +16,7 @@
 #include "assembly.h"                           // for Register, Instructions
 #include "memory.h"                             // for Memory_Access, Stack...
 #include "stack.h"                              // for Stack
-#include <credence/ir/object.h>                 // for Object_PTR
+#include <credence/language/hir/binding.h>      // for Object_Table
 #include <credence/target/common/runtime.h>     // for address_t, library_a...
 #include <credence/target/common/stack_frame.h> // for Locals
 #include <cstddef>                              // for size_t

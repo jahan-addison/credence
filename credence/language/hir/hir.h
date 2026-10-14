@@ -13,8 +13,8 @@
 
 #pragma once
 
-#include "literal.h"       // for Literal, Array, WORD_LITERAL
-#include "operators.h"     // for Operator
+#include "../literal.h"    // for Literal, Array, WORD_LITERAL
+#include "../operators.h"  // for Operator
 #include <credence/util.h> // for overload
 #include <memory>          // for shared_ptr, make_shared
 #include <string>          // for basic_string, string

@@ -18,7 +18,7 @@
 #include "credence/types.h"                     // for get_rvalue_datatype_...
 #include "memory.h"                             // for Memory_Accessor, Sto...
 #include "visitor.h"                            // for IR_Instruction_Visitor
-#include <credence/ir/object.h>                 // for RValue, LValue, Func...
+#include <credence/language/hir/binding.h>      // for RValue, LValue, Func...
 #include <credence/target/common/inserter.h>    // for Arithemtic_Operator_...
 #include <credence/target/common/stack_frame.h> // for Locals
 #include <deque>                                // for deque
@@ -253,7 +253,7 @@ struct Expression_Inserter : public ARM64_Expression_Inserter
     void insert_lvalue_from_return_rvalue(LValue const& lvalue);
     void insert_from_temporary_rvalue(RValue const& rvalue) override;
     void insert_from_return_rvalue(
-        ir::object::Function::Return_RValue const& ret) override;
+        language::hir::binding::Function::Return_RValue const& ret) override;
 
     void insert_from_address_of_rvalue(RValue const& rvalue);
 

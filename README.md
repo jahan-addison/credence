@@ -14,7 +14,7 @@
 
 The compiler works in 3 stages:
 
-* A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h), whose expressions are lowered into a [High Level Intermediate Representation or HIR](/credence/language/hir.h) - a tree of expression kinds with `(value:type:size)` tuples
+* A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h), whose expressions are lowered into a [High Level Intermediate Representation or HIR](/credence/language/hir/hir.h) - a tree of expression kinds with `(value:type:size)` tuples
     * See details [here](/credence/language/README.md)
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
     * See details [here](/credence/ir/README.md)

@@ -13,29 +13,30 @@
 
 #include <credence/ir/table.h>
 
-#include <array>                   // for array
-#include <credence/error.h>        // for credence_assert
-#include <credence/ir/checker.h>   // for Type_Checker
-#include <credence/ir/ita.h>       // for Instruction, Quadruple, emit
-#include <credence/ir/object.h>    // for Object, Function, LValue
-#include <credence/language/hir.h> // for data_kind_to_string
-#include <credence/map.h>          // for Ordered_Map
-#include <credence/symbol.h>       // for Symbol_Table
-#include <credence/types.h>        // for get_rvalue_datatype_from_string
-#include <credence/util.h>         // for contains, AST_Node, str_trim_ws
-#include <cstddef>                 // for size_t
-#include <deque>                   // for deque
-#include <easyjson.h>              // for JSON
-#include <fmt/format.h>            // for format
-#include <limits>                  // for numeric_limits
-#include <map>                     // for operator!=
-#include <matchit.h>               // for pattern, PatternHelper, Patt...
-#include <optional>                // for optional
-#include <string>                  // for basic_string, char_traits
-#include <string_view>             // for basic_string_view, string_view
-#include <tuple>                   // for get, tuple, operator==
-#include <utility>                 // for pair, get
-#include <vector>                  // for vector
+#include <algorithm>                       // for find_if
+#include <array>                           // for array
+#include <credence/error.h>                // for credence_assert
+#include <credence/ir/ita.h>               // for Instruction, Quadruple, emit
+#include <credence/language/hir/binding.h> // for Object, Function, LValue
+#include <credence/language/hir/checker.h> // for Pointer_Vector_Decay_Checker
+#include <credence/language/hir/hir.h>     // for data_kind_to_string
+#include <credence/map.h>                  // for Ordered_Map
+#include <credence/symbol.h>               // for Symbol_Table
+#include <credence/types.h> // for get_rvalue_datatype_from_string
+#include <credence/util.h>  // for contains, AST_Node, str_trim_ws
+#include <cstddef>          // for size_t
+#include <deque>            // for deque
+#include <easyjson.h>       // for JSON
+#include <fmt/format.h>     // for format
+#include <limits>           // for numeric_limits
+#include <map>              // for operator!=
+#include <matchit.h>        // for pattern, PatternHelper, Patt...
+#include <optional>         // for optional
+#include <string>           // for basic_string, char_traits
+#include <string_view>      // for basic_string_view, string_view
+#include <tuple>            // for get, tuple, operator==
+#include <utility>          // for pair, get
+#include <vector>           // for vector
 
 /****************************************************************************
  * Table
@@ -43,7 +44,7 @@
  * Table constructor for language objects. A visitor pattern on ITA instructions
  * to construct the object table of a program, including function frames,
  * vectors, locals, and globals. In addition, performs type checking on all
- * assignments. The result is stored in an ir::object::Object for backend
+ * assignments. The result is stored in an binding::Object_Table for backend
  * passes.
  *
  *  Example table construction:
@@ -139,18 +140,17 @@ void Table::build_from_ir_instructions()
  */
 void Table::build_vector_definitions_from_symbols()
 {
-    auto& hoisted_symbols = objects_->get_hoisted_symbols();
+    auto& hoisted_symbols = objects_->hoisted_symbols;
     auto keys = hoisted_symbols.dump_keys();
     for (LValue const& key : keys) {
         auto symbol_type = hoisted_symbols[key]["type"].to_string();
         if (symbol_type == "vector_lvalue") {
             auto size =
                 static_cast<std::size_t>(hoisted_symbols[key]["size"].to_int());
-            if (size > object::Vector::max_size)
+            if (size > binding::Vector::max_size)
                 throw_object_type_error("stack overflow", key);
-            if (!objects_->get_vectors().contains(key))
-                objects_->get_vectors()[key] = std::make_shared<object::Vector>(
-                    object::Vector{ key, size });
+            if (!objects_->vectors.contains(key))
+                objects_->set_vector_definition(key, size);
         }
     }
 }
@@ -161,13 +161,12 @@ void Table::build_vector_definitions_from_symbols()
 void Table::from_locl_ita_instruction(Quadruple const& instruction)
 {
     auto label = std::get<1>(instruction);
-    auto frame = objects_->get_stack_frame();
+    auto& frame = objects_->get_stack_frame();
     if (std::get<1>(instruction).starts_with("*")) {
         label = std::get<1>(instruction);
-        frame->get_locals().set_symbol_by_name(label.substr(1), "NULL");
+        frame.locals.set_symbol_by_name(label.substr(1), "NULL");
     } else
-        frame->get_locals().set_symbol_by_name(
-            label, type::NULL_RVALUE_LITERAL);
+        frame.locals.set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
 }
 
 /**
@@ -176,10 +175,10 @@ void Table::from_locl_ita_instruction(Quadruple const& instruction)
 void Table::from_return_instruction(Quadruple const& instruction)
 {
     auto return_rvalue = util::str_trim_ws(std::get<1>(instruction));
-    auto frame = objects_->get_stack_frame();
-    if (frame->get_ret().has_value())
+    auto& frame = objects_->get_stack_frame();
+    if (frame.ret.has_value())
         throw_object_type_error("invalid return statement", return_rvalue);
-    object::set_stack_frame_return_value(return_rvalue, frame, objects_);
+    binding::set_stack_frame_return_value(return_rvalue, frame, *objects_);
 }
 
 /**
@@ -187,11 +186,11 @@ void Table::from_return_instruction(Quadruple const& instruction)
  */
 void Table::from_globl_ita_instruction(Label const& label)
 {
-    if (!objects_->get_vectors().contains(label))
+    if (!objects_->vectors.contains(label))
         throw_object_type_error(
             "extrn statement failed, identifier does not exist", label);
-    auto frame = objects_->get_stack_frame();
-    frame->get_locals().set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
+    auto& frame = objects_->get_stack_frame();
+    frame.locals.set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
 }
 
 /**
@@ -199,20 +198,19 @@ void Table::from_globl_ita_instruction(Label const& label)
  */
 void Table::build_vector_definitions_from_globals()
 {
-    auto& globals = objects_->get_globals();
+    auto& globals = objects_->globals;
     if (!globals.empty())
         for (auto i = globals.begin_t(); i != globals.end_t(); i++) {
             std::size_t index = 0;
             auto symbol = *i;
-            objects_->get_vectors()[symbol.first] =
-                std::make_shared<object::Vector>(
-                    object::Vector{ symbol.first, symbol.second.size() });
+            auto& vector = objects_->set_vector_definition(
+                symbol.first, symbol.second.size());
             for (auto const& item : symbol.second) {
                 auto key = std::to_string(index++);
                 auto value = type::get_rvalue_datatype_from_string(
                     language::hir::data_kind_to_string(item, false));
                 insert_address_storage_rvalue(value);
-                objects_->get_vectors()[symbol.first]->get_data()[key] = value;
+                vector.data[key] = value;
             }
         }
 }
@@ -231,11 +229,11 @@ void Table::from_label_ita_instruction(Quadruple const& instruction)
 {
     Label label = std::get<1>(instruction);
     if (objects_->is_stack_frame()) {
-        auto frame = objects_->get_stack_frame();
-        if (frame->get_labels().contains(label))
+        auto& frame = objects_->get_stack_frame();
+        if (frame.labels.contains(label))
             throw_object_type_error("label is already defined", label);
-        frame->get_labels().emplace(label);
-        frame->get_label_address().set_symbol_by_name(label, instruction_index);
+        frame.labels.emplace(label);
+        frame.label_address.set_symbol_by_name(label, instruction_index);
     }
 }
 
@@ -257,9 +255,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
     LValue lhs = std::get<1>(instruction);
     auto rvalue = get_rvalue_from_mov_qaudruple(instruction);
     RValue rhs = rvalue.first;
-    auto frame = objects_->get_stack_frame();
-
-    auto type_checker = Type_Checker{ objects_, frame };
+    auto& frame = objects_->get_stack_frame();
 
     if (lhs.starts_with("_t") or lhs.starts_with("_p")) {
         from_temporary_assignment(lhs, rhs);
@@ -270,12 +266,12 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
         from_temporary_reassignment(lhs, rhs);
         return;
     }
-    if (type_checker.is_vector_or_pointer(lhs) or
-        type_checker.is_vector_or_pointer(rhs) or rvalue.second == "&") {
+    if (objects_->is_vector_or_pointer(lhs) or
+        objects_->is_vector_or_pointer(rhs) or rvalue.second == "&") {
         from_pointer_or_vector_assignment(lhs, rhs);
         return;
     }
-    if (objects_->get_hoisted_symbols().has_key(rhs)) {
+    if (objects_->hoisted_symbols.has_key(rhs)) {
         from_scaler_symbol_assignment(lhs, rhs);
         return;
     }
@@ -305,8 +301,8 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
             fmt::format("right-hand-side exceeds maximum byte size '{}'", rhs),
             lhs);
 
-    frame->get_locals().set_symbol_by_name(lhs, rvalue_symbol);
-    frame->get_allocation() += size;
+    frame.locals.set_symbol_by_name(lhs, rvalue_symbol);
+    frame.allocation += size;
 
     insert_address_storage_rvalue(rvalue_symbol);
 }
@@ -318,28 +314,22 @@ void Table::insert_address_storage_rvalue(RValue const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
-        objects_->get_floats().insert(
-            type::get_value_from_rvalue_data_type(rvalue));
+        objects_->floats.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "double")
-        objects_->get_doubles().insert(
-            type::get_value_from_rvalue_data_type(rvalue));
+        objects_->doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "string")
-        objects_->get_strings().insert(
-            type::get_value_from_rvalue_data_type(rvalue));
+        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }
 
 void Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
-        objects_->get_floats().insert(
-            type::get_value_from_rvalue_data_type(rvalue));
+        objects_->floats.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "double")
-        objects_->get_doubles().insert(
-            type::get_value_from_rvalue_data_type(rvalue));
+        objects_->doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
     if (type == "string")
-        objects_->get_strings().insert(
-            type::get_value_from_rvalue_data_type(rvalue));
+        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }
 
 /**
@@ -366,11 +356,14 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
     bool indirection)
 {
     auto& locals = objects_->get_stack_frame_symbols();
-    auto& vectors = objects_->get_vectors();
-    auto frame = objects_->get_stack_frame();
+    auto& vectors = objects_->vectors;
+    auto& frame = objects_->get_stack_frame();
     std::string rhs_lvalue{};
 
-    auto type_checker = Type_Checker{ objects_, frame };
+    auto pointer_vector_decay =
+        language::hir::checking::Pointer_Vector_Decay_Checker{ *objects_ };
+    auto trivial_type =
+        language::hir::checking::Trivial_Type_Assignment_Checker{ *objects_ };
 
     std::optional<type::Data_Type> rvalue_symbol;
 
@@ -382,31 +375,31 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
         auto safe_rvalue = type::get_unary_rvalue_reference(rhs_lvalue);
         auto offset = type::from_decay_offset(rvalue);
 
-        type_checker.is_boundary_out_of_range(
+        pointer_vector_decay.is_boundary_out_of_range(
             type::get_unary_rvalue_reference(rvalue));
 
-        if (!frame->is_scaler_parameter(offset) and
+        if (!frame.is_scaler_parameter(offset) and
             not locals.is_defined(offset) and
             (!vectors.contains(safe_rvalue) or
-                not vectors[safe_rvalue]->get_data().contains(offset)))
+                not vectors.at(safe_rvalue).get().data.contains(offset)))
             throw_object_type_error(
                 fmt::format("invalid vector assignment, element at '{}' "
                             "does not exist",
                     offset),
                 rvalue);
-        type_checker.type_safe_assign_pointer_or_vector_lvalue(
+        pointer_vector_decay.type_safe_assign_pointer_or_vector_lvalue(
             lvalue, rvalue, indirection);
         return;
     }
 
     // if the left-hand-side is a normal vector:
     if (util::contains(lvalue, "[")) {
-        type_checker.is_boundary_out_of_range(lvalue);
+        pointer_vector_decay.is_boundary_out_of_range(lvalue);
         auto lhs_lvalue = type::from_lvalue_offset(lvalue);
         auto offset = type::from_decay_offset(lvalue);
         // the rhs is a vector too, check accessed types
         if (rvalue_symbol.has_value()) {
-            if (!type_checker.lhs_rhs_type_is_equal(
+            if (!trivial_type.lhs_rhs_type_is_equal(
                     lhs_lvalue, rvalue_symbol.value()))
                 throw_object_type_error(
                     fmt::format("invalid lvalue assignment, "
@@ -414,11 +407,11 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
                                 "with "
                                 "type {} is not the same type ({})",
                         rvalue,
-                        type_checker.get_type_from_rvalue_data_type(lvalue),
+                        objects_->get_type_from_object_data_type(lvalue),
                         type::get_type_from_rvalue_data_type(
                             rvalue_symbol.value())),
                     lvalue);
-            vectors[lhs_lvalue]->get_data()[offset] = rvalue_symbol.value();
+            vectors.at(lhs_lvalue).get().data[offset] = rvalue_symbol.value();
         } else {
             // is the rhs a scaler rvalue? e.g. (10:"int":4UL)
             if (type::is_rvalue_data_type(rvalue)) {
@@ -426,7 +419,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
                 auto value = type::get_rvalue_datatype_from_string(rvalue);
                 insert_address_storage_rvalue(value);
                 if (vectors.contains(lhs_lvalue))
-                    vectors[lhs_lvalue]->get_data()[offset] =
+                    vectors.at(lhs_lvalue).get().data[offset] =
                         type::get_rvalue_datatype_from_string(rvalue);
             }
         }
@@ -447,10 +440,10 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
         return;
     }
     if (!rvalue_symbol.has_value())
-        type_checker.type_safe_assign_pointer_or_vector_lvalue(
+        pointer_vector_decay.type_safe_assign_pointer_or_vector_lvalue(
             lvalue, rvalue, indirection);
     else
-        type_checker.type_safe_assign_pointer_or_vector_lvalue(
+        pointer_vector_decay.type_safe_assign_pointer_or_vector_lvalue(
             lvalue, rvalue_symbol.value(), indirection);
 }
 
@@ -464,8 +457,8 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
 void Table::from_trivial_vector_assignment(LValue const& lhs,
     type::Data_Type const& rvalue)
 {
-    if (objects_->get_vectors().contains(lhs)) {
-        objects_->get_vectors()[lhs]->get_data()["0"] = rvalue;
+    if (objects_->vectors.contains(lhs)) {
+        objects_->vectors.at(lhs).get().data["0"] = rvalue;
     }
 }
 
@@ -476,18 +469,14 @@ void Table::from_trivial_vector_assignment(LValue const& lhs,
 void Table::from_func_start_ita_instruction(Label const& label)
 {
     Label human_label = type::get_label_as_human_readable(label);
-    objects_->get_address_table().set_symbol_by_name(
-        label, instruction_index - 1);
-    if (objects_->get_labels().contains(human_label))
+    objects_->address_table.set_symbol_by_name(label, instruction_index - 1);
+    if (objects_->labels.contains(human_label))
         throw_object_type_error("function name already exists", human_label);
 
-    objects_->get_functions()[human_label] =
-        std::make_shared<object::Function>(object::Function{ human_label });
-    objects_->get_functions()[human_label]->get_address_location()[0] =
-        instruction_index + 1;
-    objects_->get_functions()[human_label]->set_parameters_from_symbolic_label(
-        label);
-    objects_->get_labels().emplace(human_label);
+    auto& frame = objects_->set_function_definition(human_label);
+    frame.address_location[0] = instruction_index + 1;
+    frame.set_parameters_from_symbolic_label(label);
+    objects_->labels.emplace(human_label);
     objects_->set_stack_frame(human_label);
 }
 
@@ -497,8 +486,7 @@ void Table::from_func_start_ita_instruction(Label const& label)
 void Table::from_func_end_ita_instruction()
 {
     if (objects_->is_stack_frame())
-        objects_->get_stack_frame()->get_address_location()[1] =
-            instruction_index - 1;
+        objects_->get_stack_frame().address_location[1] = instruction_index - 1;
 
     objects_->reset_stack_frame();
 }
@@ -509,10 +497,10 @@ void Table::from_func_end_ita_instruction()
 void Table::from_push_instruction(Quadruple const& instruction)
 {
     RValue operand = std::get<1>(instruction);
-    auto frame = objects_->get_stack_frame();
+    auto& frame = objects_->get_stack_frame();
     if (objects_->is_stack_frame()) {
         temporary_parameter_stack.emplace_back(operand);
-        objects_->get_stack().emplace_back(frame->get_temporary().at(operand));
+        objects_->stack.emplace_back(frame.temporary.at(operand));
     }
 }
 
@@ -523,7 +511,7 @@ void Table::from_pop_instruction(Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
-    credence_assert(pop_size <= objects_->get_stack().size());
+    credence_assert(pop_size <= objects_->stack.size());
 }
 
 /**
@@ -589,14 +577,13 @@ type::Data_Type Table::from_rvalue_unary_expression(LValue const& lvalue,
  */
 void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
 {
-    auto frame = objects_->get_stack_frame();
+    auto& frame = objects_->get_stack_frame();
     auto& locals = objects_->get_stack_frame_symbols();
     auto rvalue = objects_->lvalue_at_temporary_object_address(rhs, frame);
-    auto type_checker = Type_Checker{ objects_, frame };
     if (locals.is_pointer(lhs) and rvalue == "RET") {
         locals.set_symbol_by_name(lhs, "RET");
     }
-    if (type_checker.is_vector_or_pointer(rvalue)) {
+    if (objects_->is_vector_or_pointer(rvalue)) {
         from_pointer_or_vector_assignment(lhs, rvalue);
         return;
     }
@@ -627,10 +614,10 @@ void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
  */
 void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
 {
-    auto frame = objects_->get_stack_frame();
-    frame->get_temporary()[lhs] = rhs;
+    auto& frame = objects_->get_stack_frame();
+    frame.temporary[lhs] = rhs;
     if (lhs.starts_with("_p"))
-        frame->get_locals().set_symbol_by_name(lhs, rhs);
+        frame.locals.set_symbol_by_name(lhs, rhs);
     if (type::is_rvalue_data_type(rhs)) {
         auto data_type = type::get_rvalue_datatype_from_string(rhs);
         insert_address_storage_rvalue(data_type);
@@ -644,10 +631,10 @@ void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
  */
 void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
 {
-    auto frame = objects_->get_stack_frame();
     auto& locals = objects_->get_stack_frame_symbols();
 
-    auto type_checker = Type_Checker{ objects_, frame };
+    auto value_type =
+        language::hir::checking::Value_Type_Assignment_Checker{ *objects_ };
 
     if (!locals.is_defined(lhs))
         throw_object_type_error(
@@ -663,7 +650,7 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
                 rhs),
             lhs);
 
-    type_checker.type_invalid_assignment_check(lhs, rhs);
+    value_type.type_invalid_assignment_check(lhs, rhs);
     locals.set_symbol_by_name(lhs, locals.get_symbol_by_name(rhs));
 }
 
@@ -674,14 +661,14 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
  */
 type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
 {
-    auto frame = objects_->get_stack_frame();
+    auto& frame = objects_->get_stack_frame();
     auto& locals = objects_->get_stack_frame_symbols();
 
-    auto type_checker = Type_Checker{ objects_, frame };
+    auto trivial_type =
+        language::hir::checking::Trivial_Type_Assignment_Checker{ *objects_ };
 
     auto rvalue = type::get_unary_rvalue_reference(lvalue);
-    if (!locals.is_defined(rvalue) and
-        not frame->get_temporary().contains(rvalue))
+    if (!locals.is_defined(rvalue) and not frame.temporary.contains(rvalue))
         throw_object_type_error(
             fmt::format(
                 "invalid numeric unary expression, lvalue symbol '{}' is "
@@ -690,13 +677,13 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                 rvalue),
             lvalue);
 
-    if (frame->get_temporary().contains(lvalue)) {
+    if (frame.temporary.contains(lvalue)) {
         auto temp_rvalue =
-            type::get_unary_rvalue_reference(frame->get_temporary()[lvalue]);
+            type::get_unary_rvalue_reference(frame.temporary[lvalue]);
         credence_assert(type::is_rvalue_data_type(temp_rvalue));
         auto rdt = type::get_rvalue_datatype_from_string(temp_rvalue);
-        type_checker.assert_integral_unary_expression(
-            frame->get_temporary()[lvalue], std::get<1>(rdt));
+        trivial_type.assert_integral_unary_expression(
+            frame.temporary[lvalue], std::get<1>(rdt));
         return rdt;
     } else {
         auto symbol = locals.get_symbol_by_name(rvalue);
@@ -720,20 +707,36 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                 auto lvalue_type =
                     type::get_type_from_rvalue_data_type(lvalue_symbol);
                 if (lvalue_type != "word")
-                    type_checker.assert_integral_unary_expression(
+                    trivial_type.assert_integral_unary_expression(
                         local_rvalue_reference, std::get<1>(lvalue_symbol));
                 return local_rvalue;
             }
             if (type::get_type_from_rvalue_data_type(symbol) != "word")
-                type_checker.assert_integral_unary_expression(
+                trivial_type.assert_integral_unary_expression(
                     std::get<0>(locals.get_symbol_by_name(rvalue)),
                     std::get<1>(local_rvalue));
             return local_rvalue;
         } else {
-            type_checker.assert_integral_unary_expression(rvalue, type);
+            trivial_type.assert_integral_unary_expression(rvalue, type);
         }
         return locals.get_symbol_by_name(rvalue);
     }
+}
+
+/**
+ * @brief Search the ir instructions in a stack frame for a call instruction
+ */
+bool stack_frame_contains_call_instruction(binding::Function const& frame,
+    Instructions const& instructions)
+{
+    auto end = instructions.begin() + frame.address_location[1];
+    auto search =
+        std::ranges::find_if(instructions.begin() + frame.address_location[0],
+            end,
+            [&](Quadruple const& quad) {
+                return std::get<0>(quad) == Instruction::CALL;
+            });
+    return search != end;
 }
 
 } // namespace ir

@@ -13,19 +13,19 @@
 
 #pragma once
 
-#include "assembly.h"                     // for Mnemonic, arm_mn, Directives
-#include "memory.h"                       // for Memory_Access, Mnemonic
-#include "stack.h"                        // for Stack
-#include <credence/ir/ita.h>              // for Instructions
-#include <credence/ir/object.h>           // for Label, Object, RValue
-#include <credence/target/common/flags.h> // for flags
-#include <credence/util.h>                // for AST_Node, CREDENCE_PRIVATE...
-#include <cstddef>                        // for size_t
-#include <deque>                          // for deque
-#include <ostream>                        // for ostream
-#include <string>                         // for basic_string, string
-#include <utility>                        // for move
-#include <variant>                        // for variant
+#include "assembly.h"                      // for Mnemonic, arm_mn, Directives
+#include "memory.h"                        // for Memory_Access, Mnemonic
+#include "stack.h"                         // for Stack
+#include <credence/ir/ita.h>               // for Instructions
+#include <credence/language/hir/binding.h> // for Label, Object, RValue
+#include <credence/target/common/flags.h>  // for flags
+#include <credence/util.h>                 // for AST_Node, CREDENCE_PRIVATE...
+#include <cstddef>                         // for size_t
+#include <deque>                           // for deque
+#include <ostream>                         // for ostream
+#include <string>                          // for basic_string, string
+#include <utility>                         // for move
+#include <variant>                         // for variant
 
 /****************************************************************************
  *
@@ -283,8 +283,7 @@ class Assembly_Emitter
     explicit Assembly_Emitter(memory::Memory_Access accessor)
         : accessor_(std::move(accessor))
     {
-        ir_instructions_ =
-            *accessor_->table_accessor.get_table()->get_ir_instructions();
+        ir_instructions_ = accessor_->table_accessor.get_ir_instructions();
     }
 
   public:

@@ -14,7 +14,7 @@
 #include "stack.h"
 #include "assembly.h"                      // for Operand_Size, get_size_fr...
 #include <algorithm>                       // for find_if, __find_if
-#include <credence/ir/object.h>            // for LValue, Size, Vector, Type
+#include <credence/language/hir/binding.h> // for LValue, Size, Vector, Type
 #include <credence/map.h>                  // for Ordered_Map
 #include <credence/target/common/memory.h> // for align_up_to
 #include <credence/target/common/types.h>  // for base_stack_pointer
@@ -289,15 +289,15 @@ class Stack::Stack_IMPL
     common::Stack_Offset get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
-        ir::object::Vector const& vector)
+        language::hir::binding::Vector const& vector)
     {
         bool search{ false };
         auto vector_offset = get(lvalue).first;
-        return std::accumulate(vector.get_data().begin(),
-            vector.get_data().end(),
+        return std::accumulate(vector.data.begin(),
+            vector.data.end(),
             vector_offset,
             [&](type::semantic::Size offset,
-                ir::object::Vector::Entry const& entry) {
+                language::hir::binding::Vector::Entry const& entry) {
                 if (entry.first == key)
                     search = true;
                 if (!search)
@@ -309,14 +309,15 @@ class Stack::Stack_IMPL
     /**
      * @brief Get the size of a vector
      */
-    Size get_stack_size_from_table_vector(ir::object::Vector const& vector)
+    Size get_stack_size_from_table_vector(
+        language::hir::binding::Vector const& vector)
     {
-        return 16UL + std::accumulate(vector.get_data().begin(),
-                          vector.get_data().end(),
+        return 16UL + std::accumulate(vector.data.begin(),
+                          vector.data.end(),
                           0UL,
                           [&](type::semantic::Size offset,
-                              [[maybe_unused]] ir::object::Vector::Entry const&
-                                  entry) { return offset + 8UL; });
+                              [[maybe_unused]] language::hir::binding::Vector::
+                                  Entry const& entry) { return offset + 8UL; });
     }
 
     constexpr Size get_offset_from_pushdown_stack()
@@ -485,11 +486,12 @@ void Stack::set_stack_frame_allocation_size(Label const& label)
 common::Stack_Offset Stack::get_stack_offset_from_table_vector_index(
     LValue const& lvalue,
     std::string const& key,
-    ir::object::Vector const& vector)
+    language::hir::binding::Vector const& vector)
 {
     return pimpl->get_stack_offset_from_table_vector_index(lvalue, key, vector);
 }
-Size Stack::get_stack_size_from_table_vector(ir::object::Vector const& vector)
+Size Stack::get_stack_size_from_table_vector(
+    language::hir::binding::Vector const& vector)
 {
     return pimpl->get_stack_size_from_table_vector(vector);
 }

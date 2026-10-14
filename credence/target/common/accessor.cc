@@ -15,7 +15,7 @@
 #include "types.h"                              // for RValue, Table_Pointer
 #include <credence/error.h>                     // for credence_assert, thr...
 #include <credence/ir/ita.h>                    // for Instruction
-#include <credence/ir/object.h>                 // for Object, Function
+#include <credence/language/hir/binding.h>      // for Object, Function
 #include <credence/language/literal.h>          // for is_integer_string
 #include <credence/target/common/memory.h>      // for is_vector_offset
 #include <credence/target/common/stack_frame.h> // for Stack_Frame, Locals
@@ -46,7 +46,7 @@ namespace credence::target::common::memory {
 
 struct Memory_Accessor::impl
 {
-    explicit impl(std::shared_ptr<ir::object::Object> obj)
+    explicit impl(std::shared_ptr<language::hir::binding::Object_Table> obj)
         : objects(std::move(obj))
         , stack_frame(objects)
     {
@@ -56,11 +56,12 @@ struct Memory_Accessor::impl
         , stack_frame(other.objects)
     {
     }
-    std::shared_ptr<ir::object::Object> objects;
+    std::shared_ptr<language::hir::binding::Object_Table> objects;
     Stack_Frame stack_frame;
 };
 
-Memory_Accessor::Memory_Accessor(std::shared_ptr<ir::object::Object> objects)
+Memory_Accessor::Memory_Accessor(
+    std::shared_ptr<language::hir::binding::Object_Table> objects)
     : pimpl(std::make_unique<impl>(std::move(objects)))
 {
 }
@@ -100,16 +101,19 @@ Buffer_Accessor::~Buffer_Accessor() = default;
 
 struct Table_Accessor::impl
 {
-    impl(Table_Pointer& table)
+    impl(Table_Pointer& table, ir::Instructions_PTR& instructions)
         : table_(table)
+        , instructions_(instructions)
     {
     }
     Table_Pointer& table_;
+    ir::Instructions_PTR& instructions_;
     unsigned int index{};
 };
 
-Table_Accessor::Table_Accessor(Table_Pointer& table)
-    : pimpl(std::make_unique<impl>(table))
+Table_Accessor::Table_Accessor(Table_Pointer& table,
+    ir::Instructions_PTR& instructions)
+    : pimpl(std::make_unique<impl>(table, instructions))
 {
 }
 
@@ -118,38 +122,35 @@ Table_Accessor::~Table_Accessor() = default;
 Size Buffer_Accessor::get_size_of_return_string(Stack_Frame const& stack_frame)
 {
     auto& table_ = pimpl->table;
-    credence_assert(table_->get_functions().contains(stack_frame.tail));
-    auto tail_frame = table_->get_functions().at(stack_frame.tail);
-    auto return_rvalue = tail_frame->get_ret()->second;
+    credence_assert(table_->functions.contains(stack_frame.tail));
+    auto& tail_frame = table_->functions.at(stack_frame.tail).get();
+    auto return_rvalue = tail_frame.ret->second;
 
-    if (tail_frame->is_parameter(return_rvalue)) {
+    if (tail_frame.is_parameter(return_rvalue)) {
         credence_assert(
-            table_->get_functions().contains(stack_frame.call_stack.back()));
-        auto last_stack_frame =
-            table_->get_functions().at(stack_frame.call_stack.back());
-        if (last_stack_frame->get_locals().is_pointer(
-                tail_frame->get_ret()->first)) {
+            table_->functions.contains(stack_frame.call_stack.back()));
+        auto& last_stack_frame =
+            table_->functions.at(stack_frame.call_stack.back()).get();
+        if (last_stack_frame.locals.is_pointer(tail_frame.ret->first)) {
             return type::get_size_from_rvalue_data_type(
                 type::get_rvalue_datatype_from_string(
-                    last_stack_frame->get_locals().get_pointer_by_name(
-                        tail_frame->get_ret()->first)));
+                    last_stack_frame.locals.get_pointer_by_name(
+                        tail_frame.ret->first)));
         }
-        if (type::is_rvalue_data_type(tail_frame->get_ret()->first))
+        if (type::is_rvalue_data_type(tail_frame.ret->first))
             return type::get_size_from_rvalue_data_type(
-                type::get_rvalue_datatype_from_string(
-                    tail_frame->get_ret()->first));
+                type::get_rvalue_datatype_from_string(tail_frame.ret->first));
         return type::get_size_from_rvalue_data_type(
-            last_stack_frame->get_locals().get_symbol_by_name(
-                tail_frame->get_ret()->first));
+            last_stack_frame.locals.get_symbol_by_name(tail_frame.ret->first));
     }
     return type::get_size_from_rvalue_data_type(
-        type::get_rvalue_datatype_from_string(tail_frame->get_ret()->first));
+        type::get_rvalue_datatype_from_string(tail_frame.ret->first));
 }
 
 Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
     Stack_Frame const& stack_frame)
 {
-    auto frame = stack_frame.get_stack_frame();
+    auto& frame = stack_frame.get_stack_frame();
     auto& locals = pimpl->table->get_stack_frame_symbols();
     if (locals.is_pointer(lvalue) and
         type::is_rvalue_data_type_string(locals.get_pointer_by_name(lvalue))) {
@@ -158,20 +159,19 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
                 locals.get_pointer_by_name(lvalue)));
     }
     if (locals.is_pointer(lvalue)) {
-        auto rvalue_address = ir::object::get_rvalue_at_lvalue_object_storage(
-            lvalue, frame, pimpl->table->get_vectors(), __source__);
+        auto rvalue_address =
+            language::hir::binding::get_rvalue_at_lvalue_object_storage(
+                lvalue, frame, pimpl->table->vectors, __source__);
         return type::get_size_from_rvalue_data_type(rvalue_address);
     }
     auto local_symbol = locals.get_symbol_by_name(lvalue);
     auto local_rvalue = type::get_value_from_rvalue_data_type(local_symbol);
 
     if (local_rvalue == "RET") {
-        credence_assert(
-            pimpl->table->get_functions().contains(stack_frame.tail));
-        auto tail_frame = pimpl->table->get_functions().at(stack_frame.tail);
+        credence_assert(pimpl->table->functions.contains(stack_frame.tail));
+        auto& tail_frame = pimpl->table->functions.at(stack_frame.tail).get();
         return type::get_size_from_rvalue_data_type(
-            type::get_rvalue_datatype_from_string(
-                tail_frame->get_ret()->first));
+            type::get_rvalue_datatype_from_string(tail_frame.ret->first));
     }
     return type::get_size_from_rvalue_data_type(local_symbol);
 }
@@ -185,14 +185,14 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
 {
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
-    auto& vectors = pimpl->table->get_vectors();
-    auto frame = stack_frame.get_stack_frame();
+    auto& vectors = pimpl->table->vectors;
+    auto& frame = stack_frame.get_stack_frame();
 
     Operand_Lambda is_global_vector = [&](RValue const& rvalue) {
         auto& table = pimpl->table;
         auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table->get_vectors().contains(rvalue_reference) and
-               table->get_globals().is_pointer(rvalue_reference);
+        return table->vectors.contains(rvalue_reference) and
+               table->globals.is_pointer(rvalue_reference);
     };
 
     if (lvalue == "RET")
@@ -203,34 +203,36 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
 
     if (type::is_dereference_expression(lvalue)) {
         return type::get_size_from_rvalue_data_type(
-            ir::object::get_rvalue_at_lvalue_object_storage(
+            language::hir::binding::get_rvalue_at_lvalue_object_storage(
                 type::get_unary_rvalue_reference(lvalue), frame, vectors));
     }
 
     if (is_global_vector(lhs)) {
         std::string key{};
-        auto vector = pimpl->table->get_vectors().at(lhs);
+        auto& vector = pimpl->table->vectors.at(lhs).get();
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index = ir::object::get_rvalue_at_lvalue_object_storage(
-                offset, frame, vectors, __source__);
+            auto index =
+                language::hir::binding::get_rvalue_at_lvalue_object_storage(
+                    offset, frame, vectors, __source__);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
-        return type::get_size_from_rvalue_data_type(vector->get_data().at(key));
+        return type::get_size_from_rvalue_data_type(vector.data.at(key));
     }
 
     if (is_vector_offset(lvalue)) {
         std::string key{};
-        auto vector = pimpl->table->get_vectors().at(lhs);
+        auto& vector = pimpl->table->vectors.at(lhs).get();
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index = ir::object::get_rvalue_at_lvalue_object_storage(
-                offset, frame, vectors, __source__);
+            auto index =
+                language::hir::binding::get_rvalue_at_lvalue_object_storage(
+                    offset, frame, vectors, __source__);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
-        return type::get_size_from_rvalue_data_type(vector->get_data().at(key));
+        return type::get_size_from_rvalue_data_type(vector.data.at(key));
     }
 
     if (is_immediate(lvalue))
@@ -238,7 +240,7 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
             type::get_rvalue_datatype_from_string(lvalue));
     else
         return type::get_size_from_rvalue_data_type(
-            ir::object::get_rvalue_at_lvalue_object_storage(
+            language::hir::binding::get_rvalue_at_lvalue_object_storage(
                 lvalue, frame, vectors, __source__));
 }
 
@@ -331,13 +333,13 @@ void Table_Accessor::set_ir_iterator_index(unsigned int index_)
 bool Table_Accessor::is_ir_instruction_temporary()
 {
     return type::is_temporary(
-        std::get<1>(pimpl->table_->get_ir_instructions()->at(pimpl->index)));
+        std::get<1>(pimpl->instructions_->at(pimpl->index)));
 }
 
 LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_)
 {
     for (; index_ > 0; index_--) {
-        auto ir_inst = pimpl->table_->get_ir_instructions()->at(index_);
+        auto ir_inst = pimpl->instructions_->at(index_);
         auto lvalue = std::get<1>(ir_inst);
         if (std::get<0>(ir_inst) == ir::Instruction::MOV and
             pimpl->table_->local_contains(lvalue) and
@@ -350,29 +352,29 @@ LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_)
 
 std::string Table_Accessor::get_ir_instruction_lvalue()
 {
-    return std::get<1>(pimpl->table_->get_ir_instructions()->at(pimpl->index));
+    return std::get<1>(pimpl->instructions_->at(pimpl->index));
 }
 bool Table_Accessor::last_ir_instruction_is_assignment()
 {
     if (pimpl->index < 1)
         return false;
-    auto last = pimpl->table_->get_ir_instructions()->at(pimpl->index - 1);
+    auto last = pimpl->instructions_->at(pimpl->index - 1);
     return std::get<0>(last) == ir::Instruction::MOV and
            not type::is_temporary(std::get<1>(last));
 }
 bool Table_Accessor::next_ir_instruction_is_temporary()
 {
-    if (pimpl->table_->get_ir_instructions()->size() < pimpl->index + 1)
+    if (pimpl->instructions_->size() < pimpl->index + 1)
         return false;
-    auto next = pimpl->table_->get_ir_instructions()->at(pimpl->index + 1);
+    auto next = pimpl->instructions_->at(pimpl->index + 1);
     return std::get<0>(next) == ir::Instruction::MOV and
            type::is_temporary(std::get<1>(next));
 }
 bool Table_Accessor::next_ir_instruction_is_assignment()
 {
-    if (pimpl->table_->get_ir_instructions()->size() < pimpl->index + 1)
+    if (pimpl->instructions_->size() < pimpl->index + 1)
         return false;
-    auto last = pimpl->table_->get_ir_instructions()->at(pimpl->index + 1);
+    auto last = pimpl->instructions_->at(pimpl->index + 1);
     return std::get<0>(last) == ir::Instruction::MOV and
            not type::is_temporary(std::get<1>(last));
 }
@@ -383,6 +385,10 @@ Table_Pointer& Table_Accessor::get_table()
 const Table_Pointer& Table_Accessor::get_table() const
 {
     return pimpl->table_;
+}
+ir::Instructions& Table_Accessor::get_ir_instructions()
+{
+    return *pimpl->instructions_;
 }
 unsigned int Table_Accessor::get_index() const
 {
@@ -397,18 +403,18 @@ auto Vector_Accessor<Entry>::get_offset_from_hoisted_symbols(
     LValue const& vector,
     RValue const& offset) -> Entry_Pair
 {
-    auto frame = table_->get_stack_frame();
-    auto& vectors = table_->get_vectors();
-    auto index = ir::object::get_rvalue_at_lvalue_object_storage(
+    auto& frame = table_->get_stack_frame();
+    auto& vectors = table_->vectors;
+    auto index = language::hir::binding::get_rvalue_at_lvalue_object_storage(
         offset, frame, vectors, __source__);
     auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
-    if (!vectors.at(vector)->get_data().contains(key))
+    if (!vectors.at(vector).get().data.contains(key))
         throw_compiletime_error(
             fmt::format(
                 "Invalid out-of-range index '{}' on vector lvalue", key),
             vector);
-    return std::make_pair(vectors.at(vector)->get_offset().at(key),
-        get_size_from_vector_offset(vectors.at(vector)->get_data().at(key)));
+    return std::make_pair(vectors.at(vector).get().offset.at(key),
+        get_size_from_vector_offset(vectors.at(vector).get().data.at(key)));
 }
 
 /**
@@ -419,7 +425,7 @@ void Vector_Accessor<Entry>::type_check_invalid_vector_symbol(
     LValue const& vector,
     RValue const& offset)
 {
-    if (!table_->get_hoisted_symbols().has_key(offset) and
+    if (!table_->hoisted_symbols.has_key(offset) and
         not language::literal::is_integer_string(offset))
         throw_compiletime_error(
             fmt::format("Invalid index '{}' on vector lvalue", offset), vector);
@@ -433,14 +439,14 @@ auto Vector_Accessor<Entry>::get_offset_from_integer_rvalue(
     LValue const& vector,
     RValue const& offset) -> Entry_Pair
 {
-    auto& vectors = table_->get_vectors();
-    if (!vectors.at(vector)->get_data().contains(offset))
+    auto& vectors = table_->vectors;
+    if (!vectors.at(vector).get().data.contains(offset))
         throw_compiletime_error(
             fmt::format(
                 "Invalid out-of-range index '{}' on vector lvalue", offset),
             vector);
-    return std::make_pair(vectors.at(vector)->get_offset().at(offset),
-        get_size_from_vector_offset(vectors.at(vector)->get_data().at(offset)));
+    return std::make_pair(vectors.at(vector).get().offset.at(offset),
+        get_size_from_vector_offset(vectors.at(vector).get().data.at(offset)));
 }
 
 /**
@@ -452,7 +458,7 @@ auto Vector_Accessor<Entry>::get_offset_from_trivial_vector(
 {
     return std::make_pair(0UL,
         get_size_from_vector_offset(
-            table_->get_vectors().at(vector)->get_data().at("0")));
+            table_->vectors.at(vector).get().data.at("0")));
 }
 
 /**
@@ -463,8 +469,7 @@ template<typename Entry>
 auto Vector_Accessor<Entry>::get_offset_address(LValue const& lvalue,
     RValue const& offset) -> Entry_Pair
 {
-    auto frame = table_->get_stack_frame();
-    auto& vectors = table_->get_vectors();
+    auto& vectors = table_->vectors;
     auto vector = type::from_lvalue_offset(lvalue);
 
     type_check_invalid_vector_symbol(vector, offset);
@@ -472,14 +477,14 @@ auto Vector_Accessor<Entry>::get_offset_address(LValue const& lvalue,
     if (!is_vector_offset(lvalue))
         return get_offset_from_trivial_vector(vector);
 
-    if (table_->get_hoisted_symbols().has_key(offset))
+    if (table_->hoisted_symbols.has_key(offset))
         return get_offset_from_hoisted_symbols(vector, offset);
 
     if (language::literal::is_integer_string(offset))
         return get_offset_from_integer_rvalue(vector, offset);
 
     return std::make_pair(0UL,
-        get_size_from_vector_offset(vectors.at(vector)->get_data().at("0")));
+        get_size_from_vector_offset(vectors.at(vector).get().data.at("0")));
 }
 
 template class Vector_Accessor<Size>;

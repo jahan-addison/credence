@@ -13,8 +13,8 @@
 
 #pragma once
 
-#include <credence/ir/object.h>
 #include <credence/ir/table.h>
+#include <credence/language/hir/binding.h>
 #include <memory>
 #include <string>
 
@@ -47,29 +47,29 @@
 
 namespace credence::target::common::memory {
 
-using Locals = ir::Stack;
+using Locals = type::Stack;
 
 struct Stack_Frame
 {
-    explicit Stack_Frame(std::shared_ptr<ir::object::Object> objects)
+    explicit Stack_Frame(ir::Object_Table_PTR objects)
         : objects_(objects)
     {
     }
 
-    using Frame = ir::object::Function_PTR;
+    using Frame = language::hir::binding::Function;
     using Label = std::string;
 
     inline void set_stack_frame(Label const& name)
     {
         objects_->set_stack_frame(name);
     }
-    inline Frame get_stack_frame(Label const& name) const
+    inline Frame& get_stack_frame(Label const& name) const
     {
-        return objects_->get_functions().at(name);
+        return objects_->functions.at(name).get();
     }
-    inline Frame get_stack_frame() const
+    inline Frame& get_stack_frame() const
     {
-        return objects_->get_functions().at(symbol);
+        return objects_->functions.at(symbol).get();
     }
 
     Locals argument_stack{};
@@ -79,7 +79,7 @@ struct Stack_Frame
     std::size_t size{};
 
   protected:
-    std::shared_ptr<ir::object::Object> objects_;
+    ir::Object_Table_PTR objects_;
 };
 
 } // namespace target::common::memory

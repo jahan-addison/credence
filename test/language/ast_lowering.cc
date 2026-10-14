@@ -1,7 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
 #include <credence/language/ast_lowering.h> // for AST_Lowering
-#include <credence/language/hir.h>          // for Data_Kind
+#include <credence/language/hir/hir.h>      // for Data_Kind
 #include <credence/language/literal.h>      // for Literal, NULL_LITERAL
 #include <credence/symbol.h>                // for Symbol_Table
 #include <deque>                            // for deque

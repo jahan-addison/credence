@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include <credence/ir/object.h>
+#include <credence/language/hir/binding.h>
 #include <credence/types.h>
 
 #include <concepts>
@@ -125,7 +125,7 @@ using Ternary_Operands_T = std::
 template<Enum_T Directives>
 using Directive_Pair = std::pair<std::string, Directives>;
 
-using Table_Pointer = std::shared_ptr<ir::object::Object>;
+using Table_Pointer = std::shared_ptr<language::hir::binding::Object_Table>;
 template<typename T>
 using Pointer_ = std::shared_ptr<T>;
 

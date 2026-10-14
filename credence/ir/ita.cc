@@ -16,7 +16,7 @@
 #include <credence/error.h>        // for assert_equal_impl, credence_...
 #include <credence/ir/temporary.h> // for ast_to_ita_instructions
 #include <credence/language/ast_lowering.h> // for AST_Lowering
-#include <credence/language/hir.h>     // for data_kind_to_string, get_kind_name
+#include <credence/language/hir/hir.h> // for data_kind_to_string, get_kind_name
 #include <credence/language/literal.h> // for WORD_LITERAL, NULL_LITERAL
 #include <credence/symbol.h>           // for Symbol_Table
 #include <credence/types.h>            // for get_unary_operator, is_unary...

@@ -13,19 +13,19 @@
 
 #pragma once
 
-#include <credence/error.h>     // for throw_compiletime_error
-#include <credence/ir/ita.h>    // for Quadruple, Instructions, ITA
-#include <credence/ir/object.h> // for Object, LValue, Label, RValue, Instr...
-#include <credence/symbol.h>    // for Symbol_Table
-#include <credence/types.h>     // for Data_Type, Address, Parameters, RVal...
-#include <credence/util.h>      // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_...
-#include <easyjson.h>           // for JSON
-#include <iosfwd>               // for ostream
-#include <memory>               // for make_shared
-#include <source_location>      // for source_location
-#include <string>               // for basic_string, char_traits
-#include <string_view>          // for basic_string_view, string_view
-#include <utility>              // for move
+#include <credence/error.h>                // for throw_compiletime_error
+#include <credence/ir/ita.h>               // for Quadruple, Instructions, ITA
+#include <credence/language/hir/binding.h> // for Object_Table, LValue, Label
+#include <credence/symbol.h>               // for Symbol_Table
+#include <credence/types.h> // for Data_Type, Address, Parameters, RVal...
+#include <credence/util.h>  // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_...
+#include <easyjson.h>       // for JSON
+#include <iosfwd>           // for ostream
+#include <memory>           // for make_shared
+#include <source_location>  // for source_location
+#include <string>           // for basic_string, char_traits
+#include <string_view>      // for basic_string_view, string_view
+#include <utility>          // for move
 
 /****************************************************************************
  * Table
@@ -33,7 +33,7 @@
  * Table constructor for language objects. A visitor pattern on ITA instructions
  * to construct the object table of a program, including function frames,
  * vectors, locals, and globals. In addition, performs type checking on all
- * assignments. The result is stored in an ir::object::Object for backend
+ * assignments. The result is stored in a binding::Object_Table for backend
  * passes.
  *
  *  Example table construction:
@@ -53,6 +53,11 @@
 
 namespace credence::ir {
 
+namespace binding = language::hir::binding;
+
+using Object_Table_PTR = std::shared_ptr<binding::Object_Table>;
+using Instructions_PTR = std::shared_ptr<Instructions>;
+
 void emit(std::ostream& os,
     util::AST_Node const& symbols,
     util::AST_Node const& ast);
@@ -67,28 +72,26 @@ class Table
 #ifdef CREDENCE_TEST
     explicit Table(ITA::Node const& hoisted_symbols)
     {
-        objects_ = std::make_shared<object::Object>(object::Object{});
-        objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
+        objects_ = std::make_shared<binding::Object_Table>();
+        objects_->hoisted_symbols = std::move(hoisted_symbols);
         instructions_ = std::make_shared<ir::Instructions>();
-        objects_->get_ir_instructions() = instructions_;
-        objects_->get_globals() = Symbol_Table<>{};
+        objects_->globals = Symbol_Table<>{};
     }
 #endif
     explicit Table(ITA::Node hoisted_symbols,
         Instructions& instructions,
         Symbol_Table<> const& globals)
     {
-        objects_ = std::make_shared<object::Object>(object::Object{});
+        objects_ = std::make_shared<binding::Object_Table>();
         instructions_ =
             std::make_shared<ir::Instructions>(std::move(instructions));
-        objects_->get_ir_instructions() = instructions_;
-        objects_->get_hoisted_symbols() = std::move(hoisted_symbols);
-        objects_->get_globals() = globals;
+        objects_->hoisted_symbols = std::move(hoisted_symbols);
+        objects_->globals = globals;
     }
 
   public:
-    object::Object_PTR& get_table_object() { return objects_; }
-    object::Instruction_PTR& get_table_instructions() { return instructions_; }
+    Object_Table_PTR& get_table_object() { return objects_; }
+    Instructions_PTR& get_table_instructions() { return instructions_; }
 
   public:
     void build_from_ir_instructions();
@@ -134,15 +137,19 @@ class Table
             symbol,
             location,
             type_,
-            objects_->get_stack_frame()->get_symbol(),
-            objects_->get_hoisted_symbols());
+            objects_->get_stack_frame().symbol,
+            objects_->hoisted_symbols);
     }
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     type::Parameters temporary_parameter_stack{};
     type::semantic::Address instruction_index{ 0 };
-    object::Instruction_PTR instructions_{};
-    object::Object_PTR objects_;
+    Instructions_PTR instructions_{};
+    Object_Table_PTR objects_;
 };
 // clang-format on
+
+bool stack_frame_contains_call_instruction(binding::Function const& frame,
+    Instructions const& instructions);
+
 } // namespace credence::ir

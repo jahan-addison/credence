@@ -1,7 +1,7 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase, TEST_CASE
 
 #include <credence/language/ast_lowering.h> // for AST_Lowering
-#include <credence/language/hir.h>          // for make_kind_pointer
+#include <credence/language/hir/hir.h>      // for make_kind_pointer
 #include <credence/language/literal.h>      // for Literal, NULL_LITERAL
 
 #include <credence/language/precedence.h> // for queue_from_expression_operands, queue_of_...

@@ -15,7 +15,7 @@
 
 #include "assembly.h"                           // for Register, Operand_Size
 #include "stack.h"                              // for Stack
-#include <credence/ir/object.h>                 // for LValue, Size, RValue
+#include <credence/language/hir/binding.h>      // for LValue, Size, RValue
 #include <credence/map.h>                       // for Ordered_Map
 #include <credence/target/common/accessor.h>    // for Accumulator_Accessor
 #include <credence/target/common/flags.h>       // for Flag_Accessor
@@ -140,7 +140,7 @@ const general_purpose available_word_argument = { Register::w0,
 using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
-using Table_Pointer = std::shared_ptr<ir::object::Object>;
+using Table_Pointer = std::shared_ptr<language::hir::binding::Object_Table>;
 using Stack_Frame = target::common::memory::Stack_Frame;
 
 Register get_second_register_for_binary_operand(assembly::Operand_Size size);
@@ -275,9 +275,11 @@ class Device_Accessor
 
   public:
     Device_Accessor(Address_Accessor& address_accessor,
+        Table_Accessor& table_accessor,
         Stack_Frame& stack_frame,
         Stack_Pointer& stack)
         : address_accessor_(address_accessor)
+        , table_accessor_(table_accessor)
         , register_accessor_(address_accessor.register_accessor_)
         , stack_frame_(stack_frame)
         , stack_(stack)
@@ -332,6 +334,7 @@ class Device_Accessor
 
   private:
     Address_Accessor& address_accessor_;
+    Table_Accessor& table_accessor_;
     Register_Accessor& register_accessor_;
     Stack_Frame& stack_frame_;
     Stack_Pointer& stack_;
@@ -368,11 +371,14 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
   public:
     Memory_Accessor() = delete;
 
-    explicit Memory_Accessor(Table_Pointer table, Stack_Pointer stack_pointer)
+    explicit Memory_Accessor(Table_Pointer table,
+        ir::Instructions_PTR instructions,
+        Stack_Pointer stack_pointer)
         : ARM64_Memory_Accessor(table)
         , table_(std::move(table))
+        , instructions_(std::move(instructions))
         , stack(std::move(stack_pointer))
-        , table_accessor(table_)
+        , table_accessor(table_, instructions_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
         , register_accessor{ &signal_register }
@@ -394,13 +400,14 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
   private:
     Register signal_register = assembly::Register::wzr;
     Table_Pointer table_;
+    ir::Instructions_PTR instructions_;
 
   public:
     Stack_Pointer stack;
 
   public:
     detail::Flag_Accessor flag_accessor{};
-    detail::Table_Accessor table_accessor{ table_ };
+    detail::Table_Accessor table_accessor{ table_, instructions_ };
     detail::Accumulator_Accessor accumulator_accessor{ &signal_register };
     detail::Vector_Accessor vector_accessor{ table_ };
     detail::Register_Accessor register_accessor{ &signal_register };
@@ -409,6 +416,7 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
         flag_accessor,
         register_accessor };
     detail::Device_Accessor device_accessor{ address_accessor,
+        table_accessor,
         get_frame_in_memory(),
         stack };
     Instruction_Pointer instruction_accessor{};

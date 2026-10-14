@@ -16,7 +16,7 @@
 #include "assembly.h"                       // for Instructions
 #include "credence/ir/ita.h"                // for Quadruple
 #include "memory.h"                         // for Memory_Access, Memory_Ac...
-#include <credence/ir/object.h>             // for Label
+#include <credence/language/hir/binding.h>  // for Label
 #include <credence/target/common/visitor.h> // for IR_Visitor
 #include <cstddef>                          // for size_t
 

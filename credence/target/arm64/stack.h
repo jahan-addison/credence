@@ -13,12 +13,12 @@
 
 #pragma once
 
-#include "assembly.h"                     // for Operand_Size, Immediate
-#include <credence/ir/object.h>           // for LValue, Size, Vector (ptr ...
-#include <credence/target/common/types.h> // for base_stack_pointer
-#include <memory>                         // for unique_ptr
-#include <string>                         // for string
-#include <utility>                        // for pair
+#include "assembly.h"                      // for Operand_Size, Immediate
+#include <credence/language/hir/binding.h> // for LValue, Size, Vector (ptr ...
+#include <credence/target/common/types.h>  // for base_stack_pointer
+#include <memory>                          // for unique_ptr
+#include <string>                          // for string
+#include <utility>                         // for pair
 
 /****************************************************************************
  *
@@ -124,8 +124,9 @@ class Stack : public common::detail::base_stack_pointer
     common::Stack_Offset get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
-        ir::object::Vector const& vector);
-    Size get_stack_size_from_table_vector(ir::object::Vector const& vector);
+        language::hir::binding::Vector const& vector);
+    Size get_stack_size_from_table_vector(
+        language::hir::binding::Vector const& vector);
     Size get_offset_from_pushdown_stack();
 
     void set_address_from_size(LValue const& lvalue,

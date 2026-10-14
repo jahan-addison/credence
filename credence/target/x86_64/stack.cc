@@ -12,17 +12,17 @@
  ****************************************************************************/
 
 #include "stack.h"
-#include "assembly.h"                     // for get_size_from_operand_size
-#include <algorithm>                      // for find_if, __find_if
-#include <credence/ir/object.h>           // for LValue, Vector, Size, Type
-#include <credence/map.h>                 // for Ordered_Map
-#include <credence/target/common/types.h> // for Stack_Offset, base_stack_p...
-#include <credence/types.h>               // for Size
-#include <credence/util.h>                // for align_up_to_16, align_up_to_8
-#include <fmt/compile.h>                  // for format, operator""_cf
-#include <numeric>                        // for accumulate
-#include <string>                         // for basic_string, string, oper...
-#include <utility>                        // for pair
+#include "assembly.h"                      // for get_size_from_operand_size
+#include <algorithm>                       // for find_if, __find_if
+#include <credence/language/hir/binding.h> // for LValue, Vector, Size, Type
+#include <credence/map.h>                  // for Ordered_Map
+#include <credence/target/common/types.h>  // for Stack_Offset, base_stack_p...
+#include <credence/types.h>                // for Size
+#include <credence/util.h>                 // for align_up_to_16, align_up_to_8
+#include <fmt/compile.h>                   // for format, operator""_cf
+#include <numeric>                         // for accumulate
+#include <string>                          // for basic_string, string, oper...
+#include <utility>                         // for pair
 
 /****************************************************************************
  *
@@ -226,15 +226,15 @@ class Stack::Stack_IMPL
      */
     Size get_stack_offset_from_table_vector_index(LValue const& lvalue,
         std::string const& key,
-        ir::object::Vector const& vector)
+        language::hir::binding::Vector const& vector)
     {
         bool search{ false };
         auto vector_offset = get(lvalue).first;
-        return std::accumulate(vector.get_data().begin(),
-            vector.get_data().end(),
+        return std::accumulate(vector.data.begin(),
+            vector.data.end(),
             vector_offset,
             [&](type::semantic::Size offset,
-                ir::object::Vector::Entry const& entry) {
+                language::hir::binding::Vector::Entry const& entry) {
                 if (entry.first == key)
                     search = true;
                 if (!search)
@@ -250,15 +250,16 @@ class Stack::Stack_IMPL
      *
      * Memory align to multiples of 16 bytes per the ABI
      */
-    Size get_stack_size_from_table_vector(ir::object::Vector const& vector)
+    Size get_stack_size_from_table_vector(
+        language::hir::binding::Vector const& vector)
     {
         auto vector_size =
             size +
-            std::accumulate(vector.get_data().begin(),
-                vector.get_data().end(),
+            std::accumulate(vector.data.begin(),
+                vector.data.end(),
                 0UL,
                 [&](type::semantic::Size offset,
-                    ir::object::Vector::Entry const& entry) {
+                    language::hir::binding::Vector::Entry const& entry) {
                     return offset +
                            assembly::get_size_from_operand_size(
                                assembly::get_operand_size_from_rvalue_datatype(
@@ -379,11 +380,12 @@ Size Stack::get_stack_frame_allocation_size()
 }
 Size Stack::get_stack_offset_from_table_vector_index(LValue const& lvalue,
     std::string const& key,
-    ir::object::Vector const& vector)
+    language::hir::binding::Vector const& vector)
 {
     return pimpl->get_stack_offset_from_table_vector_index(lvalue, key, vector);
 }
-Size Stack::get_stack_size_from_table_vector(ir::object::Vector const& vector)
+Size Stack::get_stack_size_from_table_vector(
+    language::hir::binding::Vector const& vector)
 {
     return pimpl->get_stack_size_from_table_vector(vector);
 }

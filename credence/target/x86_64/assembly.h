@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include <credence/ir/object.h>              // for Label
+#include <credence/language/hir/binding.h>   // for Label
 #include <credence/target/common/assembly.h> // for COMMON_REGISTER_OSTREAM
 #include <credence/target/common/types.h>    // for Label, Binary_Operands_T
 #include <credence/types.h>                  // for RValue, Type, get_type_...

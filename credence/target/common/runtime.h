@@ -13,23 +13,23 @@
 
 #pragma once
 
-#include "stack_frame.h"        // for Locals
-#include "types.h"              // for Enum_T, Label, Stack_Pointer, Storage_T
-#include <array>                // for array
-#include <credence/error.h>     // for compile_error_impl, throw_compiletim...
-#include <credence/ir/object.h> // for Object_PTR
-#include <credence/util.h>      // for AST_Node, __source__, range_contains
-#include <cstddef>              // for size_t
-#include <deque>                // for deque
-#include <easyjson.h>           // for object
-#include <fmt/format.h>         // for format
-#include <initializer_list>     // for initializer_list
-#include <map>                  // for map
-#include <source_location>      // for source_location
-#include <string>               // for basic_string, string, char_traits
-#include <string_view>          // for basic_string_view, string_view
-#include <utility>              // for pair
-#include <vector>               // for vector
+#include "stack_frame.h"    // for Locals
+#include "types.h"          // for Enum_T, Label, Stack_Pointer, Storage_T
+#include <array>            // for array
+#include <credence/error.h> // for compile_error_impl, throw_compiletim...
+#include <credence/language/hir/binding.h> // for Object_Table
+#include <credence/util.h>  // for AST_Node, __source__, range_contains
+#include <cstddef>          // for size_t
+#include <deque>            // for deque
+#include <easyjson.h>       // for object
+#include <fmt/format.h>     // for format
+#include <initializer_list> // for initializer_list
+#include <map>              // for map
+#include <source_location>  // for source_location
+#include <string>           // for basic_string, string, char_traits
+#include <string_view>      // for basic_string_view, string_view
+#include <utility>          // for pair
+#include <vector>           // for vector
 
 /****************************************************************************
  *

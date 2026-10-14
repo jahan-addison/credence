@@ -15,7 +15,7 @@
 
 #include "assembly.h"                           // for Register, Operand_Size
 #include "stack.h"                              // for Stack
-#include <credence/ir/object.h>                 // for RValue, LValue, Object
+#include <credence/language/hir/binding.h>      // for RValue, LValue, Object
 #include <credence/target/common/accessor.h>    // for Accumulator_Accessor
 #include <credence/target/common/flags.h>       // for Flag_Accessor
 #include <credence/target/common/memory.h>      // for Operand_Type, is_imm...
@@ -111,7 +111,7 @@ const general_purpose available_dword_register = { Register::edi,
 using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
-using Table_Pointer = std::shared_ptr<ir::object::Object>;
+using Table_Pointer = std::shared_ptr<language::hir::binding::Object_Table>;
 using Stack_Frame = common::memory::Stack_Frame;
 
 using X8664_Memory_Accessor = common::memory::Memory_Accessor;
@@ -276,11 +276,14 @@ class Memory_Accessor final : public X8664_Memory_Accessor
   public:
     Memory_Accessor() = delete;
 
-    explicit Memory_Accessor(Table_Pointer table, Stack_Pointer stack_pointer)
+    explicit Memory_Accessor(Table_Pointer table,
+        ir::Instructions_PTR instructions,
+        Stack_Pointer stack_pointer)
         : X8664_Memory_Accessor(table)
         , table_(std::move(table))
+        , instructions_(std::move(instructions))
         , stack(std::move(stack_pointer))
-        , table_accessor(table_)
+        , table_accessor(table_, instructions_)
         , accumulator_accessor{ &signal_register }
         , vector_accessor{ table_ }
         , address_accessor{ table_, stack, flag_accessor }
@@ -299,13 +302,14 @@ class Memory_Accessor final : public X8664_Memory_Accessor
 
   private:
     Table_Pointer table_;
+    ir::Instructions_PTR instructions_;
 
   public:
     Stack_Pointer stack;
 
   public:
     detail::Flag_Accessor flag_accessor{};
-    detail::Table_Accessor table_accessor{ table_ };
+    detail::Table_Accessor table_accessor{ table_, instructions_ };
     detail::Accumulator_Accessor accumulator_accessor{ &signal_register };
     detail::Vector_Accessor vector_accessor{ table_ };
     detail::Address_Accessor address_accessor{ table_, stack, flag_accessor };

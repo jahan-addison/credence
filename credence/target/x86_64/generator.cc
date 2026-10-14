@@ -20,8 +20,8 @@
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for credence_assert
 #include <credence/ir/ita.h>                 // for make_ita_instructions
-#include <credence/ir/object.h>              // for Object, Label, RValue
 #include <credence/ir/table.h>               // for Table
+#include <credence/language/hir/binding.h>   // for Object, Label, RValue
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/accessor.h> // for Buffer_Accessor
 #include <credence/target/common/assembly.h> // for get_storage_as_string
@@ -105,7 +105,7 @@ void emit(std::ostream& os,
     table->build_from_ir_instructions();
     auto stack = std::make_shared<assembly::Stack>();
     auto accessor = std::make_shared<memory::Memory_Accessor>(
-        table->get_table_object(), stack);
+        table->get_table_object(), table->get_table_instructions(), stack);
     auto emitter = Assembly_Emitter{ accessor };
     emitter.text_.test_no_stdlib = no_stdlib;
     emitter.emit(os);
@@ -259,7 +259,7 @@ void Data_Emitter::set_data_section()
 void Data_Emitter::set_data_strings()
 {
     auto& table = accessor_->table_accessor.get_table();
-    for (auto const& string : table->get_strings()) {
+    for (auto const& string : table->strings) {
         auto data_instruction =
             assembly::asciz(accessor_->address_accessor.buffer_accessor
                                 .get_constant_size_index(),
@@ -276,9 +276,9 @@ void Data_Emitter::set_data_strings()
 void Data_Emitter::set_data_floats()
 {
     auto& table = accessor_->table_accessor.get_table();
-    if (!table->get_floats().empty())
+    if (!table->floats.empty())
         insert_alignment_directive(instructions_, 2);
-    for (auto const& floatz : table->get_floats()) {
+    for (auto const& floatz : table->floats) {
         auto data_instruction =
             assembly::floatz(accessor_->address_accessor.buffer_accessor
                                  .get_constant_size_index(),
@@ -295,9 +295,9 @@ void Data_Emitter::set_data_floats()
 void Data_Emitter::set_data_doubles()
 {
     auto& table = accessor_->table_accessor.get_table();
-    if (!table->get_doubles().empty())
+    if (!table->doubles.empty())
         insert_alignment_directive(instructions_, 3);
-    for (auto const& doublez : table->get_doubles()) {
+    for (auto const& doublez : table->doubles) {
         auto data_instruction =
             assembly::doublez(accessor_->address_accessor.buffer_accessor
                                   .get_constant_size_index(),
@@ -326,24 +326,23 @@ std::size_t get_alignment_size_from_rvalue_data_type(
 void Data_Emitter::set_data_globals()
 {
     auto& table = accessor_->table_accessor.get_table();
-    for (auto const& global : table->get_globals().get_pointers()) {
-        credence_assert(table->get_vectors().contains(global));
-        auto vector = table->get_vectors().at(global);
-        if (vector->get_size() == 1) {
+    for (auto const& global : table->globals.get_pointers()) {
+        credence_assert(table->vectors.contains(global));
+        auto& vector = table->vectors.at(global).get();
+        if (vector.size == 1) {
             auto align = get_alignment_size_from_rvalue_data_type(
-                type::get_type_from_rvalue_data_type(
-                    vector->get_data().at("0")));
+                type::get_type_from_rvalue_data_type(vector.data.at("0")));
             insert_alignment_directive(instructions_, align);
         } else {
             insert_alignment_directive(instructions_, 3);
         }
         instructions_.emplace_back(global);
         auto address = type::semantic::Address{ 0 };
-        for (auto const& item : vector->get_data()) {
+        for (auto const& item : vector.data) {
             auto directive =
                 assembly::get_data_directive_from_rvalue_type(item.second);
             auto data = type::get_value_from_rvalue_data_type(item.second);
-            vector->set_address_offset(item.first, address);
+            vector.set_address_offset(item.first, address);
             address += assembly::get_size_from_operand_size(
                 assembly::get_operand_size_from_rvalue_datatype(item.second));
 
@@ -481,8 +480,8 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 {
     auto& table = accessor_->table_accessor.get_table();
     // function labels
-    if (table->get_hoisted_symbols().has_key(s) and
-        table->get_hoisted_symbols()[s]["type"].to_string() ==
+    if (table->hoisted_symbols.has_key(s) and
+        table->hoisted_symbols[s]["type"].to_string() ==
             "function_definition") {
         // this is a new frame, emit the last frame function epilogue
         if (frame_ != s)
@@ -490,10 +489,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
         frame_ = s;
         if (set_label)
             label_size_ = accessor_->table_accessor.get_table()
-                              ->get_functions()
-                              .at(s)
-                              ->get_labels()
-                              .size();
+                              ->functions.at(s)
+                              .get()
+                              .labels.size();
         if (s != "main")
             assembly::newline(os, 2);
         os << assembly::make_label(s) << ":";
@@ -505,7 +503,7 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
         branch_ = s;
         auto label = util::get_numbers_from_string(s);
         auto label_before_reserved =
-            table->get_functions().at(frame_)->get_label_before_reserved();
+            table->functions.at(frame_).get().label_before_reserved;
         if (set_label and s == "_L1") {
             // In the IR, labels are linear until _L1 and then branching starts.
             // So as soon as _L1 would be emitted, add a jump to _L1 instead
@@ -576,7 +574,7 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
             assembly::newline(os, 1);
         }
         for (std::size_t index = 0; index < return_instructions_.size();
-             index++) {
+            index++) {
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }

@@ -26,7 +26,7 @@
 #include "memory.h"                          // for Memory_Accessor, Instru...
 #include "stack.h"                           // for Stack
 #include "syscall.h"                         // for exit_syscall
-#include <credence/ir/object.h>              // for Object, Function, Label
+#include <credence/language/hir/binding.h>   // for Object, Function, Label
 #include <credence/target/common/runtime.h>  // for is_stdlib_function, is_...
 #include <deque>                             // for deque
 #include <matchit.h>                         // for Wildcard, App, Ds, app
@@ -91,13 +91,13 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
     auto& table = accessor_->table_accessor.get_table();
-    credence_assert(table->get_functions().contains(name));
+    credence_assert(table->functions.contains(name));
     accessor_->device_accessor.reset_storage_devices();
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
-    auto frame = table->get_functions()[name];
-    if (table->stack_frame_contains_call_instruction(
-            name, *table->get_ir_instructions())) {
+    auto& frame = table->functions.at(name).get();
+    if (ir::stack_frame_contains_call_instruction(
+            frame, accessor_->table_accessor.get_ir_instructions())) {
         accessor_->stack->allocate(16);
     }
     table->reset_frame_calls();
@@ -167,8 +167,8 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
 
     auto is_global_vector = [&](RValue const& rvalue) {
         auto rvalue_reference = type::from_lvalue_offset(rvalue);
-        return table->get_vectors().contains(rvalue_reference) and
-               table->get_globals().is_pointer(rvalue_reference);
+        return table->vectors.contains(rvalue_reference) and
+               table->globals.is_pointer(rvalue_reference);
     };
 
     m::match(lhs, rhs)(
@@ -230,7 +230,7 @@ void IR_Instruction_Visitor::set_pointer_address_of_lvalue(LValue const& lvalue)
     auto device_storage =
         accessor_->device_accessor.get_device_by_lvalue(lvalue);
     auto address_storage = accessor_->stack->get(lvalue).first;
-    if (!stack_frame_.get_stack_frame()->get_tokens().empty())
+    if (!stack_frame_.get_stack_frame().tokens.empty())
         address_storage += 16;
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     accessor_->flag_accessor.set_instruction_flag(
@@ -245,7 +245,7 @@ void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& table = accessor_->table_accessor.get_table();
-    auto frame = stack_frame_.get_stack_frame();
+    auto& frame = stack_frame_.get_stack_frame();
     stack_frame_.argument_stack.emplace_front(
         table->lvalue_at_temporary_object_address(std::get<1>(inst), frame));
 }
@@ -256,10 +256,11 @@ void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 void IR_Instruction_Visitor::from_return_ita()
 {
     auto inserter = Expression_Inserter{ accessor_ };
-    auto frame = accessor_->table_accessor.get_table()
-                     ->get_functions()[stack_frame_.symbol];
-    if (frame->get_ret().has_value())
-        inserter.insert_from_return_rvalue(frame->get_ret());
+    auto& frame = accessor_->table_accessor.get_table()
+                      ->functions.at(stack_frame_.symbol)
+                      .get();
+    if (frame.ret.has_value())
+        inserter.insert_from_return_rvalue(frame.ret);
 }
 
 /**
@@ -323,8 +324,6 @@ bool IR_Instruction_Visitor::parameters_in_return_stack(Label const& label)
     if (parameters.size() < 2)
         return false;
 
-    auto parent = accessor_->get_frame_in_memory().get_stack_frame();
-
     auto parameter_stack = parameters.back();
     auto last_stack = parameters.at(parameters.size() - 2);
     for (std::size_t j = 0UL; j < parameter_stack.size(); j++) {
@@ -339,8 +338,8 @@ unsigned int* IR_Instruction_Visitor::get_function_frame_calls(
 {
     auto& table = accessor_->table_accessor.get_table();
     credence_assert_message(table->function_contains(label), label);
-    auto object_frame = table->get_functions().at(label);
-    return object_frame->get_calls();
+    auto& object_frame = table->functions.at(label).get();
+    return &object_frame.calls;
 }
 
 /**
@@ -428,7 +427,7 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
     auto& table = accessor_->table_accessor.get_table();
     auto& stack = accessor_->stack;
     auto is_vector = [&](RValue const& rvalue) {
-        return table->get_vectors().contains(type::from_lvalue_offset(rvalue));
+        return table->vectors.contains(type::from_lvalue_offset(rvalue));
     };
     m::match(locl_lvalue)(
         m::pattern | m::app(type::is_dereference_expression, true) =
@@ -440,8 +439,8 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
             },
         m::pattern | m::app(is_vector, true) =
             [&] {
-                auto vector = table->get_vectors().at(locl_lvalue);
-                auto size = stack->get_stack_size_from_table_vector(*vector);
+                auto& vector = table->vectors.at(locl_lvalue).get();
+                auto size = stack->get_stack_size_from_table_vector(vector);
                 stack->set_address_from_size(locl_lvalue, size);
             },
         m::pattern | m::_ =
@@ -458,8 +457,8 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
 void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
 {
     auto [_, of, with, jump] = inst;
-    auto frame = stack_frame_.get_stack_frame();
-    auto of_comparator = frame->get_temporary().at(of).substr(4);
+    auto& frame = stack_frame_.get_stack_frame();
+    auto of_comparator = frame.temporary.at(of).substr(4);
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto of_rvalue_storage =
         accessor_->address_accessor

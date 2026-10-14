@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "hir.h"       // for Data_Kind
+#include "hir/hir.h"   // for Data_Kind
 #include "operators.h" // for Operator
 #include <deque>       // for deque
 #include <memory>      // for unique_ptr

@@ -20,7 +20,7 @@
 #include "flags.h"                           // for flags
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for credence_assert, creden...
-#include <credence/ir/object.h>              // for LValue, Object, get_rva...
+#include <credence/language/hir/binding.h>   // for LValue, Object, get_rva...
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/assembly.h> // for direct_immediate, make_...
 #include <credence/types.h>                  // for get_size_from_rvalue_da...
@@ -110,10 +110,9 @@ assembly::Operand_Size get_operand_size_from_storage(Storage const& storage,
 
 bool is_doubleword_storage_size(assembly::Storage const& storage,
     Stack_Pointer& stack,
-    Stack_Frame& stack_frame)
+    [[maybe_unused]] Stack_Frame& stack_frame)
 {
     auto result{ false };
-    auto frame = stack_frame.get_stack_frame();
     std::visit(util::overload{
                    [&](std::monostate) {},
                    [&](common::Stack_Offset const& s) {
@@ -221,7 +220,7 @@ Device_Accessor::Device Device_Accessor::get_operand_rvalue_device(
         if (rvalue == "argc")
             return Register::x19;
 #endif
-        auto frame = stack_frame_.get_stack_frame();
+        auto& frame = stack_frame_.get_stack_frame();
         auto size = assembly::get_operand_size_from_size(
             address_accessor_.table_->lvalue_size_at_temporary_object_address(
                 rvalue, frame));
@@ -249,9 +248,8 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
     m::match(lvalue)(
         m::pattern | m::app(is_global_vector, true) =
             [&] {
-                credence_assert(table_->get_vectors().contains(lhs));
-                auto vector = table_->get_vectors().at(lhs);
-                if (table_->get_globals().is_pointer(lhs)) {
+                credence_assert(table_->vectors.contains(lhs));
+                if (table_->globals.is_pointer(lhs)) {
                     auto offset_storage =
                         vector_accessor.get_offset_address(lvalue, offset);
                     auto global_offset =
@@ -270,14 +268,14 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
             },
         m::pattern | m::app(is_vector_offset, true) =
             [&] {
-                credence_assert(table_->get_vectors().contains(lhs));
-                auto vector = table_->get_vectors().at(lhs);
+                credence_assert(table_->vectors.contains(lhs));
+                auto& vector = table_->vectors.at(lhs).get();
                 auto vector_s =
                     stack_->get_stack_offset_from_table_vector_index(
-                        lhs, offset, *vector);
+                        lhs, offset, vector);
                 auto offset_immediate = u32_int_immediate(vector_s);
                 auto vector_type = type::get_type_from_rvalue_data_type(
-                    vector->get_data().at(offset));
+                    vector.data.at(offset));
                 auto size = vector_type == "string"
                                 ? assembly::Operand_Size::Doubleword
                                 : assembly::Operand_Size::Word;
@@ -407,8 +405,9 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     if (is_lvalue_allocated_in_memory(lvalue))
         return;
     auto& table_ = address_accessor_.table_;
-    auto stack_frame_has_jump = table_->stack_frame_contains_call_instruction(
-        stack_frame_.symbol, *table_->get_ir_instructions());
+    auto stack_frame_has_jump = ir::stack_frame_contains_call_instruction(
+        table_->get_stack_frame(stack_frame_.symbol),
+        table_accessor_.get_ir_instructions());
     switch (size) {
         case assembly::Operand_Size::Empty:
         case assembly::Operand_Size::Byte:
@@ -430,16 +429,17 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     INLINE_DEBUG)
 {
     auto& table_ = address_accessor_.table_;
-    auto frame = stack_frame_.get_stack_frame();
-    credence_assert(frame->get_locals().is_defined(lvalue));
+    auto& frame = stack_frame_.get_stack_frame();
+    credence_assert(frame.locals.is_defined(lvalue));
 
     if (is_lvalue_allocated_in_memory(lvalue))
         return;
 
-    auto stack_frame_has_jump = table_->stack_frame_contains_call_instruction(
-        stack_frame_.symbol, *table_->get_ir_instructions());
-    auto rvalue = ir::object::get_rvalue_at_lvalue_object_storage(
-        lvalue, frame, table_->get_vectors(), DEBUG_SOURCE);
+    auto stack_frame_has_jump = ir::stack_frame_contains_call_instruction(
+        table_->get_stack_frame(stack_frame_.symbol),
+        table_accessor_.get_ir_instructions());
+    auto rvalue = language::hir::binding::get_rvalue_at_lvalue_object_storage(
+        lvalue, frame, table_->vectors, DEBUG_SOURCE);
     auto operand = assembly::get_operand_size_from_rvalue_datatype(rvalue);
 
     switch (operand) {
@@ -474,8 +474,6 @@ void Device_Accessor::set_vector_offset_to_storage_space(LValue const& lvalue)
  */
 Size Device_Accessor::get_size_from_rvalue_reference(RValue const& rvalue)
 {
-    auto frame = stack_frame_.get_stack_frame();
-
     if (!type::is_rvalue_data_type_a_type(rvalue, "word"))
         return type::get_size_from_rvalue_data_type(rvalue);
     if (is_lvalue_allocated_in_memory(rvalue)) {
@@ -502,7 +500,7 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
     Immediate const& rvalue)
 {
     auto& table_ = address_accessor_.table_;
-    auto frame = stack_frame_.get_stack_frame();
+    auto& frame = stack_frame_.get_stack_frame();
 
     if (!type::is_rvalue_data_type_a_type(rvalue, "word"))
         return type::get_size_from_rvalue_data_type(rvalue);
@@ -528,15 +526,15 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
                     return assembly::get_size_from_operand_size(
                         get_word_size_from_lvalue(lvalue_reference));
                 else
-                    return type::get_size_from_rvalue_data_type(
-                        ir::object::get_rvalue_at_lvalue_object_storage(
-                            lvalue_reference, frame, table_->get_vectors()));
+                    return type::get_size_from_rvalue_data_type(language::hir::
+                            binding::get_rvalue_at_lvalue_object_storage(
+                                lvalue_reference, frame, table_->vectors));
             },
         m::pattern | m::_ =
             [&] {
                 auto immediate =
-                    ir::object::get_rvalue_at_lvalue_object_storage(
-                        lvalue, frame, table_->get_vectors());
+                    language::hir::binding::get_rvalue_at_lvalue_object_storage(
+                        lvalue, frame, table_->vectors);
                 return type::get_size_from_rvalue_data_type(immediate);
             }
 
