@@ -31,7 +31,6 @@
 #include <credence/target/common/runtime.h>  // for is_stdlib_function, is_...
 #include <deque>                             // for deque
 #include <matchit.h>                         // for App, Wildcard, Ds, app
-#include <memory>                            // for shared_ptr
 #include <string>                            // for basic_string, char_traits
 #include <string_view>                       // for basic_string_view
 #include <tuple>                             // for get, tuple
@@ -360,7 +359,7 @@ void IR_Instruction_Visitor::from_leave_ita()
         if (accessor_->table_accessor.get_table()
                 ->stack_frame_contains_call_instruction(stack_frame_.symbol,
                     *accessor_->table_accessor.get_table()
-                         ->get_ir_instructions())) {
+                        ->get_ir_instructions())) {
             auto size = u32_int_immediate(
                 accessor_->stack->get_stack_frame_allocation_size());
             x8664_add__asm(accessor_->instruction_accessor->get_instructions(),

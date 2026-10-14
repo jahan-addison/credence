@@ -13,7 +13,7 @@
 
 #include "precedence.h"
 
-#include "hir.h"           // for make_kind_pointer, Data_Kind
+#include "hir/hir.h"       // for make_kind_pointer, Data_Kind
 #include "literal.h"       // for Literal, Array
 #include "operators.h"     // for Operator, get_precedence, is_le...
 #include <credence/util.h> // for overload

@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "hir.h"             // for Data_Kind
+#include "hir/hir.h"         // for Data_Kind
 #include "literal.h"         // for Literal
 #include <array>             // for array
 #include <credence/symbol.h> // for Symbol_Table

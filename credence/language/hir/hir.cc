@@ -13,8 +13,8 @@
 
 #include "hir.h"
 
-#include "literal.h"       // for literal_to_string, Literal, Array
-#include "operators.h"     // for Operator
+#include "../literal.h"    // for literal_to_string, Literal, Array
+#include "../operators.h"  // for Operator
 #include <credence/util.h> // for overload
 #include <sstream>         // for basic_ostringstream, ostringstream
 #include <string>          // for basic_string, string

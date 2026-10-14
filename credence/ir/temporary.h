@@ -14,7 +14,7 @@
 #pragma once
 
 #include <credence/ir/ita.h>              // for Instructions
-#include <credence/language/hir.h>        // for Data_Kind
+#include <credence/language/hir/hir.h>    // for Data_Kind
 #include <credence/language/literal.h>    // for Size
 #include <credence/language/operators.h>  // for Operator
 #include <credence/language/precedence.h> // for Shunting_Yard

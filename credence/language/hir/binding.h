@@ -13,14 +13,15 @@
 
 #pragma once
 
+#include "types.h"           // for RValue, LValue, ...
 #include <array>             // for array
-#include <credence/ir/ita.h> // for Instructions
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for Parameters, Address, Data_Type, Label
 #include <credence/util.h>   // for contains, AST_Node
 #include <cstddef>           // for size_t
 #include <deque>             // for deque
+#include <functional>        // for std::reference_wrapper
 #include <map>               // for map
 #include <memory>            // for shared_ptr, unique_ptr
 #include <optional>          // for optional
@@ -30,7 +31,7 @@
 #include <utility>           // for pair
 
 /****************************************************************************
- * Object Table
+ * Name Resolution and Object Binding
  *
  * Provides an object storage interface from the IR for target platform passes.
  * Represents vectors, functions, stack frames, and symbol tables as queryable
@@ -50,29 +51,7 @@
  *
  ****************************************************************************/
 
-namespace credence {
-
-using LValue = type::semantic::LValue;
-using Type = type::semantic::Type;
-using Size = type::semantic::Size;
-using RValue = type::semantic::RValue;
-using Label = type::semantic::Label;
-
-namespace ir {
-
-using Stack = std::deque<type::semantic::RValue>;
-
-namespace object {
-
-using Address = type::semantic::Address;
-using Label = type::semantic::Label;
-using Address = type::semantic::Address;
-using Size = type::semantic::Size;
-using Labels = type::Labels;
-using Locals = type::Locals;
-using Parameters = type::Parameters;
-using RValues = type::RValues;
-using Pointers = type::Pointers;
+namespace credence::language::hir::binding {
 
 constexpr bool is_vector_lvalue(LValue const& lvalue)
 {
@@ -81,8 +60,6 @@ constexpr bool is_vector_lvalue(LValue const& lvalue)
 
 /**
  * @brief Vector definition map and storage sizes for the object table
- *
- * Uses the PIMPL idiom to reduce build times
  */
 struct Vector
 {
@@ -189,26 +166,20 @@ class Function
     std::unique_ptr<Function_IMPL> pimpl;
 };
 
-using Instruction_PTR = std::shared_ptr<ir::Instructions>;
-using Function_PTR = std::shared_ptr<Function>;
-using Vector_PTR = std::shared_ptr<Vector>;
-using Stack_Frame = std::optional<Function_PTR>;
-using Functions = Ordered_Map<std::string, Function_PTR>;
-using Vectors = Ordered_Map<std::string, Vector_PTR>;
+using Stack_Frame = std::optional<Function>;
+using Functions = Ordered_Map<std::string, std::reference_wrapper<Function>>;
+using Vectors = Ordered_Map<std::string, std::reference_wrapper<Vector>>;
 
 namespace detail {
 /**
  * @brief Vector offset rvalue resolution in the stack frame and global symbols
- *
- * Uses the PIMPL idiom to reduce build times
  */
 struct Vector_Offset
 {
   public:
     // Constructors and destructor
     Vector_Offset() = delete;
-    explicit Vector_Offset(object::Function_PTR& stack_frame,
-        object::Vectors& vectors);
+    explicit Vector_Offset(Function& stack_frame, Vectors& vectors);
     ~Vector_Offset();
     Vector_Offset(Vector_Offset&&) noexcept;
     Vector_Offset& operator=(Vector_Offset&&) noexcept;
@@ -227,16 +198,14 @@ struct Vector_Offset
 } // namespace detail
 
 type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
-    object::Function_PTR& stack_frame,
-    object::Vectors& vectors,
+    Function& stack_frame,
+    Vectors& vectors,
     std::source_location const& location = std::source_location::current());
 
 using Argument_Stack = std::map<Label, std::deque<type::Parameters>>;
 
 /**
  * @brief Object table of types, functions, and vectors in a frame
- *
- * Uses the PIMPL idiom to reduce build times
  */
 class Object
 {
@@ -253,8 +222,9 @@ class Object
     bool vector_contains(LValue const& lvalue);
     bool function_contains(Label const& label);
     bool local_contains(LValue const& lvalue);
-    bool stack_frame_contains_call_instruction(Label name,
-        ir::Instructions const& instructions);
+    // TODO: move to IR
+    // bool stack_frame_contains_call_instruction(Label name,
+    //     ir::Instructions const& instructions);
     void set_ir_parameters(Label const& label, type::Parameters& parameters);
     std::deque<type::Parameters>& get_ir_parameters(Label const& label);
 
@@ -263,21 +233,19 @@ class Object
     void set_stack_frame(Label const& label);
     void reset_stack_frame();
     void reset_frame_calls();
-    Function_PTR get_stack_frame();
-    Function_PTR get_stack_frame(Label const& label);
+    Function& get_stack_frame();
+    Function& get_stack_frame(Label const& label);
     Locals& get_stack_frame_symbols();
 
     // Temporary object utilities
     RValue lvalue_at_temporary_object_address(LValue const& lvalue,
-        Function_PTR const& stack_frame);
+        Function const& stack_frame);
     Size lvalue_size_at_temporary_object_address(LValue const& lvalue,
-        Function_PTR const& stack_frame);
+        Function const& stack_frame);
     Size get_size_of_temporary_binary_rvalue(RValue const& rvalue,
-        Function_PTR const& stack_frame);
+        Function const& stack_frame);
 
     // Getters: IR and symbol tables
-    Instruction_PTR& get_ir_instructions();
-    Instruction_PTR const& get_ir_instructions() const;
     util::AST_Node& get_hoisted_symbols();
     util::AST_Node const& get_hoisted_symbols() const;
     Symbol_Table<>& get_globals();
@@ -309,21 +277,15 @@ class Object
 
   private:
     Size get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
-        Function_PTR const& stack_frame);
+        Function const& stack_frame);
 
   private:
     struct Object_IMPL;
     std::unique_ptr<Object_IMPL> pimpl;
 };
 
-using Object_PTR = std::shared_ptr<Object>;
-
 void set_stack_frame_return_value(RValue const& rvalue,
-    Function_PTR& frame,
-    Object_PTR& objects);
-
-} // namespace credence
-
-} // namespace ir
+    Function& frame,
+    Object& objects);
 
 } // namespace object

@@ -13,7 +13,7 @@
 
 #include "ast_lowering.h"
 
-#include "hir.h"             // for make_lvalue, Data_Kind
+#include "hir/hir.h"         // for make_lvalue, Data_Kind
 #include "literal.h"         // for TYPE_LITERAL, WORD_LITERAL
 #include "operators.h"       // for Operator, BINARY_OPERATORS
 #include <algorithm>         // for __find, find

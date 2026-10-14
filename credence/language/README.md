@@ -101,7 +101,7 @@ These tuples are the leaves of the HIR.
 
 ## HIR
 
-[`hir.h`](/credence/language/hir.h)'s `Data_Kind` is the HIR node. `Data_Kind::Kind` is the algebraic sum of every expression shape the rest of the compiler cares about: `Literal`, `Array`, `Symbol`, `Unary`, `Relation`, `Function`, `LValue`. "Type" is kept for the middle of the tuple - a value's data type - and "kind" is which expression shape a node is.
+[`hir.h`](/credence/language/hir/hir.h)'s `Data_Kind` is the HIR node. `Data_Kind::Kind` is the algebraic sum of every expression shape the rest of the compiler cares about: `Literal`, `Array`, `Symbol`, `Unary`, `Relation`, `Function`, `LValue`. "Type" is kept for the middle of the tuple - a value's data type - and "kind" is which expression shape a node is.
 
 ```
 x = 5 + 3 * 2

@@ -13,19 +13,20 @@
 
 #pragma once
 
-#include <algorithm>            // for __find, find
-#include <credence/error.h>     // for throw_compiletime_error
-#include <credence/ir/object.h> // for LValue, RValue, Object, Function
-#include <credence/types.h>     // for get_type_from_rvalue_data_type, Data...
-#include <credence/util.h>      // for contains, str_trim_ws
-#include <fmt/format.h>         // for format
-#include <functional>           // for function
-#include <initializer_list>     // for initializer_list
-#include <memory>               // for shared_ptr
-#include <source_location>      // for source_location
-#include <string>               // for basic_string, operator==, char_traits
-#include <string_view>          // for basic_string_view
-#include <tuple>                // for get, tuple
+#include "binding.h"        // for Object, Function, Vector
+#include "types.h"          // for RValue, LValue, ...
+#include <algorithm>        // for __find, find
+#include <credence/error.h> // for throw_compiletime_error
+#include <credence/types.h> // for get_type_from_rvalue_data_type, Data...
+#include <credence/util.h>  // for contains, str_trim_ws
+#include <fmt/format.h>     // for format
+#include <functional>       // for function
+#include <initializer_list> // for initializer_list
+#include <memory>           // for shared_ptr
+#include <source_location>  // for source_location
+#include <string>           // for basic_string, operator==, char_traits
+#include <string_view>      // for basic_string_view
+#include <tuple>            // for get, tuple
 
 /****************************************************************************
  *  Type Checker
@@ -54,11 +55,58 @@
  *
  ****************************************************************************/
 
-namespace credence::ir {
+namespace credence::language::hir::checking {
 
 /**
  * @brief The discrete type, vector, and pointer assignment type checker
  */
+
+void type_invalid_assignment_check(LValue const& lvalue, RValue const& rvalue);
+void type_invalid_assignment_check(LValue const& lvalue,
+    type::Data_Type const& rvalue);
+void type_invalid_assignment_check(LValue const& lvalue,
+    binding::Vector const& vector,
+    RValue const& index);
+void type_invalid_assignment_check(binding::Vector const& vector_lhs,
+    binding::Vector const& vector_rhs,
+    RValue const& index);
+void type_invalid_assignment_check(binding::Vector const& vector_lhs,
+    binding::Vector const& vector_rhs,
+    RValue const& index_lhs,
+    RValue const& index_rhs);
+
+struct Pointer_Safety_Vector_Decay
+{
+    Pointer_Safety_Vector_Decay() = delete;
+    Pointer_Safety_Vector_Decay(Pointer_Safety_Vector_Decay const&) = delete;
+    Pointer_Safety_Vector_Decay& operator=(
+        Pointer_Safety_Vector_Decay const&) = delete;
+    explicit Pointer_Safety_Vector_Decay(hir::binding::Object& objects)
+        : objects_(objects)
+        , stack_frame_(objects.get_stack_frame())
+    {
+    }
+    void type_safe_assign_pointer(LValue const& lvalue,
+        RValue const& rvalue,
+        bool indirection = false);
+    void type_safe_assign_trivial_vector(LValue const& lvalue,
+        RValue const& rvalue);
+    void type_safe_assign_dereference(LValue const& lvalue,
+        RValue const& rvalue);
+    void type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue);
+    void type_safe_assign_pointer_or_vector_lvalue(LValue const& lvalue,
+        type::RValue_Reference_Type const& rvalue,
+        bool indirection = false);
+
+    void is_boundary_out_of_range(RValue const& rvalue);
+
+  private:
+    binding::Object& objects_;
+    binding::Function& stack_frame_;
+}
+
+// @TODO: CONTINUE
+
 class Type_Checker
 {
 
@@ -75,8 +123,6 @@ class Type_Checker
     {
     }
 
-    friend class Table;
-
   private:
     using Type_Check_Lambda = std::function<bool(type::semantic::LValue)>;
     bool vector_contains_(type::semantic::LValue const& lvalue)
@@ -91,41 +137,12 @@ class Type_Checker
     }
 
     // clang-format off
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-    void type_invalid_assignment_check(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_invalid_assignment_check(LValue const& lvalue,
-        type::Data_Type const& rvalue);
-    void type_invalid_assignment_check(LValue const& lvalue,
-        object::Vector_PTR const& vector,
-        RValue const& index);
-    void type_invalid_assignment_check(object::Vector_PTR const& vector_lhs,
-        object::Vector_PTR const& vector_rhs,
-        RValue const& index);
-    void type_invalid_assignment_check(object::Vector_PTR const& vector_lhs,
-        object::Vector_PTR const& vector_rhs,
-        RValue const& index_lhs,
-        RValue const& index_rhs);
 
-  private:
-    void type_safe_assign_pointer(LValue const& lvalue,
-        RValue const& rvalue,
-        bool indirection = false);
-    void type_safe_assign_trivial_vector(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_safe_assign_dereference(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue);
-    void type_safe_assign_pointer_or_vector_lvalue(LValue const& lvalue,
-        type::RValue_Reference_Type const& rvalue,
-        bool indirection = false);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void is_boundary_out_of_range(RValue const& rvalue);
 
-    // clang-format on
-  public:
-    Type get_type_from_rvalue_data_type(LValue const& lvalue);
+      // clang-format on
+      public : Type get_type_from_rvalue_data_type(LValue const& lvalue);
     Size get_size_from_local_lvalue(LValue const& lvalue);
 
   public:
