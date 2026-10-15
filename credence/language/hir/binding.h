@@ -205,18 +205,18 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 using Argument_Stack = std::map<Label, std::deque<type::Parameters>>;
 
 /**
- * @brief Object table of types, functions, and vectors in a frame
+ * @brief Object_Table table of types, functions, and vectors in a frame
  */
-class Object
+class Object_Table
 {
   public:
     // Constructors and destructor
-    explicit Object();
-    ~Object();
-    Object(Object&&) noexcept;
-    Object& operator=(Object&&) noexcept;
-    Object(Object const&) = delete;
-    Object& operator=(Object const&) = delete;
+    explicit Object_Table();
+    ~Object_Table();
+    Object_Table(Object_Table&&) noexcept;
+    Object_Table& operator=(Object_Table&&) noexcept;
+    Object_Table(Object_Table const&) = delete;
+    Object_Table& operator=(Object_Table const&) = delete;
 
     // Container queries
     bool vector_contains(LValue const& lvalue);
@@ -259,6 +259,13 @@ class Object
     Stack& get_stack();
     Stack const& get_stack() const;
 
+    // Getters: Size and type
+    Type& get_type_from_object_data_type(LValue const& lvalue);
+    Type const& get_type_from_object_data_type(LValue const& lvalue) const;
+
+    Size& get_size_from_object_name(LValue const& lvalue);
+    Size const& get_size_from_object_name(LValue const& lvalue) const;
+
     // Getters: Functions and vectors
     Functions& get_functions();
     Functions const& get_functions() const;
@@ -280,12 +287,12 @@ class Object
         Function const& stack_frame);
 
   private:
-    struct Object_IMPL;
-    std::unique_ptr<Object_IMPL> pimpl;
+    struct Object_Table_IMPL;
+    std::unique_ptr<Object_Table_IMPL> pimpl;
 };
 
 void set_stack_frame_return_value(RValue const& rvalue,
     Function& frame,
-    Object& objects);
+    Object_Table& objects);
 
 } // namespace object

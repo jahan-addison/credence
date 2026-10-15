@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "binding.h"        // for Object, Function, Vector
+#include "binding.h"        // for Object_Table, Function, Vector
 #include "types.h"          // for RValue, LValue, ...
 #include <algorithm>        // for __find, find
 #include <credence/error.h> // for throw_compiletime_error
@@ -57,33 +57,79 @@
 
 namespace credence::language::hir::checking {
 
-/**
- * @brief The discrete type, vector, and pointer assignment type checker
- */
-
-void type_invalid_assignment_check(LValue const& lvalue, RValue const& rvalue);
-void type_invalid_assignment_check(LValue const& lvalue,
-    type::Data_Type const& rvalue);
-void type_invalid_assignment_check(LValue const& lvalue,
-    binding::Vector const& vector,
-    RValue const& index);
-void type_invalid_assignment_check(binding::Vector const& vector_lhs,
-    binding::Vector const& vector_rhs,
-    RValue const& index);
-void type_invalid_assignment_check(binding::Vector const& vector_lhs,
-    binding::Vector const& vector_rhs,
-    RValue const& index_lhs,
-    RValue const& index_rhs);
-
-struct Pointer_Safety_Vector_Decay
+struct Storage_Type_Checker
 {
-    Pointer_Safety_Vector_Decay() = delete;
-    Pointer_Safety_Vector_Decay(Pointer_Safety_Vector_Decay const&) = delete;
-    Pointer_Safety_Vector_Decay& operator=(
-        Pointer_Safety_Vector_Decay const&) = delete;
-    explicit Pointer_Safety_Vector_Decay(hir::binding::Object& objects)
+    Storage_Type_Checker() = delete;
+    Storage_Type_Checker(Storage_Type_Checker const&) = delete;
+    Storage_Type_Checker& operator=(Storage_Type_Checker const&) = delete;
+    explicit Storage_Type_Checker(hir::binding::Object_Table& objects)
         : objects_(objects)
         , stack_frame_(objects.get_stack_frame())
+    {
+    }
+
+    // @TODO: All needs to go in object_table
+
+    using Lambda_Checker = std::function<bool(type::semantic::LValue)>;
+
+    inline bool is_null_symbol(LValue const& lvalue)
+    {
+        if (is_vector(lvalue))
+            return false;
+        if (is_pointer(lvalue))
+            return stack_frame_.get_locals().get_pointer_by_name(lvalue) ==
+                   "NULL";
+        return type::get_type_from_rvalue_data_type(
+                   stack_frame_.get_locals().get_symbol_by_name(
+                       util::str_trim_ws(lvalue).data())) == "null";
+    }
+
+    inline bool is_vector_or_pointer(RValue const& rvalue)
+    {
+        return is_vector(rvalue) or is_pointer(rvalue) or
+               type::is_dereference_expression(rvalue);
+    }
+
+    inline bool is_vector(RValue const& rvalue)
+    {
+        auto label = util::contains(rvalue, "[")
+                         ? type::from_lvalue_offset(rvalue)
+                         : rvalue;
+        return objects_.get_vectors().contains(label);
+    }
+    inline bool is_pointer(RValue const& rvalue)
+    {
+        return stack_frame_.get_locals().is_pointer(rvalue) or
+               rvalue.starts_with("&") or
+               type::is_rvalue_data_type_string(rvalue);
+    }
+
+    bool vector_contains_(type::semantic::LValue const& lvalue)
+    {
+        return objects_.get_vectors().contains(lvalue);
+    }
+    bool local_contains_(type::semantic::LValue const& lvalue)
+    {
+        const auto& locals = stack_frame_.get_locals();
+        return locals.is_defined(lvalue) and
+               not binding::is_vector_lvalue(lvalue);
+    }
+
+  private:
+    binding::Object_Table& objects_;
+    binding::Function& stack_frame_;
+};
+
+struct Pointer_Vector_Decay_Checker
+{
+    Pointer_Vector_Decay_Checker() = delete;
+    Pointer_Vector_Decay_Checker(Pointer_Vector_Decay_Checker const&) = delete;
+    Pointer_Vector_Decay_Checker& operator=(
+        Pointer_Vector_Decay_Checker const&) = delete;
+    explicit Pointer_Vector_Decay_Checker(hir::binding::Object_Table& objects)
+        : objects_(objects)
+        , stack_frame_(objects.get_stack_frame())
+        , storage_type_(objects)
     {
     }
     void type_safe_assign_pointer(LValue const& lvalue,
@@ -100,55 +146,72 @@ struct Pointer_Safety_Vector_Decay
 
     void is_boundary_out_of_range(RValue const& rvalue);
 
+    inline bool is_null_symbol(LValue const& lvalue)
+    {
+        if (storage_type_.is_vector(lvalue))
+            return false;
+        if (storage_type_.is_pointer(lvalue))
+            return stack_frame_.get_locals().get_pointer_by_name(lvalue) ==
+                   "NULL";
+        return type::get_type_from_rvalue_data_type(
+                   stack_frame_.get_locals().get_symbol_by_name(
+                       util::str_trim_ws(lvalue).data())) == "null";
+    }
+
   private:
-    binding::Object& objects_;
+    binding::Object_Table& objects_;
     binding::Function& stack_frame_;
-}
-
-// @TODO: CONTINUE
-
-class Type_Checker
-{
-
-  public:
-    Type_Checker() = delete;
-    Type_Checker(Type_Checker const&) = delete;
-    Type_Checker& operator=(Type_Checker const&) = delete;
-
-  public:
-    explicit Type_Checker(object::Object_PTR& objects,
-        object::Function_PTR& stack_frame)
-        : objects_(objects)
-        , stack_frame_(stack_frame)
-    {
-    }
 
   private:
-    using Type_Check_Lambda = std::function<bool(type::semantic::LValue)>;
-    bool vector_contains_(type::semantic::LValue const& lvalue)
+    Storage_Type_Checker storage_type_;
+};
+
+struct Value_Type_Assignment_Checker
+{
+    Value_Type_Assignment_Checker() = delete;
+    Value_Type_Assignment_Checker(
+        Value_Type_Assignment_Checker const&) = delete;
+    Value_Type_Assignment_Checker& operator=(
+        Value_Type_Assignment_Checker const&) = delete;
+    explicit Value_Type_Assignment_Checker(hir::binding::Object_Table& objects)
+        : objects_(objects)
+        , stack_frame_(objects.get_stack_frame())
     {
-        return objects_->get_vectors().contains(lvalue);
     }
-    bool local_contains_(type::semantic::LValue const& lvalue)
+    void type_invalid_assignment_check(LValue const& lvalue,
+        RValue const& rvalue);
+    void type_invalid_assignment_check(LValue const& lvalue,
+        type::Data_Type const& rvalue);
+    void type_invalid_assignment_check(LValue const& lvalue,
+        binding::Vector const& vector,
+        RValue const& index);
+    void type_invalid_assignment_check(binding::Vector const& vector_lhs,
+        binding::Vector const& vector_rhs,
+        RValue const& index);
+    void type_invalid_assignment_check(binding::Vector const& vector_lhs,
+        binding::Vector const& vector_rhs,
+        RValue const& index_lhs,
+        RValue const& index_rhs);
+
+  private:
+    binding::Object_Table& objects_;
+    binding::Function& stack_frame_;
+};
+
+struct Value_Storage_Assignment_Checker
+{
+    Value_Storage_Assignment_Checker() = delete;
+    Value_Storage_Assignment_Checker(
+        Value_Storage_Assignment_Checker const&) = delete;
+    Value_Storage_Assignment_Checker& operator=(
+        Value_Storage_Assignment_Checker const&) = delete;
+    explicit Value_Storage_Assignment_Checker(
+        hir::binding::Object_Table& objects)
+        : objects_(objects)
+        , stack_frame_(objects.get_stack_frame())
     {
-        const auto& locals = stack_frame_->get_locals();
-        return locals.is_defined(lvalue) and
-               not object::is_vector_lvalue(lvalue);
     }
 
-    // clang-format off
-
-
-  CREDENCE_PRIVATE_UNLESS_TESTED:
-
-      // clang-format on
-      public : Type get_type_from_rvalue_data_type(LValue const& lvalue);
-    Size get_size_from_local_lvalue(LValue const& lvalue);
-
-  public:
-    /**
-     * @brief Either lhs or rhs are trivial vector assignments
-     */
     inline bool is_trivial_vector_assignment(LValue const& lhs,
         LValue const& rhs)
     {
@@ -158,35 +221,23 @@ class Type_Checker
                     objects_->get_vectors()[rhs]->get_data().size() == 1));
     }
 
-    inline bool is_vector(RValue const& rvalue)
-    {
-        auto label = util::contains(rvalue, "[")
-                         ? type::from_lvalue_offset(rvalue)
-                         : rvalue;
-        return objects_->get_vectors().contains(label);
-    }
-    inline bool is_pointer(RValue const& rvalue)
-    {
-        return stack_frame_->get_locals().is_pointer(rvalue) or
-               rvalue.starts_with("&") or
-               type::is_rvalue_data_type_string(rvalue);
-    }
-    inline bool is_null_symbol(LValue const& lvalue)
-    {
-        if (is_vector(lvalue))
-            return false;
-        if (is_pointer(lvalue))
-            return stack_frame_->get_locals().get_pointer_by_name(lvalue) ==
-                   "NULL";
-        return type::get_type_from_rvalue_data_type(
-                   stack_frame_->get_locals().get_symbol_by_name(
-                       util::str_trim_ws(lvalue).data())) == "null";
-    }
+  private:
+    binding::Object_Table& objects_;
+    binding::Function& stack_frame_;
+};
 
-    inline bool is_vector_or_pointer(RValue const& rvalue)
+class Trivial_Type_Assignment_Checker
+{
+    Trivial_Type_Assignment_Checker() = delete;
+    Trivial_Type_Assignment_Checker(
+        Trivial_Type_Assignment_Checker const&) = delete;
+    Trivial_Type_Assignment_Checker& operator=(
+        Trivial_Type_Assignment_Checker const&) = delete;
+    explicit Trivial_Type_Assignment_Checker(
+        hir::binding::Object_Table& objects)
+        : objects_(objects)
+        , stack_frame_(objects.get_stack_frame())
     {
-        return is_vector(rvalue) or is_pointer(rvalue) or
-               type::is_dereference_expression(rvalue);
     }
 
   private:
@@ -194,9 +245,7 @@ class Type_Checker
     {
         return stack_frame_->get_locals();
     }
-    /**
-     * @brief Check that the type of an lvalue is an integral type
-     */
+
     inline void assert_integral_unary_expression(RValue const& rvalue,
         Type const& type,
         std::source_location const& location = std::source_location::current())
@@ -213,16 +262,16 @@ class Type_Checker
                 location);
     }
 
-    /** Left-hand-side and right-hand-side type equality check */
     inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
     {
-        return get_type_from_rvalue_data_type(lhs) ==
-               get_type_from_rvalue_data_type(rhs);
+        return get_type_from_rvalue_data_type(objects, lhs) ==
+               get_type_from_rvalue_data_type(objects, rhs);
     }
     inline bool lhs_rhs_type_is_equal(LValue const& lhs,
         type::Data_Type const& rvalue)
     {
-        return get_type_from_rvalue_data_type(lhs) == std::get<1>(rvalue);
+        return get_type_from_rvalue_data_type(objects, lhs) ==
+               std::get<1>(rvalue);
     }
 
     inline bool lhs_rhs_type_is_equal(type::Data_Type const& lhs,
@@ -241,13 +290,13 @@ class Type_Checker
             symbol,
             __source__,
             type_,
-            objects_->get_stack_frame()->get_symbol(),
-            objects_->get_hoisted_symbols());
+            objects_.get_stack_frame().get_symbol(),
+            objects_.get_hoisted_symbols());
     }
 
   private:
-    object::Object_PTR& objects_;
-    object::Function_PTR& stack_frame_;
+    binding::Object_Table& objects_;
+    binding::Function& stack_frame_;
 };
 
 } // namespace ir

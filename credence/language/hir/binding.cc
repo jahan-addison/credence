@@ -32,7 +32,7 @@
 #include <tuple>             // for get, tuple
 
 /****************************************************************************
- * Object Table
+ * Name Resolution and Object Binding
  *
  * Provides an object storage interface from the IR for target platform passes.
  * Represents vectors, functions, stack frames, and symbol tables as queryable
@@ -325,9 +325,9 @@ unsigned int Function::get_allocation() const
 }
 
 /**
- * @brief Object PIMPL implementation
+ * @brief Object_Table PIMPL implementation
  */
-struct Object::Object_IMPL
+struct Object_Table::Object_Table_IMPL
 {
     util::AST_Node hoisted_symbols;
     Symbol_Table<> globals{};
@@ -343,127 +343,127 @@ struct Object::Object_IMPL
     Labels labels{};
 };
 
-Object::Object()
-    : pimpl{ std::make_unique<Object_IMPL>() }
+Object_Table::Object_Table()
+    : pimpl{ std::make_unique<Object_Table_IMPL>() }
 {
 }
 
-Object::~Object() = default;
+Object_Table::~Object_Table() = default;
 
-Object::Object(Object&&) noexcept = default;
+Object_Table::Object_Table(Object_Table&&) noexcept = default;
 
-Object& Object::operator=(Object&&) noexcept = default;
+Object_Table& Object_Table::operator=(Object_Table&&) noexcept = default;
 
-bool Object::is_stack_frame()
+bool Object_Table::is_stack_frame()
 {
     return !pimpl->stack_frame_symbol.empty();
 }
-void Object::set_stack_frame(Label const& label)
+void Object_Table::set_stack_frame(Label const& label)
 {
     pimpl->stack_frame_symbol = label;
 }
-void Object::reset_stack_frame()
+void Object_Table::reset_stack_frame()
 {
     pimpl->stack_frame_symbol = std::string{};
 }
 
-void Object::reset_frame_calls()
+void Object_Table::reset_frame_calls()
 {
     for (auto& function : pimpl->functions) {
         function.second.get().reset_calls();
     }
 }
 
-util::AST_Node& Object::get_hoisted_symbols()
+util::AST_Node& Object_Table::get_hoisted_symbols()
 {
     return pimpl->hoisted_symbols;
 }
-util::AST_Node const& Object::get_hoisted_symbols() const
+util::AST_Node const& Object_Table::get_hoisted_symbols() const
 {
     return pimpl->hoisted_symbols;
 }
-Symbol_Table<>& Object::get_globals()
+Symbol_Table<>& Object_Table::get_globals()
 {
     return pimpl->globals;
 }
-Symbol_Table<> const& Object::get_globals() const
+Symbol_Table<> const& Object_Table::get_globals() const
 {
     return pimpl->globals;
 }
-Function::Address_Table& Object::get_address_table()
+Function::Address_Table& Object_Table::get_address_table()
 {
     return pimpl->address_table;
 }
-Function::Address_Table const& Object::get_address_table() const
+Function::Address_Table const& Object_Table::get_address_table() const
 {
     return pimpl->address_table;
 }
-std::string& Object::get_stack_frame_symbol()
+std::string& Object_Table::get_stack_frame_symbol()
 {
     return pimpl->stack_frame_symbol;
 }
-std::string const& Object::get_stack_frame_symbol() const
+std::string const& Object_Table::get_stack_frame_symbol() const
 {
     return pimpl->stack_frame_symbol;
 }
-Stack& Object::get_stack()
+Stack& Object_Table::get_stack()
 {
     return pimpl->stack;
 }
-Stack const& Object::get_stack() const
+Stack const& Object_Table::get_stack() const
 {
     return pimpl->stack;
 }
-Functions& Object::get_functions()
+Functions& Object_Table::get_functions()
 {
     return pimpl->functions;
 }
-Functions const& Object::get_functions() const
+Functions const& Object_Table::get_functions() const
 {
     return pimpl->functions;
 }
-Vectors& Object::get_vectors()
+Vectors& Object_Table::get_vectors()
 {
     return pimpl->vectors;
 }
-Vectors const& Object::get_vectors() const
+Vectors const& Object_Table::get_vectors() const
 {
     return pimpl->vectors;
 }
-RValues& Object::get_strings()
+RValues& Object_Table::get_strings()
 {
     return pimpl->strings;
 }
-RValues const& Object::get_strings() const
+RValues const& Object_Table::get_strings() const
 {
     return pimpl->strings;
 }
-RValues& Object::get_floats()
+RValues& Object_Table::get_floats()
 {
     return pimpl->floats;
 }
-RValues const& Object::get_floats() const
+RValues const& Object_Table::get_floats() const
 {
     return pimpl->floats;
 }
-RValues& Object::get_doubles()
+RValues& Object_Table::get_doubles()
 {
     return pimpl->doubles;
 }
-RValues const& Object::get_doubles() const
+RValues const& Object_Table::get_doubles() const
 {
     return pimpl->doubles;
 }
-Labels& Object::get_labels()
+Labels& Object_Table::get_labels()
 {
     return pimpl->labels;
 }
-Labels const& Object::get_labels() const
+Labels const& Object_Table::get_labels() const
 {
     return pimpl->labels;
 }
 
-void Object::set_ir_parameters(Label const& label, Parameters& parameters)
+void Object_Table::set_ir_parameters(Label const& label, Parameters& parameters)
 {
     auto& ir_params = pimpl->ir_parameters;
     if (!ir_params.contains(label)) {
@@ -474,7 +474,7 @@ void Object::set_ir_parameters(Label const& label, Parameters& parameters)
     pimpl->ir_parameters.insert_or_assign(label, ir_label_params);
 }
 
-std::deque<Parameters>& Object::get_ir_parameters(Label const& label)
+std::deque<Parameters>& Object_Table::get_ir_parameters(Label const& label)
 {
     credence_assert(pimpl->ir_parameters.contains(label));
     return pimpl->ir_parameters.at(label);
@@ -542,17 +542,17 @@ bool Vector_Offset::is_valid_vector_address_offset(LValue const& lvalue)
 /**
  * @brief Pattern matching helpers
  */
-bool Object::vector_contains(LValue const& lvalue)
+bool Object_Table::vector_contains(LValue const& lvalue)
 {
     return pimpl->vectors.contains(lvalue);
 }
-bool Object::local_contains(LValue const& lvalue)
+bool Object_Table::local_contains(LValue const& lvalue)
 {
     const auto& locals = get_stack_frame_symbols();
     return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
 }
 
-bool Object::function_contains(Label const& label)
+bool Object_Table::function_contains(Label const& label)
 {
     return pimpl->functions.contains(label);
 }
@@ -560,17 +560,17 @@ bool Object::function_contains(Label const& label)
 /**
  * @brief Stack frame helpers
  */
-Function& Object::get_stack_frame()
+Function& Object_Table::get_stack_frame()
 {
     credence_assert(pimpl->functions.contains(pimpl->stack_frame_symbol));
     return pimpl->functions.at(pimpl->stack_frame_symbol);
 }
-Function& Object::get_stack_frame(Label const& label)
+Function& Object_Table::get_stack_frame(Label const& label)
 {
     credence_assert(pimpl->functions.contains(label));
     return pimpl->functions.at(label);
 }
-Locals& Object::get_stack_frame_symbols()
+Locals& Object_Table::get_stack_frame_symbols()
 {
     return get_stack_frame().get_locals();
 }
@@ -624,7 +624,7 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 /**
  * @brief Resolve the rvalue at a temporary storage address in the object table
  */
-RValue Object::lvalue_at_temporary_object_address(LValue const& lvalue,
+RValue Object_Table::lvalue_at_temporary_object_address(LValue const& lvalue,
     Function const& stack_frame)
 {
     auto rvalue = type::is_temporary(lvalue) or util::contains(lvalue, "_p")
@@ -643,7 +643,7 @@ RValue Object::lvalue_at_temporary_object_address(LValue const& lvalue,
 /**
  * @brief Resolve the size of an rvalue data type that is NOT a word literal
  */
-Size Object::get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
+Size Object_Table::get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
     Function const& stack_frame)
 {
     auto& locals = stack_frame.get_locals();
@@ -660,7 +660,7 @@ Size Object::get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
 /**
  * @brief Resolve the size at a temporary storage address in the object table
  */
-Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
+Size Object_Table::lvalue_size_at_temporary_object_address(LValue const& lvalue,
     Function const& stack_frame)
 {
     auto rvalue = lvalue_at_temporary_object_address(lvalue, stack_frame);
@@ -720,7 +720,7 @@ Size Object::lvalue_size_at_temporary_object_address(LValue const& lvalue,
     return 0UL;
 }
 
-Size Object::get_size_of_temporary_binary_rvalue(RValue const& rvalue,
+Size Object_Table::get_size_of_temporary_binary_rvalue(RValue const& rvalue,
     Function const& stack_frame)
 {
     Size size = 0UL;
@@ -746,7 +746,7 @@ Size Object::get_size_of_temporary_binary_rvalue(RValue const& rvalue,
 // /**
 //  * @brief Search the ir instructions in a stack frame for a instruction
 //  */
-// bool Object::stack_frame_contains_call_instruction(Label name,
+// bool Object_Table::stack_frame_contains_call_instruction(Label name,
 //     ir::Instructions const& instructions)
 // {
 //     credence_assert(pimpl->functions.contains(name));
@@ -765,7 +765,7 @@ Size Object::get_size_of_temporary_binary_rvalue(RValue const& rvalue,
  */
 void set_stack_frame_return_value(RValue const& rvalue,
     Function& frame,
-    Object& objects)
+    Object_Table& objects)
 {
     auto is_vector_lvalue = [&](LValue const& lvalue) {
         return util::contains(lvalue, "[") and util::contains(lvalue, "]");
