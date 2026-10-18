@@ -1186,7 +1186,6 @@ void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
     if (stack_frame_.tail != "getchar" and
         not table->functions.contains(stack_frame_.tail))
         return;
-    auto& frame = table->functions.at(stack_frame_.tail).get();
     auto [lhs_s, lhs_i] =
         accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
             lvalue, instructions.size(), accessor_->device_accessor);
@@ -1200,6 +1199,7 @@ void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
     if (stack_frame_.tail == "getchar")
         arm64_add__asm(instructions, mov, lhs_s, w0);
     else {
+        auto& frame = table->functions.at(stack_frame_.tail).get();
         auto immediate =
             operand_inserter.get_operand_storage_from_rvalue(frame.ret->first);
         arm64_add__asm(instructions, mov, lhs_s, immediate);

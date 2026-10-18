@@ -53,10 +53,7 @@ flowchart LR
     style H fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
-<span style="font-size:18px">
-Check out the <a href="https://soliloq.uy/tag/credence/">blog series</a>!
-<br>
-</span>
+#### Check out the <a href="https://hellojahan.blog/tag/credence/">blog series</a>!
 
 ## Features
 
