@@ -9,6 +9,10 @@ flowchart LR
     A[B source] -->|lexer.re| B(Tokens)
     B -->|parser.cc| C(AST_Node)
     C -->|symbol_builder.cc| H(Symbol_Builder)
+    C -->|hir/table.cc| S(Semantic analysis)
+    H --> S
+    S -.->|rvalue| E
+    S -->|Object_Table| T(ir::Table)
     C -->|ir/temporary.cc| D(IR walk)
     H --> D
     D --> G(IR instruction)
@@ -24,9 +28,11 @@ flowchart LR
     style F fill:#2d2d2d,stroke:#888,color:#fff
     style G fill:#2d2d2d,stroke:#888,color:#fff
     style H fill:#2d2d2d,stroke:#888,color:#fff
+    style S fill:#2d2d2d,stroke:#888,color:#fff
+    style T fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
-`AST_Lowering` and the `Shunting_Yard` virtual stack machine only ever see rvalue expressions. The IR (`ir/temporary.cc`) is what walks the full `AST_Node` tree, statement by statement. When it reaches one holding an expression (such as `rvalue_statement`, a `return`, an `if` condition, etc), it hands that subtree to `AST_Lowering` then `Shunting_Yard` and gets a queue back. Everything else such as `auto`, function statements, and so on the IR takes care of on its own.
+`AST_Lowering` and the `Shunting_Yard` virtual stack machine only ever see rvalue expressions. The IR (`ir/temporary.cc`) is what walks the full `AST_Node` tree, statement by statement. When it reaches one holding an expression (such as `rvalue_statement`, a `return`, an `if` condition, etc), it hands that subtree to `AST_Lowering` then `Shunting_Yard` and gets a queue back. Everything else such as `auto`, function statements, and so on the IR takes care of on its own. Before the IR, [semantic analysis](#semantic-analysis) walks the same tree to type check each expression in the HIR.
 
 
 In hindsight, the AST_Lowering <-> Shunting_Yard pair is a replacement for Pratt Parsing.
@@ -35,6 +41,8 @@ In hindsight, the AST_Lowering <-> Shunting_Yard pair is a replacement for Pratt
 ## Lexer
 
 A lexer built with the lexer-generator re2c from [`lexer.re`](/credence/language/lexer.re) into `lexer.cc` (see `Token`, `Token_Type` in [`lexer.h`](/credence/language/lexer.h)).
+
+An identifier is at most 16 characters. A longer identifier is its own token, and the parser reports it as a syntax error at its position rather than splitting it into two names.
 
 ## Parser
 
@@ -77,7 +85,7 @@ Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes
 ### Other Weirdness
 
 * A label with whitespace before its `:` (`loop :`) keeps that whitespace as part of its name. The original grammar lexed a label as a single regex token (`NAME [\s]* ":"`) and built its name by slicing off only the trailing `:`, so whatever whitespace preceded it survives.
-* A char literal that is exactly one whitespace character (`' '`) keeps its surrounding quotes in `root`; every other char literal strips them. The original grammar had a second, redundant-looking rule matching a quoted space that never went through the same quote-stripping path as the general case.
+* A char literal that is exactly one whitespace character (`' '`) keeps its surrounding quotes in `root`; every other char literal strips them. The original grammar had a second, redundant-looking rule matching a quoted space that never went through the same quote-stripping path as the general case. [`ast_lowering.h`](/credence/language/ast_lowering.h) takes the character inside the quotes, so `' '` is a space.
 * Consecutive expression-statements (`x = 1; y = 2;`) merge into a single `rvalue_statement` node rather than two separate statements, because `expression+` is embedded inside the `rvalue_statement` rule itself, not at the statement-list level above it.
 
 ## Symbol Builder
@@ -119,6 +127,34 @@ Symbol(LValue("x"),
 ## Shunting Yard
 
 [`precedence.h`](/credence/language/precedence.h) is where operator precedence is actually fixed. It's an extension of the shunting-yard algorithm - **a stack-based virtual machine** - that takes the resolved HIR and re-linearizes it into a queue ordered by the real precedence table in `operators.h`, extended to also handle function calls and their parameters. This is the step that makes the parser's flat, unordered tree above fixed: by the time code generation sees an expression, it's already in the right order, regardless of how the parse tree happened to nest it.
+
+## Semantic Analysis
+
+[`table.h`](/credence/language/hir/table.h)'s `Table` is a pass over each definition and statement of a program, before the IR is constructed. It lowers each expression into the HIR, and the [type checker](/credence/language/hir/checker.h) evaluates the storage and type of its value in its stack frame - a scalar, or a pointer and the type it points to. An assignment between storage or types that do not agree is a compile-time error, as are out-of-range vector offsets, null pointer dereferences, duplicate labels and functions, and return values of different types.
+
+The result is the definitions of the [object table](/credence/language/hir/binding.h) - vectors, functions, and their parameters - that `ir::Table` binds the IR onto.
+
+```C
+main() {
+  auto x, *p;
+  x = 5;
+  p = &x;
+  p = x;
+}
+```
+
+```
+x  -> scalar int
+p  -> pointer to int
+error: invalid pointer assignment, right-hand-side 'x' is not a pointer
+```
+
+* A `word` is a machine word with no narrower type, such as a parameter, a call result, or a binary expression, and agrees with every type
+* Once a scalar has a type, it may not be assigned another type, e.g. `x = 10; x = 3.14;` is an error
+* Once a pointer points to a type, it may only point to that type. An assignment through a null pointer, `*m = 5;`, makes it a pointer to `int`, and a dereference before it is a null pointer dereference
+* A string literal is a pointer, but a string element of a vector is a scalar
+* A function may return from more than one statement, but each return value must be the same type
+* A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`. Each call is recorded, and after every function is built the pointer is carried through parameters passed to other functions, so `show(s) { print2(s); }` makes both `s` and the parameter of `print2` pointers
 
 ## Example
 

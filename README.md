@@ -17,7 +17,7 @@ The compiler works in 3 stages:
 
 * A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h), whose expressions are lowered into a [High Level Intermediate Representation or HIR](/credence/language/hir/hir.h) - a tree of expression kinds with `(value:type:size)` tuples
     * See details [here](/credence/language/README.md)
-* An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow, scope, and type checking
+* An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow and scope
     * See details [here](/credence/ir/README.md)
 * The target platforms, instruction selection and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
     * See details [here](/credence/target/README.md)
@@ -29,6 +29,7 @@ flowchart LR
         A[B source] --> B(Lexer)
         B --> C(Parser)
         C --> H(HIR)
+        H --> I(Semantic analysis)
     end
     subgraph Middle [" "]
         direction LR
@@ -40,7 +41,8 @@ flowchart LR
         F(x86-64)
         G(ARM64)
     end
-    H --> D --> E
+    I --> D --> E
+    I --> E
     E --> F
     E --> G
 
@@ -52,13 +54,14 @@ flowchart LR
     style F fill:#2d2d2d,stroke:#888,color:#fff
     style G fill:#2d2d2d,stroke:#888,color:#fff
     style H fill:#2d2d2d,stroke:#888,color:#fff
+    style I fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
 ## Features
 
 These features are not in the original B language specification.
 
-* **Strongly typed by type inference**
+* **Strongly typed by type inference**, see below
 * Vectors may be non-homogeneous but their type is determined by their initial values and may not be changed
 * Uninitialized variables are set to an internal `null` type
 * Compiletime out-of-range boundary checks on vectors and pointer arithmetic
@@ -66,6 +69,7 @@ These features are not in the original B language specification.
 * C style `float` and `double` literal types (e.g. `5.55f`)
 * C style constant literals
 * C++ style comment support
+* Identifiers may be up to 16 characters, B allows 8
 * `argc` and `argv` support
 * Logical and bitwise operators behave like C
 * Operator precedence behaves like C
@@ -74,6 +78,21 @@ These features are not in the original B language specification.
 * Binary operators may not be used directly after the `=` operator
 
 Note that windows is not supported. Please open an issue or pull request for any bugs you encounter.
+
+## Type System
+
+The original B has no types, but credence is strongly typed by type inference. A [semantic pass](/credence/language/hir/table.h) over the HIR gives each variable a storage - a scalar, or a pointer and the type it points to - and a type from its first assignment, such as `int`, `long`, `float`, `double`, `char`, or `string`. Every assignment after it is checked at compile time.
+
+* Uninitialized variables are an internal `null` type until their first assignment
+* A `word` is a machine word, such as a parameter, a call result, or a binary expression, and agrees with every type
+* Once a scalar has a type it may not be assigned another, e.g. `x = 10; x = 3.14;` is an error
+* Once a pointer points to a type it may **only** point to that type
+* An assignment through a null pointer, `*m = 5;`, makes `m` a pointer to `int`, and a dereference of `m` before it is a null pointer dereference
+* Vector offsets and pointer arithmetic are checked for out-of-range access at compile time
+* A function may return from more than one statement, but each return value must be the same type
+* A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`
+
+See details [here](/credence/language/README.md#semantic-analysis).
 
 ## Targets
 
@@ -127,6 +146,14 @@ cmake -B build-arm64 -DCMAKE_TOOLCHAIN_FILE=aarch64-toolchain.cmake -DUSE_SANITI
 cmake --build build-arm64 --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 ```
 
+And the same for x86-64 on an arm64 host. `bin/x86_64_runner.sh` runs, traces, or debugs an x86-64 Linux binary in the `Dockerfile.x86_64` image, and `--suite` builds Credence and runs the test suite with x86-64 code generation in the image:
+
+```bash
+cmake -B build-x86_64 -DCMAKE_TOOLCHAIN_FILE=x86_64-toolchain.cmake -DUSE_SANITIZER=OFF -DCMAKE_BUILD_TYPE=Debug -DIWYU=OFF
+cmake --build build-x86_64 --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
+./bin/x86_64_runner.sh --suite
+```
+
 ### Test Suite
 
 Credence [line and function code coverage](https://jahan-addison.github.io/credence/) is available with exhaustive type checking, ast, and code generation test suites.
@@ -146,6 +173,19 @@ cmake --build build --target coverage
 ### [The Standard Library](credence/target/common/runtime.h#34)
 
 Credence provides a few useful standard library functions that **do not** depend on libc or an external runtime. The standard library object file is pre-compiled in `stdlib/` for each platform and ISA.
+
+The standard library is hand-written assembly in `stdlib/<arch>/<os>/stdlib.s`. After a change to a `stdlib.s` file, the `stdlib` target re-assembles each object in the `Dockerfile.stdlib` image:
+
+```bash
+cmake --build build --target stdlib
+```
+
+* Docker is required. Without it the target is unavailable, and the compiler and test suite use the committed objects
+* The Linux objects are assembled with the GNU cross binutils, and the Darwin objects with the clang integrated assembler - no Mac or SDK is needed
+* Only the objects whose `stdlib.s` changed are assembled
+* `CREDENCE_STDLIB_PLATFORMS` selects the platforms, e.g. `-DCREDENCE_STDLIB_PLATFORMS="arm64/linux"`. The cross-compilation toolchains set it to their own platform
+
+**Note**: Commit the `stdlib.o` files with the `stdlib.s` change.
 
 In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h).
 
@@ -181,50 +221,62 @@ Check out additional code generation examples in the [arm64 test suite](/test/ar
 
 ```asm
 
+
 .section	__TEXT,__text,regular,pure_instructions
 
     .p2align 3
 
     .global _start
+    .global _getchar
     .global _print
     .global _printf
+    .global _putchar
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-80]!
     str x19, [sp, #16]
     mov x29, sp
-    str w0, [sp, #20]
+    str w0, [sp, #24]
     mov x19, x1
-    ldr x10, [sp, #28]
+    ldr x10, [sp, #32]
     adrp x6, ._L_str4__@PAGE
     add x6, x6, ._L_str4__@PAGEOFF
     mov x10, x6
-    str x10, [sp, #28]
+    str x10, [sp, #32]
 ._L2__main:
-    mov x8, x19
-    cmp x8, #1
+    ldr w10, [sp, #24]
+    mov w8, w10
+    cmp w8, #1
     b.gt ._L4__main
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    ldr x0, [sp, #28]
+    ldr x0, [sp, #32]
     bl identity
-    mov x0, x0
+    mov x8, x0
+    str x8, [sp, #40]
+    ldr x0, [sp, #40]
     bl identity
-    mov x0, x0
+    mov x8, x0
+    str x8, [sp, #48]
+    ldr x0, [sp, #48]
     bl identity
-    ldr x0, [sp, #28]
+    mov x8, x0
+    str x8, [sp, #56]
+    ldr x0, [sp, #56]
     ldr x1, [x19, #8]
     bl _printf
     adrp x6, strings@PAGE
     add x6, x6, strings@PAGEOFF
-    ldr x0, [x6]
+    ldr x10, [x6, #0]
+    str x10, [sp, #64]
+    ldr x0, [sp, #64]
     mov w1, #14
     bl _print
     b ._L3__main
 ._L1__main:
     ldr x19, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #80
     mov w0, #0
     mov x16, #1
     svc #0x80
@@ -242,20 +294,21 @@ identity:
 .section	__TEXT,__cstring,cstring_literals
 
 ._L_str1__:
-    .asciz "good afternoon"
+    .asciz "Good afternoon"
 
 ._L_str2__:
-    .asciz "good evening"
+    .asciz "Good evening"
 
 ._L_str3__:
-    .asciz "good morning"
+    .asciz "Good morning"
 
 ._L_str4__:
-    .asciz "hello, how are you, %s\n"
+    .asciz "Hello, how are you, %s!\n"
 
 .section	__DATA,__data
 
     .p2align 3
+
 
 strings:
     .xword ._L_str1__
@@ -264,10 +317,11 @@ strings:
 
     .xword ._L_str2__
 
-
 ```
 
 ---
+
+See [`examples/5.b`](/examples/5.b) for a larger example of the syscalls that are available on every platform - `getpid`, `umask`, `dup`, `write`, and `close` - with no C library in between.
 
 Here is an example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
 

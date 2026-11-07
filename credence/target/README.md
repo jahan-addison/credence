@@ -2,7 +2,7 @@
 
 Each platform roughly inherits the same set of pure virtual classes, macros, and templates below to `visit` each IR instruction and construct machine code for X8664, ARM64, on Linux and BSD (Darwin).
 
-The `ir::Table` is the last target-agnostic step - it's built once from the ITA, then each platform's `emit()` (see `generator.cc` for x86-64 and ARM64) takes over:
+The `ir::Table` is the last target-agnostic step - it's built once from the ITA and the object table from semantic analysis, then each platform's `emit()` (see `generator.cc` for x86-64 and ARM64) takes over:
 
 ```mermaid
 flowchart LR
@@ -46,4 +46,6 @@ Check out the test suites in `test/x86_64/generator.cc` and `test/arm64/generato
 #### Platform dependent kernel `syscall` codes, which in Linux's case is different for ARM64 and X8664
 ## Runtime
 #### Standard library and syscall function invocation, operand type checkers
+## Calling Convention
+#### A call to the standard library follows System V and ARM64 PCS. A function of the program takes its arguments in x0 - x7 on ARM64, and rdi, r8, r9, rsi, rdx, rcx on x86-64, and a function that makes calls stores its parameters on the stack, since a call overwrites the argument registers. See the register selection tables in [`arm64/memory.h`](/credence/target/arm64/memory.h) and [`x86_64/memory.h`](/credence/target/x86_64/memory.h)
 

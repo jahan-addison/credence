@@ -8,14 +8,12 @@ The intermediate representation (IR) is formalized as a linear four-tuple, named
 flowchart LR
     A(AST_Node statement) -->|ast_to_ita_instructions| B(queue)
     B -->|Temporary, operand + temporary stacks| C(Quadruples)
-    C -->|ir::Table| D(Object)
-    D -->|checker.h| E[Type-checked ITA]
+    C -->|ir::Table| D(Object table)
 
     style A fill:#2d2d2d,stroke:#888,color:#fff
     style B fill:#2d2d2d,stroke:#888,color:#fff
     style C fill:#2d2d2d,stroke:#888,color:#fff
     style D fill:#2d2d2d,stroke:#888,color:#fff
-    style E fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
 ## Instructions
@@ -88,7 +86,9 @@ See the branch state machine object for details [here](https://github.com/jahan-
 
 ## Table
 
-The `Table` constructs a set of data structures in a [table object](/credence/language/hir/binding.h) with allocations of functions, labels, vectors, and stack frames from the IR. During this stage, it also performs type checking, vector memory management, and out-of-range boundary checks via the [type checker](/credence/language/hir/checker.h). The result provides a base for generating type- and size-safe platform-specific machine code.
+The `Table` binds the IR onto the [object table](/credence/language/hir/binding.h) built by [semantic analysis](/credence/language/README.md#semantic-analysis) on the HIR - the addresses of functions and labels, temporaries, call parameters, and the storage of each local in its stack frame. Type checking and out-of-range boundary checks are done before the IR is constructed, so the `Table` raises no compile errors of its own. Each string, float, and double literal is recorded for the data section, including the operands of a binary expression and the value of a `RET`. The result provides a base for generating type- and size-safe platform-specific machine code.
+
+A `GOTO` directly after another `GOTO` is unreachable, and the ITA drops it when it constructs a function. A `RET` jumps to the end of its function, unless it's the last statement of the function body.
 
 
 ## Example:
