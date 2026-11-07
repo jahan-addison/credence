@@ -15,8 +15,9 @@ main(argc, argv) {
   auto pid, mask, fd, n;
   extrn banner, report;
 
-  write(1, banner, 31);
-  rule(31);
+  write(1, banner, 32);
+  print("\n");
+  rule(32);
 
   // the process and its parent
   pid = getpid();
@@ -34,6 +35,8 @@ main(argc, argv) {
 
   if (argc > 1)
     greet(argv[1], argc - 1);
+
+  rule(32);
 }
 
 // a line of dashes
