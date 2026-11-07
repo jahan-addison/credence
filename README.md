@@ -9,6 +9,7 @@
 * Language grammar: [here](credence/language/grammar.lark)
 * Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
+#### Check out the <a href="https://jahans.blog/tag/credence/">blog series</a>!
 
 ## Overview
 
@@ -52,8 +53,6 @@ flowchart LR
     style G fill:#2d2d2d,stroke:#888,color:#fff
     style H fill:#2d2d2d,stroke:#888,color:#fff
 ```
-
-#### Check out the <a href="https://hellojahan.blog/tag/credence/">blog series</a>!
 
 ## Features
 
