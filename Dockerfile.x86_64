@@ -1,0 +1,16 @@
+FROM --platform=linux/amd64 ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    binutils \
+    build-essential \
+    cmake \
+    git \
+    gdb \
+    gdbserver \
+    strace \
+    file \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
