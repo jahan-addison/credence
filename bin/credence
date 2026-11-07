@@ -112,16 +112,18 @@ if [[ ( "$ARCH" == "arm64" || "$ARCH" == "x86_64" ) && -n "$SOURCE_NAME" ]]; the
     as -arch "$ARCH" -o "$SOURCE_NAME".o "$SOURCE_NAME".bs
     if [[ "$ARCH" == "arm64" ]]; then
       SDK_PATH=$(xcrun --show-sdk-path)
+      # the first object sets the macOS version of the binary, and the
+      # standard library is built for an older one
       ld -arch arm64 \
         -e _start \
         -o "$SOURCE_NAME" \
-        "$STDLIB_PATH" \
         "$SOURCE_NAME".o \
+        "$STDLIB_PATH" \
         -lSystem \
         -syslibroot "$SDK_PATH"
       codesign -s - "$SOURCE_NAME"
     else
-      ld -arch "$ARCH" -e _start "$STDLIB_PATH" "$SOURCE_NAME".o -o "$SOURCE_NAME" -static
+      ld -arch "$ARCH" -e _start "$SOURCE_NAME".o "$STDLIB_PATH" -o "$SOURCE_NAME" -static
     fi
   fi
 

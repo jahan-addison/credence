@@ -9,3 +9,8 @@ set(CMAKE_CXX_COMPILER aarch64-linux-gnu-g++)
 # set(CMAKE_SYSROOT /usr/aarch64-linux-gnu)
 
 set(CMAKE_CROSSCOMPILING TRUE)
+
+# The `stdlib` target assembles the standard library of this platform only.
+set(CREDENCE_STDLIB_PLATFORMS
+    "arm64/linux"
+    CACHE STRING "Standard library platforms (<arch>/<os>) to assemble")

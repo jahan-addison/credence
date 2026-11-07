@@ -1,0 +1,17 @@
+# The standard library assemblers for every platform and ISA, used by the
+# `stdlib` CMake target. The GNU cross binutils assemble the Linux ELF objects,
+# and the clang integrated assembler assembles the Darwin Mach-O objects with
+# no SDK. Every package is a cross assembler, so the image runs natively on an
+# arm64 or x86-64 host.
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    binutils-aarch64-linux-gnu \
+    binutils-x86-64-linux-gnu \
+    clang \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /source

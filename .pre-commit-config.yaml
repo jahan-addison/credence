@@ -27,3 +27,5 @@ repos:
       language: system
       types: [c++, c]
       exclude: ^credence/language/lexer\.cc$
+      # the batches share the cppcheck build directory
+      require_serial: true
