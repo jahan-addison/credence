@@ -12,7 +12,7 @@
 #### Example from `lexer.re`:
 
 ```re2c
-name = [a-zA-Z_][a-zA-Z0-9_.]{0,7};
+name = [a-zA-Z_][a-zA-Z0-9_.]{0,15};
 
 "true"          { return make_token(Token_Type::BOOL_LITERAL); }
 "false"         { return make_token(Token_Type::BOOL_LITERAL); }
@@ -24,5 +24,5 @@ name            { return make_token(Token_Type::IDENTIFIER); }
 
 Two more things worth carrying keeping in mind:
 
-- `{0,7}` above is a genuine bounded-repetition quantifier - re2c is a real regex engine. This is *not* true of every "regex-like" grammar tool: ANTLR4, for instance, only has `?`/`*`/`+` and silently parses a bare `{...}` as an embedded action block instead, which fails in a confusing way rather than a clear one.
+- `{0,15}` above is a genuine bounded-repetition quantifier - re2c is a real regex engine. This is *not* true of every "regex-like" grammar tool: ANTLR4, for instance, only has `?`/`*`/`+` and silently parses a bare `{...}` as an embedded action block instead, which fails in a confusing way rather than a clear one.
 - This lexer loads the whole source into one buffer up front and disables re2c's refill mechanism (`re2c:yyfill:enable = 0;`), padding the buffer by `YYMAXFILL` bytes (from `/*!max:re2c*/`) so no rule can ever read past the end. For streaming input too large to buffer, re2c instead generates calls to a `YYFILL` function you provide - a different, still-common configuration this project doesn't need.

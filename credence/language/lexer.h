@@ -33,6 +33,8 @@ enum class Token_Type
 {
     END_OF_FILE,
     INVALID,
+    // an identifier longer than 16 characters
+    LONG_IDENTIFIER,
 
     // literals
     IDENTIFIER,

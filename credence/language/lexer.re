@@ -31,6 +31,8 @@ std::string_view token_type_to_string(Token_Type type)
             return "END_OF_FILE";
         case Token_Type::INVALID:
             return "INVALID";
+        case Token_Type::LONG_IDENTIFIER:
+            return "LONG_IDENTIFIER";
         case Token_Type::IDENTIFIER:
             return "IDENTIFIER";
         case Token_Type::INTEGER:
@@ -252,7 +254,8 @@ Token Lexer::next()
         digit         = [0-9];
         int_lit       = digit+;
         float_lit     = int_lit ("." int_lit)? [fF];
-        name          = [a-zA-Z_][a-zA-Z0-9_.]{0,7};
+        name          = [a-zA-Z_][a-zA-Z0-9_.]{0,15};
+        long_name     = [a-zA-Z_][a-zA-Z0-9_.]{16,};
         char_lit      = "'" [^\x00] [^\x00]? "'";
         string_lit    = "\"" ( "\\" [^\x00] | [^"\\\r\n\x00] )* "\"";
 
@@ -278,6 +281,7 @@ Token Lexer::next()
         char_lit        { return make_token(Token_Type::CHAR_LITERAL); }
         string_lit      { return make_token(Token_Type::STRING_LITERAL); }
         name            { return make_token(Token_Type::IDENTIFIER); }
+        long_name       { return make_token(Token_Type::LONG_IDENTIFIER); }
 
         "("             { return make_token(Token_Type::LPAREN); }
         ")"             { return make_token(Token_Type::RPAREN); }

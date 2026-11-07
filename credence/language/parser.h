@@ -47,6 +47,9 @@ class Parser
 
     static util::AST_Node parse(std::string source);
 
+    // the longest identifier, longer is a syntax error
+    static constexpr std::size_t k_identifier_max_length{ 16 };
+
   private:
     Token const& current() const;
     Token const& peek(std::size_t ahead = 1) const;

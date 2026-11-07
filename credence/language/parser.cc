@@ -76,6 +76,14 @@ Parser::Parser(std::string source)
     : lexer_(std::move(source))
 {
     tokens_ = lexer_.tokenize();
+    for (std::size_t index = 0; index < tokens_.size(); index++) {
+        if (tokens_[index].type != Token_Type::LONG_IDENTIFIER)
+            continue;
+        pos_ = index;
+        error(fmt::format("identifier '{}' is longer than {} characters",
+            tokens_[index].lexeme,
+            k_identifier_max_length));
+    }
 }
 
 /**

@@ -1,5 +1,6 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
+#include <credence/error.h>           // for Credence_Exception
 #include <credence/language/parser.h> // for Parser
 #include <credence/util.h>            // for STRINGIFY, read_file_from_path
 #include <easyjson.h>                 // for JSON
@@ -187,4 +188,19 @@ TEST_CASE("parser.cc: consecutive expression statements merge into one "
 TEST_CASE("parser.cc: a bare ';' is an empty expression")
 {
     SETUP_PARSE_FIXTURE_AND_TEST_AST("bare_semicolon");
+}
+
+TEST_CASE("parser.cc: identifiers are at most 16 characters")
+{
+    using credence::language::Parser;
+    CHECK_NOTHROW(
+        Parser::parse("sixteen_chars_ok() { } main() { sixteen_chars_ok(); }"));
+    try {
+        Parser::parse("main() { auto seventeen_chars_x; }");
+        FAIL("expected a syntax error");
+    } catch (credence::detail::Credence_Exception const& e) {
+        CHECK(std::string_view{ e.what() }.find(
+                  "identifier 'seventeen_chars_x' is longer than 16 "
+                  "characters") != std::string_view::npos);
+    }
 }
