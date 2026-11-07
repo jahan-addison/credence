@@ -79,6 +79,7 @@ jobs:
   build-macos:
     name: ${{ matrix.platform.name }} / ${{ matrix.compiler }}
     runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -102,21 +103,11 @@ jobs:
         with:
           cmake-version: '4.x.x'
 
-      - name: install extras
-        if: matrix.platform.name == 'ARM64 macOS'
-        run: |
-          brew install llvm@20 lcov
-          export PATH="/opt/homebrew/opt/llvm@20/bin:/opt/homebrew/bin:/opt/homebrew/opt/llvm/bin:$HOME/.local/bin:$PATH"
-
-          llvm-cov --version
-          llvm-profdata --version
-
       - name: configure build
         run: |
           COVERAGE=""
           if [[ "${{ matrix.platform.name }}" == "ARM64 macOS" ]]; then
-            COVERAGE="-DENABLE_TEST_COVERAGE=ON"
-            export CMAKE_PREFIX_PATH="/opt/homebrew/opt/llvm@20"
+            COVERAGE="-DENABLE_TEST_COVERAGE=ON -DLLVM_PROFDATA=$(xcrun -f llvm-profdata) -DLLVM_COV=$(xcrun -f llvm-cov)"
           fi
           cmake -Bbuild -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DIWYU=OFF -DCMAKE_BUILD_TYPE=Debug "-DUSE_SANITIZER=Address;Undefined" $COVERAGE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
