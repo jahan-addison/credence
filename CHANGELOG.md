@@ -1,3 +1,25 @@
+## [1.4.0] - 2026-11-07
+
+- feat: semantic analysis pass on the hir, backend operand and register redesign, call argument and parameter slots
+- feat(language): identifiers up to 16 characters, syntax error for a longer identifier
+
+- fix(stdlib): sign-extend %d in printf, objects assembled by the stdlib target
+- fix: cmake-scripts to 24.04.1
+- fix(backend): arm64 getchar map::at crash in return rvalue insertion
+
+- chore: update CHANGELOG.md for 1.3.0
+
+- docs: type system, stdlib target, calling convention, cross-compile chain, and syscall example
+- build: stdlib cmake target, docker assemblers for every platform, toolchain defaults
+- build: x86-64 cross-compile toolchain, linux container, and runner
+- refactor: initial comments on the hir <-> ir boundary
+- ci: build macos with apple clang and xcode coverage tools, add a job timeout
+- ci: macos job to macos-latest, the macos-14 image is retired
+- docs: move blog series link to jahans.blog
+- refactor(language): begin refator of moving type checking and name resolution into the frontend
+- refactor(language): shunting yard container interfaces do not need std::unique
+- refactor(language): Type Data -> Type Literal
+- Merge pull request #17 from jahan-addison/chore/changelog-1.3.0
 ## [1.3.0] - 2026-10-06
 
 - feat: SIMD whitespace chunk scanner
