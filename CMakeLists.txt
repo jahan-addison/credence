@@ -48,7 +48,7 @@ endif()
 
 include(cmake/CPM.cmake)
 
-cpmaddpackage("gh:StableCoder/cmake-scripts#24.04")
+cpmaddpackage("gh:StableCoder/cmake-scripts#24.04.1")
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
 set_source_files_properties(doctest.h PROPERTIES SKIP_LINTING TRUE)
