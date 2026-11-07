@@ -182,6 +182,9 @@ using Argument_Stack = std::map<Label, std::deque<type::Parameters>>;
 /**
  * @brief Object_Table table of types, functions, and vectors in a frame
  */
+
+// @TODO: This needs to be moved, this is not binding.
+
 class Object_Table
 {
   public:

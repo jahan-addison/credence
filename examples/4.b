@@ -1,3 +1,8 @@
+
+// Union object:
+// IR:
+// union[data_t] {one_of: ...}
+
 union data_t {
     ab "",
     cd 0,
@@ -7,10 +12,11 @@ union data_t {
     list2 ("", "")
 };
 
+
 main () {
   auto x[50], w, *y;
   extrn mess, k;
-  data_t m;
+  data_t m; // define
   k.ll = 5.555f;
   m.ab = "hello world";
   y = m.ab;

@@ -62,6 +62,9 @@
  *
  ****************************************************************************/
 
+// This is a pass on the IR that needs to happen on the HIR, it's semantic
+// analysis and object construction
+
 namespace credence {
 
 namespace ir {
@@ -83,6 +86,8 @@ void emit(std::ostream& os,
     table.build_from_ir_instructions();
     detail::emit(os, *table.get_table_instructions());
 }
+
+// @TODO: Desugaring pass that should happen sooner, in ita.h/ita.cc
 
 /**
  * @brief Construct table and run type-checking pass on IR instructions
