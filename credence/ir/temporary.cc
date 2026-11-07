@@ -98,13 +98,15 @@ instruction_temporary_from_expression_operand(Temporary::Operand& operand);
 void Temporary::binary_operands_balanced_temporary_stack(
     language::type::Operator op)
 {
+    // the value pushed last is the right-hand-side of the operator
+    bool temporary_is_rhs = !stack_kinds.empty() and stack_kinds.back();
     auto operand1 = operand_stack.top();
     auto rhs = temporary_stack.top();
 
     if (operand_stack.size() > 1) {
-        operand_stack.pop();
+        pop_operand();
     }
-    temporary_stack.pop();
+    pop_temporary();
 
     auto lhs = instruction_temporary_from_expression_operand(operand1);
 
@@ -114,13 +116,73 @@ void Temporary::binary_operands_balanced_temporary_stack(
 
     instructions.emplace_back(temp_rhs);
 
-    temporary_stack.emplace(
-        make_binary_temporary_string(lhs.first, op, std::get<1>(temp_rhs)));
+    auto binary = temporary_is_rhs ? make_binary_temporary_string(
+                                         lhs.first, op, std::get<1>(temp_rhs))
+                                   : make_binary_temporary_string(
+                                         std::get<1>(temp_rhs), op, lhs.first);
+    push_temporary(binary);
     // an lvalue at the end of a call stack
     if (operand1->index() == 6 and operand_stack.size() == 0) {
-        auto temp_lhs = ir::make_temporary(temporary_index,
-            make_binary_temporary_string(lhs.first, op, std::get<1>(temp_rhs)));
+        auto temp_lhs = ir::make_temporary(temporary_index, binary);
         instructions.emplace_back(temp_lhs);
+    }
+}
+
+/**
+ * @brief An operand of a binary temporary, where an expression on the
+ * temporary stack is first assigned its own temporary
+ *
+ *  Example:
+ *
+ *    _t3 || _t5
+ *
+ *  Becomes:
+ *
+ *    _t6 = _t3 || _t5;
+ */
+std::string Temporary::insert_temporary_operand(std::string const& operand)
+{
+    if (!util::contains(operand, " "))
+        return operand;
+    auto temporary = ir::make_temporary(temporary_index, operand);
+    instructions.emplace_back(temporary);
+    return std::get<1>(temporary);
+}
+
+/**
+ * @brief Pop two operands from the operand stack onto instruction tuple
+ */
+void Temporary::binary_operands_from_operand_stack(language::type::Operator op,
+    int temporaries)
+{
+    auto operand1 = operand_stack.top();
+    pop_operand();
+    auto operand2 = operand_stack.top();
+    pop_operand();
+    auto rhs_name = insert_and_create_temporary_from_operand(operand1);
+    auto lhs_name = insert_and_create_temporary_from_operand(operand2);
+
+    // a temporary is below the operands, so the result is its own temporary
+    if (temporaries > 0) {
+        auto operand_temp = ir::make_temporary(temporary_index,
+            make_binary_temporary_string(lhs_name.first, op, rhs_name.first));
+        instructions.emplace_back(operand_temp);
+        push_temporary(std::get<1>(operand_temp));
+        return;
+    }
+
+    if (lhs_name.second == 0 and rhs_name.second == 0 and temporaries == 0) {
+        // if the lhs is an lvalue, use the temporary from the last
+        // instruction
+        auto operand_temp = ir::make_temporary(temporary_index,
+            make_binary_temporary_string(lhs_name.first, op, rhs_name.first));
+        language::hir::Data_Kind::LValue temp_lvalue = std::make_pair(
+            std::get<1>(operand_temp), language::literal::NULL_LITERAL);
+        push_operand(language::hir::make_kind_pointer(temp_lvalue));
+        instructions.emplace_back(operand_temp);
+    } else {
+        push_temporary(
+            make_binary_temporary_string(lhs_name.first, op, rhs_name.first));
     }
 }
 
@@ -175,7 +237,7 @@ void Temporary::binary_operands_unbalanced_temporary_stack(
                     make_binary_temporary_string(
                         std::get<1>(last_lvalue), op, std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
-                temporary_stack.emplace(std::get<1>(operand_temp));
+                push_temporary(std::get<1>(operand_temp));
             },
         m::pattern | 1 =
             [&] {
@@ -183,7 +245,7 @@ void Temporary::binary_operands_unbalanced_temporary_stack(
                     make_binary_temporary_string(
                         rhs_lvalue, op, std::get<1>(last)));
                 instructions.emplace_back(operand_temp);
-                temporary_stack.emplace(std::get<1>(operand_temp));
+                push_temporary(std::get<1>(operand_temp));
             }
 
     );
@@ -269,9 +331,9 @@ void Temporary::assignment_operands_to_temporary_stack()
         m::pattern | m::ds(m::_ >= 1, m::_ >= 1) =
             [&] {
                 auto rhs = temporary_stack.top();
-                temporary_stack.pop();
+                pop_temporary();
                 auto lvalue = operand_stack.top();
-                operand_stack.pop();
+                pop_operand();
                 auto lhs =
                     instruction_temporary_from_expression_operand(lvalue);
                 ir::insert(instructions, lhs.second);
@@ -282,7 +344,7 @@ void Temporary::assignment_operands_to_temporary_stack()
             [&] {
                 auto lhs_expression = language::hir::data_kind_to_string(
                     *operand_stack.top(), false);
-                operand_stack.pop();
+                pop_operand();
                 if (instructions.size() > 1) {
                     auto last = instructions[instructions.size() - 1];
                     instructions.emplace_back(make_quadruple(
@@ -292,9 +354,9 @@ void Temporary::assignment_operands_to_temporary_stack()
         m::pattern | m::ds(m::_ >= 2, m::_ == 0) =
             [&] {
                 auto operand1 = operand_stack.top();
-                operand_stack.pop();
+                pop_operand();
                 auto operand2 = operand_stack.top();
-                operand_stack.pop();
+                pop_operand();
 
                 auto lhs =
                     instruction_temporary_from_expression_operand(operand2);
@@ -311,19 +373,48 @@ void Temporary::from_push_operands_to_temporary_instructions()
 {
     if (temporary_stack.size() >= 1) {
         auto rhs = temporary_stack.top();
-        temporary_stack.pop();
+        pop_temporary();
         instructions.emplace_back(make_quadruple(Instruction::PUSH, rhs, ""));
     } else {
         if (operand_stack.size() < 1)
             return;
         auto operand = operand_stack.top();
-        operand_stack.pop();
+        pop_operand();
         auto rhs = instruction_temporary_from_expression_operand(operand);
         ir::insert(instructions, rhs.second);
         instructions.emplace_back(
             make_quadruple(Instruction::PUSH, rhs.first, ""));
     }
     parameters_size++;
+}
+
+/**
+ * @brief Insert the value of an expression as the last instruction
+ *
+ * The value of an expression is the top of the temporary stack, which is
+ * not always the left-hand-side of the last instruction
+ *
+ *  Example:
+ *
+ *    return(-x - 1);
+ *
+ *    _t1 = - x;
+ *    _t2 = _t1;
+ *
+ *  Becomes:
+ *
+ *    _t1 = - x;
+ *    _t2 = _t1;
+ *    _t3 = _t2 - (1:int:4);
+ */
+void Temporary::insert_expression_value()
+{
+    if (temporary_stack.empty())
+        return;
+    auto value = temporary_stack.top();
+    if (!instructions.empty() and std::get<1>(instructions.back()) == value)
+        return;
+    instructions.emplace_back(ir::make_temporary(temporary_index, value));
 }
 
 /**
@@ -337,28 +428,27 @@ void Temporary::from_call_operands_to_temporary_instructions(
     if (temporary_stack.size() > 1) {
         auto rhs = temporary_stack.top();
         symbol = rhs;
-        temporary_stack.pop();
+        pop_temporary();
         auto temp_rhs = ir::make_temporary(temporary_index, rhs);
         instructions.emplace_back(temp_rhs);
-        temporary_stack.emplace(
-            make_unary_temporary_string(op, std::get<1>(temp_rhs)));
+        push_temporary(make_unary_temporary_string(op, std::get<1>(temp_rhs)));
         instructions.emplace_back(make_quadruple(Instruction::CALL, rhs));
-        temporary_stack.emplace(rhs);
+        push_temporary(rhs);
     } else {
         if (temporary_stack.size() == 1 and operand_stack.size() < 1) {
             auto rhs = temporary_stack.top();
-            temporary_stack.pop();
+            pop_temporary();
             auto temp_rhs = ir::make_temporary(temporary_index, rhs);
             instructions.emplace_back(temp_rhs);
-            temporary_stack.emplace(
+            push_temporary(
                 make_unary_temporary_string(op, std::get<1>(temp_rhs)));
             symbol = rhs;
             instructions.emplace_back(make_quadruple(Instruction::CALL, rhs));
-            temporary_stack.emplace(rhs);
+            push_temporary(rhs);
         }
         if (operand_stack.size() >= 1) {
             auto operand = operand_stack.top();
-            operand_stack.pop();
+            pop_operand();
             auto rhs = instruction_temporary_from_expression_operand(operand);
             ir::insert(instructions, rhs.second);
             symbol = rhs.first;
@@ -379,7 +469,7 @@ void Temporary::from_call_operands_to_temporary_instructions(
         auto call_return = ir::make_temporary(temporary_index, "RET");
         instructions.emplace_back(call_return);
         if (operand_stack.size() >= 1) {
-            temporary_stack.emplace(std::get<1>(call_return));
+            push_temporary(std::get<1>(call_return));
         }
     }
     parameters_size = 0;
@@ -418,27 +508,27 @@ void Temporary::unary_operand_to_temporary_stack(language::type::Operator op)
         m::pattern | m::ds(m::_, m::_ > 1) =
             [&] {
                 auto operand1 = temporary_stack.top();
-                temporary_stack.pop();
+                pop_temporary();
                 auto unary = ir::make_temporary(
                     temporary_index, make_unary_temporary_string(op, operand1));
-                temporary_stack.emplace(
+                push_temporary(
                     make_unary_temporary_string(op, std::get<1>(unary)));
             },
         m::pattern | m::_ =
             [&] {
                 auto operand1 = operand_stack.top();
-                operand_stack.pop();
+                pop_operand();
                 if (temporary_stack.size() == 1) {
                     // if the temporary stack has a single
                     // lvalue, pop to its own temporary first
                     auto operand1 = temporary_stack.top();
                     if (!type::is_temporary(
                             operand1)) { // prevent _tx = _tx assignments
-                        temporary_stack.pop();
+                        pop_temporary();
                         auto last_expression =
                             ir::make_temporary(temporary_index, operand1);
                         instructions.emplace_back(last_expression);
-                        temporary_stack.emplace(std::get<1>(last_expression));
+                        push_temporary(std::get<1>(last_expression));
                     }
                 }
                 auto rhs =
@@ -452,20 +542,31 @@ void Temporary::unary_operand_to_temporary_stack(language::type::Operator op)
                             // the unary expression
                             if (language::hir::is_kind(operand1, "lvalue") and
                                 is_in_place_unary_operator(op)) {
-                                auto unary = make_quadruple(Instruction::MOV,
+                                auto lvalue =
                                     language::hir::data_kind_to_string(
-                                        *operand1, false),
+                                        *operand1, false);
+                                auto unary = make_quadruple(Instruction::MOV,
+                                    lvalue,
                                     language::type::operator_to_string(op),
                                     rhs.first);
-                                instructions.emplace_back(unary);
-                                operand_stack.emplace(operand1);
+                                if (is_post_unary_operator(op)) {
+                                    // the value of a post-increment is its
+                                    // operand before the increment
+                                    auto value = ir::make_temporary(
+                                        temporary_index, lvalue);
+                                    instructions.emplace_back(value);
+                                    instructions.emplace_back(unary);
+                                    push_temporary(std::get<1>(value));
+                                } else {
+                                    instructions.emplace_back(unary);
+                                    push_operand(operand1);
+                                }
                             } else {
                                 auto operand_temp = ir::make_temporary(
                                     temporary_index,
                                     make_unary_temporary_string(op, rhs.first));
                                 instructions.emplace_back(operand_temp);
-                                temporary_stack.emplace(
-                                    std::get<1>(operand_temp));
+                                push_temporary(std::get<1>(operand_temp));
                             }
                         },
                     m::pattern | m::_ =
@@ -474,7 +575,7 @@ void Temporary::unary_operand_to_temporary_stack(language::type::Operator op)
                             auto unary = ir::make_temporary(temporary_index,
                                 make_unary_temporary_string(op, rhs.first));
                             instructions.emplace_back(unary);
-                            temporary_stack.emplace(std::get<1>(unary));
+                            push_temporary(std::get<1>(unary));
                         }
 
                 );
@@ -527,17 +628,25 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
 {
     auto oss = static_cast<int>(operand_stack.size());
     auto tss = static_cast<int>(temporary_stack.size());
+    // the top two values are operands, though a temporary is below them
+    if (oss >= 2 and tss >= 1 and stack_kinds.size() >= 2 and
+        not stack_kinds.back() and not stack_kinds[stack_kinds.size() - 2]) {
+        binary_operands_from_operand_stack(op, tss);
+        return;
+    }
     m::match(oss, tss)(
         // there are at least two items on the temporary
         // stack, pop them as use them as operands
         m::pattern | m::ds(m::_, m::_ >= 2) =
             [&] {
                 auto rhs = temporary_stack.top();
-                temporary_stack.pop();
+                pop_temporary();
                 auto lhs = temporary_stack.top();
-                temporary_stack.pop();
+                pop_temporary();
                 auto last_instruction = ir::make_temporary(temporary_index,
-                    make_binary_temporary_string(lhs, op, rhs));
+                    make_binary_temporary_string(insert_temporary_operand(lhs),
+                        op,
+                        insert_temporary_operand(rhs)));
                 instructions.emplace_back(last_instruction);
             },
         // there is exactly one temporary lvalue,
@@ -560,40 +669,7 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
                     // there are two or more operands on
                     // the primary expression stack, use them
                     m::pattern | m::_ =
-                        [&] {
-                            auto operand1 = operand_stack.top();
-                            operand_stack.pop();
-                            auto operand2 = operand_stack.top();
-                            operand_stack.pop();
-                            auto rhs_name =
-                                insert_and_create_temporary_from_operand(
-                                    operand1);
-                            auto lhs_name =
-                                insert_and_create_temporary_from_operand(
-                                    operand2);
-
-                            if (lhs_name.second == 0 and
-                                rhs_name.second == 0 and tss == 0) {
-                                // if the lhs is an lvalue, use the
-                                // temporary from the last instruction
-                                auto operand_temp = ir::make_temporary(
-                                    temporary_index,
-                                    make_binary_temporary_string(
-                                        lhs_name.first, op, rhs_name.first));
-                                language::hir::Data_Kind::LValue temp_lvalue =
-                                    std::make_pair(std::get<1>(operand_temp),
-                                        language::literal::NULL_LITERAL);
-                                operand_stack.emplace(
-                                    language::hir::make_kind_pointer(
-                                        temp_lvalue));
-                                instructions.emplace_back(operand_temp);
-
-                            } else {
-                                temporary_stack.emplace(
-                                    make_binary_temporary_string(
-                                        lhs_name.first, op, rhs_name.first));
-                            }
-                        }
+                        [&] { binary_operands_from_operand_stack(op, tss); }
 
                 );
             });
@@ -608,7 +684,8 @@ void Temporary::binary_operands_to_temporary_stack(Operator op)
 Instructions queue_to_ita_instructions(
     language::precedence::detail::Shunting_Yard::Container& queue,
     util::AST_Node const& details,
-    int* temporary_index)
+    int* temporary_index,
+    bool statement)
 {
     using namespace credence::language::type;
     if (queue.empty()) {
@@ -692,11 +769,50 @@ Instructions queue_to_ita_instructions(
                     }
                 },
                 [&](detail::Temporary::Operand& s) {
-                    temporary.operand_stack.emplace(s);
+                    temporary.push_operand(s);
                 } },
             item);
     }
+    if (!statement)
+        temporary.insert_expression_value();
     return temporary.instructions;
+}
+
+/**
+ * @brief Lower an expression statement into the HIR
+ *
+ * An expression statement discards its value, so a post-increment or
+ * decrement statement is a pre-increment or decrement
+ *
+ *  Example:
+ *
+ *    x++;
+ *
+ *  Becomes:
+ *
+ *    ++x;
+ */
+detail::Temporary::Operand make_statement_expression(
+    language::hir::Data_Kind const& expression)
+{
+    using language::type::Operator;
+    if (std::holds_alternative<language::hir::Data_Kind::Pointer>(
+            expression.value)) {
+        auto const& kind =
+            std::get<language::hir::Data_Kind::Pointer>(expression.value)
+                ->value;
+        if (std::holds_alternative<language::hir::Data_Kind::Unary>(kind)) {
+            auto [op, operand] =
+                std::get<language::hir::Data_Kind::Unary>(kind);
+            if (op == Operator::POST_INC or op == Operator::POST_DEC) {
+                auto pre = op == Operator::POST_INC ? Operator::PRE_INC
+                                                    : Operator::PRE_DEC;
+                return language::hir::make_kind_pointer(
+                    language::hir::Data_Kind::Unary{ pre, operand });
+            }
+        }
+    }
+    return language::hir::make_kind_pointer(expression.value);
 }
 
 /**
@@ -706,23 +822,24 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
     int* temporary_index,
-    int* identifier_index)
+    int* identifier_index,
+    bool statement)
 {
+    auto make_operand = [&](util::AST_Node const& expression) {
+        auto lowered =
+            language::AST_Lowering::lower(expression, details, symbols);
+        return statement ? make_statement_expression(lowered)
+                         : language::hir::make_kind_pointer(lowered.value);
+    };
     detail::Temporary::Operands operands{};
 
     if (node.JSON_type() == util::AST_Node::Class::Array) {
         for (auto& expression : node.array_range()) {
             if (expression.JSON_type() == util::AST_Node::Class::Array) {
-                for (auto& expr : expression.array_range()) {
-                    auto expression =
-                        language::AST_Lowering::lower(expr, details, symbols);
-                    operands.emplace_back(
-                        language::hir::make_kind_pointer(expression.value));
-                }
+                for (auto& expr : expression.array_range())
+                    operands.emplace_back(make_operand(expr));
             } else {
-                operands.emplace_back(language::hir::make_kind_pointer(
-                    language::AST_Lowering::lower(expression, details, symbols)
-                        .value));
+                operands.emplace_back(make_operand(expression));
             }
         }
         auto queue = language::precedence::queue_from_expression_operands(
@@ -731,8 +848,8 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             *queue_dump_stream
                 << language::precedence::queue_of_expressions_to_string(queue)
                 << std::endl;
-        auto instructions =
-            queue_to_ita_instructions(queue, details, temporary_index);
+        auto instructions = queue_to_ita_instructions(
+            queue, details, temporary_index, statement);
         return std::make_pair(instructions, queue);
 
     } else {
@@ -744,8 +861,8 @@ Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
             *queue_dump_stream
                 << language::precedence::queue_of_expressions_to_string(queue)
                 << std::endl;
-        auto instructions =
-            queue_to_ita_instructions(queue, details, temporary_index);
+        auto instructions = queue_to_ita_instructions(
+            queue, details, temporary_index, statement);
         return std::make_pair(instructions, queue);
     }
 }

@@ -20,7 +20,7 @@
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for credence_assert
 #include <credence/ir/ita.h>                 // for make_ita_instructions
-#include <credence/ir/table.h>               // for Table
+#include <credence/ir/table.h>               // for make_table, Table
 #include <credence/language/hir/binding.h>   // for Object, Label, RValue
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/accessor.h> // for Buffer_Accessor
@@ -45,64 +45,54 @@
 #include <vector>                            // for vector
 
 /****************************************************************************
+ * x86-64 Code Generator
  *
- * x86-64 Code Generator and Emitter Types
+ * Generates Intel syntax x86-64 assembly for Linux and Darwin. A call to the
+ * standard library follows the System V ABI, and a function of the program
+ * takes its arguments in rdi, r8, r9, rsi, rdx, and rcx. The IR is
+ * translated into the instructions of the text section, then the emitter
+ * resolves the frame size of each function and writes the text and data
+ * sections.
  *
- * Generates Intel-syntax x86-64 assembly for Linux and Darwin (macOS).
- * Compliant with System V ABI calling conventions. Translates ITA
- * intermediate representation into optimized x86-64 machine code.
+ *  Example:
  *
- * Example - simple function:
+ *    add(x, y) {
+ *      return(x + y);
+ *    }
+ *    counter 5;
  *
- *   B code:
- *     add(x, y) {
- *       return(x + y);
- *     }
+ *  Becomes:
  *
- *   x86-64 (Intel syntax):
- *     add:
- *         push rbp
- *         mov rbp, rsp
- *         mov eax, edi        ; x in edi (1st arg)
- *         add eax, esi        ; y in esi (2nd arg)
- *         pop rbp
- *         ret
+ *    add:
+ *        push rbp
+ *        mov rbp, rsp
+ *        mov eax, edi
+ *        add eax, r8d
+ *        mov eax, eax
+ *        leave
+ *        ret
  *
- * Example - globals and strings:
+ *    .data
+ *    counter:
+ *        .long 5
  *
- *   B code:
- *     greeting "Hello, World!\n";
- *     counter 0;
- *
- *   x86-64 (Intel syntax):
- *     .data
- *     ._L_str1__:
- *         .asciz "Hello, World!\n"
- *     greeting:
- *         .quad ._L_str1__
- *     counter:
- *         .quad 0
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 namespace credence::target::x86_64 {
 
 namespace m = matchit;
 
 /**
- * @brief Assembly Emitter Factory
+ * @brief Emit the x86-64 assembly of a program
  *
  * Emit a complete x86-64 program from an AST and symbols
  */
 void emit(std::ostream& os,
-    util::AST_Node& symbols,
+    util::AST_Node const& symbols,
     util::AST_Node const& ast,
     bool no_stdlib)
 {
-    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
-    auto table = std::make_shared<ir::Table>(
-        ir::Table{ symbols, instructions, globals });
-    table->build_from_ir_instructions();
+    auto table = ir::make_table(symbols, ast);
     auto stack = std::make_shared<assembly::Stack>();
     auto accessor = std::make_shared<memory::Memory_Accessor>(
         table->get_table_object(), table->get_table_instructions(), stack);
@@ -112,7 +102,10 @@ void emit(std::ostream& os,
 }
 
 /**
- * @brief Emit a complete x86-64 program
+ * @brief Emit an x86-64 program
+ *
+ * The data section is set first, so the literals have labels when the text
+ * section is translated
  */
 void Assembly_Emitter::emit(std::ostream& os)
 {
@@ -125,7 +118,7 @@ void Assembly_Emitter::emit(std::ostream& os)
 }
 
 /**
- * @brief Emit from a type::Data_Type as an immediate value
+ * @brief Emit an immediate, a char without its quotes
  */
 constexpr std::string emit_immediate_storage(Immediate const& immediate)
 {
@@ -137,7 +130,15 @@ constexpr std::string emit_immediate_storage(Immediate const& immediate)
 }
 
 /**
- * @brief Emit a stack offset based on size, prefix, and instruction flags
+ * @brief Emit a stack offset below rbp with its size prefix
+ *
+ * An argument slot is a quadword, and an address has no size prefix, such
+ * as the operand of `lea`
+ *
+ *  Examples:
+ *
+ *    emit_stack_storage(4, Operand_Size::Dword, 0)       // dword ptr [rbp - 4]
+ *    emit_stack_storage(4, Operand_Size::Dword, Address) // [rbp - 4]
  */
 constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
     assembly::Operand_Size size,
@@ -156,7 +157,7 @@ constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
 }
 
 /**
- * @brief Emit a register based on size, prefix, and instruction flags
+ * @brief Emit a register, or the memory it addresses when it is indirect
  */
 constexpr std::string emit_register_storage(assembly::Register device,
     assembly::Operand_Size size,
@@ -183,6 +184,9 @@ inline void emit_x86_64_assembly_intel_prologue(std::ostream& os)
     os << std::endl << ".intel_syntax noprefix" << std::endl << std::endl;
 }
 
+/**
+ * @brief Emit the alignment directive
+ */
 inline void emit_alignment_directive(std::ostream& os,
     std::size_t align,
     std::size_t newline)
@@ -192,7 +196,7 @@ inline void emit_alignment_directive(std::ostream& os,
 }
 
 /**
- * @brief Insert the alignment directive
+ * @brief Insert the alignment directive into the data section
  */
 inline void insert_alignment_directive(assembly::Directives& instructions,
     std::size_t align)
@@ -201,7 +205,9 @@ inline void insert_alignment_directive(assembly::Directives& instructions,
 }
 
 /**
- * @brief Emit the instructions for each directive type supported
+ * @brief Get the data directive of a value in the data section
+ *
+ * A string, float, or double is the address of its label
  */
 Directives Data_Emitter::get_instructions_from_directive_type(
     Directive directive,
@@ -245,6 +251,9 @@ Directives Data_Emitter::get_instructions_from_directive_type(
     return instructions;
 }
 
+/**
+ * @brief Set the data section of the program
+ */
 void Data_Emitter::set_data_section()
 {
     set_data_floats();
@@ -254,7 +263,7 @@ void Data_Emitter::set_data_section()
 }
 
 /**
- * @brief Set string in the data section with .asciz directive
+ * @brief Set each string in the data section with the .asciz directive
  */
 void Data_Emitter::set_data_strings()
 {
@@ -271,7 +280,7 @@ void Data_Emitter::set_data_strings()
 }
 
 /**
- * @brief Set floats in the data section with .float directive
+ * @brief Set each float in the data section with the .float directive
  */
 void Data_Emitter::set_data_floats()
 {
@@ -290,7 +299,7 @@ void Data_Emitter::set_data_floats()
 }
 
 /**
- * @brief Set double in the data section with .double directive
+ * @brief Set each double in the data section with the .double directive
  */
 void Data_Emitter::set_data_doubles()
 {
@@ -308,6 +317,9 @@ void Data_Emitter::set_data_doubles()
     }
 }
 
+/**
+ * @brief Get the `.p2align` of a value of a type, the log2 of its alignment
+ */
 std::size_t get_alignment_size_from_rvalue_data_type(
     type::semantic::Type const& type)
 {
@@ -321,7 +333,11 @@ std::size_t get_alignment_size_from_rvalue_data_type(
 }
 
 /**
- * @brief Set global data in the data section from the table vectors
+ * @brief Set each global in the data section
+ *
+ * A global is a vector, and a global with one value, `counter 5;`, is
+ * aligned to its type. The offset of each element is recorded for its
+ * loads and stores.
  */
 void Data_Emitter::set_data_globals()
 {
@@ -355,7 +371,7 @@ void Data_Emitter::set_data_globals()
 }
 
 /**
- * @brief Emit the data section x64 instructions of a B language source
+ * @brief Emit the data section
  */
 void Data_Emitter::emit_data_section(std::ostream& os)
 {
@@ -389,7 +405,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
 }
 
 /**
- * @brief Get the string representation of a storage device
+ * @brief Get a storage device as a string, with the flags of its instruction
  */
 std::string Storage_Emitter::get_storage_device_as_string(
     assembly::Storage const& storage,
@@ -415,9 +431,19 @@ std::string Storage_Emitter::get_storage_device_as_string(
 }
 
 /**
- * @brief Emit the representation of a storage device based on type
+ * @brief Emit an operand of an instruction with its flags applied
  *
- *    Apply all flags set on the instruction index during code translation
+ * The size of a memory operand is the size of the other operand, and the
+ * immediate of a stack pointer `sub` or `add` is the frame size, which is
+ * known after the function is translated
+ *
+ *  Example:
+ *
+ *    sub rsp, 0      // flag::Align
+ *
+ *  Becomes:
+ *
+ *    sub rsp, 16
  */
 void Storage_Emitter::emit(std::ostream& os,
     assembly::Storage const& storage,
@@ -456,6 +482,10 @@ void Storage_Emitter::emit(std::ostream& os,
             if (flags & common::flag::Indirect_Source)
                 flag_accessor.set_instruction_flag(
                     common::flag::Indirect, instruction_index_);
+            // a `movzx` from the stack widens a char, which is a byte
+            if (mnemonic == x64_mn(movzx) and
+                is_variant(assembly::Stack::Offset, source))
+                set_address_size(Operand_Size::Byte);
             os << ", " << get_storage_device_as_string(source, size);
             flag_accessor.unset_instruction_flag(
                 common::flag::Indirect, instruction_index_);
@@ -464,6 +494,9 @@ void Storage_Emitter::emit(std::ostream& os,
     }
 }
 
+/**
+ * @brief Emit the jump to the epilogue of the function, `_L1`
+ */
 void Text_Emitter::emit_epilogue_jump(std::ostream& os)
 {
     os << assembly::tabwidth(4) << assembly::Mnemonic::goto_ << " ";
@@ -472,7 +505,11 @@ void Text_Emitter::emit_epilogue_jump(std::ostream& os)
 }
 
 /**
- * @brief Emit a local or stack frame label in the text section
+ * @brief Emit a function or branch label in the text section
+ *
+ * A function label emits the epilogue of the last function, and a branch
+ * label is local to its function. The `_L1` label is the epilogue, so a
+ * jump to it is emitted in its place.
  */
 void Text_Emitter::emit_assembly_label(std::ostream& os,
     Label const& s,
@@ -516,7 +553,10 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 }
 
 /**
- * @brief Emit a mnemonic and its possible operands in the text section
+ * @brief Emit an instruction and its operands in the text section
+ *
+ * An instruction after the `_L1` label is held for the epilogue, and a
+ * `mov` of an address is a `lea`
  */
 void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     std::size_t index,
@@ -524,7 +564,17 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
 {
     auto flags = accessor_->flag_accessor.get_instruction_flags_at_index(index);
     auto [mnemonic, dest, src] = s;
-    auto storage_emitter = Storage_Emitter{ accessor_, index, src };
+    // a memory operand is the size of a register destination, except for
+    // the extending moves
+    auto is_extended = mnemonic == assembly::Mnemonic::movzx or
+                       mnemonic == assembly::Mnemonic::movsxd;
+    auto& operand_size_storage =
+        is_variant(assembly::Register, dest) and
+                is_variant(assembly::Stack::Offset, src) and not is_extended
+            ? dest
+            : src;
+    auto storage_emitter =
+        Storage_Emitter{ accessor_, index, operand_size_storage };
     // The IR does not keep the epilogue at the end, we move it ourselves
     if (branch_ == "_L1" and label_size_ > 0) {
         return_instructions_.emplace_back(s);
@@ -543,7 +593,7 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
 }
 
 /**
- * @brief Emit the text instruction for either a label or mnemonic
+ * @brief Emit a label or an instruction in the text section
  */
 void Text_Emitter::emit_text_instruction(std::ostream& os,
     std::variant<Label, assembly::Instruction> const& instruction,
@@ -563,7 +613,10 @@ void Text_Emitter::emit_text_instruction(std::ostream& os,
 }
 
 /**
- * @brief Emit the the function epilogue at the end if a frame has branches
+ * @brief Emit the epilogue held for the last function
+ *
+ * The `_L1` label of a function with branches is emitted before its
+ * epilogue
  */
 void Text_Emitter::emit_function_epilogue(std::ostream& os)
 {
@@ -584,7 +637,9 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
 }
 
 /**
- * @brief Emit the text section instructions
+ * @brief Emit the text section
+ *
+ * The epilogue of the last function is emitted after its instructions
  */
 void Text_Emitter::emit_text_section(std::ostream& os)
 {
@@ -593,12 +648,12 @@ void Text_Emitter::emit_text_section(std::ostream& os)
     emit_text_directives(os);
     for (std::size_t index = 0; index < instructions_accessor->size(); index++)
         emit_text_instruction(os, instructions[index], index);
-    if (!return_instructions_.empty() and frame_ == "main")
+    if (!return_instructions_.empty())
         emit_function_epilogue(os);
 }
 
 /**
- * @brief Emit text section directives
+ * @brief Emit the Intel syntax, text section, and entry point directives
  */
 void Text_Emitter::emit_text_directives(std::ostream& os)
 {
@@ -611,7 +666,7 @@ void Text_Emitter::emit_text_directives(std::ostream& os)
 }
 
 /**
- * @brief Emit text section standard library `extern` directives
+ * @brief Emit the global directive of each standard library function
  */
 void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 {

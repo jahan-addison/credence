@@ -10,9 +10,6 @@
 ## for the full text of these licenses.
 #####################################################################################
 
-UNAMESTR=$(uname -s)
-HOST_ARCH=$(uname -m)
-
 send_error() {
     local COLOR='\033[1;31m'
     local RESET='\033[0m'
@@ -61,6 +58,18 @@ fi
 if [[ "$1" == "arm64_constant_1" ]]; then
   printf -v expected_output '%s' "m is 15"
 fi
+if [[ "$1" == "return_1" ]]; then
+  printf -v expected_output '%s' "returned early 3"
+fi
+if [[ "$1" == "arguments_1" ]]; then
+  printf -v expected_output '%s\n%s' "5 tough luck -7" "a b 1"
+fi
+if [[ "$1" == "calls_1" ]]; then
+  printf -v expected_output '%s\n%s\n%s\n%s' "dup" "4 1 s" "42 kept" "42"
+fi
+if [[ "$1" == "locals_1" ]]; then
+  printf -v expected_output '%s' "4 45 1 1 32"
+fi
 
 program_name=$1
 
@@ -73,13 +82,14 @@ if [[ "$1" == "stdin" ]]; then
   fi
 elif [[ "$1" == "argc" ]]; then
   if [[ "$2" == "argc_argv" ]]; then
-    if [[ "$UNAMESTR" == 'Linux' && "$HOST_ARCH" == "aarch64" ]]; then
-      printf -v expected_output '%s\n%s\n%s\n%s' "argc count: 6" "argv 1: ./argc_argv" "argv 2: test" "argv 3: 5"
-    else
-      printf -v expected_output '%s\n%s\n%s\n%s' "argc count: 6" "argv 1: test" "argv 2: 5" "argv 3: test"
-    fi
+    printf -v expected_output '%s\n%s\n%s\n%s' "argc count: 6" "argv 1: test" "argv 2: 5" "argv 3: test"
     program_name="argc_argv"
     program_output=$(./argc_argv test 5 test hello world)
+  fi
+  if [[ "$2" == "argv_1" ]]; then
+    printf -v expected_output '%s\n%s' "6" "test"
+    program_name="argv_1"
+    program_output=$(./argv_1 test 5 test hello world)
   fi
 else
   program_output=$(./"$1")

@@ -33,50 +33,67 @@
 #include <variant>                              // for get, monostate, visit
 
 /****************************************************************************
- *
  * ARM64 Runtime and Standard Library
  *
- * See common/runtime.h for details
+ * Calls to the standard library under the ARM64 PCS calling convention. See
+ * common/runtime.h for the functions. The arguments are in x0 to x7, or w0
+ * to w7, s0 to s7, and d0 to d7 by their type, and the label of a function
+ * on Darwin has a leading underscore.
  *
- * Runtime function invocation to the standard library and via the ARM64 PCS
- * calling convention. Arguments passed in registers: x0-x7 or register variant
- * depending on rvalue type then uses the stack. Return value in x0. x30 (lr)
- * holds return address.
+ *  Example:
  *
- * Example - calling printf:
+ *    printf("%d %d\n", compute(1, 2), y);
  *
- *   B code:    printf("Value: %d\n", x);
+ *  Becomes:
  *
- *   adrp x0, ._L_str1__@PAGE       ; format string in x0
- *   add x0, x0, ._L_str1__@PAGEOFF
- *   mov x1, x9                      ; x from register x9
- *   bl printf                       ; from stdlib
+ *    adrp x0, ._L_str1__@PAGE         // the format string
+ *    add x0, x0, ._L_str1__@PAGEOFF
+ *    ldr w1, [sp, #24]                // the return value of compute
+ *    ldr w2, [sp, #20]                // y
+ *    bl _printf
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
 namespace credence::target::arm64::runtime {
 
 /**
- * @brief A compiletime check on a buffer allocation in a storage device
+ * @brief Check at compile time that a storage device holds a buffer address
+ *
+ * A doubleword register, a stack address, a data section label, or a string
+ * is a buffer. A local on the stack is a buffer when it is a string or
+ * `null`, and an argument stored before its call when it is a doubleword.
+ *
+ *  Examples:
+ *
+ *    is_address_device_pointer_to_buffer(x9)          // true
+ *    is_address_device_pointer_to_buffer(w9)          // false
+ *    is_address_device_pointer_to_buffer(._L_str1__)  // true
  */
 bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
     address_t& address)
@@ -90,6 +107,13 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
         util::overload{ [&](std::monostate) {},
             [&](common::Stack_Offset const& offset) {
                 auto lvalue = stack->get_lvalue_from_offset(offset);
+                // an argument stored before its call is a doubleword
+                if (common::memory::is_parameter(lvalue) or
+                    type::is_temporary(lvalue)) {
+                    is_buffer = stack->get(offset).second ==
+                                assembly::Operand_Size::Doubleword;
+                    return;
+                }
                 auto type = type::get_type_from_rvalue_data_type(
                     language::hir::binding::get_rvalue_at_lvalue_object_storage(
                         lvalue, stack_frame, table->vectors, __source__));
@@ -121,7 +145,12 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
 using library_register = std::deque<assembly::Register>;
 
 /**
- * @brief Prepare registers for argument operand storage
+ * @brief Load an argument of a library call into its register
+ *
+ * A string is loaded from its page address, and a float or double from the
+ * data section. Any other argument is moved from its device: a stack slot is
+ * loaded, `argc` on Linux is loaded through its address in x19, and a word
+ * register is moved to the word half of the argument register.
  */
 void Library_Call_Inserter::
     insert_argument_instructions_standard_library_function(Register storage,
@@ -133,8 +162,9 @@ void Library_Call_Inserter::
     namespace m = matchit;
     auto& locals = accessor_->get_frame_in_memory().argument_stack;
     auto rvalue = index >= locals.size() ? locals.at(0) : locals.at(index);
+    // the type of a literal is only its storage while it is a label
     std::string arg_type =
-        locals.size() > index
+        locals.size() > index and is_variant(Immediate, argument)
             ? type::get_type_from_rvalue_data_type(locals.at(index))
             : "";
 
@@ -200,7 +230,17 @@ void Library_Call_Inserter::
 }
 
 /**
- * @brief Load the rvalue address from the offset in argv
+ * @brief Load an element of `argv` into an argument register
+ *
+ * An element is a doubleword from x19, see make_argv_offset_immediate
+ *
+ *  Example:
+ *
+ *    printf("%s", argv[1]);
+ *
+ *  Becomes, on Darwin:
+ *
+ *    ldr x1, [x19, #8]
  */
 bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
     Instructions& instructions,
@@ -213,8 +253,8 @@ bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
             type::from_lvalue_offset(locals.at(index)) == "argv") {
             auto offset = type::from_decay_offset(locals.at(index));
             auto offset_integer = type::integral_from_type_ulint(offset);
-            auto argv_offset = direct_immediate(
-                fmt::format("[x19, #{}]", (8 * offset_integer)));
+            auto argv_offset =
+                assembly::make_argv_offset_immediate(offset_integer);
             auto storage =
                 assembly::get_doubleword_register_from_word(argument_storage);
             arm64_add__asm(instructions, ldr, storage, argv_offset);
@@ -227,7 +267,12 @@ bool Library_Call_Inserter::try_insert_operand_from_argv_rvalue(
 }
 
 /**
- * @brief Create the instructions for a standard library call
+ * @brief Insert a call to a standard library function
+ *
+ * The argument count is checked, and each argument is loaded into the next
+ * argument register of its size and type. An argument in x0 is the return
+ * value of an earlier call, which was stored to its local, so it is loaded
+ * from the local's slot.
  */
 void Library_Call_Inserter::make_library_call(Instructions& instructions,
     std::string_view syscall_function,

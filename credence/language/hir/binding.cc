@@ -131,7 +131,10 @@ bool Vector_Offset::is_valid_vector_address_offset(LValue const& lvalue)
 {
     auto lvalue_reference = type::get_unary_rvalue_reference(lvalue);
     auto address = type::from_lvalue_offset(lvalue_reference);
-    auto offset = type::from_decay_offset(lvalue_reference);
+    // a global with no index, `counter`, is its first element
+    auto offset = util::contains(lvalue_reference, "[")
+                      ? type::from_decay_offset(lvalue_reference)
+                      : std::string{ "0" };
     if (stack_frame_.is_parameter(offset)) {
         return true;
     }
@@ -178,6 +181,31 @@ bool Object_Table::local_contains(LValue const& lvalue)
 {
     const auto& locals = get_stack_frame_symbols();
     return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
+}
+
+/**
+ * @brief Save literals that need %rip address in the data section
+ */
+void Object_Table::insert_address_storage_rvalue(RValue const& rvalue)
+{
+    auto type = type::get_type_from_rvalue_data_type(rvalue);
+    if (type == "float")
+        floats.insert(type::get_value_from_rvalue_data_type(rvalue));
+    if (type == "double")
+        doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
+    if (type == "string")
+        strings.insert(type::get_value_from_rvalue_data_type(rvalue));
+}
+
+void Object_Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
+{
+    auto type = type::get_type_from_rvalue_data_type(rvalue);
+    if (type == "float")
+        floats.insert(type::get_value_from_rvalue_data_type(rvalue));
+    if (type == "double")
+        doubles.insert(type::get_value_from_rvalue_data_type(rvalue));
+    if (type == "string")
+        strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }
 
 /**
@@ -319,7 +347,10 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
     if (vectors.contains(type::from_lvalue_offset(lvalue_reference))) {
         auto vector_offset = detail::Vector_Offset{ stack_frame, vectors };
         auto address = type::from_lvalue_offset(lvalue_reference);
-        auto offset = type::from_decay_offset(lvalue_reference);
+        // a global with no index, `counter`, is its first element
+        auto offset = util::contains(lvalue_reference, "[")
+                          ? type::from_decay_offset(lvalue_reference)
+                          : std::string{ "0" };
         auto offset_rvalue = vector_offset.get_rvalue_offset_of_vector(offset);
         if (stack_frame.is_parameter(offset)) {
             return type::Data_Type{ lvalue, "word", 8UL };

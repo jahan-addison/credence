@@ -38,229 +38,90 @@
 #include <variant>                              // for variant, get, operat...
 
 /****************************************************************************
- *
  * ARM64 Instruction Inserters
  *
- * Translates B language operations into ARM64 instruction sequences.
- * Includes arithmetic, bitwise, relational operators, and lvalue and rvalue
- * type assignments.
+ * Translates each kind of IR expression into ARM64 instructions. See
+ * common/inserter.h for the interfaces. The value of an expression is in the
+ * accumulator, w8 or x8, and the right-hand-side of a binary expression is
+ * in w7 or x7.
  *
- * Example - arithmetic operation:
+ *  Example:
  *
- *   B code:    z = x + y * 2;
+ *    _t2 = y * (2:int:4);
+ *    _t3 = x + _t2;
+ *    z = _t3;
+ *    _t7 = z > (10:int:4);
+ *    IF _t7 GOTO _L6;
  *
- * Inserter generates (locals in w9, w10, w11):
- *   mov w8, w10             ; load y from w10 into accumulator
- *   lsl w8, w8, #1          ; y * 2 (shift left)
- *   add w8, w9, w8          ; x + (y * 2), x in w9
- *   mov w11, w8             ; store to z in w11
+ *  Becomes, where x, y, and z are in w9, w11, and w12:
  *
- * Example - comparison:
+ *    mov w8, w11
+ *    mov w7, #2
+ *    mul w8, w8, w7
+ *    mov w7, w8           // _t2 is the right-hand-side
+ *    mov w8, w9
+ *    add w8, w8, w7
+ *    mov w12, w8
+ *    mov w8, w12
+ *    cmp w8, #10
+ *    b.gt ._L6__main      // the IF is fused with its comparison
  *
- *   B code:    if (x > 10) { ... }
- *
- * Inserter generates (x in w9):
- *   cmp w9, #10
- *   b.gt ._L1__main
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
 namespace credence::target::arm64 {
 
+namespace {
+
+/**
+ * @brief Check if the return value of a function is a doubleword
+ *
+ * A pointer, a pointer parameter, or a string is a doubleword
+ */
+bool is_doubleword_return_value(language::hir::binding::Function& frame)
+{
+    if (!frame.ret.has_value())
+        return false;
+    auto const& [value, rvalue] = *frame.ret;
+    return frame.locals.is_pointer(value) or frame.locals.is_pointer(rvalue) or
+           frame.is_pointer_parameter(rvalue) or
+           type::is_rvalue_data_type_string(value) or
+           type::is_rvalue_data_type_string(rvalue);
+}
+
+} // namespace
+
 namespace m = matchit;
 
 /**
- * @brief Get a stack of rvalues by evaluating the lvalue of a ir temporary
- */
-void Bitwise_Operator_Inserter::get_operand_stack_from_temporary_lvalue(
-    LValue const& lvalue,
-    Operand_Stack& stack)
-{
-    auto& table = accessor_->table_accessor.get_table();
-    auto stack_frame = accessor_->get_frame_in_memory();
-    auto& frame = stack_frame.get_stack_frame();
-    auto rvalue = table->lvalue_at_temporary_object_address(lvalue, frame);
-    auto& locals = frame.locals;
-
-    if (type::is_unary_expression(rvalue))
-        get_operand_stack_from_temporary_lvalue(
-            type::get_unary_rvalue_reference(rvalue), stack);
-    if (type::is_binary_expression(rvalue)) {
-        auto [left, right, op] = type::from_rvalue_binary_expression(rvalue);
-        if (type::is_rvalue_data_type(left))
-            get_operand_stack_from_temporary_lvalue(left, stack);
-        if (type::is_rvalue_data_type(right))
-            get_operand_stack_from_temporary_lvalue(right, stack);
-        if (locals.is_defined(left))
-            stack.emplace_back(
-                accessor_->device_accessor.get_operand_rvalue_device(left));
-        if (locals.is_defined(right))
-            stack.emplace_back(
-                accessor_->device_accessor.get_operand_rvalue_device(right));
-    }
-    if (type::is_rvalue_data_type(rvalue))
-        stack.emplace_back(type::get_rvalue_datatype_from_string(rvalue));
-    if (locals.is_defined(rvalue))
-        stack.emplace_back(
-            accessor_->device_accessor.get_operand_rvalue_device(rvalue));
-}
-
-/**
- * @brief Bitwise operator inserter of bitwise expression operands
- */
-void Bitwise_Operator_Inserter::from_bitwise_temporary_expression(
-    RValue const& rvalue)
-{
-    credence_assert(type::is_binary_expression(rvalue));
-    auto& frame = accessor_->get_frame_in_memory().get_stack_frame();
-    auto& instructions = accessor_->instruction_accessor->get_instructions();
-    auto& immediate_stack = accessor_->address_accessor.immediate_stack;
-    auto& devices = accessor_->device_accessor;
-    auto& registers = accessor_->register_accessor;
-    auto accumulator = accessor_->accumulator_accessor;
-
-    Storage lhs_s{};
-    Storage rhs_s{};
-
-    Operand_Inserter operand_inserter{ accessor_ };
-    auto expression = type::from_rvalue_binary_expression(rvalue);
-    auto [lhs, rhs, op] = expression;
-    auto immediate = false;
-    auto is_address = [&](RValue const& rvalue) {
-        return devices.is_lvalue_allocated_in_memory(rvalue);
-    };
-
-    m::match(lhs, rhs)(
-        m::pattern |
-            m::ds(m::app(is_immediate, true), m::app(is_immediate, true)) =
-            [&] {
-                auto [lhs_i, rhs_i] = get_rvalue_pair_as_immediate(lhs, rhs);
-                lhs_s = lhs_i;
-                rhs_s = rhs_i;
-                operand_inserter.insert_from_immediate_rvalues(
-                    lhs_i, op, rhs_i);
-                immediate = true;
-            },
-        m::pattern | m::ds(m::app(is_address, true), m::app(is_address, true)) =
-            [&] {
-                auto [lhs_storage, lhs_inst] =
-                    accessor_->address_accessor
-                        .get_arm64_lvalue_and_insertion_instructions(
-                            lhs, instructions.size(), devices);
-                assembly::inserter(instructions, lhs_inst);
-                lhs_s = lhs_storage;
-                rhs_s = devices.get_device_by_lvalue(rhs);
-            },
-        m::pattern |
-            m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
-            [&] {
-                auto size = assembly::get_operand_size_from_size(
-                    accessor_->table_accessor.get_table()
-                        ->lvalue_size_at_temporary_object_address(lhs, frame));
-                if (!immediate_stack.empty()) {
-                    lhs_s = devices.get_operand_rvalue_device(lhs);
-                    if (is_variant(common::Stack_Offset, lhs_s)) {
-                        auto [lhs_storage, lhs_inst] =
-                            accessor_->address_accessor
-                                .get_arm64_lvalue_and_insertion_instructions(
-                                    lhs, instructions.size(), devices);
-                        assembly::inserter(instructions, lhs_inst);
-                        lhs_s = lhs_storage;
-                    }
-                    rhs_s = immediate_stack.back();
-                    immediate_stack.pop_back();
-                    if (!immediate_stack.empty()) {
-                        auto acc =
-                            accessor_->get_accumulator_with_rvalue_context(
-                                immediate_stack.back());
-                        arm64_add__asm(
-                            instructions, mov, acc, immediate_stack.back());
-                        immediate_stack.pop_back();
-                    }
-
-                } else {
-                    auto& registers_stack = registers.stack;
-                    if (!registers_stack.empty()) {
-                        if (registers_stack.size() >= 2) {
-                            rhs_s = registers_stack.back();
-                            registers_stack.pop_back();
-                            lhs_s = registers_stack.back();
-                            registers_stack.pop_back();
-                            return;
-                        }
-                        if (registers_stack.size() == 1) {
-                            rhs_s = registers_stack.back();
-                            registers_stack.pop_back();
-                            lhs_s =
-                                accumulator.get_accumulator_register_from_size(
-                                    size);
-                            return;
-                        }
-                    } else {
-                        auto operand_stack = Operand_Stack{};
-                        get_operand_stack_from_temporary_lvalue(
-                            lhs, operand_stack);
-                        if (operand_stack.size() == 1)
-                            lhs_s = operand_stack.back();
-                        operand_stack.clear();
-                        get_operand_stack_from_temporary_lvalue(
-                            rhs, operand_stack);
-                        if (operand_stack.size() == 1)
-                            rhs_s = operand_stack.back();
-                    }
-                }
-            },
-        m::pattern | m::_ =
-            [&] {
-                lhs_s = devices.get_operand_rvalue_device(lhs);
-                if (is_variant(common::Stack_Offset, lhs_s)) {
-                    auto [lhs_storage, lhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, lhs_inst);
-                    lhs_s = lhs_storage;
-                }
-                rhs_s = devices.get_operand_rvalue_device(rhs);
-            });
-    if (!immediate) {
-        auto bitwise = Bitwise_Operator_Inserter{ accessor_ };
-        auto acc = accessor_->get_accumulator_with_rvalue_context(lhs_s);
-        registers.stack.emplace_back(acc);
-        if (is_variant(Immediate, lhs_s)) {
-            auto intermediate = memory::get_second_register_for_binary_operand(
-                memory::get_word_size_from_storage(
-                    lhs_s, accessor_->stack, accessor_->get_frame_in_memory()));
-            arm64_add__asm(instructions, mov, intermediate, lhs_s);
-            lhs_s = intermediate;
-        }
-        assembly::Ternary_Operands operands = { acc, lhs_s, rhs_s };
-        assembly::inserter(instructions,
-            bitwise.from_bitwise_expression_operands(operands, op).second);
-    }
-}
-
-/**
- * @brief Setup the stack frame for a function during instruction insertion
+ * @brief Set up the stack frame of a function at its `BeginFunc`
+ *
+ * The label of the function is the IR instruction before `BeginFunc`
  */
 void Instruction_Inserter::setup_stack_frame_in_function(
     ir::Instructions const& ir_instructions,
@@ -276,8 +137,19 @@ void Instruction_Inserter::setup_stack_frame_in_function(
 }
 
 /**
- * @brief Insert and type check the argument instructions for the print
- * function
+ * @brief Type check the argument of `print`, and add its length
+ *
+ * The argument must be a string or a buffer address, and its length is the
+ * size of the string in the object table, or the length of the last
+ * `read(2)` into the buffer
+ *
+ *  Example:
+ *
+ *    print("hello");
+ *
+ *  Becomes:
+ *
+ *    operands   // { ._L_str1__, (5:int:4) }
  */
 void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
     common::memory::Locals const& argument_stack,
@@ -299,18 +171,19 @@ void Invocation_Inserter::insert_type_check_stdlib_print_arguments(
                 __source__,
                 "function invocation");
     auto buffer = operands.back();
-    auto buffer_size = address_storage.buffer_accessor.has_bytes()
-                           ? address_storage.buffer_accessor
+    auto buffer_size = address_storage.buffer_accessor.has_read_bytes()
+                           ? address_storage.buffer_accessor.read_bytes()
+                           : address_storage.buffer_accessor
                                  .get_size_of_string_lvalue_buffer_address(
-                                     argument_stack.back(), stack_frame_)
-                           : address_storage.buffer_accessor.read_bytes();
+                                     argument_stack.back(), stack_frame_);
     operands.emplace_back(
         common::assembly::make_u32_int_immediate(buffer_size));
 }
 
 /**
- * @brief Insert and type check the argument instructions for the printf
- * function
+ * @brief Type check the format string of `printf`
+ *
+ * The format string must be a string or a buffer address
  */
 void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
     common::memory::Locals const& argument_stack,
@@ -335,7 +208,10 @@ void Invocation_Inserter::insert_type_check_stdlib_printf_arguments(
 }
 
 /**
- * @brief Unary address-of expression inserter
+ * @brief Insert the address of an lvalue into its pointer slot
+ *
+ * The address is stored in a doubleword slot of the frame, whose offset is
+ * resolved from the top of the frame when the frame has no calls
  */
 common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
     RValue const& expr)
@@ -376,7 +252,10 @@ common::Stack_Offset Unary_Operator_Inserter::from_lvalue_address_of_expression(
 }
 
 /**
- * @brief IR instruction visitor inserter to arm64 instructions
+ * @brief Translate each IR instruction with the visitor
+ *
+ * The visitor of each instruction is called in order, and a temporary held
+ * in the accumulator is released after the instruction that follows it
  */
 void Instruction_Inserter::from_ir_instructions(
     ir::Instructions const& ir_instructions)
@@ -386,6 +265,7 @@ void Instruction_Inserter::from_ir_instructions(
         auto inst = ir_instructions[index];
         ir_visitor.set_iterator_index(index);
         accessor_->table_accessor.set_ir_iterator_index(index);
+        auto held = accessor_->accumulator_temporary;
         ir::Instruction ita_inst = std::get<0>(inst);
         m::match(ita_inst)(
             m::pattern | ir::Instruction::FUNC_START =
@@ -409,239 +289,266 @@ void Instruction_Inserter::from_ir_instructions(
                 ir::Instruction::LOCL = [&] { ir_visitor.from_locl_ita(inst); },
             m::pattern |
                 ir::Instruction::GOTO = [&] { ir_visitor.from_goto_ita(inst); },
-            m::pattern |
-                ir::Instruction::RETURN = [&] { ir_visitor.from_return_ita(); },
+            m::pattern | ir::Instruction::RETURN =
+                [&] { ir_visitor.from_return_ita(inst); },
             m::pattern |
                 ir::Instruction::LEAVE = [&] { ir_visitor.from_leave_ita(); },
             m::pattern | ir::Instruction::LABEL =
-                [&] { ir_visitor.from_label_ita(inst); }
+                [&] { ir_visitor.from_label_ita(inst); },
+            m::pattern |
+                ir::Instruction::IF = [&] { ir_visitor.from_if_ita(inst); }
 
         );
+        // the accumulator holds a temporary until the next instruction
+        if (accessor_->accumulator_temporary == held)
+            accessor_->accumulator_temporary.reset();
     }
 }
 
 /**
  * @brief Binary operator inserter of expression operands
+ *
+ * The left-hand-side is loaded into the accumulator, and the operator is
+ * applied with the right-hand-side. A right-hand-side temporary in the
+ * accumulator is moved to the right-hand-side scratch register, w7, first.
+ * An expression of two immediates is folded into one.
+ *
+ *  Example:
+ *
+ *    _t3 = x * _t2;
+ *
+ *  Becomes:
+ *
+ *    mov w7, w8
+ *    mov w8, w9
+ *    mul w8, w8, w7
  */
 void Binary_Operator_Inserter::from_binary_operator_expression(
     RValue const& rvalue)
 {
     credence_assert(type::is_binary_expression(rvalue));
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    auto& table_accessor = accessor_->table_accessor;
-    auto& addresses = accessor_->address_accessor;
-    auto& devices = accessor_->device_accessor;
-    auto registers = accessor_->register_accessor;
-    auto accumulator = accessor_->accumulator_accessor;
-
-    Storage lhs_s{};
-    Storage rhs_s{};
-
+    auto [lhs, rhs, op] = type::from_rvalue_binary_expression(rvalue);
     Operand_Inserter operand_inserter{ accessor_ };
-    auto expression = type::from_rvalue_binary_expression(rvalue);
-    auto [lhs, rhs, op] = expression;
-    auto immediate = false;
-    auto is_address = [&](RValue const& rvalue) {
-        return devices.is_lvalue_allocated_in_memory(rvalue);
-    };
 
-    m::match(lhs, rhs)(
-        m::pattern |
-            m::ds(m::app(is_immediate, true), m::app(is_immediate, true)) =
-            [&] {
-                auto [lhs_i, rhs_i] = get_rvalue_pair_as_immediate(lhs, rhs);
-                lhs_s = lhs_i;
-                rhs_s = rhs_i;
-                operand_inserter.insert_from_immediate_rvalues(
-                    lhs_i, op, rhs_i);
-                immediate = true;
-            },
-        m::pattern | m::ds(m::app(is_address, true), m::app(is_address, true)) =
-            [&] {
-                if (!table_accessor.last_ir_instruction_is_assignment()) {
-                    auto [lhs_storage, lhs_inst] =
-                        addresses.get_arm64_lvalue_and_insertion_instructions(
-                            lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, lhs_inst);
-                    lhs_s = lhs_storage;
-                    auto [rhs_storage, rhs_inst] =
-                        addresses.get_arm64_lvalue_and_insertion_instructions(
-                            rhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
+    // the value of an expression of two immediates is folded
+    if (is_immediate(lhs) and is_immediate(rhs)) {
+        auto [lhs_i, rhs_i] = get_rvalue_pair_as_immediate(lhs, rhs);
+        auto immediate =
+            type::is_relation_binary_operator(op)
+                ? common::assembly::
+                      get_result_from_trivial_relational_expression(
+                          lhs_i, op, rhs_i)
+            : type::is_bitwise_binary_operator(op)
+                ? common::assembly::get_result_from_trivial_bitwise_expression(
+                      lhs_i, op, rhs_i)
+                : common::assembly::get_result_from_trivial_integral_expression(
+                      lhs_i, op, rhs_i);
+        auto accumulator =
+            !type::is_relation_binary_operator(op) and
+                    assembly::get_operand_size_from_rvalue_datatype(lhs_i) ==
+                        Operand_Size::Doubleword
+                ? Register::x8
+                : Register::w8;
+        arm64_add__asm(instructions, mov, accumulator, immediate);
+        result = accumulator;
+        return;
+    }
 
-                } else {
-                    lhs_s = accumulator.get_accumulator_register_from_size(
-                        devices.get_word_size_from_lvalue(lhs));
+    Storage rhs_s = assembly::O_NUL;
+    auto const& held = accessor_->accumulator_temporary;
+    if (held.has_value() and held->first == rhs and lhs != rhs) {
+        auto scratch = assembly::is_doubleword_register(held->second)
+                           ? Register::x7
+                           : Register::w7;
+        arm64_add__asm(instructions, mov, scratch, held->second);
+        rhs_s = scratch;
+    }
+    auto accumulator = operand_inserter.insert_operand_into_accumulator(lhs);
+    if (rhs_s == assembly::O_NUL)
+        rhs_s =
+            operand_inserter.get_operand_storage_from_expression_operand(rhs);
 
-                    auto [rhs_storage, rhs_inst] =
-                        addresses.get_arm64_lvalue_and_insertion_instructions(
-                            rhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
-                }
-            },
-        m::pattern |
-            m::ds(m::app(is_temporary, true), m::app(is_temporary, true)) =
-            [&] {
-                auto acc = accumulator.get_accumulator_register_from_size(
-                    devices.get_word_size_from_lvalue(lhs));
-                lhs_s = acc;
-                auto& immediate_stack = addresses.immediate_stack;
-                if (!immediate_stack.empty()) {
-                    rhs_s = immediate_stack.back();
-                    immediate_stack.pop_back();
-                    if (!immediate_stack.empty()) {
-                        arm64_add__asm(
-                            instructions, mov, acc, immediate_stack.back());
-                        immediate_stack.pop_back();
-                    }
-                } else {
-                    lhs_s = accumulator.get_accumulator_register_from_size(
-                        devices.get_word_size_from_lvalue(lhs));
-                    auto [rhs_storage, rhs_inst] =
-                        addresses.get_arm64_lvalue_and_insertion_instructions(
-                            rhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
-                }
-            },
-        m::pattern |
-            m::ds(m::app(is_address, true), m::app(is_address, false)) =
-            [&] {
-                auto [lhs_storage, lhs_inst] =
-                    addresses.get_arm64_lvalue_and_insertion_instructions(
-                        lhs, instructions.size(), devices);
-                assembly::inserter(instructions, lhs_inst);
-                lhs_s = lhs_storage;
-                rhs_s = devices.get_operand_rvalue_device(rhs);
-                if (is_variant(common::Stack_Offset, rhs_s)) {
-                    auto [rhs_storage, rhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                rhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
-                }
-                if (table_accessor.last_ir_instruction_is_assignment()) {
-                    auto size = memory::get_word_size_from_storage(lhs_s,
-                        accessor_->stack,
-                        accessor_->get_frame_in_memory());
-                    auto acc =
-                        accumulator.get_accumulator_register_from_size(size);
-                    arm64_add__asm(instructions, mov, acc, lhs_s);
-                }
+    // the operands of an instruction are the same size
+    if (is_variant(Register, rhs_s)) {
+        auto rhs_r = std::get<Register>(rhs_s);
+        if (assembly::is_doubleword_register(rhs_r) and
+            not assembly::is_doubleword_register(accumulator)) {
+            arm64_add__asm(instructions, sxtw, x8, w8);
+            accumulator = Register::x8;
+        } else if (assembly::is_doubleword_register(accumulator) and
+                   not assembly::is_doubleword_register(rhs_r)) {
+            arm64_add__asm(instructions, sxtw, x7, rhs_r);
+            rhs_s = Register::x7;
+        }
+    }
 
-                if (is_temporary(rhs)) {
-                    lhs_s = accumulator.get_accumulator_register_from_size(
-                        assembly::get_operand_size_from_size(
-                            devices.get_size_from_rvalue_reference(lhs)));
-                    auto [rhs_storage, rhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
-                }
-
-                if (table_accessor.is_ir_instruction_temporary()) {
-                    if (!type::is_relation_binary_operator(op))
-                        lhs_s = accumulator.get_accumulator_register_from_size(
-                            devices.get_word_size_from_lvalue(lhs));
-                }
-            },
-        m::pattern |
-            m::ds(m::app(is_address, false), m::app(is_address, true)) =
-            [&] {
-                lhs_s = devices.get_operand_rvalue_device(lhs);
-                if (is_variant(common::Stack_Offset, lhs_s)) {
-                    auto [lhs_storage, lhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, lhs_inst);
-                    lhs_s = lhs_storage;
-                }
-                auto [rhs_storage, rhs_inst] =
-                    addresses.get_arm64_lvalue_and_insertion_instructions(
-                        rhs, instructions.size(), devices);
-                assembly::inserter(instructions, rhs_inst);
-                rhs_s = rhs_storage;
-                if (table_accessor.last_ir_instruction_is_assignment()) {
-                    auto acc = accumulator.get_accumulator_register_from_size(
-                        assembly::get_operand_size_from_size(
-                            devices.get_size_from_rvalue_reference(rhs)));
-                    arm64_add__asm(instructions, mov, acc, rhs_s);
-                    // The instruction this expression computes for is
-                    // tracked as living in acc, not rhs_s's freshly-loaded
-                    // register - the actual op below must target acc too,
-                    // or the next instruction's temporary lookup and this
-                    // one's real result diverge.
-                    rhs_s = acc;
-                }
-            },
-        m::pattern |
-            m::ds(m::app(is_temporary, true), m::app(is_temporary, false)) =
-            [&] {
-                rhs_s = devices.get_operand_rvalue_device(rhs);
-                if (is_variant(common::Stack_Offset, rhs_s)) {
-                    auto [rhs_storage, rhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                rhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
-                }
-                lhs_s = accumulator.get_accumulator_register_from_size(
-                    memory::get_word_size_from_storage(rhs_s,
-                        accessor_->stack,
-                        accessor_->get_frame_in_memory()));
-            },
-        m::pattern |
-            m::ds(m::app(is_temporary, false), m::app(is_temporary, true)) =
-            [&] {
-                lhs_s = devices.get_operand_rvalue_device(lhs);
-                if (is_variant(common::Stack_Offset, lhs_s)) {
-                    auto [lhs_storage, lhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, lhs_inst);
-                    lhs_s = lhs_storage;
-                }
-                rhs_s = accumulator.get_accumulator_register_from_size(
-                    memory::get_word_size_from_storage(lhs_s,
-                        accessor_->stack,
-                        accessor_->get_frame_in_memory()));
-            },
-        m::pattern | m::ds(m::_, m::_) =
-            [&] {
-                lhs_s = devices.get_operand_rvalue_device(lhs);
-                if (is_variant(common::Stack_Offset, lhs_s)) {
-                    auto [lhs_storage, lhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, lhs_inst);
-                    lhs_s = lhs_storage;
-                }
-                rhs_s = devices.get_operand_rvalue_device(rhs);
-                if (is_variant(common::Stack_Offset, rhs_s)) {
-                    auto [rhs_storage, rhs_inst] =
-                        accessor_->address_accessor
-                            .get_arm64_lvalue_and_insertion_instructions(
-                                lhs, instructions.size(), devices);
-                    assembly::inserter(instructions, rhs_inst);
-                    rhs_s = rhs_storage;
-                }
-            });
-    if (!immediate) {
-        auto operand_inserter = Operand_Inserter{ accessor_ };
-        assembly::Assignment_Operands operands = { lhs_s, rhs_s };
-        operand_inserter.insert_from_binary_operands(operands, op);
+    result = accumulator;
+    if (op == "%") {
+        insert_from_modulo_operands(accumulator, rhs_s);
+    } else if (type::is_binary_arithmetic_operator(op)) {
+        auto arithmetic = Arithemtic_Operator_Inserter{ accessor_ };
+        assembly::inserter(instructions,
+            arithmetic
+                .from_arithmetic_expression_operands({ accumulator, rhs_s }, op)
+                .second);
+    } else if (op == "&&" or op == "||") {
+        insert_from_logical_operands(accumulator, rhs_s, op);
+    } else if (type::is_relation_binary_operator(op)) {
+        insert_from_relational_operands(accumulator, rhs_s, op);
+    } else {
+        // the logical immediates of `and`, `orr`, and `eor` are bitmasks
+        if (is_variant(Immediate, rhs_s)) {
+            auto scratch = assembly::is_doubleword_register(accumulator)
+                               ? Register::x7
+                               : Register::w7;
+            arm64_add__asm(instructions, mov, scratch, rhs_s);
+            rhs_s = scratch;
+        }
+        auto bitwise = Bitwise_Operator_Inserter{ accessor_ };
+        assembly::inserter(instructions,
+            bitwise
+                .from_bitwise_expression_operands(
+                    { accumulator, accumulator, rhs_s }, op)
+                .second);
     }
 }
 
+/**
+ * @brief Inserter of the remainder of a signed division
+ *
+ *  Example:
+ *
+ *    _t2 = x % 5;
+ *
+ *  Becomes:
+ *
+ *    mov w7, #5
+ *    sdiv w10, w8, w7
+ *    msub w8, w10, w7, w8
+ */
+void Binary_Operator_Inserter::insert_from_modulo_operands(Register accumulator,
+    Storage divisor)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    bool doubleword = assembly::is_doubleword_register(accumulator);
+    if (is_variant(Immediate, divisor)) {
+        auto scratch = doubleword ? Register::x7 : Register::w7;
+        arm64_add__asm(instructions, mov, scratch, divisor);
+        divisor = scratch;
+    }
+    auto quotient = doubleword ? Register::x10 : Register::w10;
+    if (std::get<Register>(divisor) == quotient)
+        quotient = doubleword ? Register::x6 : Register::w6;
+    arm64_add__asm(instructions, sdiv, quotient, accumulator, divisor);
+    arm64_add__asm(
+        instructions, msub, accumulator, quotient, divisor, accumulator);
+}
+
+/**
+ * @brief Inserter of a relational expression
+ *
+ * The comparison jumps to the label of the next IF instruction when it is
+ * the condition, otherwise its value is 0 or 1 in the accumulator
+ *
+ *  Example:
+ *
+ *    _t2 = x < 5;
+ *    y = _t2;
+ *
+ *  Becomes:
+ *
+ *    cmp w8, #5
+ *    cset w8, lt
+ */
+void Binary_Operator_Inserter::insert_from_relational_operands(
+    Register accumulator,
+    Storage const& rhs,
+    std::string const& op)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto& ir_instructions = accessor_->table_accessor.get_ir_instructions();
+    auto index = accessor_->table_accessor.get_index();
+    auto condition = m::match(op)(
+        m::pattern | std::string{ "==" } = [] { return std::string{ "eq" }; },
+        m::pattern | std::string{ "!=" } = [] { return std::string{ "ne" }; },
+        m::pattern | std::string{ "<" } = [] { return std::string{ "lt" }; },
+        m::pattern | std::string{ ">" } = [] { return std::string{ "gt" }; },
+        m::pattern | std::string{ "<=" } = [] { return std::string{ "le" }; },
+        m::pattern | m::_ = [] { return std::string{ "ge" }; });
+
+    arm64_add__asm(instructions, cmp, accumulator, rhs);
+    if (index + 1 < ir_instructions.size()) {
+        auto const& current = ir_instructions.at(index);
+        auto const& next = ir_instructions.at(index + 1);
+        if (std::get<0>(next) == ir::Instruction::IF and
+            std::get<1>(next) == std::get<1>(current)) {
+            auto label = common::assembly::make_direct_immediate(
+                assembly::make_label(std::get<3>(next), stack_frame_.symbol));
+            if (op == "==")
+                arm64_add__asm(instructions, b_eq, label);
+            else if (op == "!=")
+                arm64_add__asm(instructions, b_ne, label);
+            else if (op == "<")
+                arm64_add__asm(instructions, b_lt, label);
+            else if (op == ">")
+                arm64_add__asm(instructions, b_gt, label);
+            else if (op == "<=")
+                arm64_add__asm(instructions, b_le, label);
+            else
+                arm64_add__asm(instructions, b_ge, label);
+            accessor_->relational_jump = true;
+            result = std::nullopt;
+            return;
+        }
+    }
+    arm64_add__asm(instructions, cset, w8, direct_immediate(condition));
+    result = Register::w8;
+}
+
+/**
+ * @brief Inserter of a logical "and" or "or" expression as 0 or 1
+ *
+ *  Example:
+ *
+ *    _t3 = _t1 || _t2;
+ *
+ *  Becomes:
+ *
+ *    cmp w8, #0
+ *    cset w8, ne
+ *    cmp w7, #0
+ *    cset w7, ne
+ *    orr w8, w8, w7
+ */
+void Binary_Operator_Inserter::insert_from_logical_operands(
+    Register accumulator,
+    Storage const& rhs,
+    std::string const& op)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    Storage rhs_s = rhs;
+    if (is_variant(Immediate, rhs_s)) {
+        arm64_add__asm(instructions, mov, w7, rhs_s);
+        rhs_s = Register::w7;
+    }
+    arm64_add__asm(instructions, cmp, accumulator, u32_int_immediate(0));
+    arm64_add__asm(instructions, cset, w8, direct_immediate("ne"));
+    arm64_add__asm(instructions, cmp, rhs_s, u32_int_immediate(0));
+    arm64_add__asm(instructions, cset, w7, direct_immediate("ne"));
+    if (op == "&&")
+        arm64_add__asm(instructions, and_, w8, w8, w7);
+    else
+        arm64_add__asm(instructions, orr, w8, w8, w7);
+    result = Register::w8;
+}
+
+/**
+ * @brief Get the operand size of the lvalue of a unary expression
+ *
+ * A vector element is loaded to find its size, and a literal has the size
+ * of its type
+ */
 Operand_Size Unary_Operator_Inserter::get_operand_size_from_lvalue_reference(
     LValue const& lvalue)
 {
@@ -675,6 +582,9 @@ Operand_Size Unary_Operator_Inserter::get_operand_size_from_lvalue_reference(
             });
 }
 
+/**
+ * @brief Get the accumulator of the value of a unary expression
+ */
 Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
     RValue const& rvalue)
 {
@@ -684,7 +594,18 @@ Storage Unary_Operator_Inserter::get_temporary_storage_from_temporary_expansion(
 }
 
 /**
- * @brief Inserter from ir unary expression types
+ * @brief Insert a unary expression on its operand
+ *
+ * An operand with a device is updated in place, such as `++x`, and a vector
+ * element or literal is loaded into the accumulator first
+ *
+ *  Example:
+ *
+ *    x = ++x;
+ *
+ *  Becomes:
+ *
+ *    add w9, w9, #1
  */
 Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
     RValue const& expr)
@@ -742,7 +663,10 @@ Storage Unary_Operator_Inserter::insert_from_unary_operator_rvalue(
 }
 
 /**
- * @brief Inserter from unary expression
+ * @brief Insert the instruction of a unary operator
+ *
+ * The increment and decrement are in place, `&` stores an address, and `*`
+ * stores through the address in the destination
  */
 void Unary_Operator_Inserter::insert_from_unary_operator_operands(
     std::string const& op,
@@ -810,24 +734,58 @@ void Unary_Operator_Inserter::insert_from_unary_operator_operands(
 }
 
 /**
- * @brief Expression inserter for lvalue at temporary object address
+ * @brief Insert the value of a temporary into the accumulator
+ *
+ * The expression of the temporary is in the object table, and the
+ * accumulator holds its value until the next instruction
+ *
+ *  Example:
+ *
+ *    _t2 = y * (2:int:4);
+ *
+ *  Becomes:
+ *
+ *    mov w8, w11
+ *    mov w7, #2
+ *    mul w8, w8, w7
  */
 void Expression_Inserter::insert_lvalue_at_temporary_object_address(
     LValue const& lvalue)
 {
     auto& frame = stack_frame_.get_stack_frame();
     auto& table = accessor_->table_accessor.get_table();
+    // a copy of a temporary, e.g. `_t3 = _t2;`, is the value of `_t2`
+    // when it was computed, not its expression computed again
+    if (frame.temporary.contains(lvalue) and
+        type::is_temporary(frame.temporary.at(lvalue))) {
+        auto operand_inserter = Operand_Inserter{ accessor_ };
+        auto accumulator = operand_inserter.insert_operand_into_accumulator(
+            frame.temporary.at(lvalue));
+        accessor_->accumulator_temporary = { lvalue, accumulator };
+        return;
+    }
     auto temporary = table->lvalue_at_temporary_object_address(lvalue, frame);
-
+    result_.reset();
     insert_from_temporary_rvalue(temporary);
+    if (result_.has_value())
+        accessor_->accumulator_temporary = { lvalue, *result_ };
 }
 
 /**
- * @brief Inserter of a return value from a function body in the stack frame
+ * @brief Move the value of a return statement to the return register
  *
- *  test(*y) {
- *   return(y); <---
- *  }
+ * The return register is x0 for a doubleword, such as a pointer, and w0
+ * otherwise
+ *
+ *  Example:
+ *
+ *    test(*y) {
+ *      return(y);
+ *    }
+ *
+ *  Becomes:
+ *
+ *    mov x0, x0
  */
 void Expression_Inserter::insert_from_return_rvalue(
     language::hir::binding::Function::Return_RValue const& ret)
@@ -835,7 +793,23 @@ void Expression_Inserter::insert_from_return_rvalue(
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto operand_inserter = Operand_Inserter{ accessor_ };
     auto immediate =
-        operand_inserter.get_operand_storage_from_rvalue(ret->second);
+        operand_inserter.get_operand_storage_from_expression_operand(
+            ret->second);
+    // a string literal is the address of its label
+    if (assembly::is_immediate_relative_address(immediate)) {
+        auto label = type::get_value_from_rvalue_data_type(
+            std::get<Immediate>(immediate));
+        arm64_add__asm(instructions,
+            adrp,
+            x0,
+            assembly::page_offset_upper_immediate(label));
+        arm64_add__asm(instructions,
+            add,
+            x0,
+            x0,
+            assembly::page_offset_lower_immediate(label));
+        return;
+    }
     if (memory::is_doubleword_storage_size(
             immediate, accessor_->stack, accessor_->get_frame_in_memory()))
         arm64_add__asm(instructions, mov, x0, immediate);
@@ -844,17 +818,73 @@ void Expression_Inserter::insert_from_return_rvalue(
 }
 
 /**
- * @brief Insert from an address-of assignment expression
+ * @brief Insert the address of an lvalue into the accumulator
+ *
+ * A global vector element is its page address plus its offset, and a local
+ * vector element or a local on the stack is its offset from the stack
+ * pointer
+ *
+ *  Example:
+ *
+ *    p = &y;
+ *
+ *  Becomes, where y is on the stack:
+ *
+ *    add x8, sp, #16
  */
 void Expression_Inserter::insert_from_address_of_rvalue(RValue const& rvalue)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
+    auto const& table = accessor_->table_accessor.get_table();
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto lvalue = type::get_unary_rvalue_reference(rvalue);
+    auto label = type::from_lvalue_offset(lvalue);
+    // the address of a global vector element is from its page address
+    if (is_vector_offset(lvalue) and table->vectors.contains(label) and
+        table->globals.is_pointer(label)) {
+        auto offset =
+            accessor_->vector_accessor
+                .get_offset_address(lvalue, type::from_decay_offset(lvalue))
+                .first;
+        arm64_add__asm(instructions,
+            adrp,
+            x8,
+            assembly::page_offset_upper_immediate(label));
+        arm64_add__asm(instructions,
+            add,
+            x8,
+            x8,
+            assembly::page_offset_lower_immediate(label));
+        if (offset != 0UL)
+            arm64_add__asm(
+                instructions, add, x8, x8, u32_int_immediate(offset));
+        result_ = Register::x8;
+        return;
+    }
+    // the address of an element of a vector on the stack
+    if (operand_inserter.is_local_vector_offset(lvalue)) {
+        auto offset = std::get<common::Stack_Offset>(
+            operand_inserter.get_operand_storage_from_local_vector_offset(
+                lvalue));
+        arm64_add__asm(instructions, add, x8, sp, u32_int_immediate(offset));
+        result_ = Register::x8;
+        return;
+    }
+    // the address of a local, which is on the stack when its address is
+    // taken
+    if (accessor_->stack->is_allocated(lvalue)) {
+        auto offset = accessor_->stack->get(lvalue).first;
+        arm64_add__asm(instructions, add, x8, sp, u32_int_immediate(offset));
+        result_ = Register::x8;
+        return;
+    }
     if (accessor_->table_accessor.next_ir_instruction_is_assignment()) {
-        auto lvalue =
+        auto assignment =
             std::get<1>(accessor_->table_accessor.get_ir_instructions().at(
                 accessor_->table_accessor.get_index() + 1));
-        auto lhs_s = accessor_->device_accessor.get_device_by_lvalue(lvalue);
+        auto lhs_s =
+            accessor_->device_accessor.get_device_by_lvalue(assignment);
         accessor_->address_accessor.address_ir_assignment = true;
         accessor_->stack->allocate_pointer_on_stack();
         accessor_->get_frame_in_memory()
@@ -891,7 +921,11 @@ void Expression_Inserter::insert_from_address_of_rvalue(RValue const& rvalue)
 }
 
 /**
- * @brief Expression inserter from rvalue
+ * @brief Insert the value of the rvalue of a temporary
+ *
+ * The rvalue is a binary or unary expression, a literal, the operand of a
+ * comparison, or the return value of the last call, `RET`. The register
+ * that holds the value is the result.
  */
 void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
 {
@@ -900,7 +934,6 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
     auto& instructions = instruction_accessor->get_instructions();
 
     auto binary_inserter = Binary_Operator_Inserter{ accessor_ };
-    auto bitwise_inserter = Bitwise_Operator_Inserter{ accessor_ };
     auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
     auto operand_inserter = Operand_Inserter{ accessor_ };
 
@@ -909,17 +942,18 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
     };
 
     m::match(rvalue)(
-        m::pattern | m::app(type::is_bitwise_binary_expression, true) =
-            [&] { bitwise_inserter.from_bitwise_temporary_expression(rvalue); },
         m::pattern | m::app(type::is_binary_expression, true) =
-            [&] { binary_inserter.from_binary_operator_expression(rvalue); },
+            [&] {
+                binary_inserter.from_binary_operator_expression(rvalue);
+                result_ = binary_inserter.result;
+            },
         m::pattern | m::app(type::is_unary_expression, true) =
             [&] {
                 if (type::is_address_of_expression(rvalue)) {
                     insert_from_address_of_rvalue(rvalue);
                     return;
                 }
-                unary_inserter.insert_from_unary_operator_rvalue(rvalue);
+                result_ = insert_from_unary_value(rvalue);
             },
         m::pattern | m::app(type::is_rvalue_data_type, true) =
             [&] {
@@ -933,11 +967,28 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
                 if (type == "string")
                     accessor_->flag_accessor.set_instruction_flag(
                         common::flag::Address, instruction_accessor->size());
+                result_ = acc;
             },
-        m::pattern | m::app(is_comparator, true) = [&] {},
+        // the truth value of a comparator is the value of its operand
+        m::pattern | m::app(is_comparator, true) =
+            [&] {
+                auto operand = util::str_trim_ws(rvalue.substr(4));
+                if (operand == "RET")
+                    insert_from_temporary_rvalue(operand);
+                else
+                    result_ = operand_inserter.insert_operand_into_accumulator(
+                        operand);
+            },
         m::pattern | RValue{ "RET" } =
             [&] {
-
+                // `getchar` and a syscall return a word in w0
+                if (common::runtime::is_returning_library_function(
+                        stack_frame_.tail,
+                        common::assembly::Arch_Type::ARM64)) {
+                    arm64_add__asm(instructions, mov, w8, w0);
+                    result_ = Register::w8;
+                    return;
+                }
 #if defined(__linux__)
                 if (common::runtime::is_stdlib_function(stack_frame_.tail,
                         common::assembly::OS_Type::Linux,
@@ -957,27 +1008,86 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
                 credence_assert(table->functions.contains(stack_frame_.tail));
                 auto& frame = table->functions.at(stack_frame_.tail).get();
                 credence_assert(frame.ret.has_value());
-                auto immediate =
-                    operand_inserter.get_operand_storage_from_rvalue(
-                        frame.ret->first);
-                if (memory::get_operand_size_from_storage(immediate,
-                        accessor_->stack) == Operand_Size::Doubleword) {
-                    accessor_->set_signal_register(Register::x0);
+                if (is_doubleword_return_value(frame)) {
+                    arm64_add__asm(instructions, mov, x8, x0);
+                    result_ = Register::x8;
+                } else {
+                    arm64_add__asm(instructions, mov, w8, w0);
+                    result_ = Register::w8;
                 }
             },
         m::pattern | m::_ =
             [&] {
-                auto symbols = table->get_stack_frame_symbols();
-                Storage immediate = symbols.get_symbol_by_name(rvalue);
-                auto acc = accessor_->accumulator_accessor
-                               .get_accumulator_register_from_storage(
-                                   immediate, accessor_->stack);
-                arm64_add__asm(instructions, mov, acc, immediate);
+                result_ =
+                    operand_inserter.insert_operand_into_accumulator(rvalue);
             });
 }
 
 /**
- * @brief Expression inserter for global vector assignment
+ * @brief Inserter of the value of a unary expression into the accumulator
+ *
+ * The increment, decrement, and dereference operators are inserted by the
+ * unary operator inserter, so there is no value to return
+ *
+ *  Example:
+ *
+ *    _t2 = - x;
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    neg w8, w8
+ */
+std::optional<Register> Expression_Inserter::insert_from_unary_value(
+    RValue const& rvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto op = type::get_unary_operator(rvalue);
+    if (op == "*") {
+        auto operand_inserter = Operand_Inserter{ accessor_ };
+        return operand_inserter.insert_operand_into_accumulator(
+            fmt::format("*{}", type::get_unary_rvalue_reference(rvalue)));
+    }
+    if (op != "-" and op != "+" and op != "~" and op != "!") {
+        auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
+        unary_inserter.insert_from_unary_operator_rvalue(rvalue);
+        return std::nullopt;
+    }
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto accumulator = operand_inserter.insert_operand_into_accumulator(
+        type::get_unary_rvalue_reference(rvalue));
+    m::match(op)(
+        m::pattern | std::string{ "-" } =
+            [&] {
+                arm64_add__asm(instructions, neg, accumulator, accumulator);
+            },
+        m::pattern | std::string{ "~" } =
+            [&] {
+                arm64_add__asm(instructions, mvn, accumulator, accumulator);
+            },
+        m::pattern | std::string{ "!" } =
+            [&] {
+                arm64_add__asm(
+                    instructions, cmp, accumulator, u32_int_immediate(0));
+                arm64_add__asm(instructions, cset, w8, direct_immediate("eq"));
+                accumulator = Register::w8;
+            },
+        m::pattern | m::_ = [&] {});
+    return accumulator;
+}
+
+/**
+ * @brief Insert an assignment to or from a global vector element
+ *
+ *  Example:
+ *
+ *    x = mess[1];
+ *
+ *  Becomes:
+ *
+ *    adrp x6, mess@PAGE
+ *    add x6, x6, mess@PAGEOFF
+ *    ldr x9, [x6, #8]
  */
 void Expression_Inserter::insert_from_global_vector_assignment(
     LValue const& lhs,
@@ -999,53 +1109,11 @@ void Expression_Inserter::insert_from_global_vector_assignment(
 }
 
 /**
- * @brief Inserter from unary-to-unary rvalue expressions
+ * @brief Insert an arithmetic or relational expression of two operands
  *
- * The only supported type is dereferenced pointers
- */
-void Unary_Operator_Inserter::insert_from_unary_to_unary_assignment(
-    LValue const& lhs,
-    LValue const& rhs)
-{
-    auto instruction_accessor = accessor_->instruction_accessor;
-    auto& instructions = instruction_accessor->get_instructions();
-    auto lhs_lvalue = type::get_unary_rvalue_reference(lhs);
-    auto rhs_lvalue = type::get_unary_rvalue_reference(rhs);
-    auto devices = accessor_->device_accessor;
-
-    m::match(type::get_unary_operator(lhs),
-        type::get_unary_operator(rhs))(m::pattern | m::ds("*", "*") = [&] {
-        auto& frame = stack_frame_.get_stack_frame();
-        auto rvalue =
-            language::hir::binding::get_rvalue_at_lvalue_object_storage(
-                lhs, frame, accessor_->table_accessor.get_table()->vectors);
-        auto size = assembly::get_operand_size_from_size(
-            devices.get_size_from_rvalue_data_type(lhs, rvalue));
-        auto acc =
-            accessor_->accumulator_accessor.get_accumulator_register_from_size(
-                size);
-        auto [lhs_storage, lhs_inst] =
-            accessor_->address_accessor
-                .get_arm64_lvalue_and_insertion_instructions(
-                    lhs_lvalue, instructions.size(), devices);
-        assembly::inserter(instructions, lhs_inst);
-        Storage rhs_storage = devices.get_device_by_lvalue(rhs_lvalue);
-        accessor_->flag_accessor.set_instruction_flag(
-            common::flag::Indirect_Source, instruction_accessor->size());
-        arm64_add__asm(instructions, ldr, acc, rhs_storage);
-        if (is_variant(Register, lhs_storage))
-            accessor_->flag_accessor.set_instruction_flag(
-                common::flag::Indirect_Source, instruction_accessor->size());
-        else
-            accessor_->flag_accessor.set_instruction_flag(
-                detail::flags::Align_Folded, instruction_accessor->size());
-
-        arm64_add__asm(instructions, str, acc, lhs_storage);
-    });
-}
-
-/**
- * @brief Operand Inserter mediator for expression mnemonics operands
+ * An immediate left-hand-side is swapped to the right-hand-side, since the
+ * first operand of an ARM64 instruction is a register, and a relational
+ * expression jumps to the label of the IF that follows it
  */
 void Operand_Inserter::insert_from_binary_operands(
     assembly::Assignment_Operands& operands,
@@ -1107,7 +1175,11 @@ void Operand_Inserter::insert_from_binary_operands(
 }
 
 /**
- * @brief Operand inserter for immediate rvalues
+ * @brief Insert the value of an expression of two immediates
+ *
+ * The expression is computed at compile time and moved to the accumulator,
+ * and the result of a relational expression is passed to the next
+ * assignment with the signal register
  */
 void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
     std::string const& op,
@@ -1149,11 +1221,13 @@ void Operand_Inserter::insert_from_immediate_rvalues(Immediate const& lhs,
 }
 
 /**
- * @brief
+ * @brief Store the return value of the last call in an lvalue
  *
- * Resolve the return rvalue to store in an lvalue, we take special care
- * with `getchar' which is the only standard library function that may
- * return a value:
+ * The return register is x0 or w0 by the return value of the callee. A
+ * standard library function has no return value, except `getchar`, which
+ * returns its character in w0.
+ *
+ *  Example:
  *
  *  auto x = getchar();
  *  putchar(x);
@@ -1168,23 +1242,27 @@ void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
     if (common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64) and
-        stack_frame_.tail != "getchar")
+        not common::runtime::is_returning_library_function(
+            stack_frame_.tail, common::assembly::Arch_Type::ARM64))
         return;
 #elif defined(__APPLE__) || defined(__bsdi__)
     if (common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64) and
-        stack_frame_.tail != "getchar")
+        not common::runtime::is_returning_library_function(
+            stack_frame_.tail, common::assembly::Arch_Type::ARM64))
         return;
 #elif defined(_WIN32) || defined(_WIN64)
     if (common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64) and
-        stack_frame_.tail != "getchar")
+        not common::runtime::is_returning_library_function(
+            stack_frame_.tail, common::assembly::Arch_Type::ARM64))
         return;
 #endif
-    if (stack_frame_.tail != "getchar" and
-        not table->functions.contains(stack_frame_.tail))
+    auto returns_word = common::runtime::is_returning_library_function(
+        stack_frame_.tail, common::assembly::Arch_Type::ARM64);
+    if (!returns_word and not table->functions.contains(stack_frame_.tail))
         return;
     auto [lhs_s, lhs_i] =
         accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
@@ -1196,18 +1274,44 @@ void Expression_Inserter::insert_lvalue_from_return_rvalue(LValue const& lvalue)
         arm64_add__asm(instructions, str, lhs_r, lhs_s);
         lhs_s = lhs_r;
     }
-    if (stack_frame_.tail == "getchar")
+    if (returns_word)
         arm64_add__asm(instructions, mov, lhs_s, w0);
     else {
         auto& frame = table->functions.at(stack_frame_.tail).get();
-        auto immediate =
-            operand_inserter.get_operand_storage_from_rvalue(frame.ret->first);
-        arm64_add__asm(instructions, mov, lhs_s, immediate);
+        Storage return_s =
+            is_doubleword_return_value(frame) ? Register::x0 : Register::w0;
+        arm64_add__asm(instructions, mov, lhs_s, return_s);
     }
 }
 
 /**
- * @brief Operand inserter for mnemonic operand
+ * @brief Insert an assignment of an rvalue to an lvalue
+ *
+ * The rvalue selects the instructions:
+ *
+ *  * A dereference, `b = *a`, loads through the pointer
+ *
+ *  * A pointer increment, `p++`, steps over the object it points to
+ *
+ *  * A parameter is copied from its argument register
+ *
+ *  * A literal is moved, or a string, float, or double is its label
+ *
+ *  * A binary or unary expression is computed, then stored
+ *
+ *  * A temporary is the value in the accumulator, or the return value of
+ *    the last call
+ *
+ *  * A local is moved through the accumulator
+ *
+ *  Example:
+ *
+ *    y = x;
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    mov w11, w8
  */
 void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
     RValue const& rhs)
@@ -1220,6 +1324,35 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
     auto is_address = [&](RValue const& rvalue) {
         return accessor_->device_accessor.is_lvalue_allocated_in_memory(rvalue);
     };
+
+    // a dereference, `b = *a`
+    if (type::is_dereference_expression(rhs)) {
+        insert_from_accumulator_to_lvalue(
+            lhs, insert_operand_into_accumulator(rhs));
+        return;
+    }
+    // a pointer increment or decrement steps over the object it points to
+    if (type::is_unary_expression(rhs) and
+        (type::get_unary_operator(rhs) == "++" or
+            type::get_unary_operator(rhs) == "--") and
+        (stack_frame_.get_stack_frame().locals.is_pointer(lhs) or
+            stack_frame_.get_stack_frame().is_pointer_parameter(lhs))) {
+        auto pointer = insert_operand_into_accumulator(lhs);
+        auto stride = u32_int_immediate(get_pointer_stride(lhs));
+        if (type::get_unary_operator(rhs) == "++")
+            arm64_add__asm(instructions, add, pointer, pointer, stride);
+        else
+            arm64_add__asm(instructions, sub, pointer, pointer, stride);
+        insert_from_accumulator_to_lvalue(lhs, pointer);
+        return;
+    }
+    // a copy of a parameter, `b = a`, is from its argument register, or the
+    // stack for `argc`
+    if (stack_frame_.get_stack_frame().is_parameter(rhs)) {
+        insert_from_accumulator_to_lvalue(
+            lhs, insert_operand_into_accumulator(rhs));
+        return;
+    }
 
     m::match(rhs)(
         m::pattern | m::app(is_immediate, true) =
@@ -1251,6 +1384,9 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
             [&] {
                 auto binary_inserter = Binary_Operator_Inserter{ accessor_ };
                 binary_inserter.from_binary_operator_expression(rhs);
+                if (binary_inserter.result.has_value())
+                    insert_from_accumulator_to_lvalue(
+                        lhs, *binary_inserter.result);
             },
         m::pattern | m::app(type::is_unary_expression, true) =
             [&] {
@@ -1292,39 +1428,27 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
                     auto rvalue =
                         accessor_->table_accessor.get_table()
                             ->lvalue_at_temporary_object_address(rhs, frame);
-                    auto size = assembly::get_operand_size_from_size(
-                        accessor_->table_accessor.get_table()
-                            ->lvalue_size_at_temporary_object_address(
-                                rhs, frame));
-                    auto expression_inserter = Expression_Inserter{ accessor_ };
-                    expression_inserter.insert_lvalue_from_return_rvalue(lhs);
                     if (rvalue == "RET") {
+                        auto expression_inserter =
+                            Expression_Inserter{ accessor_ };
                         expression_inserter.insert_lvalue_from_return_rvalue(
                             lhs);
                         return;
-                    } else {
-                        auto acc =
-                            accumulator.get_accumulator_register_from_size(
-                                size);
-                        if (!type::is_unary_expression(lhs))
-                            accessor_->device_accessor.insert_lvalue_to_device(
-                                lhs);
-                        auto [lhs_storage, storage_inst] =
-                            address_storage
-                                .get_arm64_lvalue_and_insertion_instructions(
-                                    lhs, instructions.size(), devices);
-                        if (is_variant(common::Stack_Offset, lhs_storage)) {
-                            auto lhs_r =
-                                accessor_->register_accessor
-                                    .get_available_register(
-                                        devices.get_word_size_from_lvalue(rhs));
-                            arm64_add__asm(
-                                instructions, str, lhs_r, lhs_storage);
-                            lhs_storage = lhs_r;
-                        }
-                        assembly::inserter(instructions, storage_inst);
-                        arm64_add__asm(instructions, mov, lhs_storage, acc);
                     }
+                    if (!type::is_unary_expression(lhs))
+                        accessor_->device_accessor.insert_lvalue_to_device(lhs);
+                    auto value =
+                        get_operand_storage_from_expression_operand(rhs);
+                    auto size = assembly::is_doubleword_register(
+                                    std::get<Register>(value))
+                                    ? Operand_Size::Doubleword
+                                    : Operand_Size::Word;
+                    auto accumulator = size == Operand_Size::Doubleword
+                                           ? Register::x8
+                                           : Register::w8;
+                    if (std::get<Register>(value) != accumulator)
+                        arm64_add__asm(instructions, mov, accumulator, value);
+                    insert_from_accumulator_to_lvalue(lhs, accumulator);
                 }
             },
         m::pattern | m::app(is_address, true) =
@@ -1347,7 +1471,61 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
 }
 
 /**
- * @brief Get the storage device of a return rvalue in the stack frame
+ * @brief Insert the value in the accumulator into an lvalue
+ *
+ * The accumulator is narrowed or sign-extended to the size of the lvalue,
+ * and an lvalue on the stack is stored from the stack move register after
+ * the instruction
+ */
+void Operand_Inserter::insert_from_accumulator_to_lvalue(LValue const& lhs,
+    Register accumulator)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto& devices = accessor_->device_accessor;
+    auto& frame = stack_frame_.get_stack_frame();
+    auto insert_from_accumulator = [&](Register destination) {
+        auto source = accumulator;
+        if (assembly::is_doubleword_register(destination) and
+            not assembly::is_doubleword_register(source)) {
+            auto wide = assembly::get_doubleword_register_from_word(source);
+            arm64_add__asm(instructions, sxtw, wide, source);
+            source = wide;
+        } else if (!assembly::is_doubleword_register(destination))
+            source = assembly::get_word_register_from_doubleword(source);
+        arm64_add__asm(instructions, mov, destination, source);
+    };
+    if (frame.is_parameter(lhs)) {
+        auto parameter = get_operand_storage_from_parameter(lhs);
+        // a parameter in its slot is stored from the stack move register
+        if (is_variant(common::Stack_Offset, parameter)) {
+            auto size = memory::get_operand_size_from_storage(
+                parameter, accessor_->stack);
+            auto value = size == Operand_Size::Doubleword ? Register::x10
+                                                          : Register::w10;
+            insert_from_accumulator(value);
+            arm64_add__asm(instructions, str, value, parameter);
+            return;
+        }
+        insert_from_accumulator(std::get<Register>(parameter));
+        return;
+    }
+    if (!type::is_unary_expression(lhs))
+        devices.insert_lvalue_to_device(lhs);
+    auto [lhs_storage, storage_inst] =
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            lhs, instructions.size(), devices);
+    if (is_variant(common::Stack_Offset, lhs_storage)) {
+        auto size = memory::get_operand_size_from_storage(
+            lhs_storage, accessor_->stack);
+        lhs_storage =
+            size == Operand_Size::Doubleword ? Register::x10 : Register::w10;
+    } else
+        assembly::inserter(instructions, storage_inst);
+    insert_from_accumulator(std::get<Register>(lhs_storage));
+}
+
+/**
+ * @brief Get the return register of the last call, x0 or w0
  */
 inline Storage Operand_Inserter::get_operand_storage_from_return()
 {
@@ -1362,7 +1540,10 @@ inline Storage Operand_Inserter::get_operand_storage_from_return()
 }
 
 /**
- * @brief Get the storage device of an immediate operand
+ * @brief Get the storage device of a literal operand
+ *
+ * A string, float, or double is the label of its literal in the data
+ * section, and any other literal is an immediate
  */
 Storage Operand_Inserter::get_operand_storage_from_immediate(
     RValue const& rvalue)
@@ -1394,7 +1575,11 @@ Storage Operand_Inserter::get_operand_storage_from_immediate(
 }
 
 /**
- * @brief Get the storage device of an parameter rvalue in the stack frame
+ * @brief Get the argument register of a parameter
+ *
+ * A pointer parameter is a doubleword register. `argc` of `main` is on the
+ * stack on Darwin and its address is in x19 on Linux, and an element of
+ * `argv` must have an integer index.
  */
 Storage Operand_Inserter::get_operand_storage_from_parameter(
     RValue const& rvalue)
@@ -1402,6 +1587,12 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
     auto& frame = stack_frame_.get_stack_frame();
     auto index_of = frame.get_index_of_parameter(rvalue);
     credence_assert_nequal(index_of, -1);
+    // a parameter of a frame with calls is in its slot
+    auto slot = fmt::format("__parameter_{}",
+        type::get_unary_rvalue_reference(
+            frame.parameters.at(static_cast<std::size_t>(index_of))));
+    if (accessor_->stack->is_allocated(slot))
+        return accessor_->stack->get(slot).first;
     // the argc and argv special cases
     if (frame.symbol == "main") {
         if (index_of == 0) {
@@ -1433,7 +1624,12 @@ Storage Operand_Inserter::get_operand_storage_from_parameter(
 }
 
 /**
- * @brief Get the storage device of an rvalue operand
+ * @brief Get the storage device of an rvalue, and insert its address
+ * instructions
+ *
+ * A parameter is its register, `RET` the return register, a unary
+ * expression is inserted, a literal is an immediate, and an lvalue is
+ * loaded from its address
  */
 Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
 {
@@ -1444,14 +1640,14 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
     }
 
 #if defined(__linux__)
-    if (!stack_frame_.tail.empty() and
+    if (rvalue == "RET" and not stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64))
         return get_operand_storage_from_return();
 
 #elif defined(__APPLE__) || defined(__bsdi__)
-    if (!stack_frame_.tail.empty() and
+    if (rvalue == "RET" and not stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64))
@@ -1475,6 +1671,13 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue(RValue const& rvalue)
     return operand;
 }
 
+/**
+ * @brief Get the storage device of an rvalue, without its address
+ * instructions
+ *
+ * The device of an argument is resolved before it is loaded into its
+ * register, so the address instructions are left out
+ */
 Storage Operand_Inserter::get_operand_storage_from_rvalue_no_instructions(
     RValue const& rvalue)
 {
@@ -1484,14 +1687,14 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue_no_instructions(
         return get_operand_storage_from_parameter(rvalue);
     }
 #if defined(__linux__)
-    if (!stack_frame_.tail.empty() and
+    if (rvalue == "RET" and not stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::Linux,
             common::assembly::Arch_Type::ARM64))
         return get_operand_storage_from_return();
 
 #elif defined(__APPLE__) || defined(__bsdi__)
-    if (!stack_frame_.tail.empty() and
+    if (rvalue == "RET" and not stack_frame_.tail.empty() and
         not common::runtime::is_stdlib_function(stack_frame_.tail,
             common::assembly::OS_Type::BSD,
             common::assembly::Arch_Type::ARM64))
@@ -1515,7 +1718,196 @@ Storage Operand_Inserter::get_operand_storage_from_rvalue_no_instructions(
 }
 
 /**
- * @brief Get operands storage from argument stack
+ * @brief Get the storage of an expression operand, an immediate or a register
+ *
+ *  * A temporary is in the accumulator after it's computed, or in its stack
+ *    slot
+ *
+ *  * A parameter is in its argument register
+ *
+ *  * A dereference, `*p`, loads from the address in the pointer
+ *
+ *  * An lvalue on the stack is loaded into the stack move register
+ */
+Storage Operand_Inserter::get_operand_storage_from_expression_operand(
+    RValue const& rvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto& frame = stack_frame_.get_stack_frame();
+    auto const& held = accessor_->accumulator_temporary;
+    if (type::is_rvalue_data_type(rvalue))
+        return get_operand_storage_from_immediate(rvalue);
+    if (held.has_value() and held->first == rvalue)
+        return held->second;
+    if (frame.is_parameter(rvalue) and
+        not type::is_dereference_expression(rvalue)) {
+        // `argc` is on the stack on Darwin, and x19 is its address on Linux
+        auto parameter = get_operand_storage_from_parameter(rvalue);
+        if (is_variant(common::Stack_Offset, parameter)) {
+            auto value = memory::get_operand_size_from_storage(parameter,
+                             accessor_->stack) == Operand_Size::Doubleword
+                             ? Register::x10
+                             : Register::w10;
+            arm64_add__asm(instructions, ldr, value, parameter);
+            return value;
+        }
+        if (frame.symbol == "main" and
+            frame.get_index_of_parameter(rvalue) == 0 and
+            std::get<Register>(parameter) == Register::x19) {
+            arm64_add__asm(instructions, ldr, w10, direct_immediate("[x19]"));
+            return Register::w10;
+        }
+        return parameter;
+    }
+    if (type::is_dereference_expression(rvalue)) {
+        auto pointer = get_operand_storage_from_expression_operand(
+            type::get_unary_rvalue_reference(rvalue));
+        auto address = assembly::get_doubleword_register_from_word(
+            std::get<Register>(pointer));
+        auto value =
+            get_pointee_size(type::get_unary_rvalue_reference(rvalue)) == 8UL
+                ? Register::x10
+                : Register::w10;
+        arm64_add__asm(instructions,
+            ldr,
+            value,
+            direct_immediate(fmt::format("[{}]",
+                common::assembly::get_storage_as_string<Register>(address))));
+        return value;
+    }
+    if (is_local_vector_offset(rvalue)) {
+        auto offset = get_operand_storage_from_local_vector_offset(rvalue);
+        auto size =
+            memory::get_operand_size_from_storage(offset, accessor_->stack);
+        auto value =
+            size == Operand_Size::Doubleword ? Register::x10 : Register::w10;
+        arm64_add__asm(instructions, ldr, value, offset);
+        return value;
+    }
+    if (type::is_temporary(rvalue) and accessor_->stack->is_allocated(rvalue)) {
+        auto [offset, size] = accessor_->stack->get(rvalue);
+        auto value =
+            size == Operand_Size::Doubleword ? Register::x10 : Register::w10;
+        arm64_add__asm(instructions, ldr, value, offset);
+        return value;
+    }
+    if (type::is_temporary(rvalue)) {
+        auto expression_inserter = Expression_Inserter{ accessor_ };
+        expression_inserter.insert_lvalue_at_temporary_object_address(rvalue);
+        return accessor_->accumulator_temporary.has_value()
+                   ? accessor_->accumulator_temporary->second
+                   : Register::w8;
+    }
+    auto [operand, operand_inst] =
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            rvalue, instructions.size(), accessor_->device_accessor);
+    assembly::inserter(instructions, operand_inst);
+    if (is_variant(common::Stack_Offset, operand)) {
+        auto size =
+            memory::get_operand_size_from_storage(operand, accessor_->stack);
+        auto value =
+            size == Operand_Size::Doubleword ? Register::x10 : Register::w10;
+        arm64_add__asm(instructions, ldr, value, operand);
+        return value;
+    }
+    return operand;
+}
+
+/**
+ * @brief Check if an rvalue is an offset of a vector on the stack
+ */
+bool Operand_Inserter::is_local_vector_offset(RValue const& rvalue)
+{
+    auto const& table = accessor_->table_accessor.get_table();
+    auto label = type::from_lvalue_offset(rvalue);
+    return is_vector_offset(rvalue) and table->vectors.contains(label) and
+           not table->globals.is_pointer(label) and
+           accessor_->stack->is_allocated(label);
+}
+
+/**
+ * @brief Get the stack offset of an element of a vector on the stack
+ *
+ * The address accessor flags the next instruction as a vector store, so
+ * an element that's read is addressed here instead
+ */
+Storage Operand_Inserter::get_operand_storage_from_local_vector_offset(
+    RValue const& rvalue)
+{
+    auto& table = accessor_->table_accessor.get_table();
+    auto label = type::from_lvalue_offset(rvalue);
+    auto offset = type::from_decay_offset(rvalue);
+    auto& vector = table->vectors.at(label).get();
+    auto vector_s = accessor_->stack->get_stack_offset_from_table_vector_index(
+        label, offset, vector);
+    auto type =
+        vector.data.contains(offset)
+            ? type::get_type_from_rvalue_data_type(vector.data.at(offset))
+            : std::string{ "word" };
+    accessor_->stack->set(vector_s,
+        type == "string" ? Operand_Size::Doubleword : Operand_Size::Word);
+    return vector_s;
+}
+
+/**
+ * @brief Load an expression operand into the accumulator of its size
+ */
+Register Operand_Inserter::insert_operand_into_accumulator(RValue const& rvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto storage = get_operand_storage_from_expression_operand(rvalue);
+    auto doubleword =
+        is_variant(Immediate, storage)
+            ? assembly::get_operand_size_from_rvalue_datatype(
+                  std::get<Immediate>(storage)) == Operand_Size::Doubleword
+            : assembly::is_doubleword_register(std::get<Register>(storage));
+    auto accumulator = doubleword ? Register::x8 : Register::w8;
+    if (!is_variant(Register, storage) or
+        std::get<Register>(storage) != accumulator)
+        arm64_add__asm(instructions, mov, accumulator, storage);
+    return accumulator;
+}
+
+/**
+ * @brief Get the size of the object a pointer points to
+ *
+ * A parameter points to a word
+ */
+Size Operand_Inserter::get_pointee_size(LValue const& pointer)
+{
+    auto& frame = stack_frame_.get_stack_frame();
+    auto& table = accessor_->table_accessor.get_table();
+    if (!frame.locals.is_pointer(pointer))
+        return 4UL;
+    auto data = language::hir::binding::get_rvalue_at_lvalue_object_storage(
+        pointer, frame, table->vectors);
+    return std::get<2>(data) == 8UL ? 8UL : 4UL;
+}
+
+/**
+ * @brief Get the byte size a pointer increment steps over
+ *
+ * The elements of a vector on the stack are in 8 byte slots
+ */
+Size Operand_Inserter::get_pointer_stride(LValue const& pointer)
+{
+    auto& frame = stack_frame_.get_stack_frame();
+    if (frame.locals.is_pointer(pointer)) {
+        auto target = type::get_unary_rvalue_reference(
+            frame.locals.get_pointer_by_name(pointer));
+        if (is_local_vector_offset(target))
+            return 8UL;
+    }
+    return get_pointee_size(pointer);
+}
+
+/**
+ * @brief Resolve the device of each argument of the next call
+ *
+ * The devices are resolved before any argument is loaded into its
+ * register, so an argument that would be overwritten, such as a global in
+ * x6 or a parameter in an argument register, is stored in an argument slot.
+ * The return value of the last call is in x0 or w0.
  */
 Invocation_Inserter::arguments_t
 Invocation_Inserter::get_operands_storage_from_argument_stack()
@@ -1524,23 +1916,53 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
     syscall_ns::syscall_arguments_t arguments{};
     auto& caller_frame = stack_frame_.get_stack_frame();
     auto& table = accessor_->table_accessor.get_table();
-    for (auto const& rvalue : stack_frame_.argument_stack) {
+    for (std::size_t index = 0; index < stack_frame_.argument_stack.size();
+        index++) {
+        auto const& rvalue = stack_frame_.argument_stack.at(index);
+        if (index < stack_frame_.argument_slots.size() and
+            not stack_frame_.argument_slots.at(index).empty()) {
+            arguments.emplace_back(
+                accessor_->stack->get(stack_frame_.argument_slots.at(index))
+                    .first);
+            continue;
+        }
+        if (rvalue == "RET" and
+            common::runtime::is_returning_library_function(
+                stack_frame_.tail, common::assembly::Arch_Type::ARM64)) {
+            arguments.emplace_back(Register::w0);
+            continue;
+        }
         if (rvalue == "RET") {
             credence_assert(table->functions.contains(stack_frame_.tail));
             auto& tail_frame = table->functions.at(stack_frame_.tail).get();
             if (accessor_->address_accessor.is_lvalue_storage_type(
                     tail_frame.ret->first, "string") or
-                caller_frame.is_pointer_in_stack_frame(tail_frame.ret->first))
+                caller_frame.is_pointer_in_stack_frame(tail_frame.ret->first) or
+                is_doubleword_return_value(tail_frame))
                 arguments.emplace_back(Register::x0);
             else
                 arguments.emplace_back(Register::w0);
         } else {
             auto operand = assembly::O_NUL;
             if (accessor_->stack->is_allocated(rvalue)) {
-                if (accessor_->stack->is_allocated(rvalue)) {
-                    arguments.emplace_back(accessor_->stack->get(rvalue).first);
-                    continue;
-                }
+                arguments.emplace_back(accessor_->stack->get(rvalue).first);
+                continue;
+            }
+            if (operands.is_local_vector_offset(rvalue)) {
+                arguments.emplace_back(
+                    operands.get_operand_storage_from_local_vector_offset(
+                        rvalue));
+                continue;
+            }
+            if (is_global_argument(rvalue)) {
+                arguments.emplace_back(insert_global_argument_to_stack(rvalue));
+                continue;
+            }
+            if (caller_frame.is_parameter(rvalue) and
+                not is_vector_offset(rvalue)) {
+                arguments.emplace_back(
+                    insert_parameter_argument_to_stack(rvalue));
+                continue;
             }
             if (is_vector_offset(rvalue))
                 operand = operands.get_operand_storage_from_rvalue(rvalue);
@@ -1565,7 +1987,125 @@ Invocation_Inserter::get_operands_storage_from_argument_stack()
 }
 
 /**
- * @brief Invocation inserter for syscall function
+ * @brief Check if an argument of a call is a global or a global vector
+ * element
+ */
+bool Invocation_Inserter::is_global_argument(RValue const& rvalue)
+{
+    auto const& table = accessor_->table_accessor.get_table();
+    auto label = type::from_lvalue_offset(rvalue);
+    return table->vectors.contains(label) and table->globals.is_pointer(label);
+}
+
+/**
+ * @brief Store the value of a global argument in an argument slot
+ *
+ * A global is addressed from its page in x6, and each argument of a call is
+ * loaded after all of them are resolved, so the value of each global is
+ * stored in its own slot
+ *
+ *  Example:
+ *
+ *    printf("%d\n", counter);
+ *
+ *  Becomes:
+ *
+ *    adrp x6, counter@PAGE
+ *    add x6, x6, counter@PAGEOFF
+ *    ldr w10, [x6]
+ *    str w10, [sp, #16]
+ *    ...
+ *    ldr w1, [sp, #16]
+ */
+common::Stack_Offset Invocation_Inserter::insert_global_argument_to_stack(
+    RValue const& rvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto const& table = accessor_->table_accessor.get_table();
+    auto label = type::from_lvalue_offset(rvalue);
+    auto key = is_vector_offset(rvalue) ? type::from_decay_offset(rvalue)
+                                        : std::string{ "0" };
+    auto offset =
+        accessor_->vector_accessor.get_offset_address(rvalue, key).first;
+    // a string element is the address of the string
+    auto type = type::get_type_from_rvalue_data_type(
+        language::hir::binding::get_rvalue_at_lvalue_object_storage(
+            rvalue, stack_frame_.get_stack_frame(), table->vectors));
+    auto size = type == "string" or type == "long" or type == "double"
+                    ? Operand_Size::Doubleword
+                    : Operand_Size::Word;
+    auto value =
+        size == Operand_Size::Doubleword ? Register::x10 : Register::w10;
+    arm64_add__asm(
+        instructions, adrp, x6, assembly::page_offset_upper_immediate(label));
+    arm64_add__asm(instructions,
+        add,
+        x6,
+        x6,
+        assembly::page_offset_lower_immediate(label));
+    arm64_add__asm(instructions,
+        ldr,
+        value,
+        direct_immediate(fmt::format("[x6, #{}]", offset)));
+    // the `_p` prefix is an argument slot, which is a buffer when it is a
+    // doubleword, and a slot keeps its size across calls
+    auto slot = fmt::format("_p_global_{}_{}",
+        assembly::get_size_from_operand_size(size),
+        ++global_argument_index);
+    accessor_->stack->set_address_from_size(slot, size);
+    auto slot_offset = accessor_->stack->get(slot).first;
+    arm64_add__asm(instructions, str, value, slot_offset);
+    return slot_offset;
+}
+
+/**
+ * @brief Store a parameter argument in an argument slot
+ *
+ * A parameter is in its argument register, which an earlier argument of
+ * the call may be loaded into, so a parameter in an argument register is
+ * stored before any argument is loaded. `argc` is on the stack or in x19,
+ * so it is not stored.
+ *
+ *  Example:
+ *
+ *    show(s) {
+ *      printf("%s\n", s);
+ *    }
+ *
+ *  Becomes:
+ *
+ *    str x0, [sp, #16]
+ *    adrp x0, ._L_str1__@PAGE
+ *    add x0, x0, ._L_str1__@PAGEOFF
+ *    ldr x1, [sp, #16]
+ *    bl _printf
+ */
+Storage Invocation_Inserter::insert_parameter_argument_to_stack(
+    RValue const& rvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto storage = operand_inserter.get_operand_storage_from_parameter(rvalue);
+    if (!is_variant(Register, storage) or
+        std::get<Register>(storage) == Register::x19)
+        return storage;
+    auto value = std::get<Register>(storage);
+    auto size = assembly::is_doubleword_register(value)
+                    ? Operand_Size::Doubleword
+                    : Operand_Size::Word;
+    auto slot = fmt::format("_p_parameter_{}_{}",
+        assembly::get_size_from_operand_size(size),
+        ++global_argument_index);
+    accessor_->stack->set_address_from_size(slot, size);
+    auto slot_offset = accessor_->stack->get(slot).first;
+    arm64_add__asm(instructions, str, value, slot_offset);
+    return slot_offset;
+}
+
+/**
+ * @brief Insert a syscall
+ *
+ * The length of the buffer of a `read(2)` is cached for a later `print`
  */
 void Invocation_Inserter::insert_from_syscall_function(std::string_view routine,
     Instructions& instructions)
@@ -1582,7 +2122,20 @@ void Invocation_Inserter::insert_from_syscall_function(std::string_view routine,
 }
 
 /**
- * @brief Invocation inserter for user defined functions
+ * @brief Insert a call to a function of the program
+ *
+ * Each argument is loaded into its argument register: a string from its
+ * page address, a float or double from its label, an element of `argv`
+ * from x19, and any other argument from its device
+ *
+ *  Example:
+ *
+ *    show(argv[1]);
+ *
+ *  Becomes:
+ *
+ *    ldr x0, [x19, #8]
+ *    bl show
  */
 void Invocation_Inserter::insert_from_user_defined_function(
     std::string_view routine,
@@ -1593,16 +2146,22 @@ void Invocation_Inserter::insert_from_user_defined_function(
     for (std::size_t i = 0; i < operands.size(); i++) {
         auto const& operand = operands[i];
         auto argument = stack_frame_.argument_stack.at(i);
-        auto arg_type = type::get_type_from_rvalue_data_type(argument);
+        // the type of a literal is only its storage while it is a label
+        auto arg_type = is_variant(Immediate, operand)
+                            ? type::get_type_from_rvalue_data_type(argument)
+                            : std::string{};
         auto arg_register = assembly::get_register_from_integer_argument(i);
-        if (type::from_lvalue_offset(argument) == "argv") {
-            auto offset = type::from_lvalue_offset(argument);
-            auto argv_address = accessor_->stack->get("argv").first;
-            auto offset_integer = type::integral_from_type_ulint(offset);
+        // an element of `argv` is a doubleword from x19
+        if (stack_frame_.symbol == "main" and
+            type::from_lvalue_offset(argument) == "argv") {
+            auto offset_integer = type::integral_from_type_ulint(
+                type::from_decay_offset(argument));
             auto argv_offset =
-                direct_immediate(fmt::format("[x10, #{}]", 8 * offset_integer));
-            arm64_add__asm(instructions, ldr, x10, argv_address);
-            arm64_add__asm(instructions, ldr, operand, argv_offset);
+                assembly::make_argv_offset_immediate(offset_integer);
+            arm64_add__asm(instructions,
+                ldr,
+                assembly::get_doubleword_register_from_word(arg_register),
+                argv_offset);
         } else
             m::match(arg_type)(
                 m::pattern | sv("string") =
@@ -1653,7 +2212,9 @@ void Invocation_Inserter::insert_from_user_defined_function(
 }
 
 /**
- * @brief Invocation inserter for standard library function
+ * @brief Insert a call to a standard library function
+ *
+ * The arguments of `print` and `printf` are type checked first
  */
 void Invocation_Inserter::insert_from_standard_library_function(
     std::string_view routine,
@@ -1681,7 +2242,7 @@ void Invocation_Inserter::insert_from_standard_library_function(
 }
 
 /**
- * @brief Arithmetic operator inserter for expression operands
+ * @brief Get the instruction of an arithmetic operator on two operands
  */
 Instruction_Pair
 Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
@@ -1713,6 +2274,14 @@ Arithemtic_Operator_Inserter::from_arithmetic_expression_operands(
     return instructions;
 }
 
+/**
+ * @brief Get the instruction of a bitwise operator on three operands
+ *
+ *  Example:
+ *
+ *    from_bitwise_expression_operands({ w8, w8, w7 }, "&")
+ *    // and w8, w8, w7
+ */
 Instruction_Pair Bitwise_Operator_Inserter::from_bitwise_expression_operands(
     assembly::Ternary_Operands const& operands,
     std::string const& binary_op)
@@ -1736,7 +2305,20 @@ Instruction_Pair Bitwise_Operator_Inserter::from_bitwise_expression_operands(
 }
 
 /**
- * @brief Relational operator inserter for expression operands
+ * @brief Get the comparison and conditional jump of a relational operator
+ *
+ * The comparison is made in a doubleword register when either operand is
+ * a doubleword
+ *
+ *  Example:
+ *
+ *    from_relational_expression_operands({ w9, #10 }, ">", "._L6__main")
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    cmp w8, #10
+ *    b.gt ._L6__main
  */
 Instructions Relational_Operator_Inserter::from_relational_expression_operands(
     assembly::Assignment_Operands const& operands,
@@ -1799,6 +2381,12 @@ Instructions Relational_Operator_Inserter::from_relational_expression_operands(
         m::pattern | m::_ = [&] { return Instructions{}; });
 }
 
+/**
+ * @brief Insert the label of a float or double literal into a device
+ *
+ * A float or double is loaded from its label by the argument that uses it,
+ * so an assignment of one emits nothing
+ */
 void Operand_Inserter::insert_from_float_address_operand(
     [[maybe_unused]] LValue const& lhs,
     [[maybe_unused]] Storage const& storage,
@@ -1814,7 +2402,7 @@ void Operand_Inserter::insert_from_double_address_operand(
 }
 
 /**
- * @brief Insert into a device from the page address of a string
+ * @brief Insert the page address of a string literal into a device
  */
 void Operand_Inserter::insert_from_string_address_operand(
     [[maybe_unused]] LValue const& lhs,
@@ -1835,7 +2423,16 @@ void Operand_Inserter::insert_from_string_address_operand(
 }
 
 /**
- * @brief Expression inserter of a string in the data section
+ * @brief Insert the page address of a string literal into x6
+ *
+ *  Example:
+ *
+ *    s = ("hello":string:5);
+ *
+ *  Becomes:
+ *
+ *    adrp x6, ._L_str1__@PAGE
+ *    add x6, x6, ._L_str1__@PAGEOFF
  */
 void Expression_Inserter::insert_from_string(RValue const& str)
 {
@@ -1852,7 +2449,7 @@ void Expression_Inserter::insert_from_string(RValue const& str)
 }
 
 /**
- * @brief Expression inserter from a string in the data section
+ * @brief Load a float or double literal from the literal pool into s6 or d6
  */
 void Expression_Inserter::insert_from_float(RValue const& str)
 {

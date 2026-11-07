@@ -25,33 +25,33 @@
 #include <utility>                         // for pair
 
 /****************************************************************************
- *
  * x86-64 Stack
  *
- * A System V ABI-compliant stack for x86-64 which grows downward from high to
- * low addresses and maintains 16-byte alignment before function calls.
+ * The stack slots of a function's frame, as offsets below rbp. The stack
+ * grows down, and the frame size keeps rsp 16-byte aligned at each call, as
+ * the System V ABI requires.
  *
- * Example - function with locals:
+ *  Example:
  *
- *   B code:
- *     compute(a) {
- *       auto x, y, z;
- *       x = a * 2;
- *       y = x + 10;
- *       z = y - 5;
- *       return(z);
- *     }
+ *    compute(a, b) {
+ *      auto x, y, z;
+ *      x = a + b;
+ *      y = x * 2;
+ *      z = y - a;
+ *      return(z);
+ *    }
  *
- * Stack layout:
- *   [rbp + 16] parameter 'a'
- *   [rbp + 8]  return address (pushed by call)
- *   [rbp + 0]  saved rbp (pushed by function prologue)
- *   [rbp - 4]  local 'x'
- *   [rbp - 8] local 'y'
- *   [rbp - 12] local 'z'
- *   [rbp - 16] alignment padding (16-byte aligned)
+ *  Becomes:
  *
- *****************************************************************************/
+ *    [rbp + 8]     the return address
+ *    [rbp + 0]     the saved rbp
+ *    [rbp - 4]     x
+ *    [rbp - 8]     y
+ *    [rbp - 12]    z
+ *
+ *    edi, r8d      the parameters a and b, in their argument registers
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::assembly {
 
@@ -78,12 +78,14 @@ class Stack::Stack_IMPL
         return stack_address.contains(lvalue) and not empty_at(lvalue);
     }
     /**
-     * @brief Get the stack location offset and size from an lvalue
+     * @brief Get the offset and size of the slot of an lvalue
      */
     constexpr Entry get(LValue const& lvalue) { return stack_address[lvalue]; }
 
     /**
-     * @brief Get the stack location lvalue and size from an offset
+     * @brief Get the offset and size of the slot at an offset
+     *
+     * An offset with no slot is empty
      */
     constexpr Entry get(Offset offset) const
     {
@@ -97,8 +99,8 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Dynamically set an operand size for vector indices, which pushes
-     * downward on a chunk
+     * @brief Set the operand size of an offset with no lvalue, such as a
+     * vector element
      */
     constexpr void set(Offset offset, Operand_Size size)
     {
@@ -109,9 +111,12 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Allocate space on the stack from a word size
+     * @brief Allocate an operand size below the last allocation
      *
-     * See assembly.h for details
+     *  Example:
+     *
+     *    allocate(Operand_Size::Dword)   // 4, [rbp - 4]
+     *    allocate(Operand_Size::Qword)   // 12, [rbp - 12]
      */
     constexpr Offset allocate(assembly::Operand_Size operand)
     {
@@ -121,9 +126,7 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the word size of an offset address
-     *
-     * See assembly.h for details
+     * @brief Get the operand size of the slot at an offset
      */
     constexpr assembly::Operand_Size get_operand_size_from_offset(
         Offset offset) const
@@ -139,7 +142,9 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Set and allocate an address from an immediate
+     * @brief Allocate a slot for an lvalue of the size of an immediate
+     *
+     * An lvalue that has a slot keeps it
      */
     constexpr void set_address_from_immediate(LValue const& lvalue,
         assembly::Immediate const& rvalue)
@@ -153,7 +158,7 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Set and allocate an address from an accumulator register size
+     * @brief Allocate a slot for an lvalue of the size of a register
      */
     constexpr void set_address_from_accumulator(LValue const& lvalue,
         assembly::Register acc)
@@ -167,7 +172,7 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Set and allocate an address from a type in the Table
+     * @brief Allocate a slot for an lvalue of the size of a type
      */
     constexpr void set_address_from_type(LValue const& lvalue, Type type)
     {
@@ -179,27 +184,23 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief
-     * In some cases address space was loaded in chunks for memory alignment
+     * @brief Allocate a slot for an lvalue below the last allocation
      *
-     * So skip any previously allocated offsets as we push downwards
+     * An offset may already be taken by a vector element set in a chunk, so
+     * the slot is the next offset that is free
      */
     constexpr void allocate_aligned_lvalue(LValue const& lvalue,
         Size value_size,
         assembly::Operand_Size operand_size)
     {
-        if (get_lvalue_from_offset(size + value_size).empty()) {
+        size += value_size;
+        while (!get_lvalue_from_offset(size).empty())
             size += value_size;
-            stack_address.insert(lvalue, { size, operand_size });
-        } else {
-            size = size + value_size + value_size;
-        }
+        stack_address.insert(lvalue, { size, operand_size });
     }
 
     /**
-     * @brief Set and allocate an address from another address (pointer)
-     *
-     * Memory align to multiples of 8 bytes per the ABI
+     * @brief Allocate a quadword slot for a pointer, aligned to 8 bytes
      */
     constexpr void set_address_from_address(LValue const& lvalue)
     {
@@ -210,19 +211,22 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the allocation size of the current frame, aligned up to 16
-     * bytes
+     * @brief Get the size of the frame below rbp
+     *
+     * The return address and rbp are pushed before the frame, so the frame
+     * is 8 bytes off a 16 byte boundary and rsp is aligned at each call
      */
     constexpr Size get_stack_frame_allocation_size()
     {
-        return size > 16 ? util::align_up_to_16(size) - 8 : 16UL;
+        // the frame is 8 bytes off a 16 byte boundary, and covers every local
+        return size > 16 ? util::align_up_to_16(size + 8UL) - 8UL : 16UL;
     }
 
     /**
-     * @brief Get the stack address of an index in a vector (array)
+     * @brief Get the offset of an element of a vector on the stack
      *
-     * The vector was allocated in a chunk and we allocate each index
-     * downward
+     * The vector is allocated in one chunk, and each element is below the
+     * one before it by the size of its value
      */
     Size get_stack_offset_from_table_vector_index(LValue const& lvalue,
         std::string const& key,
@@ -246,9 +250,10 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the size of a vector (array)
+     * @brief Get the allocation of a vector on the stack
      *
-     * Memory align to multiples of 16 bytes per the ABI
+     * The allocation is the sum of the sizes of its elements, aligned to 16
+     * bytes when it is larger than 16
      */
     Size get_stack_size_from_table_vector(
         language::hir::binding::Vector const& vector)
@@ -271,7 +276,9 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Set and allocate an address from an arbitrary offset
+     * @brief Allocate a slot of a size for an lvalue
+     *
+     * An lvalue that has a slot keeps it
      */
     constexpr void set_address_from_size(LValue const& lvalue,
         Offset allocate,
@@ -284,7 +291,7 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the lvalue of a local variable allocated at an offset
+     * @brief Get the lvalue of the slot at an offset, or empty
      */
     constexpr std::string get_lvalue_from_offset(Offset offset) const
     {

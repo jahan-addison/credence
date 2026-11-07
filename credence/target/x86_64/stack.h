@@ -21,39 +21,42 @@
 #include <utility>                         // for pair
 
 /****************************************************************************
- *
  * x86-64 Stack
  *
- * A System V ABI-compliant stack for x86-64 which grows downward from high to
- * low addresses and maintains 16-byte alignment before function calls.
+ * The stack slots of a function's frame, as offsets below rbp. The stack
+ * grows down, and the frame size keeps rsp 16-byte aligned at each call, as
+ * the System V ABI requires.
  *
- * Example - function with locals:
+ *  Example:
  *
- *   B code:
- *     compute(a) {
- *       auto x, y, z;
- *       x = a * 2;
- *       y = x + 10;
- *       z = y - 5;
- *       return(z);
- *     }
+ *    compute(a, b) {
+ *      auto x, y, z;
+ *      x = a + b;
+ *      y = x * 2;
+ *      z = y - a;
+ *      return(z);
+ *    }
  *
- * Stack layout:
- *   [rbp + 16] parameter 'a'
- *   [rbp + 8]  return address (pushed by call)
- *   [rbp + 0]  saved rbp (pushed by function prologue)
- *   [rbp - 4]  local 'x'
- *   [rbp - 8] local 'y'
- *   [rbp - 12] local 'z'
- *   [rbp - 16] alignment padding (16-byte aligned)
+ *  Becomes:
  *
- *****************************************************************************/
+ *    [rbp + 8]     the return address
+ *    [rbp + 0]     the saved rbp
+ *    [rbp - 4]     x
+ *    [rbp - 8]     y
+ *    [rbp - 12]    z
+ *
+ *    edi, r8d      the parameters a and b, in their argument registers
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::assembly {
 
 /**
- * @brief
- * Uses the PIMPL to improve build times.
+ * @brief The stack slots of the function under translation
+ *
+ * Each lvalue on the stack has an offset below rbp and an operand size. An
+ * offset is the bottom of its slot, so each allocation is below the last.
+ * The implementation is a pimpl to improve build times.
  */
 class Stack : public common::detail::base_stack_pointer
 {

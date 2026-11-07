@@ -20,22 +20,28 @@
 #include <string_view>      // for basic_string_view
 
 /****************************************************************************
+ * Common Assembly
  *
- * Common assembly instruction representation and utilities
+ * The instruction representation shared by the x86-64 and ARM64 targets:
+ * immediates, operands, the instruction inserter, the OS and ISA types, and
+ * compile-time evaluation of expressions of two immediates.
  *
- * Common abstractions for assembly instructions across x86-64 and ARM64.
- * Defines immediate values, operands, directives, and architecture/OS types.
- * Handles instruction formatting and operand representation.
+ *  Example:
  *
- * Example - emitting a comparison:
+ *    _t5 = x > (10:int:4);
+ *    IF _t5 GOTO _L4;
  *
- *   B code:    if (x > 10) { ... }  (x is local variable)
+ *  Becomes, on x86-64:
  *
- *   x86-64:    cmp eax, 10
- *              jg  .L1
+ *    mov eax, dword ptr [rbp - 4]
+ *    cmp eax, 10
+ *    jg ._L4__main
  *
- *   ARM64:     cmp w9, #10          ; x in register x9
- *              b.gt .L1
+ *  And on arm64, where x is in w9:
+ *
+ *    mov w8, w9
+ *    cmp w8, #10
+ *    b.gt ._L4__main
  *
  ****************************************************************************/
 
@@ -44,7 +50,16 @@ namespace credence::target::common::assembly {
 namespace m = matchit;
 
 /**
- * @brief Compute the result from trivial relational expression
+ * @brief Compute a relational or logical expression of two immediates
+ *
+ * The result is 1 or 0, so a comparison of two literals is folded into a
+ * `mov` of its result
+ *
+ *  Examples:
+ *
+ *    (1:int:4) < (2:int:4)                    // (1:byte:4)
+ *    ("ab":string:2) == ("ab":string:2)       // (1:byte:4)
+ *    (0:int:4) || (1:int:4)                   // (1:byte:4)
  */
 Immediate get_result_from_trivial_relational_expression(Immediate const& lhs,
     std::string const& op,
@@ -69,6 +84,17 @@ Immediate get_result_from_trivial_relational_expression(Immediate const& lhs,
     return make_numeric_immediate(result, "byte");
 }
 
+/**
+ * @brief Compute an arithmetic expression of two immediates
+ *
+ * The result has the type of the left-hand-side, so an `int` expression is
+ * computed with `int` arithmetic
+ *
+ *  Examples:
+ *
+ *    (10:int:4) % (3:int:4)     // (1:int:4)
+ *    (10:int:4) - (4:int:4)     // (6:int:4)
+ */
 Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs)
@@ -99,7 +125,11 @@ Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
 }
 
 /**
- * @brief Compute the result from trivial bitwise expression
+ * @brief Compute a bitwise expression of two integer immediates
+ *
+ *  Example:
+ *
+ *    (5:int:4) & (3:int:4)   // (1:int:4)
  */
 Immediate get_result_from_trivial_bitwise_expression(Immediate const& lhs,
     std::string const& op,

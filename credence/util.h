@@ -29,7 +29,7 @@
 #include <string_view>      // for basic_string_view, string_view
 #include <system_error>     // for errc
 #include <tuple>            // for apply, tuple
-#include <type_traits>      // for is_same_v, is_convertible_v
+#include <type_traits>      // for is_same_v, is_convertible_v, is_integral_v
 
 /****************************************************************************
  *
@@ -209,6 +209,8 @@ constexpr inline std::string to_constexpr_string(T const& val)
     } else if constexpr (std::is_same_v<T, unsigned int>) {
         return std::to_string(val);
     } else if constexpr (std::is_same_v<T, std::size_t>) {
+        return std::to_string(val);
+    } else if constexpr (std::is_integral_v<T>) {
         return std::to_string(val);
     } else if constexpr (std::is_same_v<T, double>) {
         return "double_val";

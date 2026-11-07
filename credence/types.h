@@ -58,6 +58,51 @@ using Address = std::size_t;
  */
 using Data_Type = std::tuple<semantic::RValue, semantic::Type, semantic::Size>;
 using RValue_Reference = std::string_view;
+
+/**
+ * @brief Get the offsets of the spaces outside the string and char literals
+ * of an rvalue
+ *
+ * The operands and operator of a binary expression are separated by
+ * spaces, and a literal may contain a space, `"m is %d"` or `' '`
+ *
+ *  Examples:
+ *
+ *    get_unquoted_space_offsets("x + y")                       // { 1, 3 }
+ *    get_unquoted_space_offsets("(\"a b\":string:3) == x")    // { 16, 19 }
+ */
+constexpr std::vector<std::size_t> get_unquoted_space_offsets(
+    RValue_Reference rvalue)
+{
+    std::vector<std::size_t> offsets{};
+    char quote{ '\0' };
+    for (std::size_t i = 0; i < rvalue.size(); i++) {
+        auto c = rvalue[i];
+        if (quote != '\0') {
+            if (c == '\\')
+                i++;
+            else if (c == quote)
+                quote = '\0';
+        } else if (c == '"' or c == '\'')
+            quote = c;
+        else if (c == ' ')
+            offsets.emplace_back(i);
+    }
+    return offsets;
+}
+
+/**
+ * @brief Get the operator of a binary expression, the token between its
+ * operands, or empty when the rvalue is not a binary expression
+ */
+constexpr RValue_Reference get_binary_expression_operator(
+    RValue_Reference rvalue)
+{
+    auto offsets = get_unquoted_space_offsets(rvalue);
+    if (offsets.size() != 2)
+        return {};
+    return rvalue.substr(offsets[0] + 1, offsets[1] - offsets[0] - 1);
+}
 using Stack = std::deque<semantic::RValue>;
 using Labels = std::set<semantic::Label>;
 using Strings = std::set<semantic::RValue>;
@@ -143,14 +188,9 @@ T integral_from_type(std::string const& t)
  */
 constexpr bool is_binary_arithmetic_expression(semantic::RValue const& rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    auto test = std::ranges::find_if(arithmetic_binary_operators.begin(),
-        arithmetic_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
-    return test != arithmetic_binary_operators.end();
+    auto op = get_binary_expression_operator(rvalue);
+    return std::ranges::find(arithmetic_binary_operators, op) !=
+           arithmetic_binary_operators.end();
 }
 
 constexpr bool is_binary_arithmetic_operator(RValue_Reference rvalue)
@@ -169,21 +209,6 @@ constexpr bool is_unary_arithmetic_operator(RValue_Reference rvalue)
     return test != arithmetic_unary_operators.end();
 }
 
-/**
- * @brief Check if expression contains bitwise expression
- */
-constexpr bool is_bitwise_binary_expression(semantic::RValue const& rvalue)
-{
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    auto test = std::ranges::find_if(bitwise_binary_operators.begin(),
-        bitwise_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
-    return test != bitwise_binary_operators.end();
-}
-
 constexpr bool is_bitwise_binary_operator(RValue_Reference rvalue)
 {
     auto test = std::ranges::find_if(bitwise_binary_operators.begin(),
@@ -193,18 +218,24 @@ constexpr bool is_bitwise_binary_operator(RValue_Reference rvalue)
 }
 
 /**
+ * @brief Check if expression is a bitwise expression
+ *
+ * The operator is the middle operand, so `||` and `&&` are not bitwise
+ */
+constexpr bool is_bitwise_binary_expression(semantic::RValue const& rvalue)
+{
+    auto op = get_binary_expression_operator(rvalue);
+    return not op.empty() and is_bitwise_binary_operator(op);
+}
+
+/**
  * @brief Check if expression contains relational expression
  */
 constexpr bool is_relation_binary_expression(semantic::RValue const& rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") != 2)
-        return false;
-    auto test = std::ranges::find_if(relation_binary_operators.begin(),
-        relation_binary_operators.end(),
-        [&](std::string_view s) {
-            return rvalue.find(s) != std::string::npos;
-        });
-    return test != relation_binary_operators.end();
+    auto op = get_binary_expression_operator(rvalue);
+    return std::ranges::find(relation_binary_operators, op) !=
+           relation_binary_operators.end();
 }
 
 constexpr bool is_relation_binary_operator(RValue_Reference rvalue)
@@ -373,8 +404,11 @@ inline Data_Type get_rvalue_datatype_from_string(semantic::RValue const& rvalue,
 constexpr Binary_Expression from_rvalue_binary_expression(
     semantic::RValue const& rvalue)
 {
-    auto lhs = rvalue.find_first_of(" ");
-    auto rhs = rvalue.find_last_of(" ");
+    auto offsets = get_unquoted_space_offsets(rvalue);
+    if (offsets.size() < 2)
+        return { rvalue, std::string{}, std::string{} };
+    auto lhs = offsets.front();
+    auto rhs = offsets.back();
     auto lhs_lvalue = std::string{ rvalue.begin(), rvalue.begin() + lhs };
     auto rhs_lvalue = std::string{ rvalue.begin() + 1 + rhs, rvalue.end() };
     auto binary_operator =
@@ -386,9 +420,13 @@ constexpr Binary_Expression from_rvalue_binary_expression(
 constexpr Binary_Expression from_rvalue_binary_expression(
     Data_Type const& datatype)
 {
-    auto rvalue = type::get_value_from_rvalue_data_type(datatype);
-    auto lhs = rvalue.find_first_of(" ");
-    auto rhs = rvalue.find_last_of(" ");
+    auto rvalue =
+        std::string{ type::get_value_from_rvalue_data_type(datatype) };
+    auto offsets = get_unquoted_space_offsets(rvalue);
+    if (offsets.size() < 2)
+        return { rvalue, std::string{}, std::string{} };
+    auto lhs = offsets.front();
+    auto rhs = offsets.back();
     auto lhs_lvalue = std::string{ rvalue.begin(), rvalue.begin() + lhs };
     auto rhs_lvalue = std::string{ rvalue.begin() + 1 + rhs, rvalue.end() };
     auto binary_operator =
@@ -559,7 +597,7 @@ constexpr semantic::RValue from_decay_offset(RValue_Reference rvalue)
  */
 constexpr bool is_binary_datatype_expression(semantic::RValue const& rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") != 2)
+    if (get_unquoted_space_offsets(rvalue).size() != 2)
         return false;
     auto test = from_rvalue_binary_expression(rvalue);
     if (!is_rvalue_data_type(std::get<0>(test)))
@@ -573,7 +611,7 @@ constexpr bool is_binary_datatype_expression(Data_Type const& datatype)
 {
     auto rvalue = get_value_from_rvalue_data_type(datatype);
 
-    if (util::substring_count_of(rvalue, " ") != 2)
+    if (get_unquoted_space_offsets(rvalue).size() != 2)
         return false;
     auto test = from_rvalue_binary_expression(rvalue);
     if (!is_rvalue_data_type(std::get<0>(test)))
@@ -590,7 +628,7 @@ constexpr bool is_binary_datatype_expression(Data_Type const& datatype)
 constexpr bool is_temporary_datatype_binary_expression(
     semantic::RValue const& rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") != 2)
+    if (get_unquoted_space_offsets(rvalue).size() != 2)
         return false;
     auto test = from_rvalue_binary_expression(rvalue);
     if (!is_temporary(std::get<0>(test)) and
@@ -612,7 +650,7 @@ constexpr bool is_temporary_datatype_binary_expression(
 constexpr std::string is_temporary_operand_binary_expression(
     semantic::RValue const& rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") != 2)
+    if (get_unquoted_space_offsets(rvalue).size() != 2)
         return std::string{};
     auto test = from_rvalue_binary_expression(rvalue);
     if (is_temporary(std::get<0>(test)))
@@ -628,7 +666,7 @@ constexpr std::string is_temporary_operand_binary_expression(
  */
 constexpr bool is_binary_expression(semantic::RValue const& rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") != 2)
+    if (get_unquoted_space_offsets(rvalue).size() != 2)
         return false;
     return is_binary_arithmetic_expression(rvalue) or
            is_relation_binary_expression(rvalue) or

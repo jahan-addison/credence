@@ -12,11 +12,11 @@
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w10, #5
-    str w10, [sp, #20]
+    str w10, [sp, #16]
 ._L2__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #5
     b.gt ._L4__main

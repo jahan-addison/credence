@@ -61,11 +61,11 @@ constexpr bool is_vector_lvalue(LValue const& lvalue)
  */
 struct Vector
 {
-    using Label = type::semantic::Label;
-    using Address = type::semantic::Address;
-    using Size = type::semantic::Size;
-    using Entry = std::pair<Label, type::Data_Type>;
-    using Storage = Ordered_Map<Label, type::Data_Type>;
+    using Label = credence::type::semantic::Label;
+    using Address = credence::type::semantic::Address;
+    using Size = credence::type::semantic::Size;
+    using Entry = std::pair<Label, credence::type::Data_Type>;
+    using Storage = Ordered_Map<Label, credence::type::Data_Type>;
     using Offset = Ordered_Map<Label, Address>;
 
     static constexpr std::size_t max_size{ 999 };
@@ -172,12 +172,13 @@ struct Vector_Offset
 
 } // namespace detail
 
-type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
+credence::type::Data_Type get_rvalue_at_lvalue_object_storage(
+    LValue const& lvalue,
     Function& stack_frame,
     Vectors& vectors,
     std::source_location const& location = std::source_location::current());
 
-using Argument_Stack = std::map<Label, std::deque<type::Parameters>>;
+using Argument_Stack = std::map<Label, std::deque<credence::type::Parameters>>;
 
 /**
  * @brief Object_Table table of types, functions, and vectors in a frame
@@ -204,8 +205,14 @@ class Object_Table
     bool local_contains(LValue const& lvalue);
 
   public:
-    void set_ir_parameters(Label const& label, type::Parameters& parameters);
-    std::deque<type::Parameters>& get_ir_parameters(Label const& label);
+    void insert_address_storage_rvalue(RValue const& rvalue);
+    void insert_address_storage_rvalue(credence::type::Data_Type const& rvalue);
+
+  public:
+    void set_ir_parameters(Label const& label,
+        credence::type::Parameters& parameters);
+    std::deque<credence::type::Parameters>& get_ir_parameters(
+        Label const& label);
 
   public:
     constexpr bool is_stack_frame() { return !stack_frame_symbol.empty(); }

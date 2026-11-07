@@ -23,27 +23,30 @@
 #include <variant>                           // for variant
 
 /****************************************************************************
+ * x86-64 Syscall Interface
  *
- * x86-64 System Call Interface
+ * Syscalls on x86-64 Linux and Darwin. The syscall number is in rax and the
+ * arguments are in rdi, rsi, rdx, r10, r8, and r9, then the `syscall`
+ * instruction is executed. A Darwin syscall number is in the Unix syscall
+ * class, 0x2000000. The `main` function returns with the exit syscall.
  *
- * Syscall invocation for x86-64 Linux and Darwin. Loads syscall number into rax
- * and arguments into rdi, rsi, rdx, r10, r8, r9 per the kernel specification
+ *  Example:
  *
- * Example - exit syscall:
+ *    LEAVE;
  *
- *   B code:    main() { return(0); }
+ *  Becomes, in `main` on Linux:
  *
- * Generates (Linux):
- *   mov rax, 60        ; exit syscall number
- *   mov rdi, 0         ; exit code
- *   syscall
+ *    mov rax, 60
+ *    mov rdi, 0
+ *    syscall
  *
- * Generates (Darwin):
- *   mov rax, 0x2000001 ; Darwin exit number
- *   mov rdi, 0
- *   syscall
+ *  And on Darwin:
  *
- *****************************************************************************/
+ *    mov rax, 33554433     // 0x2000000 | 1
+ *    mov rdi, 0
+ *    syscall
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::syscall_ns {
 
@@ -72,7 +75,11 @@ get_argument_general_purpose_registers()
 }
 
 /**
- * @brief NULL-check the memory access, then grab a register
+ * @brief Get the syscall register of an argument
+ *
+ * An address is a quadword register and any other argument a doubleword
+ * register. With no memory accessor, such as the exit syscall of `main`,
+ * the argument is in rdi.
  */
 assembly::Register get_storage_register_from_safe_address(
     assembly::Storage argument,
@@ -94,7 +101,11 @@ assembly::Register get_storage_register_from_safe_address(
 }
 
 /**
- * @brief NULL-check the memory access, then set the signal register
+ * @brief Move a value in rcx to its syscall register
+ *
+ * A value computed into rcx for a syscall signals that the result is in
+ * eax after the syscall, for the assignment of the next lvalue. It returns
+ * false when the move is made, so the caller moves any other argument.
  */
 bool check_signal_register_from_safe_address(Instructions& instructions,
     assembly::Register storage,
@@ -113,7 +124,10 @@ bool check_signal_register_from_safe_address(Instructions& instructions,
 }
 
 /**
- * @brief Prepare the operands for the syscall
+ * @brief Load each syscall argument into its register
+ *
+ * An address relative to rip is loaded with `lea`, and any other argument
+ * is moved
  */
 void syscall_operands_to_instructions(Instructions& instructions,
     syscall_arguments_t const& arguments,
@@ -140,7 +154,7 @@ void syscall_operands_to_instructions(Instructions& instructions,
 namespace common {
 
 /**
- * @brief Create instructions for a platform-independent exit syscall
+ * @brief Insert the exit syscall with an exit status
  */
 // cppcheck-suppress constParameterReference
 void exit_syscall(Instructions& instructions, int exit_status)
@@ -151,7 +165,22 @@ void exit_syscall(Instructions& instructions, int exit_status)
 }
 
 /**
- * @brief Create instructions for a platform-independent syscall
+ * @brief Insert a syscall of the host platform
+ *
+ * The syscall number is moved to rax, in the Unix syscall class on Darwin,
+ * then the arguments are loaded into rdi, rsi, rdx, r10, r8, and r9
+ *
+ *  Example:
+ *
+ *    write(1, "hi", 2);
+ *
+ *  Becomes, on Darwin:
+ *
+ *    mov rax, 33554436
+ *    mov edi, 1
+ *    lea rsi, [rip + ._L_str1__]
+ *    mov edx, 2
+ *    syscall
  */
 void make_syscall(
     // cppcheck-suppress constParameterReference
@@ -185,8 +214,20 @@ void make_syscall(
 
     credence_assert_equal(syscall_entry[1], arguments.size());
 
-    auto [argument_storage_qword, argument_storage_dword] =
-        get_argument_general_purpose_registers();
+    // the kernel takes the fourth argument in r10, since `syscall` writes
+    // its return address to rcx
+    std::deque<Register> argument_storage_qword = { Register::r9,
+        Register::r8,
+        Register::r10,
+        Register::rdx,
+        Register::rsi,
+        Register::rdi };
+    std::deque<Register> argument_storage_dword = { Register::r9d,
+        Register::r8d,
+        Register::r10d,
+        Register::edx,
+        Register::esi,
+        Register::edi };
 
 #if defined(__linux__)
     auto syscall_number =

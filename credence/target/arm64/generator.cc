@@ -21,7 +21,7 @@
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for credence_assert, creden...
 #include <credence/ir/ita.h>                 // for make_ita_instructions
-#include <credence/ir/table.h>               // for Table
+#include <credence/ir/table.h>               // for make_table, Table
 #include <credence/language/hir/binding.h>   // for Function, Object, RValue
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/accessor.h> // for Buffer_Accessor
@@ -45,61 +45,61 @@
 #include <vector>                            // for vector
 
 /****************************************************************************
+ * ARM64 Code Generator
  *
- * ARM64 Code Generator and Emitter Types
+ * Generates ARM64 assembly for Linux and Darwin under the ARM64 Procedure
+ * Call Standard (PCS). The IR is translated into the instructions of the
+ * text section, then the emitter resolves the frame size of each function
+ * and writes the text and data sections.
  *
- * Generates ARM64/AArch64 assembly for Linux and Darwin (macOS). Compliant
- * with ARM64 Procedure Call Standard (PCS). Translates ITA intermediate
- * representation into machine code.
+ *  Example:
  *
- * Example - simple function:
+ *    add(x, y) {
+ *      return(x + y);
+ *    }
+ *    counter 5;
  *
- *   B code:
- *     add(x, y) {
- *       return(x + y);
- *     }
+ *  Becomes:
  *
- *   Generated ARM64:
- *     add:
- *         stp x29, x30, [sp, #-16]!
- *         mov x29, sp
- *         add x0, x0, x1      ; x in x0, y in x1
- *         ldp x29, x30, [sp], #16
- *         ret
+ *    add:
+ *        stp x29, x30, [sp, #-16]!
+ *        mov x29, sp
+ *        mov w8, w0
+ *        add w8, w8, w1
+ *        mov w0, w8
+ *        ldp x29, x30, [sp], #16
+ *        ret
  *
- * Example - globals and strings:
+ *    .section	__DATA,__data
+ *        .p2align 2
+ *    counter:
+ *        .long 5
  *
- *   B code:
- *     greeting "Hello, World!\n";
- *     counter 0;
- *
- *   Generated:
- *     .data
- *     ._L_str1__:
- *         .asciz "Hello, World!\n"
- *     greeting:
- *         .quad ._L_str1__
- *     counter:
- *         .long 0
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -108,17 +108,17 @@ namespace credence::target::arm64 {
 namespace m = matchit;
 
 /**
- * @brief Assembly Emitter Factory
+ * @brief Emit the ARM64 assembly of a program
+ *
+ * The object table and IR are built by the semantic pass and the ITA, and
+ * the standard library symbols are added unless they are disabled
  */
 void emit(std::ostream& os,
-    util::AST_Node& symbols,
+    util::AST_Node const& symbols,
     util::AST_Node const& ast,
     bool no_stdlib)
 {
-    auto [globals, instructions] = ir::make_ita_instructions(symbols, ast);
-    auto table = std::make_shared<ir::Table>(
-        ir::Table{ symbols, instructions, globals });
-    table->build_from_ir_instructions();
+    auto table = ir::make_table(symbols, ast);
     auto stack = std::make_shared<assembly::Stack>();
     auto accessor = std::make_shared<memory::Memory_Accessor>(
         table->get_table_object(), table->get_table_instructions(), stack);
@@ -128,7 +128,10 @@ void emit(std::ostream& os,
 }
 
 /**
- * @brief Emit a complete arm64 program
+ * @brief Emit an ARM64 program
+ *
+ * The data section is set first, so the literals have labels when the text
+ * section is translated
  */
 void Assembly_Emitter::emit(std::ostream& os)
 {
@@ -140,7 +143,19 @@ void Assembly_Emitter::emit(std::ostream& os)
 }
 
 /**
- * @brief Emit the instructions for a directive
+ * @brief Get the data directive of a value in the data section
+ *
+ * A string, float, or double is the address of its label
+ *
+ *  Example:
+ *
+ *    mess [2] "too bad", "tough luck";
+ *
+ *  Becomes:
+ *
+ *    mess:
+ *        .xword ._L_str1__
+ *        .xword ._L_str2__
  */
 assembly::Directives Data_Emitter::get_instructions_from_directive_type(
     assembly::Directive directive,
@@ -190,6 +205,9 @@ assembly::Directives Data_Emitter::get_instructions_from_directive_type(
     return instructions;
 }
 
+/**
+ * @brief Get the `.p2align` of a value of a type, the log2 of its alignment
+ */
 std::size_t get_alignment_size_from_rvalue_data_type(
     type::semantic::Type const& type)
 {
@@ -202,8 +220,9 @@ std::size_t get_alignment_size_from_rvalue_data_type(
         m::pattern | m::_ = [&] { return 3UL; });
 }
 /**
- * @brief Set string in the data section with .asciz directive
- *  Note: strings should come last for hardware alignment
+ * @brief Set each string in the data section with the .asciz directive
+ *
+ * Strings are after the floats and doubles, since they have no alignment
  */
 void Data_Emitter::set_data_strings()
 {
@@ -222,7 +241,7 @@ void Data_Emitter::set_data_strings()
 }
 
 /**
- * @brief Set floats in the data section with .float directive
+ * @brief Set each float in the data section with the .float directive
  */
 void Data_Emitter::set_data_floats()
 {
@@ -241,7 +260,7 @@ void Data_Emitter::set_data_floats()
 }
 
 /**
- * @brief Set double in the data section with .double directive
+ * @brief Set each double in the data section with the .double directive
  */
 void Data_Emitter::set_data_doubles()
 {
@@ -261,7 +280,11 @@ void Data_Emitter::set_data_doubles()
 }
 
 /**
- * @brief Set global data in the data section from the table vectors
+ * @brief Set each global in the data section
+ *
+ * A global is a vector, and a global with one value, `counter 5;`, is
+ * aligned to its type. The offset of each element is recorded for its
+ * loads and stores.
  */
 void Data_Emitter::set_data_globals()
 {
@@ -297,7 +320,10 @@ void Data_Emitter::set_data_globals()
 }
 
 /**
- * @brief Emit the data section ARM64 instructions of a B language source
+ * @brief Emit the data section
+ *
+ * On Darwin the strings are in the cstring section and the globals in the
+ * data section
  */
 void Data_Emitter::emit_data_section(std::ostream& os)
 {
@@ -352,7 +378,7 @@ void Data_Emitter::emit_data_section(std::ostream& os)
 }
 
 /**
- * @brief Emit from a type::Data_Type as an immediate value
+ * @brief Emit an immediate, with `#` before an integer
  */
 constexpr std::string emit_immediate_storage(Immediate const& immediate)
 {
@@ -367,7 +393,7 @@ constexpr std::string emit_immediate_storage(Immediate const& immediate)
 }
 
 /**
- * @brief Emit a stack offset based on size, prefix, and instruction flags
+ * @brief Emit a stack offset from the stack pointer, `[sp, #16]`
  */
 constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
     common::flag::flags flags)
@@ -382,7 +408,7 @@ constexpr std::string emit_stack_storage(assembly::Stack::Offset offset,
 }
 
 /**
- * @brief Emit a register based on size, prefix, and instruction flags
+ * @brief Emit a register, or the memory it addresses when it is indirect
  */
 constexpr std::string emit_register_storage(Register device,
     common::flag::flags flags)
@@ -408,12 +434,18 @@ inline void emit_arm64_alignment_directive(std::ostream& os,
     assembly::newline(os, newline);
 }
 
+/**
+ * @brief Insert the alignment directive into the data section
+ */
 void insert_arm64_alignment_directive(assembly::Directives& instructions,
     std::size_t align)
 {
     assembly::inserter(instructions, assembly::p2align(std::to_string(align)));
 }
 
+/**
+ * @brief Set the data section of the program
+ */
 void Data_Emitter::set_data_section()
 {
     set_data_floats();
@@ -423,7 +455,7 @@ void Data_Emitter::set_data_section()
 }
 
 /**
- * @brief Get the string representation of a storage device
+ * @brief Get a storage device as a string, with the flags of its instruction
  */
 std::string Storage_Emitter::get_storage_device_as_string(
     Storage const& storage)
@@ -443,7 +475,19 @@ std::string Storage_Emitter::get_storage_device_as_string(
 }
 
 /**
- * @brief Apply stack alignment via the flags added during instruction insertion
+ * @brief Resolve an operand that depends on the frame size
+ *
+ * The frame size of a function is known after it is translated, so an
+ * operand flagged during insertion is replaced here, such as the
+ * pre-indexed store of the frame record
+ *
+ *  Example:
+ *
+ *    stp x29, x30, [sp, #0]      // Align_SP
+ *
+ *  Becomes:
+ *
+ *    stp x29, x30, [sp, #-32]!
  */
 void Storage_Emitter::apply_stack_alignment(Storage& operand,
     Mnemonic mnemonic,
@@ -525,20 +569,15 @@ void Storage_Emitter::apply_stack_alignment(Storage& operand,
                         stack->get_stack_frame_allocation_size(frame_name_) -
                         ((frame.pointers.size() - *address_pointer_index) * 8);
                     operand = direct_immediate(fmt::format("#{}", offset));
-                },
-            m::pattern | m::ds(m::app(instruction_contains_flag(
-                                          detail::flags::Align_SP_Local),
-                                   true),
-                             m::app(operand_source_is(Source::s_2), true)) =
-                [&] {
-                    operand = direct_immediate(fmt::format("[sp, #-{}!]",
-                        stack->get_stack_frame_allocation_size(frame_name_)));
                 });
     }
 }
 
 /**
- * @brief Emit the operand of an mnemonic, Source controls which operand
+ * @brief Emit an operand of an instruction
+ *
+ * The first operand follows the mnemonic, and a string literal loaded by
+ * `ldr` is a literal pool address, `=label`
  */
 void Storage_Emitter::emit_mnemonic_operand(std::ostream& os,
     Storage const& operand,
@@ -562,9 +601,7 @@ void Storage_Emitter::emit_mnemonic_operand(std::ostream& os,
 }
 
 /**
- * @brief Emit the representation of an mnemonic operand
- *
- *    Apply all flags set on the instruction index during code translation
+ * @brief Emit an operand of an instruction with its flags applied
  */
 void Storage_Emitter::emit(std::ostream& os,
     Storage const& storage,
@@ -589,7 +626,7 @@ void Storage_Emitter::emit(std::ostream& os,
 }
 
 /**
- * @brief Emit the  jump to the last branch that ends the function
+ * @brief Emit the jump to the epilogue of the function, `_L1`
  */
 void Text_Emitter::emit_epilogue_jump(std::ostream& os)
 {
@@ -599,7 +636,11 @@ void Text_Emitter::emit_epilogue_jump(std::ostream& os)
 }
 
 /**
- * @brief Emit a local or stack frame label in the text section
+ * @brief Emit a function or branch label in the text section
+ *
+ * A function label emits the epilogue of the last function, and a branch
+ * label is local to its function. The `_L1` label is the epilogue, so a
+ * jump to it is emitted in its place.
  */
 void Text_Emitter::emit_assembly_label(std::ostream& os,
     Label const& s,
@@ -649,7 +690,9 @@ void Text_Emitter::emit_assembly_label(std::ostream& os,
 }
 
 /**
- * @brief Emit the instructions to store a vector offset in a local address
+ * @brief Emit a store to an element of a vector on the stack, through x15
+ *
+ * A page relative address is stored after the `add` that computes it
  */
 void Text_Emitter::emit_vector_storage_instruction(std::ostream& os,
     std::size_t index,
@@ -689,7 +732,9 @@ void Text_Emitter::emit_vector_storage_instruction(std::ostream& os,
 }
 
 /**
- * @brief Emit a mnemonic and its possible operands in the text section
+ * @brief Emit an instruction and its operands in the text section
+ *
+ * An instruction after the `_L1` label is held for the epilogue
  */
 void Text_Emitter::emit_assembly_instruction(std::ostream& os,
     std::size_t index,
@@ -735,7 +780,7 @@ void Text_Emitter::emit_assembly_instruction(std::ostream& os,
 }
 
 /**
- * @brief Emit the text instruction for either a label or mnemonic
+ * @brief Emit a label or an instruction in the text section
  */
 void Text_Emitter::emit_text_instruction(std::ostream& os,
     std::variant<Label, Instruction> const& instruction,
@@ -755,7 +800,10 @@ void Text_Emitter::emit_text_instruction(std::ostream& os,
 }
 
 /**
- * @brief Emit the the function epilogue at the end if a frame has branches
+ * @brief Emit the epilogue held for the last function
+ *
+ * The `_L1` label of a function with branches is emitted before its
+ * epilogue
  */
 void Text_Emitter::emit_function_epilogue(std::ostream& os)
 {
@@ -767,13 +815,6 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
         }
         for (std::size_t index = 0; index < return_instructions_.size();
             index++) {
-            // // this branch
-            // if (is_variant(
-            //         assembly::Instruction, return_instructions_[index])) {
-            //     auto inst = std::get<assembly::Instruction>(
-            //         return_instructions_[index]);
-            //     auto [mm, s1, s2, s3, s4] = inst;
-            // }
             emit_text_instruction(
                 os, return_instructions_[index], index, false);
         }
@@ -783,7 +824,9 @@ void Text_Emitter::emit_function_epilogue(std::ostream& os)
 }
 
 /**
- * @brief Emit the text section instructions
+ * @brief Emit the text section
+ *
+ * The epilogue of the last function is emitted after its instructions
  */
 void Text_Emitter::emit_text_section(std::ostream& os)
 {
@@ -792,12 +835,12 @@ void Text_Emitter::emit_text_section(std::ostream& os)
     emit_text_directives(os);
     for (std::size_t index = 0; index < instructions_accessor->size(); index++)
         emit_text_instruction(os, instructions[index], index);
-    if (!return_instructions_.empty() and frame_ == "main")
+    if (!return_instructions_.empty())
         emit_function_epilogue(os);
 }
 
 /**
- * @brief Emit text section directives
+ * @brief Emit the directives of the text section and the entry point
  */
 void Text_Emitter::emit_text_directives(std::ostream& os)
 {
@@ -817,7 +860,9 @@ void Text_Emitter::emit_text_directives(std::ostream& os)
 }
 
 /**
- * @brief Emit text section standard library `extern` directives
+ * @brief Emit the global directive of each standard library function
+ *
+ * A function of the standard library has a leading underscore on Darwin
  */
 void Text_Emitter::emit_stdlib_externs(std::ostream& os)
 {

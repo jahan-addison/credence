@@ -17,21 +17,21 @@
 
 namespace credence::language::hir {
 
-using type::semantic::Label;
-using type::semantic::LValue;
-using type::semantic::RValue;
-using type::semantic::Size;
-using type::semantic::Type;
+using credence::type::semantic::Label;
+using credence::type::semantic::LValue;
+using credence::type::semantic::RValue;
+using credence::type::semantic::Size;
+using credence::type::semantic::Type;
 
-using Stack = std::deque<type::semantic::RValue>;
+using Stack = std::deque<credence::type::semantic::RValue>;
 
-using type::Labels;
-using type::Locals;
-using type::Parameters;
-using type::Pointers;
-using type::RValues;
-using type::semantic::Address;
-using type::semantic::Label;
-using type::semantic::Size;
+using credence::type::Labels;
+using credence::type::Locals;
+using credence::type::Parameters;
+using credence::type::Pointers;
+using credence::type::RValues;
+using credence::type::semantic::Address;
+using credence::type::semantic::Label;
+using credence::type::semantic::Size;
 
 }

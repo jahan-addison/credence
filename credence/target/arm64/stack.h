@@ -21,58 +21,44 @@
 #include <utility>                         // for pair
 
 /****************************************************************************
- *
  * ARM64 Stack
  *
- * A push-down stack that grows downward and maintains 16-byte alignment.
+ * The stack slots of a function's frame, as offsets from the stack pointer.
+ * The frame record, x29 and x30, is at the bottom of the frame, each slot is
+ * aligned to its size above it, and the frame size is aligned up to 16
+ * bytes.
  *
- * Example - function with locals:
+ *  Example:
  *
- *   B code:
- *     compute(a) {
- *       auto x, y, z;
- *       x = a * 2;
- *       y = x + 10;
- *       z = y - 5;
- *       return(z);
- *     }
+ *    main() {
+ *      auto a, *p, c;
+ *      a = 1;
+ *      p = &a;
+ *      c = 3;
+ *      printf("%d\n", a + c);
+ *    }
  *
- * Register allocation (if no call jumps):
- *   w0 = parameter 'a'
- *   w9 = local 'x'
- *   w10 = local 'y'
- *   w11 = local 'z'
+ *  Becomes:
  *
- *   [sp + 16] saved w9 (before function calls)
- *   [sp + 12] saved w10
- *   [sp + 8]  saved w11
+ *    [sp, #0]    the frame record, x29 and x30
+ *    [sp, #16]   a, a word
+ *    [sp, #24]   p, a doubleword aligned to 8
+ *    [sp, #32]   c
+ *    [sp, #36]   the argument a + c
  *
- *****************************************************************************/
-
-/****************************************************************************
- * Register selection table:
+ *    stp x29, x30, [sp, #-48]!
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
- *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
- *   x19      = The argc, argv scratch register
- *
- *   Vectors and vector offsets will always be on the stack
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 namespace credence::target::arm64::assembly {
 
 /**
- * @brief
- * Uses the PIMPL to improve build times.
+ * @brief The stack slots of the function under translation
+ *
+ * Each lvalue on the stack has an offset from the stack pointer and an
+ * operand size. The allocation of each function is recorded at its end, for
+ * its prologue and epilogue. The implementation is a pimpl to improve build
+ * times.
  */
 class Stack : public common::detail::base_stack_pointer
 {
@@ -102,22 +88,11 @@ class Stack : public common::detail::base_stack_pointer
 
     Offset allocate(Operand_Size operand);
     Offset allocate(Size alloc);
-    void deallocate(Size alloc);
 
     void set_aad_local_size(Size alloc);
     Size get_aad_local_size();
 
     Operand_Size get_operand_size_from_offset(Offset offset) const;
-
-    void set_address_from_immediate(LValue const& lvalue,
-        Immediate const& rvalue);
-    void set_address_from_accumulator(LValue const& lvalue, Register acc);
-    void set_address_from_type(LValue const& lvalue, Type type);
-
-    void allocate_aligned_lvalue(LValue const& lvalue,
-        Size value_size,
-        Operand_Size operand_size);
-    void set_address_from_address(LValue const& lvalue);
 
     void set_stack_frame_allocation_size(Label const& label);
     Size get_stack_frame_allocation_size(Label const& label);
@@ -127,7 +102,6 @@ class Stack : public common::detail::base_stack_pointer
         language::hir::binding::Vector const& vector);
     Size get_stack_size_from_table_vector(
         language::hir::binding::Vector const& vector);
-    Size get_offset_from_pushdown_stack();
 
     void set_address_from_size(LValue const& lvalue,
         Offset offset_address,

@@ -21,6 +21,8 @@ _start:
     jmp ._L1__main
 ._L4__main:
     mov eax, dword ptr [rbp - 4]
+    mov dword ptr [rbp - 12], eax
+    mov eax, dword ptr [rbp - 4]
     cmp eax, 10
     je ._L8__main
     mov eax, dword ptr [rbp - 4]

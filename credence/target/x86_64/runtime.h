@@ -25,23 +25,24 @@
 #include <utility>                              // for pair
 
 /****************************************************************************
- *
  * x86-64 Runtime and Standard Library
  *
- * Runtime function invocation to the standard library via the System V
- * ABI calling convention. Arguments passed in registers: rdi, rsi, rdx,
- * rcx, r8, r9, then stack. Return value in rax.
+ * Calls to the standard library under the System V ABI calling convention.
+ * See common/runtime.h for the functions. The arguments are in rdi, rsi,
+ * rdx, rcx, r8, and r9, or xmm0 to xmm7 for a float or double, and the
+ * return value is in rax.
  *
- * Example - calling printf:
+ *  Example:
  *
- *   B code:    printf("Value: %d\n", x);
+ *    printf("%d\n", add(counter, 2));
  *
- * Generates:
- *   lea rdi, [rip + ._L_str1__]  ; format string in rdi
- *   mov rsi, qword ptr [rbp - 8] ; x in rsi
- *   call printf                   ; from stdlib
+ *  Becomes:
  *
- *****************************************************************************/
+ *    lea rdi, [rip + ._L_str1__]      // the format string
+ *    mov esi, dword ptr [rbp - 8]     // the return value of add
+ *    call printf
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::runtime {
 
@@ -59,9 +60,18 @@ using X8664_Library_Call_Inserter =
         assembly::Stack,
         assembly::Instructions>;
 
+/**
+ * @brief Get the System V argument registers, quadword and doubleword
+ */
 std::pair<library_register_t, library_register_t>
 get_argument_general_purpose_registers();
 
+/**
+ * @brief Translate a call to a standard library function on x86-64
+ *
+ * Each argument takes the next System V argument register of its size and
+ * type, so the register lists are consumed in order
+ */
 struct Library_Call_Inserter : public X8664_Library_Call_Inserter
 {
     explicit Library_Call_Inserter(memory::Memory_Access& accessor,

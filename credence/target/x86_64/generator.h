@@ -27,52 +27,45 @@
 #include <variant>                         // for variant
 
 /****************************************************************************
+ * x86-64 Code Generator
  *
- * x86-64 Code Generator and Emitter Types
+ * Generates Intel syntax x86-64 assembly for Linux and Darwin. A call to the
+ * standard library follows the System V ABI, and a function of the program
+ * takes its arguments in rdi, r8, r9, rsi, rdx, and rcx. The IR is
+ * translated into the instructions of the text section, then the emitter
+ * resolves the frame size of each function and writes the text and data
+ * sections.
  *
- * Generates Intel-syntax x86-64 assembly for Linux and Darwin (macOS).
- * Compliant with System V ABI calling conventions. Translates ITA
- * intermediate representation into optimized x86-64 machine code.
+ *  Example:
  *
- * Example - simple function:
+ *    add(x, y) {
+ *      return(x + y);
+ *    }
+ *    counter 5;
  *
- *   B code:
- *     add(x, y) {
- *       return(x + y);
- *     }
+ *  Becomes:
  *
- *   x86-64 (Intel syntax):
- *     add:
- *         push rbp
- *         mov rbp, rsp
- *         mov eax, edi        ; x in edi (1st arg)
- *         add eax, esi        ; y in esi (2nd arg)
- *         pop rbp
- *         ret
+ *    add:
+ *        push rbp
+ *        mov rbp, rsp
+ *        mov eax, edi
+ *        add eax, r8d
+ *        mov eax, eax
+ *        leave
+ *        ret
  *
- * Example - globals and strings:
+ *    .data
+ *    counter:
+ *        .long 5
  *
- *   B code:
- *     greeting "Hello, World!\n";
- *     counter 0;
- *
- *   x86-64 (Intel syntax):
- *     .data
- *     ._L_str1__:
- *         .asciz "Hello, World!\n"
- *     greeting:
- *         .quad ._L_str1__
- *     counter:
- *         .quad 0
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 namespace credence::target::x86_64 {
 
 using Instruction_Pair = assembly::Instruction_Pair;
 
 void emit(std::ostream& os,
-    util::AST_Node& symbols,
+    util::AST_Node const& symbols,
     util::AST_Node const& ast,
     bool no_stdlib);
 
@@ -92,7 +85,11 @@ void emit_x86_64_assembly_intel_prologue(std::ostream& os);
 class Assembly_Emitter;
 
 /**
- * @brief Storage Emitter for destination and source storage devices
+ * @brief Emit the operands of an instruction
+ *
+ * The flags of the instruction are applied to each operand, so an operand
+ * that depends on the frame size is resolved here, after the function is
+ * translated
  */
 class Storage_Emitter
 {
@@ -131,7 +128,11 @@ class Storage_Emitter
 };
 
 /**
- * @brief Text Emitter for the text section in a x86_64 application
+ * @brief Emit the text section of an x86-64 program
+ *
+ * The instructions after the `_L1` label of a function are its epilogue,
+ * which the IR does not keep at the end, so they are held and emitted after
+ * the function's last branch
  */
 class Text_Emitter
 {
@@ -176,9 +177,11 @@ class Text_Emitter
 };
 
 /**
- * @brief Data Emitter for the data section in a x86_64 application
+ * @brief Emit the data section of an x86-64 program
+ *
+ * Floats, doubles, and strings are emitted first, so each global that holds
+ * one refers to its label, then the globals
  */
-
 class Data_Emitter
 {
   public:
@@ -211,8 +214,7 @@ class Data_Emitter
 };
 
 /**
- * @brief Assembly Emitter that emits the data and text section of an x64
- * application
+ * @brief Emit an x86-64 program, its text and data sections
  */
 class Assembly_Emitter
 {

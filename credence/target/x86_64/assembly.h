@@ -40,32 +40,26 @@ enum class Register;
 }
 
 /****************************************************************************
+ * x86-64 Assembly
  *
- * x86-64 Assembly Constructors and Mnemonics
+ * The registers, mnemonics, directives, and instruction constructors of the
+ * x86-64 ISA, in Intel syntax. An instruction is a mnemonic and up to two
+ * operands, and each constructor returns the register of its result and
+ * its instructions.
  *
- * x86-64 instructions, registers, and mnemonics in intel syntax. Provides
- * instruction string formatting and operand constructors and macros.
+ *  Example:
  *
- * Example registers:
- *   64-bit: rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp, r8-r15
- *   32-bit: eax, ebx, ecx, edx, esi, edi, ...
- *   16-bit: ax, bx, cx, dx, ...
- *   8-bit:  al, bl, cl, dl, ...
+ *    auto [result, instructions] = assembly::mul(eax, Immediate{ "2" });
  *
- * Example instructions:
- *   Data movement: mov, lea, push, pop
- *   Arithmetic: add, sub, mul, imul, div, idiv
- *   Bitwise: and, or, xor, not, shl, shr
- *   Comparison: cmp, test
- *   Control flow: jmp, je, jne, jg, jl, call, ret
+ *  Becomes:
  *
- *****************************************************************************/
+ *    imul eax, 2      // result is eax
+ *
+ ****************************************************************************/
 
 /**
- * @brief
- *
- *  Macros and helpers to construct x86-64 instructions
- *
+ * Short-form names of the enumerations, and the declarations of the
+ * instruction and directive constructors by their number of operands
  */
 
 #define x64_mn(n) x86_64::assembly::Mnemonic::n
@@ -103,10 +97,9 @@ enum class Register;
     x86_64::assembly::Directives name(type::semantic::RValue const& rvalue)
 
 /**
- * @brief
- *
- *  Instrction insertion macro
- *
+ * `x8664_add__asm` appends an instruction with the enumerators in scope,
+ * and the bodies of the instruction constructors return the register of
+ * their result and their instructions
  */
 
 #define x8664_add__asm(inst, op, ...)                                \
@@ -130,18 +123,9 @@ enum class Register;
     } while (false)
 
 /**
- * @brief
- *
- *  Macros and helpers to compute trivial immediate rvalues
- *
- */
-
-// Immediate relational macros moved to common header
-
-/**
- * @brief
- *
- *  Register and directive string std::ostream macros
+ * The cases of the switches that print registers, directives, and
+ * mnemonics by their enumerator names. A trailing underscore that avoids a
+ * C++ keyword is removed.
  *
  */
 
@@ -171,7 +155,7 @@ enum class Register;
 namespace credence::target::x86_64::assembly {
 
 /**
- * @brief Push a platform-dependent newline character to an ostream
+ * @brief Write one or more newlines to an ostream
  */
 inline void newline(std::ostream& os, int amount = 1)
 {
@@ -180,12 +164,11 @@ inline void newline(std::ostream& os, int amount = 1)
 }
 
 /**
- * @brief
+ * @brief The general purpose and SSE registers of x86-64
  *
- * x86-64 architecture implementation details.
- *
+ * A 64-bit register, `rax`, has its 32-bit, 16-bit, and 8-bit parts, `eax`,
+ * `ax`, and `al`, and `xmm0` to `xmm7` hold a float or double
  */
-
 enum class Register
 {
     rbp,
@@ -225,6 +208,7 @@ enum class Register
     di,
     ax,
     al,
+    cl,
     dil,
 
     xmm7,
@@ -317,6 +301,7 @@ enum class Mnemonic
     mov,
     movq_,
     movzx,
+    movsxd,
     movss,
     movups,
     movsd,
@@ -350,12 +335,8 @@ enum class Directive
 // clang-format on
 
 /**
- * @brief
- *
- * Word and operand size implementation helpers
- *
+ * @brief The size of an operand in bytes
  */
-
 enum class Operand_Size : std::size_t
 {
     Byte = 1,
@@ -365,6 +346,7 @@ enum class Operand_Size : std::size_t
     Empty = 0
 };
 
+// the AT&T suffix of each operand size
 const std::map<Operand_Size, std::string> suffix = {
     { Operand_Size::Byte,  "b" },
     { Operand_Size::Word,  "w" },
@@ -372,6 +354,9 @@ const std::map<Operand_Size, std::string> suffix = {
     { Operand_Size::Qword, "q" }
 };
 
+/**
+ * @brief Check the width of a register
+ */
 constexpr bool is_qword_register(Register r)
 {
     return util::range_contains(r, QWORD_REGISTER);
@@ -379,6 +364,84 @@ constexpr bool is_qword_register(Register r)
 constexpr bool is_dword_register(Register r)
 {
     return util::range_contains(r, DWORD_REGISTER);
+}
+
+/**
+ * @brief Get the dword register of a qword register
+ */
+constexpr Register get_dword_register_from_qword(Register r)
+{
+    switch (r) {
+        case Register::rax:
+            return Register::eax;
+        case Register::rbx:
+            return Register::ebx;
+        case Register::rcx:
+            return Register::ecx;
+        case Register::rdx:
+            return Register::edx;
+        case Register::rsi:
+            return Register::esi;
+        case Register::rdi:
+            return Register::edi;
+        case Register::r8:
+            return Register::r8d;
+        case Register::r9:
+            return Register::r9d;
+        case Register::r10:
+            return Register::r10d;
+        case Register::r11:
+            return Register::r11d;
+        case Register::r12:
+            return Register::r12d;
+        case Register::r13:
+            return Register::r13d;
+        case Register::r14:
+            return Register::r14d;
+        case Register::r15:
+            return Register::r15d;
+        default:
+            return r;
+    }
+}
+
+/**
+ * @brief Get the qword register of a dword register
+ */
+constexpr Register get_qword_register_from_dword(Register r)
+{
+    switch (r) {
+        case Register::eax:
+            return Register::rax;
+        case Register::ebx:
+            return Register::rbx;
+        case Register::ecx:
+            return Register::rcx;
+        case Register::edx:
+            return Register::rdx;
+        case Register::esi:
+            return Register::rsi;
+        case Register::edi:
+            return Register::rdi;
+        case Register::r8d:
+            return Register::r8;
+        case Register::r9d:
+            return Register::r9;
+        case Register::r10d:
+            return Register::r10;
+        case Register::r11d:
+            return Register::r11;
+        case Register::r12d:
+            return Register::r12;
+        case Register::r13d:
+            return Register::r13;
+        case Register::r14d:
+            return Register::r14;
+        case Register::r15d:
+            return Register::r15;
+        default:
+            return r;
+    }
 }
 
 constexpr bool x8664_is_bitwise_binary_expression(RValue const& rvalue)
@@ -440,7 +503,7 @@ constexpr std::size_t get_size_from_operand_size(Operand_Size size)
 }
 
 /**
- * @brief operator<< function for emission of directives
+ * @brief Write a directive, `.p2align`
  */
 constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 {
@@ -465,7 +528,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Directive d)
 }
 
 /**
- * @brief operator<< function for emission of registers
+ * @brief Write a register by its name
  */
 constexpr std::ostream& operator<<(std::ostream& os, Register reg)
 {
@@ -505,6 +568,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
         X64_REGISTER_OSTREAM(di);
         X64_REGISTER_OSTREAM(dil);
         X64_REGISTER_OSTREAM(al);
+        X64_REGISTER_OSTREAM(cl);
         X64_REGISTER_OSTREAM(ax);
         X64_REGISTER_OSTREAM(xmm7);
         X64_REGISTER_OSTREAM(xmm6);
@@ -519,7 +583,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Register reg)
 }
 
 /**
- * @brief Get register as an std::string
+ * @brief Get the name of a register
  */
 constexpr std::string register_as_string(Register reg)
 {
@@ -559,6 +623,7 @@ constexpr std::string register_as_string(Register reg)
         X64_REGISTER_STRING(di);
         X64_REGISTER_STRING(dil);
         X64_REGISTER_STRING(al);
+        X64_REGISTER_STRING(cl);
         X64_REGISTER_STRING(ax);
         X64_REGISTER_STRING(xmm7);
         X64_REGISTER_STRING(xmm6);
@@ -573,7 +638,7 @@ constexpr std::string register_as_string(Register reg)
 }
 
 /**
- * @brief operator<< function for emission of mnemonics
+ * @brief Write a mnemonic, `goto_` is `jmp`
  */
 // cppcheck-suppress all
 constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
@@ -599,6 +664,7 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
         X64_MNEMONIC_OSTREAM(leave);
         X64_MNEMONIC_OSTREAM(mov);
         X64_MNEMONIC_OSTREAM(movzx);
+        X64_MNEMONIC_OSTREAM(movsxd);
         X64_MNEMONIC_OSTREAM(movss);
         X64_MNEMONIC_OSTREAM(movups);
         X64_MNEMONIC_OSTREAM(movsd);
@@ -627,8 +693,8 @@ constexpr std::ostream& operator<<(std::ostream& os, Mnemonic mnemonic)
 }
 
 /**
- * @brief Internal implementation type details
- *
+ * The x86-64 instances of the common instruction types. An instruction has
+ * up to two operands, `mov eax, dword ptr [rbp - 4]`.
  */
 
 using Storage = common::Storage_T<Register>;
@@ -651,7 +717,7 @@ using X8664_ASSEMBLY_INSERTER =
 const Storage O_NUL = std::monostate{};
 
 /**
- * @brief Instruction type constructor
+ * @brief Construct an empty list of instructions
  */
 
 inline Instructions make_empty() noexcept
@@ -660,13 +726,16 @@ inline Instructions make_empty() noexcept
 }
 
 /**
- * @brief Directive type constructor
+ * @brief Construct an empty list of directives
  */
 inline Directives make_directives() noexcept
 {
     return Directives{};
 }
 
+/**
+ * @brief Get the indentation of an instruction, `t` spaces
+ */
 constexpr std::string tabwidth(unsigned int t)
 {
     std::string tab{};
@@ -675,6 +744,9 @@ constexpr std::string tabwidth(unsigned int t)
     return tab;
 }
 
+/**
+ * @brief Get the value of a literal of the data section as a string
+ */
 constexpr std::string literal_type_to_string(Literal_Type const& literal)
 {
     std::string as_str{};
@@ -685,6 +757,9 @@ constexpr std::string literal_type_to_string(Literal_Type const& literal)
     return as_str;
 }
 
+/**
+ * @brief Get the label of a function, `main` is the entry point `_start`
+ */
 constexpr std::string make_label(type::semantic::Label const& label)
 {
     if (label == "main")
@@ -692,6 +767,13 @@ constexpr std::string make_label(type::semantic::Label const& label)
     return label;
 }
 
+/**
+ * @brief Get the label of a branch in a function
+ *
+ *  Example:
+ *
+ *    make_label("_L4", "main")   // ._L4__main
+ */
 constexpr std::string make_label(type::semantic::Label const& label,
     type::semantic::Label const& scope)
 {
@@ -711,7 +793,12 @@ Immediate get_result_from_trivial_bitwise_expression(Immediate const& lhs,
     Immediate const& rhs);
 
 /**
- * @brief Get the data directive from rvalue data type
+ * @brief Get the data directive of a value of a type
+ *
+ *  Examples:
+ *
+ *    (5:int:4)          // .long
+ *    ("hi":string:2)    // .quad, the address of the string
  */
 constexpr Directive get_data_directive_from_rvalue_type(
     Immediate const& immediate)
@@ -732,7 +819,7 @@ constexpr Directive get_data_directive_from_rvalue_type(
 std::string get_storage_as_string(Storage const& storage);
 
 /**
- * @brief Instruction insertion helper
+ * @brief Append instructions to a list of instructions
  */
 inline void inserter(assembly::Instructions& to,
     assembly::Instructions const& from)
@@ -740,7 +827,7 @@ inline void inserter(assembly::Instructions& to,
     to.insert(to.end(), from.begin(), from.end());
 }
 /**
- * @brief Directive insertion helper
+ * @brief Append directives to a list of directives
  */
 inline void inserter(assembly::Directives& to, assembly::Directives const& from)
 {
@@ -748,7 +835,7 @@ inline void inserter(assembly::Directives& to, assembly::Directives const& from)
 }
 
 /**
- * @brief asciz directive insertion helper
+ * @brief Construct an immediate of the label of a literal
  */
 inline x86_64::assembly::Immediate make_asciz_immediate(
     std::string_view address)
@@ -757,7 +844,7 @@ inline x86_64::assembly::Immediate make_asciz_immediate(
 }
 
 /**
- * @brief Check if rip address offset
+ * @brief Check if an operand is a memory operand relative to rip
  */
 constexpr bool is_immediate_rip_address_offset(Storage const& immediate)
 {
@@ -769,7 +856,7 @@ constexpr bool is_immediate_rip_address_offset(Storage const& immediate)
 }
 
 /**
- * @brief Check if r15 (argc, argv) address offset
+ * @brief Check if an operand is `argc` or an element of `argv`, from r15
  */
 constexpr bool is_immediate_r15_address_offset(Storage const& immediate)
 {
@@ -781,11 +868,8 @@ constexpr bool is_immediate_r15_address_offset(Storage const& immediate)
 }
 
 /**
- * @brief
- *
- * Easy macro expansion of instruction and directive definitions from
- * templates
- *
+ * The directive and instruction constructors, declared from the templates
+ * above by their number of operands
  */
 
 // directives

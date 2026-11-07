@@ -33,33 +33,28 @@
 #include <variant>                           // for variant, monostate, visit
 
 /****************************************************************************
+ * x86-64 Memory Accessor
  *
- * x86-64 Memory Accessors
+ * The memory accessor facade of the x86-64 target, and the address of each
+ * lvalue. A local is on the stack below rbp, a global is relative to rip,
+ * and a vector element is an offset in its vector.
  *
- * ARM64 memory data type accessors and memory accessor facade.
+ *  Example:
  *
- * Example - local variable access:
+ *    main() {
+ *      auto x, arr[5];
+ *      extrn value;
+ *      x = value;
+ *      arr[2] = 42;
+ *    }
  *
- *   B code:    auto x; x = 10;
+ *  Becomes:
  *
- * Memory accessor generates:
- *   mov dword ptr [rbp - 4], 10    ; x at [rbp - 4]
+ *    mov eax, dword ptr [rip + value]   // a global, from rip
+ *    mov dword ptr [rbp - 4], eax       // x
+ *    mov dword ptr [rbp - 12], 42       // arr[2]
  *
- * Example - array access:
- *
- *   B code:    auto arr[5]; arr[2] = 42;
- *
- * Memory accessor generates:
- *   mov qword ptr [rbp - 24], 42   ; arr[2] at base + 2*4
- *
- * Example - global access:
- *
- *   B code:    extrn value; x = value;
- *
- * Memory accessor generates:
- *   mov rax, qword ptr [rip + value]  ; RIP-relative
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 namespace credence::target::x86_64::memory {
 
@@ -68,13 +63,22 @@ namespace m = matchit;
 namespace detail {
 
 /**
- * @brief Get a storage device for an binary expression operand
+ * @brief Get the storage device of an operand of a binary expression
+ *
+ * `argc` is at the address in r15 and an element of `argv` is after it, a
+ * literal is an immediate, a local is its stack slot, and a temporary is in
+ * rax
+ *
+ *  Examples:
+ *
+ *    get_register_for_binary_operator("argc", stack)      // [r15]
+ *    get_register_for_binary_operator("argv[1]", stack)   // [r15 + 8 * 2]
  */
 assembly::Storage Register_Accessor::get_register_for_binary_operator(
     RValue const& rvalue,
     Stack_Pointer& stack)
 {
-    // argc and argc storage resolution
+    // the kernel passes argc on the stack, then the pointers of argv
     if (rvalue == "argc")
         return common::assembly::make_direct_immediate("[r15]");
     if (type::from_lvalue_offset(rvalue) == "argv") {
@@ -100,26 +104,32 @@ assembly::Storage Register_Accessor::get_register_for_binary_operator(
 }
 
 /**
- * @brief Get an available register storage device, use the stack if none
- * available
+ * @brief Take the next argument register of a size, or a stack slot when
+ * none is left
+ *
+ * The quadword and doubleword lists are the same registers, so both are
+ * taken together, and the next argument after `rdi` is `r8d`, not `edi`
  */
 assembly::Storage Register_Accessor::get_available_register(
     assembly::Operand_Size size,
     Stack_Pointer& stack)
 {
-    auto& registers =
-        size == Operand_Size::Qword ? available_qword : available_dword;
-    if (registers.size() > 0) {
-        Storage storage = registers.front();
-        registers.pop_front();
-        return storage;
-    } else {
+    if (available_qword.empty() or available_dword.empty())
         return stack->allocate(size);
-    }
+    Storage storage = size == Operand_Size::Qword ? available_qword.front()
+                                                  : available_dword.front();
+    available_qword.pop_front();
+    available_dword.pop_front();
+    return storage;
 }
 
 /**
- * @brief Get the storage device of an lvalue, and its insertion instructions
+ * @brief Get the address of an lvalue and the instructions that load it
+ *
+ * A dereference loads the pointer into rax and flags the next instruction
+ * as indirect, a global vector element is relative to rip, a local vector
+ * element is its offset in the vector, and a local is its stack slot. The
+ * size prefix of a global is left out for an address, such as `lea`.
  */
 Address_Accessor::Address
 Address_Accessor::get_lvalue_address_and_insertion_instructions(
@@ -168,10 +178,10 @@ Address_Accessor::get_lvalue_address_and_insertion_instructions(
 }
 
 /**
- * @brief Check if the type of an lvalue, even if the lvalue is undefined
- */
-/**
- * @brief Check if the storage device is a QWord size in address space
+ * @brief Check if a storage device is a quadword
+ *
+ * A string, an address relative to rip, or an element of `argv` is an
+ * address, so it is a quadword
  */
 bool Address_Accessor::is_qword_storage_size(
     assembly::Storage const& storage) const
@@ -196,11 +206,6 @@ bool Address_Accessor::is_qword_storage_size(
 
     return result;
 }
-
-/**
- * @brief Get the address on the stack from an lvalue
- */
-// get_lvalue_address_from_stack moved to shared inc
 
 } // namespace detail
 

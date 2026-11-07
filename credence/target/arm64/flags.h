@@ -11,24 +11,30 @@
  * for the full text of these licenses.
  ****************************************************************************/
 
-#include <credence/target/common/flags.h>
-
 #pragma once
 
-/****************************************************************************
- *
- * ARM64-specific Instruction Flags
- *
- * Additional instruction flags specific to ARM64 code generation.
- * Extends common flags with ARM64-specific addressing modes and
- * instruction variants.
- *
- * Used to mark instructions that need additional flags for ARM64's
- * load/store addressing modes, immediate encoding restrictions, and
- * register pair operations.
- *
- *****************************************************************************/
+#include <credence/target/common/flags.h> // for Flag_Accessor, flags
 
+/****************************************************************************
+ * ARM64 Instruction Flags
+ *
+ * The flags of ARM64 instructions, after the common flags. Most mark an
+ * operand that depends on the frame size, which is only known at the end of
+ * the function, such as the pre-indexed store of the frame record.
+ *
+ *  Example:
+ *
+ *    stp x29, x30, [sp, #0]      // Align_SP
+ *
+ *  Becomes, in a frame of 32 bytes:
+ *
+ *    stp x29, x30, [sp, #-32]!
+ *
+ ****************************************************************************/
+
+/**
+ * Set an ARM64 flag on an instruction index, or on the next instruction
+ */
 #define set_alignment_flag_inline(flag_name, index) \
     flag_accessor.set_instruction_flag(arm64::detail::flags::flag_name, index)
 
@@ -39,15 +45,32 @@
 
 namespace credence::target::arm64::detail::flags {
 
+/**
+ * @brief ARM64 instruction flags
+ *
+ *  * Align_Folded - the second operand is the stack slot of a pointer, from
+ *    the top of the frame
+ *
+ *  * Align_SP - the third operand is the pre-indexed frame allocation,
+ *    `[sp, #-32]!`
+ *
+ *  * Align_SP_Folded - the third operand is the offset of a pointer, from
+ *    the top of the frame
+ *
+ *  * Align_S2_Folded - the third operand is the frame size, such as the
+ *    address of `argc` on Linux, `add x19, sp, #32`
+ *
+ *  * Align_S3_Folded - the fourth operand is the frame size
+ *
+ *  * Vector_Storage - the instruction accesses an element of a vector on
+ *    the stack
+ */
 enum ARM64_Instruction_Flag : common::flag::flags
 {
-
     Align_Folded = 1 << 7,
     Align_SP = 1 << 8,
     Align_SP_Folded = 1 << 9,
     Align_S3_Folded = 1 << 10,
-    Align_SP_Local = 1 << 11,
-    Callee_Saved = 1 << 12,
     Vector_Storage = 1 << 13,
     Align_S2_Folded = 1 << 14,
 };

@@ -15,6 +15,7 @@
 
 #include "matchit.h"        // for pattern, PatternHelper, Pattern...
 #include "types.h"          // for Immediate, Storage_T, Enum_T
+#include <cmath>            // for fmod
 #include <credence/types.h> // for integral_from_type, get_value_f...
 #include <credence/util.h>  // for STRINGIFY, sv, Numeric, to_cons...
 #include <fmt/format.h>     // for format
@@ -22,29 +23,40 @@
 #include <sstream>          // for basic_ostringstream, basic_ios
 #include <string>           // for basic_string, string, char_traits
 #include <string_view>      // for basic_string_view, string_view
+#include <type_traits>      // for is_integral_v
 #include <variant>          // for monostate, visit
 
 /****************************************************************************
+ * Common Assembly
  *
- * Common assembly instruction representation and utilities
+ * The instruction representation shared by the x86-64 and ARM64 targets:
+ * immediates, operands, the instruction inserter, the OS and ISA types, and
+ * compile-time evaluation of expressions of two immediates.
  *
- * Common abstractions for assembly instructions across x86-64 and ARM64.
- * Defines immediate values, operands, directives, and architecture/OS types.
- * Including instruction expansion macros and operand representation.
+ *  Example:
  *
- * Example - emitting a comparison:
+ *    _t5 = x > (10:int:4);
+ *    IF _t5 GOTO _L4;
  *
- *   B code:    if (x > 10) { ... }  (x is local variable)
+ *  Becomes, on x86-64:
  *
- *   x86-64:    cmp eax, 10
- *              jg  .L1
+ *    mov eax, dword ptr [rbp - 4]
+ *    cmp eax, 10
+ *    jg ._L4__main
  *
- *   ARM64:     cmp w9, #10          ; x in register x9
- *              b.gt .L1
+ *  And on arm64, where x is in w9:
+ *
+ *    mov w8, w9
+ *    cmp w8, #10
+ *    b.gt ._L4__main
  *
  ****************************************************************************/
 
-// Immediate relational utilities
+/**
+ * The entries of a match on the type of the left-hand-side immediate of a
+ * relational expression, so a comparison is made on the C++ type of the
+ * immediates. A string is compared by its contents, and a char by its code.
+ */
 
 #define make_integral_relational_entry(T, op)                   \
     m::pattern | std::string{ STRINGIFY(T) } = [&] {            \
@@ -52,10 +64,10 @@
             op credence::type::integral_from_type<T>(rhs_imm);  \
     }
 
-#define make_string_relational_entry(op)                                      \
-    m::pattern | std::string{ "string" } = [&] {                              \
-        result =                                                              \
-            std::string_view{ lhs_imm }.compare(std::string_view{ rhs_imm }); \
+#define make_string_relational_entry(op)              \
+    m::pattern | std::string{ "string" } = [&] {      \
+        result = std::string_view{ lhs_imm }.compare( \
+            std::string_view{ rhs_imm }) op 0;        \
     }
 
 #define make_char_relational_entry(op)                                    \
@@ -74,6 +86,10 @@
             make_char_relational_entry(op));                        \
     }
 
+/**
+ * Short-form immediates of the instruction inserters. A direct immediate is
+ * emitted as is, such as a label or an address operand, `[sp, #16]`.
+ */
 #define direct_immediate(imm) \
     target::common::assembly::make_direct_immediate(imm)
 
@@ -86,7 +102,11 @@
 #define alignment__16_integer() \
     target::common::assembly::make_u32_int_immediate(16)
 
-// Register and directive print macros
+/**
+ * The cases of a switch that prints a register or directive by its
+ * enumerator name. A trailing underscore avoids a C++ keyword, `float_`, and
+ * is removed, and the `start` directive is printed as `.global`.
+ */
 #define COMMON_REGISTER_OSTREAM(rr, reg) \
     case rr(reg):                        \
         os << STRINGIFY(reg);            \
@@ -118,6 +138,9 @@ namespace credence::target::common::assembly {
 
 namespace detail {
 
+/**
+ * @brief The mnemonic of an instruction, implicit from a mnemonic enumerator
+ */
 template<Enum_T Mnemonic>
 struct Mnemonic_Resolver
 {
@@ -129,6 +152,12 @@ struct Mnemonic_Resolver
     }
 };
 
+/**
+ * @brief An operand of an instruction, implicit from any storage device
+ *
+ * A register, stack offset, immediate, or empty operand converts to the
+ * storage variant, so an inserter passes each operand as it is
+ */
 template<Enum_T Register>
 struct Operand_Resolver
 {
@@ -172,6 +201,20 @@ struct Operand_Resolver
 
 } // namespace detail
 
+/**
+ * @brief Append an instruction of two, three, or four operands
+ *
+ * Each target wraps it in a short-form macro, and the instruction tuple
+ * type `T` is chosen by the number of operands
+ *
+ *  Example:
+ *
+ *    arm64_add__asm(instructions, add, w8, w8, w7);
+ *
+ *  Becomes:
+ *
+ *    add w8, w8, w7
+ */
 template<Enum_T Mnemonic, Enum_T Register, Deque_T Instructions>
 struct Assembly_Inserter
 {
@@ -205,6 +248,9 @@ struct Assembly_Inserter
     }
 };
 
+/**
+ * @brief The operating system of the target, BSD is Darwin
+ */
 enum class OS_Type
 {
     Linux,
@@ -217,6 +263,11 @@ enum class Arch_Type
     X8664
 };
 
+/**
+ * @brief The operating system of the host, which is the default target
+ *
+ * Windows is not supported, and its syscall table is Linux
+ */
 constexpr OS_Type get_os_type()
 {
 #if defined(__linux__)
@@ -231,7 +282,7 @@ constexpr OS_Type get_os_type()
 }
 
 /**
- * @brief directive insertion helper for arrays
+ * @brief An immediate operand of a directive of an array in the data section
  */
 inline Immediate make_array_immediate(std::string_view address)
 {
@@ -239,7 +290,11 @@ inline Immediate make_array_immediate(std::string_view address)
 }
 
 /**
- * @brief directive insertion for arbitrary immediate devices
+ * @brief An immediate that is emitted as is, such as a label or address
+ *
+ *  Example:
+ *
+ *    make_direct_immediate("[sp, #16]")   // [sp, #16]
  */
 inline Immediate make_direct_immediate(std::string_view str)
 {
@@ -247,7 +302,7 @@ inline Immediate make_direct_immediate(std::string_view str)
 }
 
 /**
- * @brief Get a storage device as string for emission
+ * @brief Get a storage device as a string, for errors and debugging
  */
 template<Enum_T Registers>
 std::string get_storage_as_string(Storage_T<Registers> const& storage)
@@ -268,11 +323,14 @@ std::string get_storage_as_string(Storage_T<Registers> const& storage)
 }
 
 /**
- * @brief
- *  Template function to compute type-safe trivial arithmetic binary
- * expression
+ * @brief Compute an arithmetic expression of two immediates of type T
+ *
+ * The remainder of a float or double is fmod
+ *
+ *  Example:
+ *
+ *    trivial_arithmetic_from_numeric_table_type<int>("10", "%", "3")   // 1
  */
-
 template<util::Numeric T>
 T trivial_arithmetic_from_numeric_table_type(std::string const& lhs,
     std::string const& op,
@@ -290,14 +348,21 @@ T trivial_arithmetic_from_numeric_table_type(std::string const& lhs,
             return imm_l * imm_r;
         case '/':
             return imm_l / imm_r;
+        case '%':
+            if constexpr (std::is_integral_v<T>)
+                return imm_l % imm_r;
+            else
+                return std::fmod(imm_l, imm_r);
     }
     return result;
 }
 
 /**
- * @brief
- *  Template function to compute type-safe trivial bitwise binary
- * expression
+ * @brief Compute a bitwise expression of two integer immediates of type T
+ *
+ *  Example:
+ *
+ *    trivial_bitwise_from_numeric_table_type<int>("5", "<<", "3")   // 40
  */
 template<util::Numeric T>
 T trivial_bitwise_from_numeric_table_type(std::string const& lhs,
@@ -323,7 +388,7 @@ T trivial_bitwise_from_numeric_table_type(std::string const& lhs,
 }
 
 /**
- * @brief Type-safe numeric type::Data_Type immediate constructor
+ * @brief Construct a numeric immediate of a type, e.g. `(5:int:4)`
  */
 template<util::Numeric T>
 constexpr Immediate make_numeric_immediate(T imm,
@@ -333,7 +398,7 @@ constexpr Immediate make_numeric_immediate(T imm,
 }
 
 /**
- * @brief Type-safe numeric u32 type::Data_Type immediate constructor
+ * @brief Construct an unsigned immediate, such as a stack offset or size
  */
 constexpr Immediate make_u32_int_immediate(unsigned int imm)
 {
@@ -347,13 +412,6 @@ Immediate get_result_from_trivial_relational_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs);
 Immediate get_result_from_trivial_bitwise_expression(Immediate const& lhs,
-    std::string const& op,
-    Immediate const& rhs);
-
-/**
- * @brief Compute the result from trivial integral expression
- */
-Immediate get_result_from_trivial_integral_expression(Immediate const& lhs,
     std::string const& op,
     Immediate const& rhs);
 

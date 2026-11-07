@@ -96,7 +96,7 @@ class Ordered_Map
     {
         return data[key_to_index.at(key)].second;
     }
-    constexpr inline std::size_t size() { return data.size(); }
+    constexpr inline std::size_t size() const { return data.size(); }
     constexpr inline bool empty() { return data.empty(); }
 
     constexpr bool contains(Key const& key) const

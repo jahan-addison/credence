@@ -30,28 +30,39 @@
 #include <variant>                              // for get, monostate, visit
 
 /****************************************************************************
- *
  * x86-64 Runtime and Standard Library
  *
- * Runtime function invocation to the standard library via the System V
- * ABI calling convention. Arguments passed in registers: rdi, rsi, rdx,
- * rcx, r8, r9, then stack. Return value in rax.
+ * Calls to the standard library under the System V ABI calling convention.
+ * See common/runtime.h for the functions. The arguments are in rdi, rsi,
+ * rdx, rcx, r8, and r9, or xmm0 to xmm7 for a float or double, and the
+ * return value is in rax.
  *
- * Example - calling printf:
+ *  Example:
  *
- *   B code:    printf("Value: %d\n", x);
+ *    printf("%d\n", add(counter, 2));
  *
- * Generates:
- *   lea rdi, [rip + ._L_str1__]  ; format string in rdi
- *   mov rsi, qword ptr [rbp - 8] ; x in rsi
- *   call printf                   ; from stdlib
+ *  Becomes:
  *
- *****************************************************************************/
+ *    lea rdi, [rip + ._L_str1__]      // the format string
+ *    mov esi, dword ptr [rbp - 8]     // the return value of add
+ *    call printf
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::runtime {
 
 /**
- * @brief A compiletime check on a buffer allocation in a storage device
+ * @brief Check at compile time that a storage device holds a buffer address
+ *
+ * A quadword register, a stack or rip relative address, or a string is a
+ * buffer. A local on the stack is a buffer when it is a string or `null`,
+ * and an argument stored before its call when it is a quadword.
+ *
+ *  Examples:
+ *
+ *    is_address_device_pointer_to_buffer(rdi)                  // true
+ *    is_address_device_pointer_to_buffer(edi)                  // false
+ *    is_address_device_pointer_to_buffer([rip + ._L_str1__])   // true
  */
 bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
     address_t& address)
@@ -65,6 +76,13 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
         util::overload{ [&](std::monostate) {},
             [&](common::Stack_Offset const& offset) {
                 auto lvalue = stack->get_lvalue_from_offset(offset);
+                // an argument stored before its call is a qword
+                if (common::memory::is_parameter(lvalue) or
+                    type::is_temporary(lvalue)) {
+                    is_buffer = stack->get_operand_size_from_offset(offset) ==
+                                assembly::Operand_Size::Qword;
+                    return;
+                }
                 auto type = type::get_type_from_rvalue_data_type(
                     language::hir::binding::get_rvalue_at_lvalue_object_storage(
                         lvalue, stack_frame, table->vectors, __source__));
@@ -96,6 +114,12 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
 /**
  * @brief Get registers for argument storage
  */
+/**
+ * @brief Get the argument register of an argument of a library call
+ *
+ * A float or double is the next xmm register, and any other argument the
+ * next register of its size
+ */
 assembly::Register
 Library_Call_Inserter::get_available_standard_library_register(
     std::deque<assembly::Register>& available_registers,
@@ -121,7 +145,10 @@ Library_Call_Inserter::get_available_standard_library_register(
 }
 
 /**
- * @brief Prepare registers for argument operand storage
+ * @brief Load an argument of a library call into its register
+ *
+ * A string is loaded with `lea`, a float with `movss`, a double with
+ * `movsd`, and any other argument is moved
  */
 void Library_Call_Inserter::
     insert_argument_instructions_standard_library_function(Register storage,
@@ -147,6 +174,17 @@ void Library_Call_Inserter::
                 assembly::Mnemonic::movq_, storage, assembly::Register::rcx });
             return;
         }
+        // a char on the stack is zero extended into its register
+        if (is_variant(common::Stack_Offset, argument) and
+            accessor_->stack->get_operand_size_from_offset(
+                std::get<common::Stack_Offset>(argument)) ==
+                assembly::Operand_Size::Byte) {
+            instructions.emplace_back(
+                assembly::Instruction{ assembly::Mnemonic::movzx,
+                    assembly::get_dword_register_from_qword(storage),
+                    argument });
+            return;
+        }
         if (is_variant(Register, argument) and
             assembly::is_dword_register(std::get<Register>(argument))) {
             auto storage_as_string =
@@ -162,7 +200,9 @@ void Library_Call_Inserter::
 }
 
 /**
- * @brief General purpsoe register stack in ABI system V order
+ * @brief Get the System V argument registers, quadword and doubleword
+ *
+ * Each list is in reverse, so the next argument register is at its back
  */
 std::pair<memory::registers::general_purpose,
     memory::registers::general_purpose>
@@ -186,7 +226,21 @@ get_argument_general_purpose_registers()
 }
 
 /**
- * @brief Create the instructions for a standard library call
+ * @brief Insert a call to a standard library function
+ *
+ * The argument count is checked, and each argument is loaded into the next
+ * System V argument register of its size, or the next xmm register for a
+ * float or double
+ *
+ *  Example:
+ *
+ *    printf("%d\n", x);
+ *
+ *  Becomes:
+ *
+ *    lea rdi, [rip + ._L_str1__]
+ *    mov esi, dword ptr [rbp - 4]
+ *    call printf
  */
 void Library_Call_Inserter::make_library_call(Instructions& instructions,
     std::string_view syscall_function,
@@ -206,8 +260,9 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
     for (std::size_t i = 0; i < arguments.size(); i++) {
         auto arg = arguments.at(i);
         Register storage{};
+        // the type of a literal is only its storage while it is a label
         std::string arg_type =
-            locals.size() > i
+            locals.size() > i and is_variant(Immediate, arg)
                 ? type::get_type_from_rvalue_data_type(locals.at(i))
                 : "";
 

@@ -8,17 +8,20 @@
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
+    ldr w10, [sp, #16]
     mov w10, #100
-    mov w12, #50
-    str w10, [sp, #24]
-    add x6, sp, #24
-    mov x9, x6
-    str w12, [sp, #16]
-    add x6, sp, #16
-    mov x11, x6
+    str w10, [sp, #16]
+    ldr w10, [sp, #20]
+    mov w10, #50
+    str w10, [sp, #20]
+    add x8, sp, #16
+    mov x9, x8
+    add x8, sp, #20
+    mov x11, x8
     mov w8, #10
     str w8, [x11]
-    ldr w8, [x11]
+    ldr w10, [x11]
+    mov w8, w10
     str w8, [x9]
     ldp x29, x30, [sp], #32
     mov w0, #0

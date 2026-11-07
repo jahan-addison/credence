@@ -14,7 +14,7 @@
 _start:
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov eax, dword ptr [rip + unit]
     mov dword ptr [rbp - 4], eax
     mov rax, qword ptr [rip + mess]
@@ -24,9 +24,11 @@ _start:
     mov rsi, qword ptr [rbp - 12]
     mov edx, 6
     syscall
+    mov r11, qword ptr [rip + mess+8]
+    mov qword ptr [rbp - 20], r11
     mov rax, 1
     mov edi, 1
-    mov rsi, qword ptr [rip + mess+8]
+    mov rsi, qword ptr [rbp - 20]
     mov edx, 6
     syscall
     mov rax, 1
@@ -34,7 +36,7 @@ _start:
     lea rsi, [rip + ._L_str2__]
     mov edx, 21
     syscall
-    add rsp, 16
+    add rsp, 24
     mov rax, 60
     mov rdi, 0
     syscall

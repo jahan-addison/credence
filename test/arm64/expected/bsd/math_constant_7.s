@@ -8,16 +8,20 @@
 _start:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    movn w8, #10
+    mov w8, #10
+    mvn w8, w8
     mov w9, w8
-    neg w9, w9
-    mov w10, w8
-    mov w8, #-100
+    mov w8, w9
+    neg w8, w8
     mov w11, w8
+    mov w8, #100
+    neg w8, w8
+    mov w12, w8
+    mov w8, w11
     mov w9, w8
     add w9, w9, #1
     mov w8, w9
-    mov w10, w8
+    mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
     mov x16, #1

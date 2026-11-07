@@ -29,37 +29,47 @@
 #include <string>
 
 /****************************************************************************
+ * Instruction Inserters
  *
- * Instruction inserters
+ * The interfaces of the inserters each target implements. An inserter
+ * translates one kind of IR operand or expression, a binary or unary
+ * expression, an operand, an expression, or a call, into instructions. The
+ * IR is already in three-address form, so each inserter translates one
+ * operation, and the order of operations is the order of the IR.
  *
- * Translates algebraic data type operations such as relational, binary, and
- * unary operators into sequences of assembly instructions. Decomposes complex
- * expressions by generating the necessary instruction sub-sequences.
+ *  Example:
  *
- * Example - relational operator:
+ *    _t4 = b * c;
+ *    _t5 = a + _t4;
+ *    r = _t5;
+ *    _t6 = - r;
  *
- *   B code:    if (x > y) { ... }
+ *  Becomes, on x86-64:
  *
- * Inserter generates:
- *   1. Load x into register
- *   2. Compare with y
- *   3. Conditional jump based on flags
- *
- * Example - binary arithmetic:
- *
- *   B code:    result = a + b * c;
- *
- * Inserter generates instruction sequence respecting precedence:
- *   1. Multiply b * c
- *   2. Add result to a
- *   3. Store in result
+ *    mov eax, dword ptr [rbp - 8]      // the binary operator inserter
+ *    imul eax, dword ptr [rbp - 12]
+ *    mov r11d, eax                     // _t4 is the right-hand-side
+ *    mov eax, dword ptr [rbp - 4]
+ *    add eax, r11d
+ *    mov dword ptr [rbp - 16], eax     // the operand inserter
+ *    mov eax, dword ptr [rbp - 16]     // the unary operator inserter
+ *    neg eax
  *
  ****************************************************************************/
 
 namespace credence::target::common::assembly {
 
 /**
- * @brief Relational Operator Inserter to translate relational operands
+ * @brief Translate a comparison of two operands into a conditional jump
+ *
+ *  Example:
+ *
+ *    JMP_E _t2 (1:int:4) _L5;
+ *
+ *  Becomes, on x86-64:
+ *
+ *    cmp eax, 1
+ *    je ._L5__main
  */
 template<memory::Memory_Accessor_T Accessor,
     Deque_T Instructions,
@@ -84,7 +94,19 @@ struct Relational_Operator_Inserter
 };
 
 /**
- * @brief Bitwise Operator Inserter to translate bitwise expressions
+ * @brief Translate a bitwise expression of two operands
+ *
+ * The result is in the accumulator register
+ *
+ *  Example:
+ *
+ *    _t2 = x & (3:int:4);
+ *
+ *  Becomes, on arm64:
+ *
+ *    mov w8, w9
+ *    mov w7, #3
+ *    and w8, w8, w7
  */
 template<memory::Memory_Accessor_T Accessor,
     Pair_T Instruction_Pair,
@@ -105,7 +127,24 @@ struct Bitwise_Operator_Inserter
 };
 
 /**
- * @brief Invocation Inserter to translate function invocation and arguments
+ * @brief Translate a call and its arguments
+ *
+ * The arguments are on the argument stack of the frame, pushed by PUSH, and
+ * are loaded into the argument registers before the call. A call is to a
+ * function of the program, the standard library, or a syscall, and the
+ * arguments of `print` and `printf` are type checked as buffers.
+ *
+ *  Example:
+ *
+ *    PUSH _p3_2;
+ *    PUSH _p2_1;
+ *    CALL add;
+ *
+ *  Becomes, on x86-64:
+ *
+ *    mov edi, dword ptr [rbp - 20]
+ *    mov r8d, 4
+ *    call add
  */
 template<memory::Memory_Accessor_T Accessor,
     Deque_T Instructions,
@@ -142,7 +181,9 @@ struct Invocation_Inserter
 };
 
 /**
- * @brief Arithemtic Operator Inserter to translate arithemtic expressions
+ * @brief Translate an arithmetic expression of two operands
+ *
+ * The result is in the accumulator register
  */
 template<memory::Memory_Accessor_T Accessor,
     Pair_T Instruction_Pair,
@@ -164,7 +205,21 @@ struct Arithemtic_Operator_Inserter
 };
 
 /**
- * @brief Binary Operator Inserter to translate binary expressions
+ * @brief Translate the binary expression of a temporary
+ *
+ * The left-hand-side is loaded into the accumulator and the right-hand-side
+ * is its operand, and an expression of two immediates is folded into one
+ * immediate
+ *
+ *  Example:
+ *
+ *    _t5 = a + _t4;
+ *
+ *  Becomes, on x86-64:
+ *
+ *    mov r11d, eax
+ *    mov eax, dword ptr [rbp - 4]
+ *    add eax, r11d
  */
 template<memory::Memory_Accessor_T Accessor>
 struct Binary_Operator_Inserter
@@ -184,7 +239,18 @@ struct Binary_Operator_Inserter
 };
 
 /**
- * @brief Unary Operator to translate unary operator expressions
+ * @brief Translate a unary expression
+ *
+ * The operators are `-`, `+`, `~`, `!`, `++`, `--`, `*`, and `&`
+ *
+ *  Example:
+ *
+ *    _t6 = - r;
+ *
+ *  Becomes, on x86-64:
+ *
+ *    mov eax, dword ptr [rbp - 16]
+ *    neg eax
  */
 template<memory::Memory_Accessor_T Accessor, Enum_T R, Enum_T Size>
 struct Unary_Operator_Inserter
@@ -209,7 +275,21 @@ struct Unary_Operator_Inserter
 };
 
 /**
- * @brief Expression Inserter to translate rvalue types into arm64 instructions
+ * @brief Translate the rvalue of a temporary or a return
+ *
+ * The rvalue is a literal of the data section, an element of a global
+ * vector, the return value of a call, or an expression whose result is
+ * stored at the address of its temporary
+ *
+ *  Example:
+ *
+ *    s = ("hello":string:5);
+ *
+ *  Becomes, on arm64:
+ *
+ *    adrp x6, ._L_str1__@PAGE          // the expression inserter
+ *    add x6, x6, ._L_str1__@PAGEOFF
+ *    mov x11, x6                       // the operand inserter
  */
 template<memory::Memory_Accessor_T Accessor,
     Pair_T Instruction_Pair,
@@ -241,7 +321,10 @@ struct Expression_Inserter
 };
 
 /**
- * @brief Instruction Inserter used to map IR instructions to assembly
+ * @brief Translate the IR instructions of a program in order
+ *
+ * Each IR instruction is passed to its visitor, and the stack frame of a
+ * function is set up at its `BeginFunc`
  */
 template<memory::Memory_Accessor_T Accessor, typename Visitor>
 class Instruction_Inserter
@@ -265,7 +348,19 @@ class Instruction_Inserter
 };
 
 /**
- * @brief Operand Inserter to insert instruction to decouple algebraic operands
+ * @brief Load and store the operands of an assignment
+ *
+ * An operand is resolved to its storage device: a parameter register, a
+ * stack offset, the return register, or an immediate. An assignment of a
+ * string, float, or double literal stores the address of its label.
+ *
+ *  Example:
+ *
+ *    r = _t5;
+ *
+ *  Becomes, on x86-64:
+ *
+ *    mov dword ptr [rbp - 16], eax
  */
 template<memory::Memory_Accessor_T Accessor, typename Operands, Enum_T R>
 class Operand_Inserter

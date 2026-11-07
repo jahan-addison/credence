@@ -1,12 +1,15 @@
 #include <doctest/doctest.h> // for ResultBuilder, CHECK, TestCase
 
 #include <credence/ir/ita.h>           // for ITA
+#include <credence/ir/table.h>         // for emit
 #include <credence/language/literal.h> // for Value_Type, TYPE_LITERAL, Byte, NULL_L...
-#include <credence/symbol.h>           // for Symbol_Table
-#include <credence/util.h>             // for AST_Node
-#include <deque>                       // for deque
-#include <easyjson.h>                  // for JSON
-#include <map>                         // for map
+#include <credence/language/parser.h>         // for Parser
+#include <credence/language/symbol_builder.h> // for Symbol_Builder
+#include <credence/symbol.h>                  // for Symbol_Table
+#include <credence/util.h>                    // for AST_Node
+#include <deque>                              // for deque
+#include <easyjson.h>                         // for JSON
+#include <map>                                // for map
 
 #include <sstream>     // for basic_ostringstream, ostringstream
 #include <string>      // for basic_string, allocator, char_traits
@@ -867,7 +870,7 @@ CALL char;
 POP 16;
 C = 16;
 JMP_E C ('45':char:1) _L9;
-JMP_E C ('39':char:1) _L15;
+JMP_E C ('32':char:1) _L15;
 JMP_E C ('48':char:1) _L17;
 JMP_E C ('44':char:1) _L19;
 _L18:
@@ -892,10 +895,8 @@ _L12:
 loop = (0:int:4);
 CALL error;
 GOTO _L11;
-GOTO _L4;
 _L15:
 GOTO _L14;
-GOTO _L4;
 _L17:
 GOTO _L4;
 _L19:
@@ -906,8 +907,7 @@ _L21:
 GOTO _L18;
 _L22:
 RET i ;
-GOTO _L21;
-GOTO _L4;
+GOTO _L1;
 _L26:
 _t30 = (10:int:4) * m;
 _t31 = _t30 + c;
@@ -1250,13 +1250,14 @@ PUSH _p10_2;
 PUSH _p9_1;
 CALL exp;
 POP 16;
-RET 16;
+_t13 = RET;
+RET _t13;
 _L1:
 LEAVE;
 _L4:
 _t8 = x * y;
 RET _t8;
-GOTO _L3;
+GOTO _L1;
  EndFunc ;
 )ita";
     TEST_FUNCTION_DEFINITION_WITH(obj["recursion"], expected);
@@ -1630,6 +1631,40 @@ RET _t2;
 )ita";
     TEST_RETURN_STATEMENT_NODE_WITH(
         internal_symbols, { "x", "y" }, obj["test"], expected);
+
+    // in a function, a return resumes at the end of the function
+    std::ostringstream os_test;
+    auto hoisted = ITA_hoisted(internal_symbols);
+    hoisted.make_root_branch();
+    for (auto const& s : { "x", "y" })
+        hoisted.symbols_.table_.emplace(
+            s, credence::language::literal::NULL_LITERAL);
+    for (auto const& inst : hoisted.build_from_return_statement(obj["test"]))
+        EMIT(os_test, inst);
+    REQUIRE(os_test.str() == R"ita(_t2 = x * y;
+_t3 = _t2 * y;
+RET _t3;
+GOTO _L1;
+)ita");
+}
+
+TEST_CASE("ir/ita.cc: erase_unreachable_goto_instructions")
+{
+    using credence::ir::Instruction;
+    using credence::ir::make_quadruple;
+    auto instructions = credence::ir::Instructions{
+        make_quadruple(Instruction::RETURN, "x"),
+        make_quadruple(Instruction::GOTO, "_L1"),
+        make_quadruple(Instruction::GOTO, "_L3"),
+        make_quadruple(Instruction::GOTO, "_L4"),
+        make_quadruple(Instruction::LABEL, "_L3"),
+        make_quadruple(Instruction::GOTO, "_L1"),
+    };
+    credence::ir::detail::erase_unreachable_goto_instructions(instructions);
+    REQUIRE(instructions.size() == 4);
+    REQUIRE(std::get<1>(instructions[1]) == "_L1");
+    REQUIRE(std::get<1>(instructions[2]) == "_L3");
+    REQUIRE(std::get<0>(instructions[3]) == Instruction::GOTO);
 }
 
 TEST_CASE_FIXTURE(ITA_Fixture, "ir/ita.cc: build_from_block_statement")
@@ -2878,7 +2913,7 @@ y = (100:int:4);
 _L5:
 _t8 = x > (0:int:4);
 IF _t8 GOTO _L7;
-GOTO _L13;
+GOTO _L14;
 _L6:
 x = (2:int:4);
 _L1:
@@ -2891,16 +2926,17 @@ IF _t12 GOTO _L10;
 GOTO _L6;
 _L10:
 x = --x;
+_t13 = y;
 y = --y;
-x = y;
+x = _t13;
 GOTO _L9;
-_L13:
+_L14:
 x = ++x;
 y = (5:int:4);
-_t14 = x + y;
-_t15 = x + x;
-_t16 = _t14 * _t15;
-x = _t16;
+_t15 = x + y;
+_t16 = x + x;
+_t17 = _t15 * _t16;
+x = _t17;
 GOTO _L6;
 )ita";
     auto expected_2 = R"ita(LOCL x;
@@ -2911,21 +2947,22 @@ _L2:
 _L4:
 _t5 = x >= (0:int:4);
 IF _t5 GOTO _L3;
-_L6:
-_L8:
-_t9 = x <= (100:int:4);
-IF _t9 GOTO _L7;
+_L7:
+_L9:
+_t10 = x <= (100:int:4);
+IF _t10 GOTO _L8;
 x = (2:int:4);
 _L1:
 LEAVE;
 _L3:
 x = --x;
+_t6 = y;
 y = --y;
-x = y;
+x = _t6;
 GOTO _L2;
-_L7:
+_L8:
 x = ++x;
-GOTO _L6;
+GOTO _L7;
 )ita";
     std::string expected_3 = R"ita(x = (100:int:4);
 y = (100:int:4);
@@ -2935,10 +2972,10 @@ IF _t5 GOTO _L4;
 _L3:
 x = ++x;
 y = (5:int:4);
-_t14 = x + y;
-_t15 = x + x;
-_t16 = _t14 * _t15;
-x = _t16;
+_t15 = x + y;
+_t16 = x + x;
+_t17 = _t15 * _t16;
+x = _t17;
 _L1:
 LEAVE;
 _L4:
@@ -2955,8 +2992,9 @@ IF _t13 GOTO _L11;
 GOTO _L7;
 _L11:
 x = --x;
+_t14 = y;
 y = --y;
-x = y;
+x = _t14;
 GOTO _L10;
 )ita";
     TEST_BLOCK_STATEMENT_NODE_WITH(obj["symbols"], obj["while"], expected);
@@ -4195,9 +4233,10 @@ CALL getchar;
 POP 8;
 _t4 = RET;
 _t5 = _t4;
-_t6 = _t3 || _t5;
-_t7 = (3:int:4) + _t6;
-x = (3:int:4) || _t7;
+_t6 = (3:int:4) + (3:int:4);
+_t7 = _t3 || _t5;
+_t8 = _t7 || _t6;
+x = _t8;
 )ita";
     TEST_RVALUE_STATEMENT_NODE_WITH(obj, symbols, obj["test"], expected_1);
     TEST_RVALUE_STATEMENT_NODE_WITH(
@@ -4332,4 +4371,153 @@ _t3 = _t1 * _t2;
 x = _t3;
 )ita";
     TEST_RVALUE_STATEMENT_NODE_WITH(obj, { "x" }, obj["test"], expected);
+}
+
+/**
+ * @brief Emit the IR of a B program
+ */
+inline std::string emit_ir_from_source(std::string const& source)
+{
+    auto ast = credence::language::Parser::parse(source);
+    auto symbols = credence::language::Symbol_Builder::build(ast);
+    std::ostringstream os;
+    credence::ir::emit(os, symbols, ast);
+    return os.str();
+}
+
+TEST_CASE("ir/temporary.cc: indirection in a relation chain")
+{
+    // the dereference is an operand of the binary expression, `*p + 1`
+    REQUIRE(emit_ir_from_source(
+                "main() { auto x, *p; x = 1; p = &x; x = *p + 1; }") ==
+            R"ita(__main():
+ BeginFunc ;
+    LOCL x;
+    LOCL *p;
+    x = (1:int:4);
+    _t2 = & x;
+    p = _t2;
+    _t3 = *p + (1:int:4);
+    x = _t3;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita");
+}
+
+TEST_CASE("ir/temporary.cc: post-increment and decrement value")
+{
+    // the value of a post-increment is the operand before the increment
+    REQUIRE(emit_ir_from_source("main() { auto x, y; x = 1; y = x++; x--; }") ==
+            R"ita(__main():
+ BeginFunc ;
+    LOCL x;
+    LOCL y;
+    x = (1:int:4);
+    _t2 = x;
+    x = ++x;
+    y = _t2;
+    x = --x;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita");
+}
+
+TEST_CASE("ir/temporary.cc: binary operand order")
+{
+    // the left-hand-side of a binary expression stays on the left
+    REQUIRE(emit_ir_from_source("main() { auto x, y; x = 1; y = -x - 1; }") ==
+            R"ita(__main():
+ BeginFunc ;
+    LOCL x;
+    LOCL y;
+    x = (1:int:4);
+    _t2 = - x;
+    _t3 = _t2;
+    y = _t3 - (1:int:4);
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita");
+    // each operand of a logical chain is its own temporary
+    REQUIRE(
+        emit_ir_from_source("main() { auto x; x = 1 + 1 || f(1) || 3 + 3; } "
+                            "f(a) { return(a); }") ==
+        R"ita(__main():
+ BeginFunc ;
+    LOCL x;
+    _t3 = (1:int:4) + (1:int:4);
+    _p2_1 = (1:int:4);
+    PUSH _p2_1;
+    CALL f;
+    POP 8;
+    _t4 = RET;
+    _t5 = _t4;
+    _t6 = (3:int:4) + (3:int:4);
+    _t7 = _t3 || _t5;
+    _t8 = _t7 || _t6;
+    x = _t8;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__f(a):
+ BeginFunc ;
+    RET a ;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita");
+}
+
+TEST_CASE("ir/temporary.cc: insert_expression_value")
+{
+    // the value of a return is the whole expression, `-x - 1`
+    REQUIRE(emit_ir_from_source("f(x) { return(-x - 1); } main() { }") ==
+            R"ita(__f(x):
+ BeginFunc ;
+    _t2 = - x;
+    _t3 = _t2;
+    _t4 = _t3 - (1:int:4);
+    RET _t4;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__main():
+ BeginFunc ;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita");
+    // the value of a return of a call is the return value of the call
+    REQUIRE(emit_ir_from_source("f(x) { return(f(x)); } main() { }") ==
+            R"ita(__f(x):
+ BeginFunc ;
+    _p2_1 = x;
+    PUSH _p2_1;
+    CALL f;
+    POP 8;
+    _t3 = RET;
+    RET _t3;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+
+__main():
+ BeginFunc ;
+_L1:
+    LEAVE;
+ EndFunc ;
+
+)ita");
 }

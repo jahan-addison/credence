@@ -21,44 +21,54 @@
 #include <cstddef>                          // for size_t
 
 /****************************************************************************
- *
  * ARM64 IR Visitor
  *
- * Visits ITA intermediate representation instructions and emits ARM64
- * machine code. Implements the IR_Visitor interface for ARM64 ISA.
+ * Translates each ITA instruction into ARM64 instructions. A function's
+ * locals are in registers when its frame makes no calls, and on the stack
+ * otherwise, and the value of an expression is in the accumulator, w8 or x8.
  *
- * Example - visiting assignment:
+ *  Example:
  *
- *   ITA:    x = 42;  (x is first local variable)
+ *    _p4_3 = (1:int:4);
+ *    _p5_4 = (2:int:4);
+ *    PUSH _p5_4;
+ *    PUSH _p4_3;
+ *    CALL compute;
+ *    POP 16;
+ *    _t8 = RET;
  *
- * Visitor generates:
- *   mov w9, #42              ; x in register w9
+ *  Becomes:
  *
- * Example - visiting function call:
+ *    mov x0, #1
+ *    mov x1, #2
+ *    bl compute
+ *    mov w8, w0
  *
- *   ITA:    CALL add
- *
- * Visitor generates:
- *   bl add
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -68,7 +78,11 @@ using ARM64_IR_Visitor =
     common::IR_Visitor<ir::Quadruple, assembly::Instructions>;
 
 /**
- * @brief IR Visitor for the arm64 architecture ISA
+ * @brief The IR visitor of the ARM64 ISA
+ *
+ * The visitor of a MOV dispatches on the kind of its lvalue and rvalue to
+ * an inserter, and the accumulator holds the value of a temporary until the
+ * next instruction, so a temporary used later is stored on the stack
  */
 class IR_Instruction_Visitor final : public ARM64_IR_Visitor
 {
@@ -80,7 +94,6 @@ class IR_Instruction_Visitor final : public ARM64_IR_Visitor
     }
 
     using Instructions = assembly::Instructions;
-    void set_stack_frame_from_table(Label const& function_name);
 
   public:
     constexpr void set_iterator_index(std::size_t index)
@@ -89,11 +102,9 @@ class IR_Instruction_Visitor final : public ARM64_IR_Visitor
     }
 
   private:
-    void set_pointer_address_of_lvalue(LValue const& lvalue);
-
-  private:
-    bool parameters_in_return_stack(Label const& label);
-    unsigned int* get_function_frame_calls(Label const& label);
+    bool is_temporary_used_after_next_instruction(LValue const& temporary);
+    void insert_temporary_to_stack(LValue const& temporary, LValue const& slot);
+    void insert_to_pointer(LValue const& pointer, RValue const& rvalue);
 
   public:
     void from_locl_ita(ir::Quadruple const& inst) override;
@@ -103,7 +114,7 @@ class IR_Instruction_Visitor final : public ARM64_IR_Visitor
     void from_func_end_ita() override;
     void from_cmp_ita(ir::Quadruple const& inst) override;
     void from_mov_ita(ir::Quadruple const& inst) override;
-    void from_return_ita() override;
+    void from_return_ita(ir::Quadruple const& inst) override;
     void from_leave_ita() override;
     void from_label_ita(ir::Quadruple const& inst) override;
     void from_call_ita(ir::Quadruple const& inst) override;

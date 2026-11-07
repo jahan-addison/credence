@@ -26,15 +26,31 @@
 #include <variant>
 
 /****************************************************************************
+ * Common Types
  *
- * Common templates and type traits for code generation.
+ * The templates and concepts of a target's instructions and storage. A
+ * target instantiates them with its own mnemonic and register enumerations.
+ *
+ *  Example:
+ *
+ *    using Instruction = Instruction_T<Mnemonic, Register>;
+ *    using Storage = Storage_T<Register>;
+ *
+ *  Becomes, on arm64:
+ *
+ *    std::variant<Label,
+ *        std::tuple<Mnemonic, Storage, Storage>,            // mov w8, w9
+ *        std::tuple<Mnemonic, Storage, Storage, Storage>>   // add w8, w8, w7
  *
  ****************************************************************************/
 
 namespace credence::target::common {
 
 /**
- * @brief Common semantic types used by both architectures
+ * @brief The semantic types of the IR, shared by both architectures
+ *
+ * An immediate is a literal in data type form, `(5:int:4)`, and a stack
+ * offset is the offset of a local in its stack frame
  */
 using Label = type::semantic::Label;
 using Type = type::semantic::Type;
@@ -48,7 +64,7 @@ using Operand_Lambda = std::function<bool(RValue)>;
 
 namespace detail {
 
-// Helper trait to detect std::pair
+// type traits of the concepts below
 template<typename T>
 struct is_pair : std::false_type
 {};
@@ -73,6 +89,9 @@ template<typename... Args>
 struct is_variant<std::variant<Args...>> : std::true_type
 {};
 
+/**
+ * @brief The base of each target's stack, constrained by Stack_T
+ */
 struct base_stack_pointer
 {
     base_stack_pointer();
@@ -108,6 +127,9 @@ using Instruction_Pair = std::pair<T, U>;
 
 template<typename T>
 concept Enum_T = std::is_enum_v<T> && !std::is_convertible_v<T, int>;
+/**
+ * @brief A storage device: empty, a stack offset, a register, or an immediate
+ */
 template<Enum_T Registers>
 using Storage_T =
     std::variant<std::monostate, Stack_Offset, Registers, Immediate>;
@@ -148,6 +170,9 @@ using Instruction_3ARY = std::variant<Label, Mnemonic_3ARY<M, R>>;
 template<Enum_T M, Enum_T R>
 using Instruction_4ARY = std::variant<Label, Mnemonic_4ARY<M, R>>;
 
+/**
+ * @brief An instruction is a label or a mnemonic with two or three operands
+ */
 template<Enum_T M, Enum_T R>
 using Instruction_T = std::variant<Label,
     Mnemonic_2ARY<M, R>, // x86-64: mov rax, 5
@@ -160,6 +185,9 @@ concept Instruction_Input = std::same_as<T, Instruction_T<M, R>>;
 template<Enum_T M, Enum_T R>
 using Instructions = std::deque<Instruction_T<M, R>>;
 
+/**
+ * @brief The first enumerator of an enumeration, e.g. the first register
+ */
 template<Enum_T T>
 constexpr T get_first_of_enum_t(int first = 0)
 {

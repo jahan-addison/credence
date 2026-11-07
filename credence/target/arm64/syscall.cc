@@ -25,30 +25,39 @@
 #include <variant>                           // for get, variant
 
 /****************************************************************************
+ * ARM64 Syscall Interface
  *
- * ARM64 System Call Interface
+ * Syscalls on ARM64 Linux and Darwin. The arguments are in x0 to x5, the
+ * syscall number is in x8 on Linux and x16 on Darwin, and the syscall is
+ * made with `svc #0` on Linux and `svc #0x80` on Darwin. The `main` function
+ * returns with the exit syscall.
  *
- * Syscall invocation for ARM64 Linux and Darwin. Loads syscall
- * number into x8 (Linux) or x16 (Darwin) and arguments into x0-x7.
+ *  Example:
  *
- * Example - exit syscall:
+ *    LEAVE;
  *
- *   B code:    main() { return(0); }
+ *  Becomes, in `main` on Linux:
  *
- * Generates (Linux):
- *   mov x8, #93        ; exit syscall number
- *   mov x0, #0         ; exit code
- *   svc #0
+ *    mov w0, #0
+ *    mov x8, #93
+ *    svc #0
  *
- * Generates (Darwin):
- *   mov x16, #1        ; Darwin exit number
- *   mov x0, #0
- *   svc #0x80
+ *  And on Darwin:
  *
- *****************************************************************************/
+ *    mov w0, #0
+ *    mov x16, #1
+ *    svc #0x80
+ *
+ ****************************************************************************/
 
 namespace credence::target::arm64::syscall_ns {
 
+/**
+ * @brief Get the argument register of a syscall argument
+ *
+ * An address is a doubleword register, a float or double local is a float
+ * or double register, and any other argument is a word register
+ */
 Register Syscall_Invocation_Inserter::get_storage_register_from_safe_address(
     assembly::Storage const& argument,
     common::memory::Locals& argument_stack,
@@ -75,7 +84,11 @@ Register Syscall_Invocation_Inserter::get_storage_register_from_safe_address(
 }
 
 /**
- * @brief Set the signal register
+ * @brief Move a value in x6 to its argument register
+ *
+ * A value computed into x6 for a syscall signals that the result is in w0
+ * after the syscall, for the assignment of the next lvalue. It returns
+ * false when the move is made, so the caller moves any other argument.
  */
 bool Syscall_Invocation_Inserter::check_signal_register_from_safe_address(
     Instructions& instructions,
@@ -91,7 +104,7 @@ bool Syscall_Invocation_Inserter::check_signal_register_from_safe_address(
 }
 
 /**
- * @brief Create instructions for an exit syscall
+ * @brief Insert the exit syscall with an exit status
  */
 void Syscall_Invocation_Inserter::exit_syscall(
     assembly::Instructions& instructions,
@@ -102,6 +115,25 @@ void Syscall_Invocation_Inserter::exit_syscall(
     make_syscall(instructions, "exit", { immediate }, empty_locals);
 }
 
+/**
+ * @brief Insert a syscall of the host platform
+ *
+ * The arguments are loaded into their registers, then the syscall number
+ * into x8 or x16, then the supervisor call
+ *
+ *  Example:
+ *
+ *    write(1, "hi", 2);
+ *
+ *  Becomes, on Darwin:
+ *
+ *    mov w0, #1
+ *    adrp x1, ._L_str1__@PAGE
+ *    add x1, x1, ._L_str1__@PAGEOFF
+ *    mov w2, #2
+ *    mov x16, #4
+ *    svc #0x80
+ */
 void Syscall_Invocation_Inserter::make_syscall(
     assembly::Instructions& instructions,
     std::string_view syscall,
@@ -163,9 +195,12 @@ void Syscall_Invocation_Inserter::make_syscall(
 }
 
 /**
- * @brief Prepare the operands for the syscall
+ * @brief Load each syscall argument into its register
+ *
+ * A data section label is loaded from its page address, a stack slot is
+ * loaded, and a word register is moved to the word half of the argument
+ * register
  */
-
 void Syscall_Invocation_Inserter::syscall_operands_to_instructions(
     assembly::Instructions& instructions,
     syscall_arguments_t const& arguments,

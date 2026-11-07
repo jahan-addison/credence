@@ -11,12 +11,14 @@ _start:
     adrp x0, ._L_str1__
     add x0, x0, :lo12:._L_str1__
     bl test
-    mov x0, x0
-    ldr x10, [sp, #24]
+    mov x8, x0
+    ldr x10, [sp, #16]
     mov x10, x0
-    str x10, [sp, #24]
-    ldr x0, [sp, #24]
+    str x10, [sp, #16]
+    ldr x0, [sp, #16]
     bl test
+    mov x8, x0
+    str x8, [sp, #24]
     ldr x0, [sp, #24]
     mov w1, #11
     bl print

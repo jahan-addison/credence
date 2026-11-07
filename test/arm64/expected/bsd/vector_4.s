@@ -8,30 +8,29 @@
 _start:
     stp x29, x30, [sp, #-80]!
     mov x29, sp
-    add x15, sp, #72
+    add x15, sp, #16
     mov w8, #0
     str w8, [x15]
-    add x15, sp, #64
+    add x15, sp, #24
     mov w8, #1
     str w8, [x15]
-    add x15, sp, #56
+    add x15, sp, #32
     mov w8, #2
     str w8, [x15]
-    add x15, sp, #48
+    add x15, sp, #40
     adrp x6, ._L_str1__@PAGE
     add x6, x6, ._L_str1__@PAGEOFF
     str x6, [x15]
     mov x15, x6
-    add x15, sp, #40
+    add x15, sp, #48
     adrp x6, ._L_str2__@PAGE
     add x6, x6, ._L_str2__@PAGEOFF
     str x6, [x15]
     mov x15, x6
-    ldr w10, [sp, #76]
+    ldr w10, [sp, #72]
     mov w10, #10
-    str w10, [sp, #76]
-    add x15, sp, #48
-    ldr x0, [sp, #48]
+    str w10, [sp, #72]
+    ldr x0, [sp, #40]
     mov w1, #14
     bl _print
     ldp x29, x30, [sp], #80

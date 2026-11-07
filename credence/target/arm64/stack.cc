@@ -13,7 +13,7 @@
 
 #include "stack.h"
 #include "assembly.h"                      // for Operand_Size, get_size_fr...
-#include <algorithm>                       // for find_if, __find_if
+#include <algorithm>                       // for find_if, min, __find_if
 #include <credence/language/hir/binding.h> // for LValue, Size, Vector, Type
 #include <credence/map.h>                  // for Ordered_Map
 #include <credence/target/common/memory.h> // for align_up_to
@@ -23,57 +23,40 @@
 #include <cstddef>                         // for size_t
 #include <fmt/base.h>                      // for println
 #include <fmt/compile.h>                   // for format, operator""_cf
+#include <iterator>                        // for distance
 #include <numeric>                         // for accumulate
 #include <string>                          // for basic_string, string, ope...
 #include <utility>                         // for pair
 
 /****************************************************************************
- *
  * ARM64 Stack
  *
- * A push-down stack that grows downward and maintains 16-byte alignment.
+ * The stack slots of a function's frame, as offsets from the stack pointer.
+ * The frame record, x29 and x30, is at the bottom of the frame, each slot is
+ * aligned to its size above it, and the frame size is aligned up to 16
+ * bytes.
  *
- * Example - function with locals:
+ *  Example:
  *
- *   B code:
- *     compute(a) {
- *       auto x, y, z;
- *       x = a * 2;
- *       y = x + 10;
- *       z = y - 5;
- *       return(z);
- *     }
+ *    main() {
+ *      auto a, *p, c;
+ *      a = 1;
+ *      p = &a;
+ *      c = 3;
+ *      printf("%d\n", a + c);
+ *    }
  *
- * Register allocation (if no call jumps):
- *   w0 = parameter 'a'
- *   w9 = local 'x'
- *   w10 = local 'y'
- *   w11 = local 'z'
+ *  Becomes:
  *
- *   [sp + 16] saved w9 (before function calls)
- *   [sp + 12] saved w10
- *   [sp + 8]  saved w11
+ *    [sp, #0]    the frame record, x29 and x30
+ *    [sp, #16]   a, a word
+ *    [sp, #24]   p, a doubleword aligned to 8
+ *    [sp, #32]   c
+ *    [sp, #36]   the argument a + c
  *
- *****************************************************************************/
-
-/****************************************************************************
- * Register selection table:
+ *    stp x29, x30, [sp, #-48]!
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
- *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
- *   x19      = The argc, argv scratch register
- *
- *   Vectors and vector offsets will always be on the stack
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 namespace credence::target::arm64::assembly {
 
@@ -107,7 +90,7 @@ class Stack::Stack_IMPL
     constexpr Size get_aad_local_size() { return aad_local_size; }
 
     /**
-     * @brief Get the stack location offset and size from an lvalue
+     * @brief Get the offset and size of the slot of an lvalue
      */
     Entry get(LValue const& lvalue)
     {
@@ -118,7 +101,9 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the stack location lvalue and size from an offset
+     * @brief Get the offset and size of the slot at an offset
+     *
+     * An offset with no slot is empty
      */
     Entry get(Offset offset) const
     {
@@ -133,8 +118,10 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Dynamically set an operand size for which pushes downward on a
-     * chunk
+     * @brief Set the operand size of an offset with no lvalue
+     *
+     * The size of an allocation, a vector element, or an argument is kept by
+     * offset, so a load from the offset has its size
      */
     constexpr void set(Offset offset, Operand_Size operand)
     {
@@ -146,39 +133,29 @@ class Stack::Stack_IMPL
     /**
      * @brief Allocate space on the stack
      *
-     * See assembly.h for details
+     * The offset is the start of the allocation, aligned to its size up to a
+     * doubleword, so a load or store at the offset stays inside it
+     *
+     *  Example:
+     *
+     *    allocate(4)   // 16, after the frame record
+     *    allocate(8)   // 24, aligned to 8
      */
     constexpr Offset allocate(Operand_Size operand)
     {
-        auto alloc = get_size_from_operand_size(operand);
-        size += alloc;
-        set(size, operand);
-        return size;
+        return allocate(get_size_from_operand_size(operand));
     }
 
     constexpr Offset allocate(Size alloc)
     {
-        size += alloc;
-        set(size, assembly::get_operand_size_from_size(alloc));
-        return size;
+        auto offset = common::memory::align_up_to(size, std::min(alloc, 8UL));
+        size = offset + alloc;
+        set(offset, assembly::get_operand_size_from_size(alloc));
+        return offset;
     }
 
     /**
-     * @brief Deallocate space on the stack
-     */
-    constexpr void deallocate(Size alloc)
-    {
-        if ((size - alloc) <= 0) {
-            size = 0;
-        } else {
-            size = 0;
-        }
-    }
-
-    /**
-     * @brief Get the word size of an offset address
-     *
-     * See assembly.h for details
+     * @brief Get the operand size of the slot at an offset
      */
     constexpr Operand_Size get_operand_size_from_offset(Offset offset) const
     {
@@ -193,146 +170,71 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Set and allocate an address from an immediate
-     */
-    constexpr void set_address_from_immediate(LValue const& lvalue,
-        assembly::Immediate const& rvalue)
-    {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
-            return;
-        auto operand_size =
-            assembly::get_operand_size_from_rvalue_datatype(rvalue);
-        auto value_size = assembly::get_size_from_operand_size(operand_size);
-        allocate_aligned_lvalue(lvalue, value_size, operand_size);
-    }
-
-    /**
-     * @brief Set and allocate an address from an accumulator register size
-     */
-    inline void set_address_from_accumulator(LValue const& lvalue,
-        assembly::Register acc)
-    {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
-            return;
-        auto register_size = assembly::get_operand_size_from_register(acc);
-        auto allocation = assembly::get_size_from_operand_size(register_size);
-
-        allocate_aligned_lvalue(lvalue, allocation, register_size);
-    }
-
-    /**
-     * @brief Set and allocate an address from a type in the Table
-     */
-    constexpr void set_address_from_type(LValue const& lvalue, Type type)
-    {
-        if (stack_address[lvalue].second != Operand_Size::Empty)
-            return;
-        auto operand_size = assembly::get_operand_size_from_type(type);
-        auto value_size = assembly::get_size_from_operand_size(operand_size);
-        allocate_aligned_lvalue(lvalue, value_size, operand_size);
-    }
-
-    /**
-     * @brief
-     * In some cases address space was loaded in chunks for memory alignment
+     * @brief Get the frame size of a function, aligned up to 16 bytes
      *
-     * So skip any previously allocated offsets as we push downwards
-     */
-    constexpr void allocate_aligned_lvalue(LValue const& lvalue,
-        Size value_size,
-        Operand_Size operand_size)
-    {
-        if (get_lvalue_from_offset(size + value_size).empty()) {
-            size -= value_size;
-            stack_address.insert(lvalue, { size, operand_size });
-        } else {
-            size = size - value_size + value_size;
-        }
-    }
-
-    /**
-     * @brief Set and allocate an address from another address (pointer)
-     */
-    constexpr void set_address_from_address(LValue const& lvalue)
-    {
-        auto qword_size = Operand_Size::Doubleword;
-        size = common::memory::align_up_to(
-            size - assembly::get_size_from_operand_size(qword_size), 8);
-        stack_address.insert(lvalue, { size, qword_size });
-    }
-
-    /**
-     * @brief Get the allocation size of the current frame, aligned up to 16
-     * bytes
+     * A frame with no allocation still has its frame record
      */
     Size get_stack_frame_allocation_size(Label const& label)
     {
         credence_assert(allocation_table.contains(label));
         auto allocation_size = allocation_table.at(label);
-        if (allocation_size < 16)
+        if (allocation_size == 0)
             return 16UL;
         else
             return common::memory::align_up_to(allocation_size, 16);
     }
 
+    /**
+     * @brief Record the allocation of a function at its end
+     */
     void set_stack_frame_allocation_size(Label const& label)
     {
         allocation_table.insert(label, size);
     }
 
     /**
-     * @brief Get the stack address of an index in a vector (array)
+     * @brief Get the offset of an element of a vector on the stack
      *
-     * The vector was allocated in a chunk and we allocate each index
-     * downward
+     * The vector is allocated in one chunk, and its elements are in
+     * ascending 8 byte slots from its offset
+     *
+     *  Example:
+     *
+     *    get_stack_offset_from_table_vector_index("v", "2", vector)
+     *    // the offset of v + 16
      */
     common::Stack_Offset get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
         language::hir::binding::Vector const& vector)
     {
-        bool search{ false };
-        auto vector_offset = get(lvalue).first;
-        return std::accumulate(vector.data.begin(),
-            vector.data.end(),
-            vector_offset,
-            [&](type::semantic::Size offset,
-                language::hir::binding::Vector::Entry const& entry) {
-                if (entry.first == key)
-                    search = true;
-                if (!search)
-                    offset -= 8UL;
-                return offset;
+        // a pointer increment is the next element
+        if (util::is_numeric(key))
+            return get(lvalue).first + (8UL * std::stoul(key));
+        auto search = std::ranges::find_if(vector.data,
+            [&](language::hir::binding::Vector::Entry const& entry) {
+                return entry.first == key;
             });
+        return get(lvalue).first +
+               (8UL * static_cast<std::size_t>(
+                          std::distance(vector.data.begin(), search)));
     }
 
     /**
-     * @brief Get the size of a vector
+     * @brief Get the allocation of a vector on the stack
+     *
+     * Each element is an 8 byte slot, with 16 bytes after the elements
      */
     Size get_stack_size_from_table_vector(
         language::hir::binding::Vector const& vector)
     {
-        return 16UL + std::accumulate(vector.data.begin(),
-                          vector.data.end(),
-                          0UL,
-                          [&](type::semantic::Size offset,
-                              [[maybe_unused]] language::hir::binding::Vector::
-                                  Entry const& entry) { return offset + 8UL; });
-    }
-
-    constexpr Size get_offset_from_pushdown_stack()
-    {
-        return std::accumulate(stack_address.begin(),
-            stack_address.end(),
-            size,
-            [&](type::semantic::Size offset, Pair const& pair) {
-                return offset -=
-                       assembly::get_size_from_operand_size(pair.second.second);
-            });
+        return 16UL + (8UL * std::max(vector.size, vector.data.size()));
     }
 
     /**
-     * @brief Set and allocate an address from an arbitrary offset
+     * @brief Allocate a slot of a size for an lvalue
+     *
+     * An lvalue that has a slot keeps it
      */
     constexpr void set_address_from_size(LValue const& lvalue,
         Offset offset_address,
@@ -340,26 +242,30 @@ class Stack::Stack_IMPL
     {
         if (stack_address[lvalue].second != Operand_Size::Empty)
             return;
-        allocate(offset_address);
-        stack_address.insert(lvalue, { size, operand });
+        stack_address.insert(lvalue, { allocate(offset_address), operand });
     }
 
     /**
-     * @brief Allocate 8 bytes to store the pointer of an address on the stack
+     * @brief Allocate a doubleword slot for an address
      */
     constexpr void allocate_pointer_on_stack() { allocate(8); }
 
+    /**
+     * @brief Allocate a slot of an operand size for an lvalue
+     */
     constexpr void set_address_from_size(LValue const& lvalue,
         Operand_Size operand = Operand_Size::Word)
     {
         if (stack_address[lvalue].second != Operand_Size::Empty)
             return;
         auto offset_address = static_cast<std::size_t>(operand);
-
-        allocate(offset_address);
-        stack_address.insert(lvalue, { size, operand });
+        stack_address.insert(lvalue, { allocate(offset_address), operand });
     }
 
+    /**
+     * @brief Set the slot of an lvalue to the top of the stack, as a
+     * doubleword
+     */
     constexpr void add_address_location_to_stack(LValue const& lvalue)
     {
         if (stack_address[lvalue].second != Operand_Size::Empty)
@@ -368,7 +274,7 @@ class Stack::Stack_IMPL
     }
 
     /**
-     * @brief Get the lvalue of a local variable allocated at an offset
+     * @brief Get the lvalue of the slot at an offset, or empty
      */
     constexpr std::string get_lvalue_from_offset(Offset offset) const
     {
@@ -435,33 +341,9 @@ Stack::Offset Stack::allocate(Size alloc)
 {
     return pimpl->allocate(alloc);
 }
-void Stack::deallocate(Size alloc)
-{
-    pimpl->deallocate(alloc);
-}
 Operand_Size Stack::get_operand_size_from_offset(Offset offset) const
 {
     return pimpl->get_operand_size_from_offset(offset);
-}
-void Stack::set_address_from_immediate(LValue const& lvalue,
-    assembly::Immediate const& rvalue)
-{
-    pimpl->set_address_from_immediate(lvalue, rvalue);
-}
-void Stack::set_address_from_accumulator(LValue const& lvalue,
-    assembly::Register acc)
-{
-    pimpl->set_address_from_accumulator(lvalue, acc);
-}
-void Stack::set_address_from_type(LValue const& lvalue, Type type)
-{
-    pimpl->set_address_from_type(lvalue, type);
-}
-void Stack::allocate_aligned_lvalue(LValue const& lvalue,
-    Size value_size,
-    Operand_Size operand_size)
-{
-    pimpl->allocate_aligned_lvalue(lvalue, value_size, operand_size);
 }
 void Stack::set_aad_local_size(Size local_size)
 {
@@ -470,10 +352,6 @@ void Stack::set_aad_local_size(Size local_size)
 Size Stack::get_aad_local_size()
 {
     return pimpl->get_aad_local_size();
-}
-void Stack::set_address_from_address(LValue const& lvalue)
-{
-    pimpl->set_address_from_address(lvalue);
 }
 Size Stack::get_stack_frame_allocation_size(Label const& label)
 {
@@ -494,10 +372,6 @@ Size Stack::get_stack_size_from_table_vector(
     language::hir::binding::Vector const& vector)
 {
     return pimpl->get_stack_size_from_table_vector(vector);
-}
-Size Stack::get_offset_from_pushdown_stack()
-{
-    return pimpl->get_offset_from_pushdown_stack();
 }
 void Stack::allocate_pointer_on_stack()
 {

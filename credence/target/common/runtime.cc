@@ -13,6 +13,7 @@
 
 #include "runtime.h"
 
+#include "assembly.h"       // for get_os_type, Arch_Type
 #include "easyjson.h"       // for JSON, object
 #include "stack_frame.h"    // for Stack_Frame
 #include "syscall.h"        // for get_platform_syscall_symbols
@@ -27,43 +28,35 @@
 #include <string_view> // for basic_string_view
 
 /****************************************************************************
+ * Standard Library
  *
- *  | The Standard library |
+ * The standard library functions and syscalls a program may call, and the
+ * checks of their arguments. The functions do not depend on libc, and the
+ * object file is in <root>/stdlib/<platform>/<os>/stdlib.o.
  *
- *  The object file may be found in <root>/stdlib/<platform>/<os>/stdlib.o
+ *  * printf - a format string and up to 8 arguments,
+ *    "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
  *
- * ------------------------------------------------------------------------
+ *  * print - a buffer address or string, with its length resolved at
+ *    compile time
  *
- * printf(9):
+ *  * putchar - writes a single byte character to stdout
  *
- *  A `printf' routine that takes a format string and up to 8 variadic arguments
- *   Formatting:
- *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
+ *  * getchar - reads a single byte character from stdin
  *
- * print(1):
+ *  Example:
  *
- *  A `print' routine that is type safe for buffer addresses and strings
+ *    main() {
+ *      auto *s;
+ *      s = "hello";
+ *      print(s);
+ *    }
  *
- *  The length of the buffer is resolved at compiletime
+ *  Becomes, on arm64:
  *
- * putchar(1):
- *
- *  A `putchar' routine that writes to stdout for single byte characters
- *
- * getchar(1):
- *
- *  A `getchar' routine that reads from stdin for single byte characters
- *
- * Example:
- *
- *   main(argc, argv) {
- *     if (argc > 1) {
- *       auto x;
- *       x = getchar();
- *       printf("Hello, %s! Your character is: %c", argv[1], x);
- *
- *     }
- *   }
+ *    ldr x0, [sp, #16]   // the buffer, on the stack in a frame with a call
+ *    mov w1, #5          // its length, from the object table
+ *    bl _print
  *
  ****************************************************************************/
 
@@ -88,15 +81,26 @@ bool is_syscall_function(Label const& label,
 }
 
 /**
- * @brief Check if a label is available as standard library method
+ * @brief Check if a label is a function of the standard library object
  */
-
 bool is_library_function(Label const& label)
 {
     auto lib = get_library_symbols();
     return std::ranges::find(lib, label) != lib.end();
 }
 
+/**
+ * @brief Check if `main` takes `argc`, and `argv`
+ *
+ * The kernel passes `argc` and `argv` to the entry point, in x0 and x1 on
+ * arm64 Darwin and on the stack otherwise, so `main` takes at most two
+ * parameters
+ *
+ *  Examples:
+ *
+ *    main(argc, argv)   // { true, true }
+ *    main()             // { false, false }
+ */
 std::pair<bool, bool> argc_argv_kernel_runtime_access(
     memory::Stack_Frame& stack_frame)
 {
@@ -125,6 +129,25 @@ bool is_stdlib_function(type::semantic::Label const& label,
 {
     return is_syscall_function(label, os_type, arch_type) or
            is_library_function(label);
+}
+
+/**
+ * @brief Check if a call to the standard library or a syscall has a return
+ * value, on the host platform
+ *
+ * `getchar` returns its character, and a syscall returns the result of the
+ * kernel, each in the return register
+ *
+ *  Examples:
+ *
+ *    is_returning_library_function("getpid", Arch_Type::ARM64)   // true
+ *    is_returning_library_function("printf", Arch_Type::ARM64)   // false
+ */
+bool is_returning_library_function(Label const& label,
+    assembly::Arch_Type arch_type)
+{
+    return label == "getchar" or
+           is_syscall_function(label, assembly::get_os_type(), arch_type);
 }
 
 /**
@@ -183,9 +206,12 @@ void detail::add_syscall_functions_to_symbols(util::AST_Node& symbols,
 {
     auto syscalls =
         syscall_ns::get_platform_syscall_symbols(os_type, arch_type);
-    for (auto const& routine : syscalls)
+    // a syscall returns the result of the kernel
+    for (auto const& routine : syscalls) {
         add_stdlib_function_to_table_symbols(
             routine, symbols, os_type, arch_type);
+        symbols[routine]["void"] = false;
+    }
 }
 
 }

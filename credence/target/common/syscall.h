@@ -26,34 +26,41 @@
 #include <vector>      // for vector
 
 /****************************************************************************
+ * Syscall Tables
  *
- * System call tables and kernel interface
+ * The syscalls a program may call on each platform, x86-64 and ARM64 on
+ * Linux and Darwin, with their number and argument count. A syscall is
+ * called like a function, and its arguments are loaded into the syscall
+ * registers of the platform.
  *
- * Maps system calls (write, read, exit, etc.) to their numbers and calling
- * conventions for each platform: x86-64 Linux, x86-64 Darwin (macOS),
- * ARM64 Linux, and ARM64 Darwin. Handles differences in syscall numbers
- * and register usage across platforms.
+ *  Example:
  *
- * Example - exit syscall:
+ *    main() {
+ *      write(1, "hi", 2);
+ *    }
  *
- *   B code:    main() { return(42); }
+ *  Becomes, on arm64 Darwin:
  *
- *   x86-64 Linux:  mov rax, 60    ; exit syscall number
- *                  mov rdi, 42    ; exit code
- *                  syscall
+ *    mov w0, #1
+ *    adrp x1, ._L_str1__@PAGE
+ *    add x1, x1, ._L_str1__@PAGEOFF
+ *    mov w2, #2
+ *    mov x16, #4           // write
+ *    svc #0x80
  *
- *   x86-64 Darwin: mov rax, 0x2000001  ; Darwin exit
- *                  mov rdi, 42
- *                  syscall
+ *  And on x86-64 Darwin, where the number is in the Unix syscall class:
  *
- *   ARM64 Linux:   mov x8, #93    ; exit syscall
- *                  mov x0, #42
- *                  svc #0
+ *    mov rax, 33554436     // 0x2000000 | 4
+ *    mov edi, 1
+ *    lea rsi, [rip + ._L_str1__]
+ *    mov edx, 2
+ *    syscall
  *
  ****************************************************************************/
 
 namespace credence::target::common::syscall_ns {
 
+// the number and argument count of a syscall
 using syscall_t = std::array<std::size_t, 2>;
 using syscall_list_t = std::map<std::string_view, syscall_t>;
 template<Enum_T Registers>
@@ -62,7 +69,8 @@ using syscall_arguments_t = std::deque<Storage_T<Registers>>;
 namespace arm64::linux_ns {
 
 /**
- * @brief
+ * @brief The syscall registers of ARM64 Linux
+ *
  * On ARM64 Linux, you load the system call number into x8 and arguments
  * into x0, x1, x2, x3, x4, x5. Then you execute the svc #0 instruction.
  *
@@ -402,6 +410,13 @@ const syscall_list_t syscall_list = {
 
 namespace x86_64::linux_ns {
 
+/**
+ * @brief The syscalls of x86-64 Linux
+ *
+ * The syscall number is in rax and the arguments are in rdi, rsi, rdx, r10,
+ * r8, and r9, then the `syscall` instruction is executed. The return value
+ * is in rax.
+ */
 const syscall_list_t syscall_list = {
     { "read",                   { 0, 3 }   },
     { "write",                  { 1, 3 }   },
@@ -738,14 +753,16 @@ const syscall_list_t syscall_list = {
     { "statx",                  { 332, 5 } }
 };
 
-} // x86_64::linux_ns
+} // namespace x86_64::linux_ns
 
 namespace arm64::bsd_ns {
 
+// arm64 Darwin takes the syscall number in x16 without its class
 constexpr uint32_t SYSCALL_CLASS_UNIX = 0x80000000;
 
 /**
- * @brief
+ * @brief The syscall registers of ARM64 Darwin
+ *
  * On ARM64 macOS/Darwin, you load the system call number into x16 and arguments
  * into x0, x1, x2, x3, x4, x5. Then you execute the svc #0x80 instruction.
  *
@@ -989,8 +1006,10 @@ const syscall_list_t syscall_list = {
 
 namespace x86_64::bsd_ns {
 
+// the syscall class of a Unix syscall, which is added to its number
 constexpr uint32_t SYSCALL_CLASS_UNIX = 0x2000000;
 
+// the BSD syscall numbers are the same on both architectures
 const syscall_list_t syscall_list = arm64::bsd_ns::syscall_list;
 
 } // namespace x86_64::bsd_ns
@@ -998,6 +1017,9 @@ const syscall_list_t syscall_list = arm64::bsd_ns::syscall_list;
 std::vector<std::string> get_platform_syscall_symbols(assembly::OS_Type os_type,
     assembly::Arch_Type arch_type);
 
+/**
+ * @brief Get the syscall table of a platform
+ */
 inline syscall_list_t get_syscall_list(assembly::OS_Type os_type,
     assembly::Arch_Type arch_type)
 {
@@ -1042,4 +1064,4 @@ inline syscall_list_t get_syscall_list(assembly::OS_Type os_type,
             });
 }
 
-} // namespace credence::target::arm64::syscall_ns
+} // namespace credence::target::common::syscall_ns

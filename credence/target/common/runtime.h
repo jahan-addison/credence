@@ -32,43 +32,35 @@
 #include <vector>           // for vector
 
 /****************************************************************************
+ * Standard Library
  *
- *  | The Standard library |
+ * The standard library functions and syscalls a program may call, and the
+ * checks of their arguments. The functions do not depend on libc, and the
+ * object file is in <root>/stdlib/<platform>/<os>/stdlib.o.
  *
- *  The object file may be found in <root>/stdlib/<platform>/<os>/stdlib.o
+ *  * printf - a format string and up to 8 arguments,
+ *    "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
  *
- * ------------------------------------------------------------------------
+ *  * print - a buffer address or string, with its length resolved at
+ *    compile time
  *
- * printf(9):
+ *  * putchar - writes a single byte character to stdout
  *
- *  A `printf' routine that takes a format string and up to 8 variadic arguments
- *   Formatting:
- *     "int=%d, float=%f, double=%g, string=%s, bool=%b, char=%c"
+ *  * getchar - reads a single byte character from stdin
  *
- * print(1):
+ *  Example:
  *
- *  A `print' routine that is type safe for buffer addresses and strings
+ *    main() {
+ *      auto *s;
+ *      s = "hello";
+ *      print(s);
+ *    }
  *
- *  The length of the buffer is resolved at compiletime
+ *  Becomes, on arm64:
  *
- * putchar(1):
- *
- *  A `putchar' routine that writes to stdout for single byte characters
- *
- * getchar(1):
- *
- *  A `getchar' routine that reads from stdin for single byte characters
- *
- * Example:
- *
- *   main(argc, argv) {
- *     if (argc > 1) {
- *       auto x;
- *       x = getchar();
- *       printf("Hello, %s! Your character is: %c", argv[1], x);
- *
- *     }
- *   }
+ *    ldr x0, [sp, #16]   // the buffer, on the stack in a frame with a call
+ *    mov w1, #5          // its length, from the object table
+ *    bl _print
  *
  ****************************************************************************/
 
@@ -83,11 +75,10 @@ using library_t = std::array<std::size_t, 1>;
 using library_list_t = std::map<std::string_view, library_t>;
 
 /**
- * @brief
+ * @brief The standard library functions and their register argument count
  *
-
- *
- * ------------------------------------------------------------------------
+ * The count of `print` includes the length of its buffer, which is added at
+ * compile time, and the count of a variadic function is its maximum
  */
 inline const library_list_t library_list = {
     { "printf",  { 10 } },
@@ -106,7 +97,10 @@ template<Enum_T R>
 using library_arguments_t = std::deque<address_t<R>>;
 
 /**
- * @brief Throw a runtime error during code generation
+ * @brief Throw an error during code generation
+ *
+ * An error in the code generator is a program the target cannot run, such
+ * as a `main` with more than `argc` and `argv`
  */
 inline void throw_runtime_error(std::string_view message,
     std::string_view symbol,
@@ -147,6 +141,8 @@ bool is_stdlib_function(Label const& label,
     assembly::OS_Type os_type,
     assembly::Arch_Type arch_type);
 bool is_library_function(Label const& label);
+bool is_returning_library_function(Label const& label,
+    assembly::Arch_Type arch_type);
 
 std::vector<std::string> get_library_symbols();
 
@@ -158,6 +154,12 @@ constexpr bool is_variadic_library_function(std::string_view const& label)
     return util::range_contains(label, variadic_library_list);
 }
 
+/**
+ * @brief Translate a call to a standard library function
+ *
+ * Each target loads the arguments into the registers of its calling
+ * convention, and checks the argument count of each call
+ */
 template<Enum_T Registers, Stack_T Stack, Deque_T Instructions>
 struct Library_Call_Inserter
 {
@@ -175,6 +177,12 @@ struct Library_Call_Inserter
     virtual bool is_address_device_pointer_to_buffer(
         address_t<Registers>& address) = 0;
 
+    /**
+     * @brief Check the argument count of a call to a library function
+     *
+     * A variadic function takes at most its count, and any other function
+     * takes exactly its count
+     */
     void library_call_argument_check(std::string_view library_function,
         library_arguments_t<Registers> const& arguments,
         std::size_t arg_size)
@@ -183,20 +191,20 @@ struct Library_Call_Inserter
         if (is_variadic_library_function(library_function)) {
             if (arguments.size() > arg_size)
                 throw_compiletime_error(
-                    fmt::format("too many arguments '{}' passed to varadic, "
-                                "expected '{}' arguments",
-                        arg_size,
-                        arguments.size()),
+                    fmt::format("too many arguments '{}' passed to variadic, "
+                                "expected at most '{}' arguments",
+                        arguments.size(),
+                        arg_size),
                     library_function,
                     __source__,
                     "function invocation");
         } else {
             if (arguments.size() != arg_size)
                 throw_compiletime_error(
-                    fmt::format("invaloud argument size '{}' passed to function"
-                                "expected '{}' arguments",
-                        arg_size,
-                        arguments.size()),
+                    fmt::format("invalid argument size '{}' passed to "
+                                "function, expected '{}' arguments",
+                        arguments.size(),
+                        arg_size),
                     library_function,
                     __source__,
                     "function invocation");

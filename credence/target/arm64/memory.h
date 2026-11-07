@@ -28,32 +28,61 @@
 #include <deque>                                // for deque
 #include <functional>                           // for function
 #include <memory>                               // for shared_ptr, make_shared
+#include <optional>                             // for optional
 #include <set>                                  // for set
 #include <string>                               // for basic_string, string
 #include <utility>                              // for move
 
 /****************************************************************************
- *
  * ARM64 Memory Accessor
- * ARM64 memory data type accessors and memory accessor facade.
+ *
+ * The memory accessor facade of the ARM64 target, and the device of each
+ * local: a register in a frame with no calls, or a stack slot. A local whose
+ * address is taken is always on the stack, since a register has no address.
+ *
+ *  Example:
+ *
+ *    main() {
+ *      auto x, *p, y;
+ *      x = 1;
+ *      y = 2;
+ *      p = &y;
+ *    }
+ *
+ *  Becomes:
+ *
+ *    mov w9, #1             // x is in w9
+ *    ldr w10, [sp, #16]     // y is on the stack, loaded into x10
+ *    mov w10, #2
+ *    str w10, [sp, #16]
+ *    add x8, sp, #16        // the address of y
+ *    mov x11, x8            // p is in x11
+ *
  ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -91,29 +120,26 @@ namespace registers {
 
 using general_purpose = std::deque<Register>;
 
+// the registers of locals in a frame with no calls, without the stack move
+// register x10, the vector address register x15, and the Darwin platform
+// register x18
 const general_purpose available_doubleword = {
     Register::x9,
-    Register::x10,
     Register::x11,
     Register::x12,
     Register::x13,
     Register::x14,
-    Register::x15,
     Register::x16,
     Register::x17,
-    Register::x18,
 };
 const general_purpose available_word = {
     Register::w9,
-    Register::w10,
     Register::w11,
     Register::w12,
     Register::w13,
     Register::w14,
-    Register::w15,
     Register::w16,
     Register::w17,
-    Register::w18,
 };
 
 const general_purpose available_doubleword_argument = { Register::x0,
@@ -189,8 +215,12 @@ using Operand_Lambda = std::function<bool(RValue)>;
 
 using Flag_Accessor = common::Flag_Accessor;
 
-// ---
-
+/**
+ * @brief The accumulator register of ARM64, w8 or x8
+ *
+ * A signal register set by an inserter is returned once in place of the
+ * accumulator
+ */
 struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
 {
     explicit Accumulator_Accessor(Register* signal_register)
@@ -208,9 +238,18 @@ struct Accumulator_Accessor : public ARM64_Accumulator_Accessor
         assembly::Operand_Size size) override;
 };
 
+/**
+ * @brief The ARM64 instructions of the program
+ */
 struct Instruction_Accessor : public ARM64_Instruction_Accessor
 {};
 
+/**
+ * @brief The registers of locals, and the stack move register
+ *
+ * The registers of locals are reset at the end of each function, and
+ * `stack` holds the scratch registers of an assignment until it is done
+ */
 struct Register_Accessor : public ARM64_Register_Accessor
 {
     explicit Register_Accessor(Register* signal_register)
@@ -239,6 +278,22 @@ struct Register_Accessor : public ARM64_Register_Accessor
     std::deque<Register> stack{};
 };
 
+/**
+ * @brief The address of an lvalue and the instructions that load it
+ *
+ * A global vector element is addressed from its page, a local vector
+ * element from the stack pointer, and a local on the stack is loaded into
+ * the stack move register
+ *
+ *  Example:
+ *
+ *    y = (2:int:4);
+ *
+ *  Becomes, where y is on the stack:
+ *
+ *    ldr w10, [sp, #16]   // the insertion instructions, the address is w10
+ *    mov w10, #2
+ */
 struct Address_Accessor : public ARM64_Address_Accessor
 {
   public:
@@ -268,6 +323,13 @@ struct Address_Accessor : public ARM64_Address_Accessor
     Register_Accessor& register_accessor_;
 };
 
+/**
+ * @brief The storage device of each local of the function
+ *
+ * A local is assigned a register from the local registers when its frame
+ * makes no calls, there is a register left, and its address is not taken,
+ * and a stack slot otherwise. The devices are reset at each `BeginFunc`.
+ */
 class Device_Accessor
 {
   public:
@@ -294,6 +356,7 @@ class Device_Accessor
     {
         register_id.clear();
         id_index = 0;
+        address_table.clear();
     }
 
   public:
@@ -323,6 +386,7 @@ class Device_Accessor
     void insert_lvalue_to_device(LValue const& lvalue, Operand_Size size);
     void insert_lvalue_to_device(LValue const& lvalue, SET_INLINE_DEBUG);
     void set_vector_offset_to_storage_space(LValue const& lvalue);
+    bool is_address_taken(LValue const& lvalue);
     Size get_size_from_rvalue_reference(RValue const& rvalue);
     Size get_size_from_rvalue_data_type(LValue const& lvalue,
         Immediate const& rvalue);
@@ -348,6 +412,9 @@ class Device_Accessor
     unsigned int vector_index{ 0 };
 };
 
+/**
+ * @brief The offset and size of an element of a global vector on ARM64
+ */
 struct Vector_Accessor : public ARM64_Vector_Accessor
 {
   public:
@@ -364,7 +431,11 @@ struct Vector_Accessor : public ARM64_Vector_Accessor
 } // namespace detail
 
 /**
- * @brief The Memory registry and mediator that orchestrates access to memory
+ * @brief The memory accessor facade of the ARM64 target
+ *
+ * The inserters, visitor, and emitter share one facade, which holds each
+ * accessor, the stack, the instructions of the program, and the state that
+ * is passed from one IR instruction to the next
  */
 class Memory_Accessor final : public ARM64_Memory_Accessor
 {
@@ -404,6 +475,13 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
 
   public:
     Stack_Pointer stack;
+
+  public:
+    // the temporary and the register that holds it after the instruction
+    // that computes it, valid until the next instruction
+    std::optional<std::pair<LValue, Register>> accumulator_temporary{};
+    // a relational expression inserted the conditional jump of the next IF
+    bool relational_jump{ false };
 
   public:
     detail::Flag_Accessor flag_accessor{};

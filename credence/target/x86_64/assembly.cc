@@ -16,34 +16,40 @@
 #include <matchit.h>        // for matchit
 
 /****************************************************************************
+ * x86-64 Assembly
  *
- * x86-64 Assembly Constructors and Mnemonics
+ * The registers, mnemonics, directives, and instruction constructors of the
+ * x86-64 ISA, in Intel syntax. An instruction is a mnemonic and up to two
+ * operands, and each constructor returns the register of its result and
+ * its instructions.
  *
- * x86-64 instructions, registers, and mnemonics in intel syntax. Provides
- * instruction string formatting and operand constructors and macros.
+ *  Example:
  *
- * Example registers:
- *   64-bit: rax, rbx, rcx, rdx, rsi, rdi, rbp, rsp, r8-r15
- *   32-bit: eax, ebx, ecx, edx, esi, edi, ...
- *   16-bit: ax, bx, cx, dx, ...
- *   8-bit:  al, bl, cl, dl, ...
+ *    auto [result, instructions] = assembly::mul(eax, Immediate{ "2" });
  *
- * Example instructions:
- *   Data movement: mov, lea, push, pop
- *   Arithmetic: add, sub, mul, imul, div, idiv
- *   Bitwise: and, or, xor, not, shl, shr
- *   Comparison: cmp, test
- *   Control flow: jmp, je, jne, jg, jl, call, ret
+ *  Becomes:
  *
- *****************************************************************************/
+ *    imul eax, 2      // result is eax
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::assembly {
 
 namespace m = matchit;
 
-/*********************************/
-/* x86-64 directive constructors */
-/*********************************/
+/**
+ * The directive constructors of the data section. A string, float, or
+ * double literal has its own label, from the counter of literal labels.
+ *
+ *  Example:
+ *
+ *    asciz(&index, "hello")
+ *
+ *  Becomes:
+ *
+ *    ._L_str1__:
+ *        .asciz "hello"
+ */
 
 Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
 {
@@ -126,31 +132,75 @@ Directives byte_(type::semantic::RValue const& rvalue)
 
 // ---
 
-/***********************************/
-/* x86-64 instruction constructors */
-/***********************************/
+/**
+ * The instruction constructors. Each returns the register of its result and
+ * its instructions.
+ *
+ *  Example:
+ *
+ *    r_gt(dword ptr [rbp - 12], 10, "._L6__main", eax)
+ *
+ *  Becomes:
+ *
+ *    mov eax, dword ptr [rbp - 12]
+ *    cmp eax, 10
+ *    jg ._L6__main
+ */
 
 Instruction_Pair mul(Storage const& dest, Storage const& src)
 {
     x8664__make_and_ret(imul, dest, src);
 }
 
+/**
+ * @brief The signed division of the accumulator by a divisor
+ *
+ * The dividend is sign extended into edx:eax, or rdx:rax, and an immediate
+ * divisor is moved to r11 first, since `idiv` takes no immediate
+ *
+ *  Example:
+ *
+ *    div(eax, 5)
+ *
+ *  Becomes:
+ *
+ *    mov r11d, 5
+ *    cdq
+ *    idiv r11d          // the quotient is in eax
+ */
 Instruction_Pair div(Storage const& dest, Storage const& src)
 {
     auto inst = make_empty();
-    x8664_add__asm(inst, cdq);
-    x8664_add__asm(inst, mov, dest, src);
-    x8664_add__asm(inst, idiv, dest);
-    return { src, inst };
+    bool qword = is_variant(Register, dest) and
+                 is_qword_register(std::get<Register>(dest));
+    auto divisor = src;
+    if (is_variant(Immediate, divisor)) {
+        auto scratch = qword ? Register::r11 : Register::r11d;
+        x8664_add__asm(inst, mov, scratch, divisor);
+        divisor = scratch;
+    }
+    if (qword)
+        x8664_add__asm(inst, cqo);
+    else
+        x8664_add__asm(inst, cdq);
+    x8664_add__asm(inst, idiv, divisor);
+    return { qword ? x64_rr(rax) : x64_rr(eax), inst };
 }
 
+/**
+ * @brief The remainder of the signed division of the accumulator
+ *
+ * The remainder of `idiv` is in edx, or rdx, and is moved to the
+ * accumulator
+ */
 Instruction_Pair mod(Storage const& dest, Storage const& src)
 {
-    auto inst = make_empty();
-    x8664_add__asm(inst, cdq);
-    x8664_add__asm(inst, mov, dest, src);
-    x8664_add__asm(inst, idiv, dest);
-    return { x64_rr(edx), inst };
+    auto [quotient, inst] = div(dest, src);
+    if (quotient == Storage{ Register::rax })
+        x8664_add__asm(inst, mov, rax, rdx);
+    else
+        x8664_add__asm(inst, mov, eax, edx);
+    return { quotient, inst };
 }
 
 Instruction_Pair sub(Storage const& dest, Storage const& src)
@@ -280,6 +330,9 @@ Instruction_Pair b_not(Storage const& dest)
     x8664__make_and_ret(not_, dest);
 }
 
+/**
+ * @brief The logical not of an operand, 1 when it is zero and 0 otherwise
+ */
 Instruction_Pair u_not(Storage const& dest)
 {
     auto inst = make_empty();

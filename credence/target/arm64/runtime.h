@@ -26,43 +26,50 @@
 #include <utility>                              // for pair
 
 /****************************************************************************
- *
  * ARM64 Runtime and Standard Library
  *
- * See common/runtime.h for details
+ * Calls to the standard library under the ARM64 PCS calling convention. See
+ * common/runtime.h for the functions. The arguments are in x0 to x7, or w0
+ * to w7, s0 to s7, and d0 to d7 by their type, and the label of a function
+ * on Darwin has a leading underscore.
  *
- * Runtime function invocation to the standard library and via the ARM64 PCS
- * calling convention. Arguments passed in registers: x0-x7 or register variant
- * depending on rvalue type then uses the stack. Return value in x0. x30 (lr)
- * holds return address.
+ *  Example:
  *
- * Example - calling printf:
+ *    printf("%d %d\n", compute(1, 2), y);
  *
- *   B code:    printf("Value: %d\n", x);
+ *  Becomes:
  *
- *   adrp x0, ._L_str1__@PAGE       ; format string in x0
- *   add x0, x0, ._L_str1__@PAGEOFF
- *   mov x1, x9                      ; x from register x9
- *   bl printf                       ; from stdlib
+ *    adrp x0, ._L_str1__@PAGE         // the format string
+ *    add x0, x0, ._L_str1__@PAGEOFF
+ *    ldr w1, [sp, #24]                // the return value of compute
+ *    ldr w2, [sp, #20]                // y
+ *    bl _printf
  *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -82,6 +89,12 @@ using ARM64_Library_Call_Inserter =
         assembly::Stack,
         assembly::Instructions>;
 
+/**
+ * @brief Translate a call to a standard library function on ARM64
+ *
+ * Each argument takes the next argument register of its type, so the
+ * register lists are consumed in order
+ */
 struct Library_Call_Inserter : public ARM64_Library_Call_Inserter
 {
     explicit Library_Call_Inserter(memory::Memory_Access& accessor,

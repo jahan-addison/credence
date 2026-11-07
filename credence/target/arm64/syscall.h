@@ -24,27 +24,30 @@
 #include <string_view>                    // for basic_string_view, string_...
 
 /****************************************************************************
+ * ARM64 Syscall Interface
  *
- * ARM64 System Call Interface
+ * Syscalls on ARM64 Linux and Darwin. The arguments are in x0 to x5, the
+ * syscall number is in x8 on Linux and x16 on Darwin, and the syscall is
+ * made with `svc #0` on Linux and `svc #0x80` on Darwin. The `main` function
+ * returns with the exit syscall.
  *
- * Syscall invocation for ARM64 Linux and Darwin. Loads syscall
- * number into x8 (Linux) or x16 (Darwin) and arguments into x0-x7.
+ *  Example:
  *
- * Example - exit syscall:
+ *    LEAVE;
  *
- *   B code:    main() { return(0); }
+ *  Becomes, in `main` on Linux:
  *
- * Generates (Linux):
- *   mov x8, #93        ; exit syscall number
- *   mov x0, #0         ; exit code
- *   svc #0
+ *    mov w0, #0
+ *    mov x8, #93
+ *    svc #0
  *
- * Generates (Darwin):
- *   mov x16, #1        ; Darwin exit number
- *   mov x0, #0
- *   svc #0x80
+ *  And on Darwin:
  *
- *****************************************************************************/
+ *    mov w0, #0
+ *    mov x16, #1
+ *    svc #0x80
+ *
+ ****************************************************************************/
 
 namespace credence::target::arm64::syscall_ns {
 
@@ -56,6 +59,12 @@ using syscall_list_t = std::map<std::string_view, syscall_t>;
 using syscall_arguments_t = std::deque<assembly::Storage>;
 using syscall_register_t = memory::registers::general_purpose;
 
+/**
+ * @brief Translate a syscall and its arguments on ARM64
+ *
+ * Each argument takes the next argument register of its size and type, and
+ * the argument count must be the count of the syscall
+ */
 class Syscall_Invocation_Inserter
 {
   public:
@@ -109,10 +118,4 @@ class Syscall_Invocation_Inserter
     syscall_register_t double_registers_;
 };
 
-/**
- * @brief NULL-check the memory access, then set the signal register
- */
-bool check_signal_register_from_safe_address(Instructions& instructions,
-    assembly::Register storage,
-    memory::Memory_Access* accessor);
 }

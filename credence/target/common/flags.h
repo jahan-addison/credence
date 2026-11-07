@@ -17,12 +17,20 @@
 #include <credence/map.h> // for Ordered_Map
 
 /****************************************************************************
+ * Instruction Flags
  *
- * Instruction flags
+ * Bit flags on the index of an emitted instruction, set by an inserter and
+ * read by the emitter. A flag marks what is only known after the instruction
+ * is inserted, such as the stack frame size of an alignment operand, or the
+ * operand size of a memory access. Flags are combined with bitwise OR.
  *
- * Bit flags for instructions during code translation. Such as
- * addressing modes, alignment, and operand types. Multiple flags can be
- * combined using bitwise OR.
+ *  Example, on x86-64:
+ *
+ *    sub rsp, 0      // flag::Align
+ *
+ *  Becomes, once the frame size of the function is known:
+ *
+ *    sub rsp, 24
  *
  ****************************************************************************/
 
@@ -33,7 +41,25 @@ namespace flag {
 using flags = unsigned int;
 
 /**
- * @brief Common instruction flags shared across architectures
+ * @brief Instruction flags shared across architectures
+ *
+ *  * Address - a stack operand is an address with no size prefix,
+ *    `[rbp - 8]`, and the destination takes the size of its storage
+ *
+ *  * Indirect - a register operand is a memory operand, `dword ptr [rax]`
+ *
+ *  * Indirect_Source - the source register is a memory operand
+ *
+ *  * Align - the immediate of a stack pointer `sub` or `add` is the aligned
+ *    frame size, which is only known at the end of the function
+ *
+ *  * Argument - a stack operand is a quadword argument slot
+ *
+ *  * QWord_Dest - the destination is a quadword
+ *
+ *  * Load - a `mov` from memory is a `lea` of its address
+ *
+ * Each target adds its own flags after these
  */
 enum Instruction_Flag : flags
 {
@@ -50,7 +76,9 @@ enum Instruction_Flag : flags
 } // namespace flags
 
 /**
- * @brief Flag accessor for bit flags to emitter settings on instruction indices
+ * @brief The flags of each emitted instruction, by instruction index
+ *
+ * An index with no flags is 0, so the emitter checks any instruction
  */
 struct Flag_Accessor
 {

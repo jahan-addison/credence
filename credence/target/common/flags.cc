@@ -18,17 +18,28 @@
 #include <credence/target/common/types.h> // for Enum_T, Instructions
 
 /****************************************************************************
+ * Instruction Flags
  *
- * Instruction representation flags
+ * Bit flags on the index of an emitted instruction, set by an inserter and
+ * read by the emitter. A flag marks what is only known after the instruction
+ * is inserted, such as the stack frame size of an alignment operand, or the
+ * operand size of a memory access. Flags are combined with bitwise OR.
  *
- * Bit flags for instructions during code translation. Such as
- * addressing modes, alignment, and operand types. Multiple flags can be
- * combined using bitwise OR.
+ *  Example, on x86-64:
+ *
+ *    sub rsp, 0      // flag::Align
+ *
+ *  Becomes, once the frame size of the function is known:
+ *
+ *    sub rsp, 24
  *
  ****************************************************************************/
 
 namespace credence::target::common {
 
+/**
+ * @brief Add a flag to the flags of an instruction
+ */
 void Flag_Accessor::set_instruction_flag(flag::Instruction_Flag set_flag,
     unsigned int index)
 {
@@ -38,6 +49,9 @@ void Flag_Accessor::set_instruction_flag(flag::Instruction_Flag set_flag,
         instruction_flag[index] |= set_flag;
 }
 
+/**
+ * @brief Remove one or more flags from the flags of an instruction
+ */
 void Flag_Accessor::unset_instruction_flag(flag::Instruction_Flag set_flag,
     unsigned int index)
 {
@@ -58,6 +72,13 @@ void Flag_Accessor::unset_instruction_flag(flag::flags unset_flags,
     }
 }
 
+/**
+ * @brief Set the flags of an instruction
+ *
+ * The flags replace those of the instruction, unless the next instruction
+ * has flags, where they are added. The unset functions rely on the
+ * replacement.
+ */
 void Flag_Accessor::set_instruction_flag(flag::flags flags, unsigned int index)
 {
     if (!instruction_flag.contains(index + 1))
@@ -66,6 +87,12 @@ void Flag_Accessor::set_instruction_flag(flag::flags flags, unsigned int index)
         instruction_flag[index] |= flags;
 }
 
+/**
+ * @brief Move the Load flag from the last instruction to the next one
+ *
+ * An instruction inserted after a load takes its place, so the flag follows
+ * the instruction that uses the address
+ */
 template<Enum_T Mnemonic_T, Enum_T Registers_T>
 void Flag_Accessor::set_load_address_from_previous_instruction(
     Instructions<Mnemonic_T, Registers_T>& instructions)

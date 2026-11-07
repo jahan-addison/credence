@@ -29,12 +29,30 @@
 #include <tuple>                                // for get, tuple
 
 /****************************************************************************
+ * Memory Accessors
  *
- * Pure virtual and template types for platform-agnostic memory access data
- * types to facilitate the Memory_Accessor facade.
+ * The platform-agnostic base types of the Memory_Accessor facade. Each target
+ * derives its own accessors from them, and the inserters reach the object
+ * table, the IR instruction under translation, the stack, the registers, and
+ * the literals of the data section through one accessor object.
  *
- * Provides access to the object table (globals, functions, vectors), pushdown
- * stack, available registers, stack frame during assembly code generation.
+ *  Example:
+ *
+ *    main() {
+ *      auto x;
+ *      x = 5;
+ *      print("hello");
+ *    }
+ *
+ *  Becomes, on arm64:
+ *
+ *    ldr w10, [sp, #16]               // x is on the stack of the device
+ *    mov w10, #5
+ *    str w10, [sp, #16]
+ *    adrp x0, ._L_str1__@PAGE         // the label of the buffer accessor
+ *    add x0, x0, ._L_str1__@PAGEOFF
+ *    mov w1, #5                       // the size of the buffer accessor
+ *    bl _print
  *
  ****************************************************************************/
 
@@ -119,6 +137,22 @@ Table_Accessor::Table_Accessor(Table_Pointer& table,
 
 Table_Accessor::~Table_Accessor() = default;
 
+/**
+ * @brief Get the size of the value returned by the last call
+ *
+ * A function that returns its parameter returns the argument of the caller,
+ * so the size is from the caller's local, or the pointee of the local when
+ * it is a pointer
+ *
+ *  Example:
+ *
+ *    id(s) { return(s); }
+ *    main() { auto x; x = "hello"; print(id(x)); }
+ *
+ *  Becomes:
+ *
+ *    get_size_of_return_string(frame)   // 5, the size of "hello"
+ */
 Size Buffer_Accessor::get_size_of_return_string(Stack_Frame const& stack_frame)
 {
     auto& table_ = pimpl->table;
@@ -147,6 +181,12 @@ Size Buffer_Accessor::get_size_of_return_string(Stack_Frame const& stack_frame)
         type::get_rvalue_datatype_from_string(tail_frame.ret->first));
 }
 
+/**
+ * @brief Get the size of the value of a local
+ *
+ * The size of a pointer is the size of its pointee, and a local assigned the
+ * return value of a call, `RET`, is the size of the value the callee returns
+ */
 Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
     Stack_Frame const& stack_frame)
 {
@@ -178,6 +218,20 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
 
 /**
  * @brief Get the size of a string in the object table at compile-time
+ *
+ * The size is the length argument of a buffer passed to a library call or
+ * syscall. It is resolved from where the string is: the return value of the
+ * last call, a local, a dereferenced pointer, an element of a global or
+ * local vector, or a string literal.
+ *
+ *  Example:
+ *
+ *    mess [2] "too bad", "tough luck";
+ *    print(mess[1]);
+ *
+ *  Becomes:
+ *
+ *    get_size_of_string_lvalue_buffer_address("mess[1]", frame)   // 10
  */
 Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
     LValue const& lvalue,
@@ -245,12 +299,26 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
 }
 
 /**
- * @brief Set a buffer size from an object in the cache maps
+ * @brief Cache the length of the buffer filled by a `read(2)` syscall
+ *
+ * The buffer of `read(2)` is filled at runtime, so the length of a later
+ * `print` of the buffer is the length argument of the read
+ *
+ *  Example:
+ *
+ *    read(0, buffer, 10);
+ *    print(buffer);
+ *
+ *  Becomes:
+ *
+ *    read_bytes()   // 10
  */
 void Buffer_Accessor::set_buffer_size_from_syscall(std::string_view routine,
     memory::Locals& argument_stack)
 {
-    credence_assert(!argument_stack.empty());
+    // a syscall with no arguments, such as `getpid`, has no buffer
+    if (argument_stack.empty())
+        return;
     namespace m = matchit;
     m::match(routine)(m::pattern | m::or_(sv("read")) = [&] {
         auto argument = argument_stack.back();
@@ -263,18 +331,31 @@ void Buffer_Accessor::set_buffer_size_from_syscall(std::string_view routine,
 }
 
 /**
- * @brief Compile-time buffer storage for syscalls
+ * @brief Check if a `read(2)` length is cached
+ *
+ * When it is, the size of the next buffer is the cached length from
+ * read_bytes(), otherwise it is from the object table
  */
-bool Buffer_Accessor::has_bytes()
+bool Buffer_Accessor::has_read_bytes()
 {
-    return pimpl->read_bytes_cache_ == 0UL;
+    return pimpl->read_bytes_cache_ != 0UL;
 }
+
+/**
+ * @brief Take the cached `read(2)` length, which clears it
+ */
 std::size_t Buffer_Accessor::read_bytes()
 {
     auto read_bytes = pimpl->read_bytes_cache_;
     pimpl->read_bytes_cache_ = 0;
     return read_bytes;
 }
+/**
+ * @brief Map a literal to the label of its directive in the data section
+ *
+ * The data emitter inserts each string, float, and double literal once, and
+ * an operand of the literal is loaded from its label
+ */
 void Buffer_Accessor::insert_string_literal(RValue const& key,
     Label const& asciz_address)
 {
@@ -290,6 +371,9 @@ void Buffer_Accessor::insert_double_literal(RValue const& key,
 {
     pimpl->double_literals.insert_or_assign(key, doublez_address);
 }
+/**
+ * @brief Get the label of a literal in the data section
+ */
 RValue Buffer_Accessor::get_string_address_offset(RValue const& string)
 {
     credence_assert(is_allocated_string(string));
@@ -317,6 +401,9 @@ bool Buffer_Accessor::is_allocated_double(RValue const& rvalue)
 {
     return pimpl->double_literals.contains(rvalue);
 }
+/**
+ * @brief The counter of literal labels in the data section, e.g. `._L_str1__`
+ */
 std::size_t* Buffer_Accessor::get_constant_size_index()
 {
     return &pimpl->constant_size_index;
@@ -326,16 +413,40 @@ void Buffer_Accessor::set_constant_size_index(std::size_t index)
     pimpl->constant_size_index = index;
 }
 
+/**
+ * @brief Set the index of the IR instruction under translation
+ */
 void Table_Accessor::set_ir_iterator_index(unsigned int index_)
 {
     pimpl->index = index_;
 }
+
+/**
+ * @brief Check if the IR instruction under translation is a MOV to a
+ * temporary
+ */
 bool Table_Accessor::is_ir_instruction_temporary()
 {
     return type::is_temporary(
         std::get<1>(pimpl->instructions_->at(pimpl->index)));
 }
 
+/**
+ * @brief Get the last local assigned at or before an IR instruction
+ *
+ * Temporaries (`_t`) and argument slots (`_p`) are skipped, so the lvalue is
+ * a local of the source program
+ *
+ *  Example:
+ *
+ *    x = (5:int:4);
+ *    _t1 = x * x;
+ *    _p1 = _t1;
+ *
+ *  Becomes:
+ *
+ *    get_last_lvalue_assignment(2)   // x
+ */
 LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_)
 {
     for (; index_ > 0; index_--) {
@@ -350,10 +461,19 @@ LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_)
     return "";
 }
 
+/**
+ * @brief Get the lvalue of the IR instruction under translation
+ */
 std::string Table_Accessor::get_ir_instruction_lvalue()
 {
     return std::get<1>(pimpl->instructions_->at(pimpl->index));
 }
+
+/**
+ * @brief Check if the last IR instruction is an assignment to a local
+ *
+ * An assignment is a MOV whose lvalue is not a temporary
+ */
 bool Table_Accessor::last_ir_instruction_is_assignment()
 {
     if (pimpl->index < 1)
@@ -362,6 +482,10 @@ bool Table_Accessor::last_ir_instruction_is_assignment()
     return std::get<0>(last) == ir::Instruction::MOV and
            not type::is_temporary(std::get<1>(last));
 }
+
+/**
+ * @brief Check if the next IR instruction is a MOV to a temporary
+ */
 bool Table_Accessor::next_ir_instruction_is_temporary()
 {
     if (pimpl->instructions_->size() < pimpl->index + 1)
@@ -370,6 +494,18 @@ bool Table_Accessor::next_ir_instruction_is_temporary()
     return std::get<0>(next) == ir::Instruction::MOV and
            type::is_temporary(std::get<1>(next));
 }
+
+/**
+ * @brief Check if the next IR instruction is an assignment to a local
+ *
+ * An address-of expression assigned to a local in the next instruction is
+ * stored to it directly
+ *
+ *  Example:
+ *
+ *    _t1 = &x;
+ *    p = _t1;
+ */
 bool Table_Accessor::next_ir_instruction_is_assignment()
 {
     if (pimpl->instructions_->size() < pimpl->index + 1)
@@ -378,6 +514,7 @@ bool Table_Accessor::next_ir_instruction_is_assignment()
     return std::get<0>(last) == ir::Instruction::MOV and
            not type::is_temporary(std::get<1>(last));
 }
+
 Table_Pointer& Table_Accessor::get_table()
 {
     return pimpl->table_;
@@ -396,7 +533,18 @@ unsigned int Table_Accessor::get_index() const
 }
 
 /**
- * @brief Get the offset in vector from hoisted symbols
+ * @brief Get the offset of a vector element indexed by a local
+ *
+ * The value of the local is known at compile time from the object table
+ *
+ *  Example:
+ *
+ *    x = 1;
+ *    y = mess[x];
+ *
+ *  Becomes:
+ *
+ *    get_offset_from_hoisted_symbols("mess", "x")   // the offset of mess[1]
  */
 template<typename Entry>
 auto Vector_Accessor<Entry>::get_offset_from_hoisted_symbols(
@@ -418,7 +566,9 @@ auto Vector_Accessor<Entry>::get_offset_from_hoisted_symbols(
 }
 
 /**
- * @brief Type check invalid vector symbol or offset rvalue type
+ * @brief Type check the index of a vector element
+ *
+ * The index must be an integer literal or a symbol of the program
  */
 template<typename Entry>
 void Vector_Accessor<Entry>::type_check_invalid_vector_symbol(
@@ -432,7 +582,7 @@ void Vector_Accessor<Entry>::type_check_invalid_vector_symbol(
 }
 
 /**
- * @brief Get offset by valid integer rvalue
+ * @brief Get the offset of a vector element indexed by an integer literal
  */
 template<typename Entry>
 auto Vector_Accessor<Entry>::get_offset_from_integer_rvalue(
@@ -450,7 +600,7 @@ auto Vector_Accessor<Entry>::get_offset_from_integer_rvalue(
 }
 
 /**
- * @brief Get offset by trivial vector with no indices
+ * @brief Get the offset of a vector with no index, which is its first element
  */
 template<typename Entry>
 auto Vector_Accessor<Entry>::get_offset_from_trivial_vector(
@@ -462,8 +612,16 @@ auto Vector_Accessor<Entry>::get_offset_from_trivial_vector(
 }
 
 /**
- * @brief Get the offset address of a vector from its lvalue and rvalue
- * offset
+ * @brief Get the offset and size of a vector element from its lvalue and
+ * index
+ *
+ * The index is resolved from a symbol, an integer literal, or the first
+ * element when the lvalue has no index
+ *
+ *  Examples:
+ *
+ *    get_offset_address("mess", "")       // (0, size of mess[0])
+ *    get_offset_address("mess[1]", "1")   // (offset of mess[1], its size)
  */
 template<typename Entry>
 auto Vector_Accessor<Entry>::get_offset_address(LValue const& lvalue,

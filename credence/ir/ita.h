@@ -301,6 +301,8 @@ class Branch
 
 void emit_to(std::ostream& os, Quadruple const& ita, bool indent = false);
 
+void erase_unreachable_goto_instructions(Instructions& instructions);
+
 /**
  * @brief Emit a std::deque of instructions to a std::ostream
  *   If indent is true indent with a tab for formatting

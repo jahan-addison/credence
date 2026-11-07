@@ -8,41 +8,41 @@
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w10, #10
-    str w10, [sp, #20]
+    str w10, [sp, #16]
 ._L2__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #5
     b.le ._L4__main
 ._L3__main:
 ._L8__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #10
     b.eq ._L10__main
 ._L9__main:
 ._L14__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #5
     b.ge ._L16__main
 ._L15__main:
 ._L20__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #5
     b.ne ._L22__main
 ._L21__main:
 ._L26__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #8
     b.gt ._L28__main
 ._L27__main:
 ._L32__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w8, w10
     cmp w8, #20
     b.lt ._L34__main
@@ -52,14 +52,14 @@ _start:
     mov w1, #5
     bl _print
     mov w8, 1
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w10, w8
-    str w10, [sp, #20]
+    str w10, [sp, #16]
     b ._L1__main
 ._L4__main:
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     mov w10, #1
-    str w10, [sp, #20]
+    str w10, [sp, #16]
     adrp x0, ._L_str6__@PAGE
     add x0, x0, ._L_str6__@PAGEOFF
     mov w1, #5

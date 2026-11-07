@@ -15,13 +15,20 @@ _start:
     mov dword ptr [rbp - 4], eax
     mov dword ptr [rbp - 8], 5
     mov eax, 30
-    or eax, 15
+    mov dword ptr [rbp - 16], eax
+    mov eax, 15
+    mov r11d, eax
+    mov eax, dword ptr [rbp - 16]
+    or eax, r11d
     mov dword ptr [rbp - 12], eax
     mov eax, dword ptr [rbp - 4]
     not eax
-    mov edi, dword ptr [rbp - 8]
-    not edi
-    and eax, edi
+    mov dword ptr [rbp - 20], eax
+    mov eax, dword ptr [rbp - 8]
+    not eax
+    mov r11d, eax
+    mov eax, dword ptr [rbp - 20]
+    and eax, r11d
     mov dword ptr [rbp - 12], eax
     mov rax, 60
     mov rdi, 0

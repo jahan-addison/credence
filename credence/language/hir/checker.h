@@ -13,232 +13,208 @@
 
 #pragma once
 
-#include "binding.h"        // for Object_Table, Function, Vector
-#include "types.h"          // for RValue, LValue, ...
-#include <algorithm>        // for __find, find
-#include <credence/error.h> // for throw_compiletime_error
-#include <credence/types.h> // for get_type_from_rvalue_data_type, Data...
-#include <credence/util.h>  // for __source__
-#include <fmt/format.h>     // for format
-#include <initializer_list> // for initializer_list
-#include <source_location>  // for source_location
-#include <string_view>      // for basic_string_view
-#include <tuple>            // for get, tuple
+#include "hir.h"                       // for Data_Kind
+#include "types.h"                     // for LValue, RValue, Type, Label
+#include <credence/language/literal.h> // for Literal
+#include <credence/util.h> // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
+#include <cstddef>         // for size_t
+#include <map>             // for map
+#include <optional>        // for optional
+#include <set>             // for set
+#include <source_location> // for source_location
+#include <string_view>     // for string_view
+#include <vector>          // for vector
 
 /****************************************************************************
  *  Type Checker
  *
- *  Type checker for the intermediate representation. Validates assignments
- *  between scalars, vectors, pointers, and handles type conversions with
- *  proper boundary and null checks.
+ *  Type checker on the HIR. Each expression evaluates to the storage and
+ *  type of its value in a stack frame, and an assignment between storage
+ *  or types that do not agree is a compile-time error.
  *
  *  Example type checking:
  *
- *  auto x, *p;
- *  auto arr[10];
- *  x = 5;           // scalar assignment
- *  arr[0] = x;      // vector assignment with bounds check
- *  p = &x;          // pointer assignment
+ *  main() {
+ *    auto x, *p;
+ *    x = 5;
+ *    p = &x;
+ *    p = x;
+ *  }
  *
- *  Type_Checker validates:
- *    - Type compatibility between lhs and rhs
- *    - Vector boundary access (arr[0..9] valid, arr[10] error)
- *    - Pointer targets (no &string[k] allowed)
- *    - Null assignments
- *    - Implicit conversions where safe
- *    - Raises compile-time errors on violations
- *    - Supports lvalue and rvalue type resolution
- *    - and more
+ *  Becomes:
+ *
+ *    x  -> scalar int
+ *    p  -> pointer to int
+ *    error: invalid pointer assignment, right-hand-side 'x' is not a pointer
  *
  ****************************************************************************/
 
 namespace credence::language::hir::checking {
 
 /**
- * @brief Raise a type check error in the current stack frame
+ * @brief The storage of an object or expression value
  */
-inline void throw_type_check_error(binding::Object_Table& objects,
-    std::string_view message,
-    std::string_view symbol,
-    std::string_view type_ = "symbol")
+enum class Storage
 {
-    throw_compiletime_error(message,
-        symbol,
-        __source__,
-        type_,
-        objects.get_stack_frame().symbol,
-        objects.hoisted_symbols);
-}
+    SCALAR,
+    POINTER
+};
 
 /**
- * @brief Type equality and integral checks on lvalues and rvalues
+ * @brief The storage and type of an object or expression value
+ *
+ * A pointer's type is the type of the object it points to, and "null" until
+ * it's assigned. A pointer from an address-of expression also keeps the
+ * lvalue it points to, so a dereference resolves to that object's current
+ * type. A scalar from a literal keeps its constant, so a vector offset of
+ * that scalar is bounds checked. A "word" is a machine word with no narrower
+ * type, such as a parameter, a call result, or a binary expression.
  */
-class Trivial_Type_Assignment_Checker
+struct Value
+{
+    Storage storage{ Storage::SCALAR };
+    Type type{ "null" };
+    std::optional<LValue> address{};
+    std::optional<RValue> constant{};
+};
+
+/**
+ * @brief A vector definition and the types of its assigned elements
+ */
+struct Vector
+{
+    std::size_t size{ 0 };
+    std::map<RValue, Value> data{};
+    std::optional<Value> unknown_offset{};
+};
+
+using Vectors = std::map<LValue, Vector>;
+
+/**
+ * @brief The objects, vectors, labels, and return type of a function
+ */
+struct Frame
+{
+    Label symbol{};
+    std::map<LValue, Value> locals{};
+    std::set<LValue> parameters{};
+    Vectors vectors{};
+    Labels labels{};
+    std::optional<Type> ret{};
+};
+
+/**
+ * @brief An argument of a call to a function of the program
+ *
+ * A parameter of the callee is a pointer when any call passes a pointer to
+ * it, or passes a parameter of the caller that is a pointer, so each
+ * argument is recorded for the table to resolve after every function is
+ * built
+ *
+ *  Example:
+ *
+ *    show(s) { printf("%s", s); }
+ *    main(argc, argv) { show(argv[1]); }
+ *
+ *  Becomes:
+ *
+ *    Call_Argument{ "main", "show", 0, true, "" }   // s is a pointer
+ */
+struct Call_Argument
+{
+    Label caller{};
+    Label callee{};
+    std::size_t index{};
+    bool pointer{ false };
+    LValue parameter{};
+};
+
+using Call_Arguments = std::vector<Call_Argument>;
+
+/**
+ * @brief Type checker of HIR expressions in a stack frame
+ */
+class Type_Checker
 {
   public:
-    Trivial_Type_Assignment_Checker() = delete;
-    Trivial_Type_Assignment_Checker(
-        Trivial_Type_Assignment_Checker const&) = delete;
-    Trivial_Type_Assignment_Checker& operator=(
-        Trivial_Type_Assignment_Checker const&) = delete;
-    explicit Trivial_Type_Assignment_Checker(binding::Object_Table& objects)
-        : objects_(objects)
+    Type_Checker() = delete;
+    Type_Checker(Type_Checker const&) = delete;
+    Type_Checker& operator=(Type_Checker const&) = delete;
+    explicit Type_Checker(Frame& frame,
+        Vectors& globals,
+        util::AST_Node const& hoisted_symbols,
+        Call_Arguments* call_arguments = nullptr)
+        : frame_(frame)
+        , globals_(globals)
+        , hoisted_symbols_(hoisted_symbols)
+        , call_arguments_(call_arguments)
     {
     }
 
   public:
-    /**
-     * @brief Check that the type of an lvalue is an integral type
-     */
-    inline void assert_integral_unary_expression(RValue const& rvalue,
-        Type const& type,
-        std::source_location const& location = std::source_location::current())
-    {
-        if (std::ranges::find(type::integral_unary_types, type) ==
-            type::integral_unary_types.end())
-            throw_compiletime_error(
-                fmt::format(
-                    "invalid numeric unary expression on lvalue, lvalue "
-                    "type "
-                    "\"{}\" is not a numeric type",
-                    type),
-                rvalue,
-                location);
-    }
+    static constexpr std::size_t max_vector_size{ 999 };
 
-    /** Left-hand-side and right-hand-side type equality check */
-    inline bool lhs_rhs_type_is_equal(LValue const& lhs, LValue const& rhs)
-    {
-        return objects_.get_type_from_object_data_type(lhs) ==
-               objects_.get_type_from_object_data_type(rhs);
-    }
-    inline bool lhs_rhs_type_is_equal(LValue const& lhs,
-        type::Data_Type const& rvalue)
-    {
-        return objects_.get_type_from_object_data_type(lhs) ==
-               std::get<1>(rvalue);
-    }
+  public:
+    Value from_expression(Data_Kind::Kind const& expression);
+    void from_return_expression(Data_Kind::Kind const& expression);
+    void assign(LValue const& lvalue,
+        Value const& rvalue,
+        RValue const& symbol);
 
-    inline bool lhs_rhs_type_is_equal(type::Data_Type const& lhs,
-        type::Data_Type const& rhs)
-    {
-        return type::get_type_from_rvalue_data_type(lhs) ==
-               type::get_type_from_rvalue_data_type(rhs);
-    }
+    // clang-format off
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    Value from_literal(literal::Literal const& literal);
+    Value from_lvalue(LValue const& lvalue);
+    Value from_vector_offset(LValue const& lvalue);
+    Value from_unary_expression(Data_Kind::Unary const& unary);
+    Value from_address_of_expression(Data_Kind::Kind const& operand);
+    Value from_dereference_expression(Data_Kind::Kind const& operand);
+    Value from_dereference(Value const& value, RValue const& symbol);
+    Value from_increment_expression(Data_Kind::Kind const& operand);
+    Value from_relation_expression(Data_Kind::Relation const& relation);
+    Value from_function_expression(Data_Kind::Function const& function);
+    Value from_assignment_expression(Data_Kind::Symbol const& assignment);
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void assign_to_scalar(LValue const& lvalue,
+        Value const& rvalue,
+        RValue const& symbol);
+    void assign_to_pointer(LValue const& lvalue,
+        Value const& rvalue,
+        RValue const& symbol);
+    void assign_to_dereference(LValue const& lvalue,
+        Value const& rvalue,
+        RValue const& symbol);
+    void assign_to_vector(LValue const& lvalue,
+        Value const& rvalue,
+        RValue const& symbol);
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    Vector* get_vector_at_offset(LValue const& lvalue);
+    RValue get_constant_offset(LValue const& lvalue);
+    Type get_pointer_type(Value const& value);
+    Vector* get_vector(LValue const& label);
+    bool is_parameter_or_pointer(LValue const& label);
+    // clang-format on
+
+  public:
+    static bool is_compatible(Type const& lhs, Type const& rhs);
+    static bool is_numeric(Type const& type);
 
   private:
-    binding::Object_Table& objects_;
+    void type_error(std::string_view message,
+        std::string_view symbol,
+        std::source_location const& location = std::source_location::current());
+
+  private:
+    Frame& frame_;
+    Vectors& globals_;
+    util::AST_Node const& hoisted_symbols_;
+    Call_Arguments* call_arguments_;
 };
 
-/**
- * @brief Type checking on lvalue, rvalue, and vector assignments
- */
-struct Value_Type_Assignment_Checker
-{
-    Value_Type_Assignment_Checker() = delete;
-    Value_Type_Assignment_Checker(
-        Value_Type_Assignment_Checker const&) = delete;
-    Value_Type_Assignment_Checker& operator=(
-        Value_Type_Assignment_Checker const&) = delete;
-    explicit Value_Type_Assignment_Checker(binding::Object_Table& objects)
-        : objects_(objects)
-        , stack_frame_(objects.get_stack_frame())
-        , trivial_type_(objects)
-    {
-    }
-    void type_invalid_assignment_check(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_invalid_assignment_check(LValue const& lvalue,
-        type::Data_Type const& rvalue);
-    void type_invalid_assignment_check(LValue const& lvalue,
-        binding::Vector& vector,
-        RValue const& index);
-    void type_invalid_assignment_check(binding::Vector& vector_lhs,
-        binding::Vector& vector_rhs,
-        RValue const& index);
-    void type_invalid_assignment_check(binding::Vector& vector_lhs,
-        binding::Vector& vector_rhs,
-        RValue const& index_lhs,
-        RValue const& index_rhs);
+RValue get_symbol_from_expression(Data_Kind::Kind const& expression);
 
-  private:
-    binding::Object_Table& objects_;
-    binding::Function& stack_frame_;
-
-  private:
-    Trivial_Type_Assignment_Checker trivial_type_;
-};
-
-/**
- * @brief Storage checks on vector assignments
- */
-struct Value_Storage_Assignment_Checker
-{
-    Value_Storage_Assignment_Checker() = delete;
-    Value_Storage_Assignment_Checker(
-        Value_Storage_Assignment_Checker const&) = delete;
-    Value_Storage_Assignment_Checker& operator=(
-        Value_Storage_Assignment_Checker const&) = delete;
-    explicit Value_Storage_Assignment_Checker(binding::Object_Table& objects)
-        : objects_(objects)
-    {
-    }
-
-    /**
-     * @brief Either lhs or rhs are trivial vector assignments
-     */
-    inline bool is_trivial_vector_assignment(LValue const& lhs,
-        LValue const& rhs)
-    {
-        return ((objects_.vectors.contains(lhs) and
-                    objects_.vectors.at(lhs).get().data.size() == 1) or
-                (objects_.vectors.contains(rhs) and
-                    objects_.vectors.at(rhs).get().data.size() == 1));
-    }
-
-  private:
-    binding::Object_Table& objects_;
-};
-
-/**
- * @brief Type-safe assignment and decay of pointers and vectors
- */
-struct Pointer_Vector_Decay_Checker
-{
-    Pointer_Vector_Decay_Checker() = delete;
-    Pointer_Vector_Decay_Checker(Pointer_Vector_Decay_Checker const&) = delete;
-    Pointer_Vector_Decay_Checker& operator=(
-        Pointer_Vector_Decay_Checker const&) = delete;
-    explicit Pointer_Vector_Decay_Checker(binding::Object_Table& objects)
-        : objects_(objects)
-        , stack_frame_(objects.get_stack_frame())
-        , trivial_type_(objects)
-        , value_type_(objects)
-        , value_storage_(objects)
-    {
-    }
-    void type_safe_assign_pointer(LValue const& lvalue,
-        RValue const& rvalue,
-        bool indirection = false);
-    void type_safe_assign_trivial_vector(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_safe_assign_dereference(LValue const& lvalue,
-        RValue const& rvalue);
-    void type_safe_assign_vector(LValue const& lvalue, RValue const& rvalue);
-    void type_safe_assign_pointer_or_vector_lvalue(LValue const& lvalue,
-        type::RValue_Reference_Type const& rvalue,
-        bool indirection = false);
-
-    void is_boundary_out_of_range(RValue const& rvalue);
-
-  private:
-    binding::Object_Table& objects_;
-    binding::Function& stack_frame_;
-
-  private:
-    Trivial_Type_Assignment_Checker trivial_type_;
-    Value_Type_Assignment_Checker value_type_;
-    Value_Storage_Assignment_Checker value_storage_;
-};
+Value get_value_from_literal(literal::Literal const& literal);
 
 } // namespace credence::language::hir::checking

@@ -13,7 +13,7 @@ _start:
     ldr w9, [x6]
     adrp x6, mess
     add x6, x6, :lo12:mess
-    ldr x10, [x6, #8]
+    ldr x11, [x6, #8]
     ldp x29, x30, [sp], #16
     mov w0, #0
     mov x8, #93

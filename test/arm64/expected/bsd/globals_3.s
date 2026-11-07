@@ -8,17 +8,17 @@
 _start:
     stp x29, x30, [sp, #-32]!
     mov x29, sp
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     adrp x6, unit@PAGE
     add x6, x6, unit@PAGEOFF
     ldr w10, [x6]
-    str w10, [sp, #20]
-    ldr x10, [sp, #28]
+    str w10, [sp, #16]
+    ldr x10, [sp, #24]
     adrp x6, mess@PAGE
     add x6, x6, mess@PAGEOFF
     ldr x10, [x6, #8]
-    str x10, [sp, #28]
-    ldr x0, [sp, #28]
+    str x10, [sp, #24]
+    ldr x0, [sp, #24]
     mov w1, #10
     bl _print
     ldp x29, x30, [sp], #32

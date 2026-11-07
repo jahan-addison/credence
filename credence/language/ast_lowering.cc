@@ -80,6 +80,10 @@ hir::Data_Kind AST_Lowering::lower_from_node(Node const& node)
         return expression;
     }
 
+    if (node_type == "indirect_lvalue" and
+        node["left"]["node"].to_string() == "relation_expression")
+        return lower_from_node(from_indirect_relation_node(node));
+
     m::match(node_type)(
         m::pattern | "constant_literal" =
             [&] { expression.value = from_constant_expression_node(node); },
@@ -135,6 +139,37 @@ hir::Data_Kind AST_Lowering::lower_from_node(Node const& node)
                 }
             });
     return expression;
+}
+
+/**
+ * @brief Move the indirection of a relation chain to its leftmost operand
+ *
+ * The parser nests the indirection of a relation chain around the whole
+ * chain, but the indirection binds tighter than any binary operator.
+ *
+ *  Example:
+ *
+ *    x = *p + 1;
+ *
+ *    indirect_lvalue(relation_expression(+, p, 1))
+ *
+ *  Becomes:
+ *
+ *    relation_expression(+, indirect_lvalue(p), 1)
+ */
+AST_Lowering::Node AST_Lowering::from_indirect_relation_node(Node const& node)
+{
+    auto const& relation = node["left"];
+    auto indirect = util::AST::object();
+    indirect["node"] = node["node"];
+    indirect["root"] = node["root"];
+    indirect["left"] = relation["left"];
+    auto chain = util::AST::object();
+    chain["node"] = relation["node"];
+    chain["root"] = relation["root"];
+    chain["left"] = indirect;
+    chain["right"] = relation["right"];
+    return chain;
 }
 
 /**
@@ -504,8 +539,12 @@ AST_Lowering::Literal AST_Lowering::from_string_literal_node(Node const& node)
 AST_Lowering::Literal AST_Lowering::from_constant_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "constant_literal");
-    return { static_cast<char>(node["root"].to_string()[0]),
-        literal::TYPE_LITERAL.at("char") };
+    auto constant = node["root"].to_string();
+    // the parser keeps the quotes of a whitespace character, `' '`
+    auto character = constant.size() == 3 and constant.front() == '\''
+                         ? constant[1]
+                         : constant[0];
+    return { static_cast<char>(character), literal::TYPE_LITERAL.at("char") };
 }
 
 /**

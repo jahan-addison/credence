@@ -14,8 +14,7 @@ _start:
     mov dword ptr [rbp - 8], 10
     mov eax, dword ptr [rbp - 4]
     cdq
-    mov edi, dword ptr [rbp - 8]
-    idiv edi
+    idiv dword ptr [rbp - 8]
     mov dword ptr [rbp - 12], eax
     mov eax, dword ptr [rbp - 4]
     add eax, dword ptr [rbp - 8]
@@ -28,9 +27,9 @@ _start:
     mov dword ptr [rbp - 12], eax
     mov eax, dword ptr [rbp - 4]
     cdq
-    mov r8d, dword ptr [rbp - 8]
-    idiv r8d
-    mov dword ptr [rbp - 12], edx
+    idiv dword ptr [rbp - 8]
+    mov eax, edx
+    mov dword ptr [rbp - 12], eax
     mov eax, 10
     mov dword ptr [rbp - 12], eax
     mov rax, 33554433

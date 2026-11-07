@@ -21,27 +21,28 @@
 #include <cstddef>                          // for size_t
 
 /****************************************************************************
- *
  * x86-64 IR Visitor
  *
- * Visits ITA intermediate representation instructions and emits x86_64
- * assembly. Implements the IR_Visitor interface for x86_64 ISA.
+ * Translates each ITA instruction into x86-64 instructions. Every local is
+ * on the stack below rbp, and the value of an expression is in the
+ * accumulator, eax or rax.
  *
- * Example - visiting assignment:
+ *  Example:
  *
- *   ITA:    x = 42;
+ *    PUSH _p5_4;
+ *    PUSH _p4_3;
+ *    CALL add;
+ *    POP 16;
+ *    _t8 = RET;
  *
- * Visitor generates:
- *   mov dword ptr [rbp - 4], 42
+ *  Becomes:
  *
- * Example - visiting function call:
+ *    mov edi, dword ptr [rbp - 4]
+ *    mov r8d, 2
+ *    call add
+ *    mov dword ptr [rbp - 8], eax
  *
- *   ITA:    CALL add
- *
- * Visitor generates:
- *   call add
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 namespace credence::target::x86_64 {
 
@@ -49,7 +50,11 @@ using X8664_IR_Visitor =
     common::IR_Visitor<ir::Quadruple, assembly::Instructions>;
 
 /**
- * @brief IR Visitor for the x86-64 architecture ISA
+ * @brief The IR visitor of the x86-64 ISA
+ *
+ * The visitor of a MOV dispatches on the kind of its lvalue and rvalue to
+ * an inserter, and the accumulator holds the value of a temporary until the
+ * next instruction, so a temporary used later is stored on the stack
  */
 class IR_Instruction_Visitor final : public X8664_IR_Visitor
 {
@@ -61,7 +66,6 @@ class IR_Instruction_Visitor final : public X8664_IR_Visitor
     }
 
     using Instructions = assembly::Instructions;
-    void set_stack_frame_from_table(Label const& function_name);
 
   public:
     constexpr void set_iterator_index(std::size_t index)
@@ -77,13 +81,17 @@ class IR_Instruction_Visitor final : public X8664_IR_Visitor
     void from_func_end_ita() override;
     void from_cmp_ita(ir::Quadruple const& inst) override;
     void from_mov_ita(ir::Quadruple const& inst) override;
-    void from_return_ita() override;
+    void from_return_ita(ir::Quadruple const& inst) override;
     void from_leave_ita() override;
     void from_label_ita(ir::Quadruple const& inst) override;
     void from_call_ita(ir::Quadruple const& inst) override;
     void from_if_ita(ir::Quadruple const& inst) override;
     void from_jmp_e_ita(ir::Quadruple const& inst) override;
     void from_goto_ita(ir::Quadruple const& inst) override;
+
+  private:
+    bool is_temporary_used_after_next_instruction(LValue const& temporary);
+    void insert_temporary_to_stack(LValue const& temporary, LValue const& slot);
 
   private:
     std::size_t iterator_index_{ 0 };

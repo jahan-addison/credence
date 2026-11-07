@@ -16,7 +16,8 @@ _start:
     mov qword ptr [rbp - 8], rax
     mov rdi, qword ptr [rbp - 8]
     call test
-    mov rdi, rax
+    mov qword ptr [rbp - 16], rax
+    mov rdi, qword ptr [rbp - 16]
     mov esi, 11
     call print
     add rsp, 16
@@ -29,7 +30,7 @@ test:
     push rbp
     mov rbp, rsp
     mov rax, rdi
-    pop rbp
+    leave
     ret
 
 .data

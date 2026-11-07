@@ -26,27 +26,30 @@
 #include <credence/target/common/types.h>    // for get_first_of_enum_t
 
 /****************************************************************************
+ * x86-64 Syscall Interface
  *
- * x86-64 System Call Interface
+ * Syscalls on x86-64 Linux and Darwin. The syscall number is in rax and the
+ * arguments are in rdi, rsi, rdx, r10, r8, and r9, then the `syscall`
+ * instruction is executed. A Darwin syscall number is in the Unix syscall
+ * class, 0x2000000. The `main` function returns with the exit syscall.
  *
- * Syscall invocation for x86-64 Linux and Darwin. Loads syscall number into rax
- * and arguments into rdi, rsi, rdx, r10, r8, r9 per the kernel specification
+ *  Example:
  *
- * Example - exit syscall:
+ *    LEAVE;
  *
- *   B code:    main() { return(0); }
+ *  Becomes, in `main` on Linux:
  *
- * Generates (Linux):
- *   mov rax, 60        ; exit syscall number
- *   mov rdi, 0         ; exit code
- *   syscall
+ *    mov rax, 60
+ *    mov rdi, 0
+ *    syscall
  *
- * Generates (Darwin):
- *   mov rax, 0x2000001 ; Darwin exit number
- *   mov rdi, 0
- *   syscall
+ *  And on Darwin:
  *
- *****************************************************************************/
+ *    mov rax, 33554433     // 0x2000000 | 1
+ *    mov rdi, 0
+ *    syscall
+ *
+ ****************************************************************************/
 
 namespace credence::target::x86_64::syscall_ns {
 
@@ -64,6 +67,9 @@ void syscall_operands_to_instructions(assembly::Instructions instructions,
     memory::Stack_Frame* stack_frame = nullptr,
     memory::Memory_Accessor* accessor = nullptr);
 
+/**
+ * @brief Get the syscall register of an argument, a quadword for an address
+ */
 inline Register get_storage_register_from_safe_address(
     assembly::Storage const& argument,
     memory::registers::general_purpose const& w_registers,
@@ -96,7 +102,7 @@ void make_syscall(assembly::Instructions& instructions,
 }
 
 /**
- * @brief NULL-check the memory access, then set the signal register
+ * @brief Move a value in rcx to its syscall register
  */
 bool check_signal_register_from_safe_address(Instructions& instructions,
     assembly::Register storage,

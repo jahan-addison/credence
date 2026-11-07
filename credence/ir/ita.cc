@@ -180,6 +180,8 @@ Instructions ITA::build_from_function_definition(Node const& node)
 
     instructions.emplace_back(make_quadruple(Instruction::FUNC_END));
 
+    detail::erase_unreachable_goto_instructions(instructions);
+
     // clear symbols from function scope
     symbols_.clear();
 
@@ -350,6 +352,12 @@ Instructions ITA::build_from_block_statement(Node const& node,
 
     if (root_function_scope) {
         branch.teardown();
+        // the last return of the function body falls through to its end
+        if (instructions.size() > 1 and
+            std::get<Instruction>(instructions.back()) == Instruction::GOTO and
+            std::get<Instruction>(instructions[instructions.size() - 2]) ==
+                Instruction::RETURN)
+            instructions.pop_back();
         instructions.emplace_back(branch.get_root_branch().value());
         instructions.emplace_back(make_quadruple(Instruction::LEAVE));
     }
@@ -664,6 +672,11 @@ Instructions ITA::build_from_return_statement(Node const& node)
     auto return_instructions = ast_to_ita_instructions(
         symbols_, return_statement, internal_symbols_, &temporary, &identifier);
     ir::insert(instructions, return_instructions.first);
+    // the return value of a call, e.g. `return(f(x));`
+    if (!instructions.empty() and
+        (std::get<Instruction>(instructions.back()) == Instruction::POP or
+            std::get<Instruction>(instructions.back()) == Instruction::CALL))
+        instructions.emplace_back(ir::make_temporary(&temporary, "RET"));
     if (!return_instructions.second.empty() and instructions.empty()) {
         auto last_rvalue = std::get<language::hir::Data_Kind::Kind_Pointer>(
             return_instructions.second.back());
@@ -675,6 +688,11 @@ Instructions ITA::build_from_return_statement(Node const& node)
         instructions.emplace_back(
             make_quadruple(Instruction::RETURN, std::get<1>(last)));
     }
+    // resume at the end of the function, see build_from_block_statement
+    if (branch.get_root_branch().has_value())
+        instructions.emplace_back(make_quadruple(Instruction::GOTO,
+            std::get<1>(branch.get_root_branch().value()),
+            ""));
     return instructions;
 }
 
@@ -775,7 +793,7 @@ Instructions ITA::build_from_rvalue_statement(Node const& node)
     credence_assert(node.has_key("left"));
     auto statement = node["left"];
     return ast_to_ita_instructions(
-        symbols_, statement, internal_symbols_, &temporary, &identifier)
+        symbols_, statement, internal_symbols_, &temporary, &identifier, true)
         .first;
 }
 
@@ -833,6 +851,21 @@ void detail::emit_to(std::ostream& os, Quadruple const& ita, bool indent)
 
         );
     }
+}
+
+/**
+ * @brief Erase each GOTO instruction that directly follows another GOTO
+ *
+ * No label separates the two jumps, so nothing can reach the second
+ */
+void detail::erase_unreachable_goto_instructions(Instructions& instructions)
+{
+    auto unreachable = std::ranges::unique(
+        instructions, [](Quadruple const& last, Quadruple const& next) {
+            return std::get<Instruction>(last) == Instruction::GOTO and
+                   std::get<Instruction>(next) == Instruction::GOTO;
+        });
+    instructions.erase(unreachable.begin(), unreachable.end());
 }
 
 /**

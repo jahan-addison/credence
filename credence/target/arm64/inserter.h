@@ -22,54 +22,65 @@
 #include <credence/target/common/inserter.h>    // for Arithemtic_Operator_...
 #include <credence/target/common/stack_frame.h> // for Locals
 #include <deque>                                // for deque
+#include <optional>                             // for optional
 #include <string>                               // for basic_string, string
 #include <string_view>                          // for string_view
 #include <utility>                              // for make_pair
 
 /****************************************************************************
- *
  * ARM64 Instruction Inserters
  *
- * Translates B language operations into ARM64 instruction sequences.
- * Includes arithmetic, bitwise, relational operators, and lvalue and rvalue
- * type assignments.
+ * Translates each kind of IR expression into ARM64 instructions. See
+ * common/inserter.h for the interfaces. The value of an expression is in the
+ * accumulator, w8 or x8, and the right-hand-side of a binary expression is
+ * in w7 or x7.
  *
- * Example - arithmetic operation:
+ *  Example:
  *
- *   B code:    z = x + y * 2;
+ *    _t2 = y * (2:int:4);
+ *    _t3 = x + _t2;
+ *    z = _t3;
+ *    _t7 = z > (10:int:4);
+ *    IF _t7 GOTO _L6;
  *
- * Inserter generates (locals in w9, w10, w11):
- *   mov w8, w10             ; load y from w10 into accumulator
- *   lsl w8, w8, #1          ; y * 2 (shift left)
- *   add w8, w9, w8          ; x + (y * 2), x in w9
- *   mov w11, w8             ; store to z in w11
+ *  Becomes, where x, y, and z are in w9, w11, and w12:
  *
- * Example - comparison:
+ *    mov w8, w11
+ *    mov w7, #2
+ *    mul w8, w8, w7
+ *    mov w7, w8           // _t2 is the right-hand-side
+ *    mov w8, w9
+ *    add w8, w8, w7
+ *    mov w12, w8
+ *    mov w8, w12
+ *    cmp w8, #10
+ *    b.gt ._L6__main      // the IF is fused with its comparison
  *
- *   B code:    if (x > 10) { ... }
- *
- * Inserter generates (x in w9):
- *   cmp w9, #10
- *   b.gt ._L1__main
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -130,10 +141,9 @@ using ARM64_Operand_Inserter =
         assembly::Assignment_Operands,
         Register>;
 
-/************************/
-// ---------------------
-/************************/
-
+/**
+ * @brief Get the immediates of two literal operands
+ */
 inline auto get_rvalue_pair_as_immediate(RValue const& lhs, RValue const& rhs)
 {
     return std::make_pair(type::get_rvalue_datatype_from_string(lhs),
@@ -141,9 +151,10 @@ inline auto get_rvalue_pair_as_immediate(RValue const& lhs, RValue const& rhs)
 }
 
 /**
- *  See target/common/inserter.h for details
+ * @brief Translate a comparison of two operands into a conditional jump
+ *
+ * See common/inserter.h for details
  */
-
 struct Relational_Operator_Inserter : public ARM64_Relational_Operator_Inserter
 {
     explicit Relational_Operator_Inserter(memory::Memory_Access accessor)
@@ -156,6 +167,9 @@ struct Relational_Operator_Inserter : public ARM64_Relational_Operator_Inserter
         Label const& jump_label) override;
 };
 
+/**
+ * @brief Translate a bitwise expression of two operands
+ */
 struct Bitwise_Operator_Inserter : public ARM64_Bitwise_Operator_Inserter
 {
     explicit Bitwise_Operator_Inserter(memory::Memory_Access accessor)
@@ -165,14 +179,15 @@ struct Bitwise_Operator_Inserter : public ARM64_Bitwise_Operator_Inserter
     Instruction_Pair from_bitwise_expression_operands(
         assembly::Ternary_Operands const& operands,
         std::string const& binary_op) override;
-
-    void from_bitwise_temporary_expression(RValue const& expr);
-
-  private:
-    void get_operand_stack_from_temporary_lvalue(LValue const& lvalue,
-        Operand_Stack& stack);
 };
 
+/**
+ * @brief Translate a call and its arguments
+ *
+ * The arguments are resolved to their devices before any is loaded into
+ * its register, so an argument computed into a scratch register, such as a
+ * global, is stored in an argument slot first
+ */
 struct Invocation_Inserter : public ARM64_Invocation_Inserter
 {
     explicit Invocation_Inserter(memory::Memory_Access accessor)
@@ -180,6 +195,9 @@ struct Invocation_Inserter : public ARM64_Invocation_Inserter
     {
     }
     arguments_t get_operands_storage_from_argument_stack() override;
+    bool is_global_argument(RValue const& rvalue);
+    common::Stack_Offset insert_global_argument_to_stack(RValue const& rvalue);
+    Storage insert_parameter_argument_to_stack(RValue const& rvalue);
     void insert_from_standard_library_function(std::string_view routine,
         Instructions& instructions) override;
     void insert_from_user_defined_function(std::string_view routine,
@@ -192,8 +210,14 @@ struct Invocation_Inserter : public ARM64_Invocation_Inserter
     void insert_type_check_stdlib_printf_arguments(
         common::memory::Locals const& argument_stack,
         ARM64_Invocation_Inserter::arguments_t& operands) override;
+
+  private:
+    unsigned int global_argument_index{ 0 };
 };
 
+/**
+ * @brief Translate an arithmetic expression of two operands
+ */
 struct Arithemtic_Operator_Inserter : public ARM64_Arithemtic_Operator_Inserter
 {
     explicit Arithemtic_Operator_Inserter(memory::Memory_Access accessor)
@@ -205,6 +229,13 @@ struct Arithemtic_Operator_Inserter : public ARM64_Arithemtic_Operator_Inserter
         std::string const& binary_op) override;
 };
 
+/**
+ * @brief Translate the binary expression of a temporary
+ *
+ * The left-hand-side is in the accumulator and the right-hand-side is its
+ * operand, and the result is in the accumulator, or a conditional jump when
+ * the next instruction is the IF of a relational expression
+ */
 struct Binary_Operator_Inserter : ARM64_Binary_Operator_Inserter
 {
     explicit Binary_Operator_Inserter(memory::Memory_Access accessor)
@@ -212,17 +243,31 @@ struct Binary_Operator_Inserter : ARM64_Binary_Operator_Inserter
     {
     }
     void from_binary_operator_expression(RValue const& rvalue) override;
+
+  public:
+    // the register that holds the value of the expression, empty when a
+    // relational expression inserted a conditional jump instead
+    std::optional<Register> result{};
+
+  private:
+    void insert_from_modulo_operands(Register accumulator, Storage divisor);
+    void insert_from_relational_operands(Register accumulator,
+        Storage const& rhs,
+        std::string const& op);
+    void insert_from_logical_operands(Register accumulator,
+        Storage const& rhs,
+        std::string const& op);
 };
 
+/**
+ * @brief Translate a unary expression
+ */
 struct Unary_Operator_Inserter : public ARM64_Unary_Operator_Inserter
 {
     explicit Unary_Operator_Inserter(memory::Memory_Access accessor)
         : ARM64_Unary_Operator_Inserter(accessor)
     {
     }
-
-    void insert_from_unary_to_unary_assignment(LValue const& lhs,
-        LValue const& rhs);
 
     Operand_Size get_operand_size_from_lvalue_reference(LValue const& lvalue);
     void insert_from_unary_operator_operands(std::string const& op,
@@ -236,6 +281,10 @@ struct Unary_Operator_Inserter : public ARM64_Unary_Operator_Inserter
         RValue const& rvalue);
 };
 
+/**
+ * @brief Translate the rvalue of a temporary, a return, or a global vector
+ * assignment
+ */
 struct Expression_Inserter : public ARM64_Expression_Inserter
 {
     explicit Expression_Inserter(memory::Memory_Access accessor)
@@ -258,9 +307,17 @@ struct Expression_Inserter : public ARM64_Expression_Inserter
     void insert_from_address_of_rvalue(RValue const& rvalue);
 
   private:
+    std::optional<Register> insert_from_unary_value(RValue const& rvalue);
+
+  private:
     std::deque<LValue> stack{};
+    // the register that holds the value of the last temporary rvalue
+    std::optional<Register> result_{};
 };
 
+/**
+ * @brief Translate the IR instructions of a program in order
+ */
 class Instruction_Inserter : public ARM64_Instruction_Inserter
 {
   public:
@@ -274,6 +331,12 @@ class Instruction_Inserter : public ARM64_Instruction_Inserter
         int index) override;
 };
 
+/**
+ * @brief Load and store the operands of an assignment
+ *
+ * An operand is loaded into its device or the accumulator, and the
+ * accumulator is stored to an lvalue at the size of its device
+ */
 class Operand_Inserter : public ARM64_Operand_Inserter
 {
   public:
@@ -286,6 +349,14 @@ class Operand_Inserter : public ARM64_Operand_Inserter
     Storage get_operand_storage_from_rvalue(RValue const& rvalue) override;
     Storage get_operand_storage_from_rvalue_no_instructions(
         RValue const& rvalue);
+    Storage get_operand_storage_from_expression_operand(RValue const& rvalue);
+    Register insert_operand_into_accumulator(RValue const& rvalue);
+    void insert_from_accumulator_to_lvalue(LValue const& lhs,
+        Register accumulator);
+    bool is_local_vector_offset(RValue const& rvalue);
+    Size get_pointee_size(LValue const& pointer);
+    Size get_pointer_stride(LValue const& pointer);
+    Storage get_operand_storage_from_local_vector_offset(RValue const& rvalue);
 
   public:
     void insert_from_immediate_rvalues(Immediate const& lhs,
@@ -300,8 +371,10 @@ class Operand_Inserter : public ARM64_Operand_Inserter
     void insert_form_vector_lvalue_data_type(LValue const& lhs,
         RValue const& rhs);
 
-  private:
+  public:
     Storage get_operand_storage_from_parameter(RValue const& rvalue) override;
+
+  private:
     Storage get_operand_storage_from_stack(
         [[maybe_unused]] RValue const& rvalue) override
     {

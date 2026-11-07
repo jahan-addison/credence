@@ -28,61 +28,61 @@
 #include <variant>                         // for variant
 
 /****************************************************************************
+ * ARM64 Code Generator
  *
- * ARM64 Code Generator and Emitter Types
+ * Generates ARM64 assembly for Linux and Darwin under the ARM64 Procedure
+ * Call Standard (PCS). The IR is translated into the instructions of the
+ * text section, then the emitter resolves the frame size of each function
+ * and writes the text and data sections.
  *
- * Generates ARM64/AArch64 assembly for Linux and Darwin (macOS). Compliant
- * with ARM64 Procedure Call Standard (PCS). Translates ITA intermediate
- * representation into machine code.
+ *  Example:
  *
- * Example - simple function:
+ *    add(x, y) {
+ *      return(x + y);
+ *    }
+ *    counter 5;
  *
- *   B code:
- *     add(x, y) {
- *       return(x + y);
- *     }
+ *  Becomes:
  *
- *   Generated ARM64:
- *     add:
- *         stp x29, x30, [sp, #-16]!
- *         mov x29, sp
- *         add x0, x0, x1      ; x in x0, y in x1
- *         ldp x29, x30, [sp], #16
- *         ret
+ *    add:
+ *        stp x29, x30, [sp, #-16]!
+ *        mov x29, sp
+ *        mov w8, w0
+ *        add w8, w8, w1
+ *        mov w0, w8
+ *        ldp x29, x30, [sp], #16
+ *        ret
  *
- * Example - globals and strings:
+ *    .section	__DATA,__data
+ *        .p2align 2
+ *    counter:
+ *        .long 5
  *
- *   B code:
- *     greeting "Hello, World!\n";
- *     counter 0;
- *
- *   Generated:
- *     .data
- *     ._L_str1__:
- *         .asciz "Hello, World!\n"
- *     greeting:
- *         .quad ._L_str1__
- *     counter:
- *         .quad 0
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -102,7 +102,7 @@ using Operand_Stack = std::deque<Storage>;
 }
 
 void emit(std::ostream& os,
-    util::AST_Node& symbols,
+    util::AST_Node const& symbols,
     util::AST_Node const& ast,
     bool no_stdlib);
 
@@ -124,7 +124,11 @@ void insert_arm64_alignment_directive(assembly::Directives& instructions,
 class Assembly_Emitter;
 
 /**
- * @brief Storage Emitter for destination and source storage devices
+ * @brief Emit the operands of an instruction
+ *
+ * The flags of the instruction are applied to each operand, so an operand
+ * that depends on the frame size is resolved here, after the function is
+ * translated
  */
 class Storage_Emitter
 {
@@ -140,6 +144,7 @@ class Storage_Emitter
     {
     }
 
+    // the position of an operand, from the first
     enum class Source
     {
         s_0,
@@ -148,6 +153,9 @@ class Storage_Emitter
         s_3,
     };
 
+    /**
+     * @brief Check if a mnemonic may have an operand of the frame size
+     */
     constexpr bool is_alignment_mnemonic(Mnemonic mnemonic)
     {
         return mnemonic == arm_mn(sub) or mnemonic == arm_mn(add) or
@@ -183,7 +191,11 @@ class Storage_Emitter
 };
 
 /**
- * @brief Text Emitter for the text section in a arm64 application
+ * @brief Emit the text section of an ARM64 program
+ *
+ * The instructions after the `_L1` label of a function are its epilogue,
+ * which the IR does not keep at the end, so they are held and emitted after
+ * the function's last branch
  */
 class Text_Emitter
 {
@@ -237,9 +249,11 @@ class Text_Emitter
 };
 
 /**
- * @brief Data Emitter for the data section in a arm64 application
+ * @brief Emit the data section of an ARM64 program
+ *
+ * Floats, doubles, and strings are emitted first, so each global that holds
+ * one refers to its label, then the globals
  */
-
 class Data_Emitter
 {
   public:
@@ -274,8 +288,7 @@ class Data_Emitter
 };
 
 /**
- * @brief Assembly Emitter that emits the data and text section of an arm64
- * application
+ * @brief Emit an ARM64 program, its text and data sections
  */
 class Assembly_Emitter
 {

@@ -16,36 +16,45 @@
 #include <string> // for basic_string, string
 
 /****************************************************************************
+ * Syscall Tables
  *
- * System call tables and kernel interface
+ * The syscalls a program may call on each platform, x86-64 and ARM64 on
+ * Linux and Darwin, with their number and argument count. A syscall is
+ * called like a function, and its arguments are loaded into the syscall
+ * registers of the platform.
  *
- * Maps system calls (write, read, exit, etc.) to their numbers and calling
- * conventions for each platform: x86-64 Linux, x86-64 Darwin (macOS),
- * ARM64 Linux, and ARM64 Darwin. Handles differences in syscall numbers
- * and register usage across platforms.
+ *  Example:
  *
- * Example - exit syscall:
+ *    main() {
+ *      write(1, "hi", 2);
+ *    }
  *
- *   B code:    main() { return(42); }
+ *  Becomes, on arm64 Darwin:
  *
- *   x86-64 Linux:  mov rax, 60    ; exit syscall number
- *                  mov rdi, 42    ; exit code
- *                  syscall
+ *    mov w0, #1
+ *    adrp x1, ._L_str1__@PAGE
+ *    add x1, x1, ._L_str1__@PAGEOFF
+ *    mov w2, #2
+ *    mov x16, #4           // write
+ *    svc #0x80
  *
- *   x86-64 Darwin: mov rax, 0x2000001  ; Darwin exit
- *                  mov rdi, 42
- *                  syscall
+ *  And on x86-64 Darwin, where the number is in the Unix syscall class:
  *
- *   ARM64 Linux:   mov x8, #93    ; exit syscall
- *                  mov x0, #42
- *                  svc #0
+ *    mov rax, 33554436     // 0x2000000 | 4
+ *    mov edi, 1
+ *    lea rsi, [rip + ._L_str1__]
+ *    mov edx, 2
+ *    syscall
  *
  ****************************************************************************/
 
 namespace credence::target::common::syscall_ns {
 
 /**
- * @brief Get the list of available syscalls on the current platform
+ * @brief Get the names of the syscalls of a platform
+ *
+ * Each name is added to the hoisted symbols as a function, so a program
+ * calls it by name
  */
 std::vector<std::string> get_platform_syscall_symbols(assembly::OS_Type os_type,
     assembly::Arch_Type arch_type)
@@ -60,4 +69,4 @@ std::vector<std::string> get_platform_syscall_symbols(assembly::OS_Type os_type,
     return symbols;
 }
 
-} // namespace credence::target::arm64::syscall_ns
+} // namespace credence::target::common::syscall_ns

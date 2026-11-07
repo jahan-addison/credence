@@ -10,28 +10,30 @@
     .global putchar
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-48]!
     mov x29, sp
-    ldr w10, [sp, #20]
+    ldr w10, [sp, #16]
     adrp x6, unit
     add x6, x6, :lo12:unit
     ldr w10, [x6]
-    str w10, [sp, #20]
-    ldr x10, [sp, #28]
+    str w10, [sp, #16]
+    ldr x10, [sp, #24]
     adrp x6, mess
     add x6, x6, :lo12:mess
     ldr x10, [x6]
-    str x10, [sp, #28]
+    str x10, [sp, #24]
     adrp x0, ._L_str2__
     add x0, x0, :lo12:._L_str2__
     mov w1, #13
     bl print
-    ldr x0, [sp, #28]
+    ldr x0, [sp, #24]
     mov w1, #6
     bl print
     adrp x6, mess
     add x6, x6, :lo12:mess
-    ldr x0, [x6, #8]
+    ldr x10, [x6, #8]
+    str x10, [sp, #32]
+    ldr x0, [sp, #32]
     mov w1, #7
     bl print
     mov w0, #1
@@ -40,7 +42,8 @@ _start:
     mov w2, #21
     mov x8, #64
     svc #0
-    ldp x29, x30, [sp], #32
+    mov w8, w0
+    ldp x29, x30, [sp], #48
     mov w0, #0
     mov x8, #93
     svc #0

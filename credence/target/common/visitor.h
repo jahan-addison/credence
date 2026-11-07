@@ -16,38 +16,42 @@
 #include <string>
 
 /****************************************************************************
- *
  * IR Visitor
  *
- * Abstract interface for traversing ITA (Instruction Tuple Abstraction)
- * intermediate representation and generating platform-specific assembly.
- * Each architecture implements this visitor to emit its own ISA.
+ * The interface each target implements to translate the ITA, one IR
+ * instruction at a time, into the instructions of its ISA. See ir/README.md
+ * for details on the IR.
  *
- *  See ir/readme.md for details on the IR.
+ *  Example:
  *
- * Example - visiting ITA instructions:
+ *    x = (5:int:4);
+ *    _t2 = x + (10:int:4);
+ *    y = _t2;
  *
- *   ITA:       x = 5;  (x is first local variable)
- *              y = x + 10;  (y is second local)
+ *  Becomes, with one from_mov_ita call for each instruction, on x86-64:
  *
- * Visitor calls:
- *   1. from_mov_ita({lvalue: "x", rvalue: "5"})
- *   2. from_mov_ita({lvalue: "y", rvalue: "x + 10"})
+ *    mov dword ptr [rbp - 4], 5
+ *    mov eax, dword ptr [rbp - 4]
+ *    add eax, 10
+ *    mov dword ptr [rbp - 8], eax
  *
- * x86-64 emits:  mov dword ptr [rbp - 4], 5
- *                mov eax, dword ptr [rbp - 4]
- *                add eax, 10
- *                mov dword ptr [rbp - 8], eax
+ *  And on arm64, where x and y are in w9 and w10:
  *
- * ARM64 emits:   mov w9, #5           ; x in register w9
- *                mov w8, w9
- *                add w8, w8, #10
- *                mov w10, w8          ; y in register w10
+ *    mov w9, #5
+ *    mov w8, w9
+ *    add w8, w8, #10
+ *    mov w10, w8
  *
  ****************************************************************************/
 
 namespace credence::target::common {
 
+/**
+ * @brief A visitor of each ITA instruction kind
+ *
+ * The code generator calls the visitor of each instruction in order, and
+ * the visitor appends the target's instructions through its memory accessor
+ */
 template<typename IR, typename Instructions>
 class IR_Visitor
 {
@@ -64,7 +68,7 @@ class IR_Visitor
     virtual void from_func_end_ita() = 0;
     virtual void from_cmp_ita(IR const& inst) = 0;
     virtual void from_mov_ita(IR const& inst) = 0;
-    virtual void from_return_ita() = 0;
+    virtual void from_return_ita(IR const& inst) = 0;
     virtual void from_leave_ita() = 0;
     virtual void from_label_ita(IR const& inst) = 0;
     virtual void from_call_ita(IR const& inst) = 0;

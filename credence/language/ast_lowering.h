@@ -127,6 +127,7 @@ class AST_Lowering
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Data_Kind from_evaluated_expression_node(Node const& node);
     Data_Kind from_function_expression_node(Node const& node);
+    Node from_indirect_relation_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Data_Kind from_relation_expression_node(Node const& node);

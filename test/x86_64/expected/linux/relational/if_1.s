@@ -45,8 +45,8 @@ _start:
     lea rdi, [rip + ._L_str1__]
     mov esi, 5
     call print
-    mov al, 1
-    mov byte ptr [rbp - 4], al
+    mov eax, 1
+    mov dword ptr [rbp - 4], eax
     jmp ._L1__main
 ._L4__main:
     mov dword ptr [rbp - 4], 1

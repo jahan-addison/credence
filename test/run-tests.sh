@@ -69,8 +69,13 @@ if [[ "$ARCH" == "arm64" ]] ; then
   "$CREDENCE_BINARY" -t arm64 -o if_1 ./test/fixtures/platform/relational/if_1.b
   "$CREDENCE_BINARY" -t arm64 -o while_1 ./test/fixtures/platform/relational/while_1.b
   "$CREDENCE_BINARY" -t arm64 -o switch_1 ./test/fixtures/platform/relational/switch_1.b
+  "$CREDENCE_BINARY" -t arm64 -o return_1 ./test/fixtures/platform/relational/return_1.b
   "$CREDENCE_BINARY" -t arm64 -o stdlib_printf_test ./test/fixtures/platform/stdlib/printf_1.b
   "$CREDENCE_BINARY" -t arm64 -o argc_argv ./test/fixtures/platform/argc_argv.b
+  "$CREDENCE_BINARY" -t arm64 -o arguments_1 ./test/fixtures/platform/arguments_1.b
+  "$CREDENCE_BINARY" -t arm64 -o locals_1 ./test/fixtures/platform/locals_1.b
+  "$CREDENCE_BINARY" -t arm64 -o argv_1 ./test/fixtures/platform/argv_1.b
+  "$CREDENCE_BINARY" -t arm64 -o calls_1 ./test/fixtures/platform/calls_1.b
 
 
   send_message "Running arm64 tests ..."
@@ -87,8 +92,13 @@ if [[ "$ARCH" == "arm64" ]] ; then
   ./test/compiled-test.sh if_1
   ./test/compiled-test.sh while_1
   ./test/compiled-test.sh switch_1
+  ./test/compiled-test.sh return_1
   ./test/compiled-test.sh stdlib_printf_test
   ./test/compiled-test.sh argc argc_argv
+  ./test/compiled-test.sh arguments_1
+  ./test/compiled-test.sh locals_1
+  ./test/compiled-test.sh argc argv_1
+  ./test/compiled-test.sh calls_1
 
 else
 
@@ -104,8 +114,13 @@ else
   "$CREDENCE_BINARY" -t x86_64 -o if_1 ./test/fixtures/platform/relational/if_1.b
   "$CREDENCE_BINARY" -t x86_64 -o while_1 ./test/fixtures/platform/relational/while_1.b
   "$CREDENCE_BINARY" -t x86_64 -o switch_1 ./test/fixtures/platform/relational/switch_1.b
+  "$CREDENCE_BINARY" -t x86_64 -o return_1 ./test/fixtures/platform/relational/return_1.b
   "$CREDENCE_BINARY" -t x86_64 -o stdlib_printf_test ./test/fixtures/platform/stdlib/printf_1.b
   "$CREDENCE_BINARY" -t x86_64 -o argc_argv ./test/fixtures/platform/argc_argv.b
+  "$CREDENCE_BINARY" -t x86_64 -o arguments_1 ./test/fixtures/platform/arguments_1.b
+  "$CREDENCE_BINARY" -t x86_64 -o locals_1 ./test/fixtures/platform/locals_1.b
+  "$CREDENCE_BINARY" -t x86_64 -o argv_1 ./test/fixtures/platform/argv_1.b
+  "$CREDENCE_BINARY" -t x86_64 -o calls_1 ./test/fixtures/platform/calls_1.b
 
   send_message "Running x86_64 tests ..."
 
@@ -116,11 +131,16 @@ else
   ./test/compiled-test.sh if_1
   ./test/compiled-test.sh while_1
   ./test/compiled-test.sh switch_1
+  ./test/compiled-test.sh return_1
   ./test/compiled-test.sh call_test_2
   ./test/compiled-test.sh stdlib_putchar_test
   ./test/compiled-test.sh stdin stdlib_getchar_test
   ./test/compiled-test.sh argc argc_argv
   ./test/compiled-test.sh stdlib_printf_test
+  ./test/compiled-test.sh arguments_1
+  ./test/compiled-test.sh locals_1
+  ./test/compiled-test.sh argc argv_1
+  ./test/compiled-test.sh calls_1
 fi
 
 

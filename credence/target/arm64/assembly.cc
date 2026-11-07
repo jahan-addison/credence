@@ -16,36 +16,46 @@
 #include <matchit.h>        // for matchit
 
 /****************************************************************************
+ * ARM64 Assembly
  *
- * ARM64 Assembly Instructions and Mnemonics
+ * The registers, mnemonics, directives, and instruction constructors of the
+ * ARM64 ISA. An instruction is a mnemonic and up to four operands, and each
+ * constructor returns the register of its result and its instructions.
  *
- * Defines ARM64 instructions, registers, and mnemonics. Provides
- * instruction formatting and operand helpers for ARM64 ISA.
+ *  Example:
  *
- * Example instructions:
- *   Data movement: mov, ldr, str, ldp, stp
- *   Arithmetic: add, sub, mul, sdiv, udiv
- *   Bitwise: and, orr, eor, mvn, lsl, lsr
- *   Comparison: cmp, tst
- *   Control flow: b, b.eq, b.ne, b.gt, b.lt, bl, ret
+ *    auto [result, instructions] = assembly::mul(w8, Immediate{ "2" });
  *
- *****************************************************************************/
+ *  Becomes:
+ *
+ *    mov w7, #2
+ *    mul w8, w8, w7      // result is w8
+ *
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
+ *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -63,6 +73,11 @@ namespace credence::target::arm64::assembly {
 
 namespace m = matchit;
 
+/**
+ * @brief Get the doubleword, word, float, and double argument registers
+ *
+ * Each list is in reverse, so the next argument register is at its back
+ */
 std::tuple<std::deque<Register>,
     std::deque<Register>,
     std::deque<Register>,
@@ -108,9 +123,19 @@ get_available_argument_register()
     return { x, w, s, d };
 }
 
-/*********************************/
-/* arm64 directive constructors */
-/*********************************/
+/**
+ * The directive constructors of the data section. A string, float, or
+ * double literal has its own label, from the counter of literal labels.
+ *
+ *  Example:
+ *
+ *    asciz(&index, "hello")
+ *
+ *  Becomes:
+ *
+ *    ._L_str1__:
+ *        .asciz "hello"
+ */
 
 Directive_Pair asciz(std::size_t* index, type::semantic::RValue const& rvalue)
 {
@@ -211,11 +236,21 @@ Directives string(type::semantic::RValue const& rvalue)
     directives.emplace_back(Data_Pair{ Directive::string, rvalue });
     DONE_D();
 }
-// ---
-
-/***********************************/
-/* arm64 instruction constructors */
-/***********************************/
+/**
+ * The instruction constructors. Each returns the register of its result and
+ * its instructions, and an immediate right-hand-side of a multiplication or
+ * division is moved to w7 or x7 first.
+ *
+ *  Example:
+ *
+ *    r_gt(w9, #10, "._L6__main", w8)
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    cmp w8, #10
+ *    b.gt ._L6__main
+ */
 
 Instruction_Pair mul(Storage const& ss0, Storage const& ss1)
 {
@@ -227,11 +262,37 @@ Instruction_Pair div(Storage const& ss0, Storage const& ss1)
     arm64__make_and_ret_with_immediate(sdiv);
 }
 
+/**
+ * @brief The remainder of a signed division, the dividend minus the
+ * quotient times the divisor
+ *
+ *  Example:
+ *
+ *    mod(w8, #5)
+ *
+ *  Becomes:
+ *
+ *    mov w7, #5
+ *    sdiv w10, w8, w7
+ *    msub w8, w10, w7, w8
+ */
 Instruction_Pair mod(Storage const& ss0, Storage const& ss1)
 {
-    auto [sdiv_s, sdiv_i] = div(ss0, ss1);
-    arm64_add__asm(sdiv_i, msub, ss0, sdiv_s, ss1, ss0);
-    return { sdiv_s, sdiv_i };
+    MAKE_I();
+    auto dividend = std::get<Register>(ss0);
+    bool doubleword = is_doubleword_register(dividend);
+    auto divisor = ss1;
+    if (is_variant(Immediate, divisor)) {
+        auto scratch = doubleword ? Register::x7 : Register::w7;
+        arm64_add__asm(inst, mov, scratch, divisor);
+        divisor = scratch;
+    }
+    auto quotient = doubleword ? Register::x10 : Register::w10;
+    if (std::get<Register>(divisor) == quotient)
+        quotient = doubleword ? Register::x6 : Register::w6;
+    arm64_add__asm(inst, sdiv, quotient, dividend, divisor);
+    arm64_add__asm(inst, msub, dividend, quotient, divisor, dividend);
+    return { dividend, inst };
 }
 
 Instruction_Pair sub(Storage const& ss0, Storage const& ss1)
@@ -394,15 +455,21 @@ Instruction_Pair b_not(Storage const& ss0, Storage const& ss1)
         arm64__make_and_ret(mvn, ss0, ss1);
 }
 
+/**
+ * @brief The logical not of an operand, 1 when it is zero and 0 otherwise
+ */
 Instruction_Pair u_not(Storage const& ss0)
 {
     MAKE_I();
     arm64_add__asm(inst, mov, w8, ss0);
     arm64_add__asm(inst, cmp, w8, u32_int_immediate(0));
-    arm64_add__asm(inst, cset, w8, w8, direct_immediate("ne"));
+    arm64_add__asm(inst, cset, w8, direct_immediate("eq"));
     return { arm_rr(w8), inst };
 }
 
+/**
+ * @brief Store a register to a stack offset
+ */
 Instruction_Pair store(Storage const& ss0, common::Stack_Offset const& ss1)
 {
     arm64__make_and_ret(str, ss0, ss1);

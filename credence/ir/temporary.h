@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <algorithm>                      // for find
 #include <credence/ir/ita.h>              // for Instructions
 #include <credence/language/hir/hir.h>    // for Data_Kind
 #include <credence/language/literal.h>    // for Size
@@ -21,6 +22,7 @@
 #include <credence/symbol.h>              // for Symbol_Table
 #include <credence/util.h>                // for AST_Node, range_contains
 #include <initializer_list>               // for initializer_list
+#include <iterator>                       // for next
 #include <ostream>                        // for ostream
 #include <stack>                          // for stack
 #include <string>                         // for basic_string, string
@@ -133,14 +135,40 @@ class Temporary
     void binary_operands_balanced_temporary_stack(language::type::Operator op);
     void binary_operands_unbalanced_temporary_stack(
         language::type::Operator op);
+    void binary_operands_from_operand_stack(language::type::Operator op,
+        int temporaries);
+    std::string insert_temporary_operand(std::string const& operand);
 
   public:
     void from_call_operands_to_temporary_instructions(
         util::AST_Node const& details);
     void from_push_operands_to_temporary_instructions();
+    void insert_expression_value();
 
     Temporary_Instructions instruction_temporary_from_expression_operand(
         Operand& operand);
+
+  public:
+    inline void push_operand(Operand const& operand)
+    {
+        operand_stack.emplace(operand);
+        stack_kinds.emplace_back(false);
+    }
+    inline void push_temporary(std::string const& temporary)
+    {
+        temporary_stack.emplace(temporary);
+        stack_kinds.emplace_back(true);
+    }
+    inline void pop_operand()
+    {
+        operand_stack.pop();
+        erase_last_stack_kind(false);
+    }
+    inline void pop_temporary()
+    {
+        temporary_stack.pop();
+        erase_last_stack_kind(true);
+    }
 
   public:
     Instructions instructions{};
@@ -150,7 +178,24 @@ class Temporary
     int* temporary_index;
     int parameters_size{ 0 };
     Temporary_Stack temporary_stack{};
+    // the order of values on both stacks, true for a temporary
+    std::vector<bool> stack_kinds{};
+
+  private:
+    inline void erase_last_stack_kind(bool temporary)
+    {
+        auto last =
+            std::find(stack_kinds.rbegin(), stack_kinds.rend(), temporary);
+        if (last != stack_kinds.rend())
+            stack_kinds.erase(std::next(last).base());
+    }
 };
+
+constexpr bool is_post_unary_operator(language::type::Operator op)
+{
+    return op == language::type::Operator::POST_INC or
+           op == language::type::Operator::POST_DEC;
+}
 
 constexpr bool is_in_place_unary_operator(language::type::Operator op)
 {
@@ -171,13 +216,15 @@ inline std::ostream* queue_dump_stream = nullptr;
 Instructions queue_to_ita_instructions(
     language::precedence::detail::Shunting_Yard::Container const& queue,
     util::AST_Node const& details,
-    int* temporary_index);
+    int* temporary_index,
+    bool statement = false);
 
 Expression_Instructions ast_to_ita_instructions(Symbol_Table<> const& symbols,
     util::AST_Node const& node,
     util::AST_Node const& details,
     int* temporary_index,
-    int* identifier_index);
+    int* identifier_index,
+    bool statement = false);
 
 } // namespace ir
 

@@ -22,29 +22,42 @@
 #include <string>
 
 /****************************************************************************
+ * Memory Utilities
  *
- * Utilities for memory alignment (stack, data sections) and operand type
- * classification during code generation. Ensures ABI compliance for both
- * System V (x86-64) and ARM64 PCS calling conventions.
+ * Stack alignment and the classification of IR operands during code
+ * generation. The stack pointer is 16-byte aligned at each call, as the
+ * System V and ARM64 PCS calling conventions require.
  *
- * Example - stack alignment:
+ *  Example:
  *
- *   add(a, b, c, d) {
- *     auto x, y, z;
- *     ...
- *   }
+ *    main() {
+ *      auto x, y;
+ *      x = 5;
+ *      y = x + 10;
+ *      printf("%d %d\n", compute(1, 2), y);
+ *    }
  *
- * Stack must be 16-byte aligned
- *   - Calculate local variable space: 3 * 8 = 24 bytes
- *   - Align to 16: align_up_to(24, 16) = 32 bytes
- *   - Emit: sub rsp, 32 (x86-64) or sub sp, sp, #32 (ARM64)
+ *  Becomes, three 4-byte locals and the 16-byte frame record on arm64:
+ *
+ *    stp x29, x30, [sp, #-32]!     // align_up_to(16 + 12, 16)
+ *
+ *  And on x86-64, where rbp is pushed before the locals:
+ *
+ *    push rbp
+ *    mov rbp, rsp
+ *    sub rsp, 24
  *
  ****************************************************************************/
 
 namespace credence::target::common::memory {
 
 /**
- * @brief Align a value up to the nearest multiple of another value.
+ * @brief Align a value up to the nearest multiple of a power of two
+ *
+ *  Examples:
+ *
+ *    align_up_to(24, 16)   // 32
+ *    align_up_to(5, 0)     // 5
  */
 constexpr std::size_t align_up_to(std::size_t value, std::size_t alignment)
 {
@@ -55,7 +68,7 @@ constexpr std::size_t align_up_to(std::size_t value, std::size_t alignment)
 }
 
 /**
- * @brief Operand type classification for instruction emission
+ * @brief The position of an operand in an emitted instruction
  */
 enum class Operand_Type
 {
@@ -64,13 +77,11 @@ enum class Operand_Type
 };
 
 /**
- * @brief Short-form helpers for matchit predicate pattern matching
- *
- * These predicates are used to classify RValue operands during code generation.
+ * Short-form predicates of IR operands, used in matchit patterns
  */
 
 /**
- * @brief Check if an RValue is an immediate value
+ * @brief Check if an rvalue is a literal in data type form, `(5:int:4)`
  */
 constexpr bool is_immediate(std::string const& rvalue)
 {
@@ -78,7 +89,7 @@ constexpr bool is_immediate(std::string const& rvalue)
 }
 
 /**
- * @brief Check if an RValue is a temporary value
+ * @brief Check if an rvalue is a temporary, `_t1`
  */
 constexpr bool is_temporary(std::string const& rvalue)
 {
@@ -86,7 +97,10 @@ constexpr bool is_temporary(std::string const& rvalue)
 }
 
 /**
- * @brief Check if an RValue is a function parameter
+ * @brief Check if an rvalue is an argument slot of a call, `_p1_1`
+ *
+ * An argument slot holds an argument before it is pushed, and is not a
+ * parameter of the function under translation
  */
 constexpr bool is_parameter(std::string const& rvalue)
 {
@@ -94,7 +108,7 @@ constexpr bool is_parameter(std::string const& rvalue)
 }
 
 /**
- * @brief Check if an RValue is a vector/array offset access
+ * @brief Check if an rvalue is a vector element, `mess[1]`
  */
 constexpr bool is_vector_offset(std::string const& rvalue)
 {

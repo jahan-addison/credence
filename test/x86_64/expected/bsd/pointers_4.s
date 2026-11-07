@@ -18,12 +18,13 @@ _start:
     mov eax, 20
     add eax, 10
     add eax, 10
-    mov rax, qword ptr [rbp - 24]
-    mov dword ptr [rax], eax
-    mov rax, qword ptr [rbp - 24]
-    mov edi, dword ptr [rax]
-    mov rax, qword ptr [rbp - 8]
-    mov dword ptr [rax], edi
+    mov r10, qword ptr [rbp - 24]
+    mov [r10], eax
+    mov r10, qword ptr [rbp - 24]
+    mov r10d, [r10]
+    mov eax, r10d
+    mov r10, qword ptr [rbp - 8]
+    mov [r10], eax
     mov dword ptr [rbp - 12], 5
     mov rax, 33554433
     mov rdi, 0

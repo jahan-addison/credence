@@ -14,7 +14,7 @@ _start:
     mov w8, w9
     sub w8, w8, #1
     add w8, w8, #1
-    mov w10, w8
+    mov w11, w8
     ldp x29, x30, [sp], #16
     mov w0, #0
     mov x16, #1

@@ -13,578 +13,737 @@
 
 #include "checker.h"
 
-#include "binding.h"        // for RValue, Vector, LValue, Object_Table
-#include <credence/error.h> // for credence_assert, credence_error
-#include <credence/types.h> // for get_type_from_rvalue_data_type, is_d...
+#include "hir.h"                         // for Data_Kind, data_kind_to_string
+#include "types.h"                       // for LValue, RValue, Type
+#include <algorithm>                     // for find
+#include <credence/error.h>              // for throw_compiletime_error
+#include <credence/language/literal.h>   // for Literal
+#include <credence/language/operators.h> // for Operator
+#include <credence/types.h> // for from_decay_offset, from_lvalue...
 #include <credence/util.h>  // for contains, is_numeric, overload
 #include <easyjson.h>       // for JSON
 #include <fmt/format.h>     // for format
-#include <matchit.h>        // for app, Ds, App, pattern, ds, Wildcard
-#include <string>           // for basic_string, operator==, char_traits
-#include <tuple>            // for tuple, get
-#include <variant>          // for visit
+#include <memory>           // for shared_ptr
+#include <string>           // for basic_string, stoul, string
+#include <utility>          // for pair
+#include <variant>          // for get, holds_alternative, visit
 
 /****************************************************************************
  *  Type Checker
  *
- *  Type checker for the intermediate representation. Validates assignments
- *  between scalars, vectors, pointers, and handles type conversions with
- *  proper boundary and null checks.
+ *  Type checker on the HIR. Each expression evaluates to the storage and
+ *  type of its value in a stack frame, and an assignment between storage
+ *  or types that do not agree is a compile-time error.
  *
  *  Example type checking:
  *
- *  auto x, *p;
- *  auto arr[10];
- *  x = 5;           // scalar assignment
- *  arr[0] = x;      // vector assignment with bounds check
- *  p = &x;          // pointer assignment
+ *  main() {
+ *    auto x, *p;
+ *    x = 5;
+ *    p = &x;
+ *    p = x;
+ *  }
  *
- *  Type_Checker validates:
- *    - Type compatibility between lhs and rhs
- *    - Vector boundary access (arr[0..9] valid, arr[10] error)
- *    - Pointer targets (no &string[k] allowed)
- *    - Null assignments
- *    - Implicit conversions where safe
- *    - Raises compile-time errors on violations
- *    - Supports lvalue and rvalue type resolution
- *    - and more
+ *  Becomes:
+ *
+ *    x  -> scalar int
+ *    p  -> pointer to int
+ *    error: invalid pointer assignment, right-hand-side 'x' is not a pointer
  *
  ****************************************************************************/
 
 namespace credence::language::hir::checking {
 
-namespace m = matchit;
+using type::Operator;
+
+namespace {
 
 /**
- * @brief Type check pointer and address-of pointer assignments
+ * @brief The innermost expression of a chain of HIR pointers
  */
-void Pointer_Vector_Decay_Checker::type_safe_assign_pointer(
-    LValue const& lvalue,
-    RValue const& rvalue,
-    bool indirection)
+Data_Kind::Kind const& unwrap(Data_Kind::Kind const& expression)
 {
-    // pointer to pointer
-    auto& locals = stack_frame_.locals;
-    if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue)) {
-        locals.set_symbol_by_name(lvalue,
-            type::get_rvalue_data_type_as_string(
-                get_rvalue_at_lvalue_object_storage(
-                    rvalue, stack_frame_, objects_.vectors, __source__)));
-        return; // Ok
-    }
-    // pointer to address-of lvalue
-    if (locals.is_pointer(lvalue) and type::get_unary_operator(rvalue) == "&") {
-        // do not allow "x = &string[k]", or pointer to string pointer
-        auto data_of = get_rvalue_at_lvalue_object_storage(
-            type::get_unary_rvalue_reference(rvalue),
-            stack_frame_,
-            objects_.vectors,
-            __source__);
-        if (type::get_type_from_rvalue_data_type(data_of) == "string")
-            throw_type_check_error(objects_,
-                fmt::format(
-                    "invalid pointer assignment, right-hand-side '{}' is a "
-                    "pointer to string pointer, which is not allowed",
-                    rvalue),
-                lvalue);
-        locals.set_symbol_by_name(lvalue, rvalue);
-        return; // Ok
-    }
-    // pointer to string literal
-    if (locals.is_pointer(lvalue) and
-        type::is_rvalue_data_type_string(rvalue)) {
-        objects_.strings.insert(type::get_value_from_rvalue_data_type(rvalue));
-        locals.set_symbol_by_name(lvalue, rvalue);
-        return; // Ok
-    }
-    // pointer to string storage in a vector
-    if (locals.is_pointer(lvalue) and objects_.is_vector(rvalue)) {
-        if (type::get_type_from_rvalue_data_type(
-                get_rvalue_at_lvalue_object_storage(
-                    rvalue, stack_frame_, objects_.vectors)) == "string") {
-            locals.set_symbol_by_name(lvalue, rvalue);
-            return; // Ok
-        }
-    }
+    if (std::holds_alternative<Data_Kind::Pointer>(expression))
+        return unwrap(std::get<Data_Kind::Pointer>(expression)->value);
+    return expression;
+}
 
-    auto human_symbol = type::is_rvalue_data_type(rvalue)
-                            ? type::get_value_from_rvalue_data_type(
-                                  type::get_rvalue_datatype_from_string(rvalue))
-                            : rvalue;
-    if (indirection) {
-        if (!locals.is_pointer(lvalue) or
-            type::is_rvalue_data_type_string(lvalue))
-            throw_type_check_error(objects_,
-                fmt::format("invalid pointer dereference assignment, "
-                            "left-hand-side "
-                            "'{}' is not a pointer",
-                    lvalue),
-                human_symbol);
-        else
-            throw_type_check_error(objects_,
-                fmt::format("invalid pointer dereference assignment, "
-                            "right-hand-side "
-                            "'{}' is not a pointer",
-                    human_symbol),
-                lvalue);
-    } else {
-        if (!locals.is_pointer(lvalue) or
-            type::is_rvalue_data_type_string(lvalue))
-            throw_type_check_error(objects_,
-                fmt::format("invalid pointer assignment, "
-                            "left-hand-side "
-                            "'{}' is not a pointer",
-                    lvalue),
-                human_symbol);
-        else
-            throw_type_check_error(objects_,
-                fmt::format("invalid pointer assignment, "
-                            "right-hand-side "
-                            "'{}' is not a pointer",
-                    human_symbol),
-                lvalue);
+} // namespace
+
+/**
+ * @brief The human-readable symbol of an expression for error messages
+ */
+RValue get_symbol_from_expression(Data_Kind::Kind const& expression)
+{
+    auto const& kind = unwrap(expression);
+    if (std::holds_alternative<Data_Kind::LValue>(kind))
+        return std::get<Data_Kind::LValue>(kind).first;
+    if (std::holds_alternative<literal::Literal>(kind))
+        return credence::type::get_value_from_rvalue_data_type(
+            credence::type::get_rvalue_datatype_from_string(
+                data_kind_to_string(kind, false)));
+    if (std::holds_alternative<Data_Kind::Unary>(kind)) {
+        auto const& [op, operand] = std::get<Data_Kind::Unary>(kind);
+        return fmt::format("{}{}",
+            util::str_trim_ws(type::operator_to_string(op)),
+            get_symbol_from_expression(operand->value));
     }
+    return data_kind_to_string(kind, false);
 }
 
 /**
- * @brief
- * Type check the left-hand-side lvalue type and right-hand-side of
- * trivial vectors, or vectors with one element. If both are the same type,
- * then the assignment is allowed
+ * @brief The value of a literal and its constant
  *
+ * A string literal is a pointer
  */
-void Pointer_Vector_Decay_Checker::type_safe_assign_trivial_vector(
-    LValue const& lvalue,
-    RValue const& rvalue)
+Value get_value_from_literal(literal::Literal const& literal)
 {
-    auto vector_contains = [&](LValue const& label) {
-        return objects_.vector_contains(label);
-    };
-    auto local_contains = [&](LValue const& label) {
-        return objects_.local_contains(label);
-    };
-    auto& locals = stack_frame_.locals;
-    auto& vectors = objects_.vectors;
-    m::match(lvalue, rvalue)(
-        m::pattern | m::ds(m::app(vector_contains, true),
-                         m::app(vector_contains, true)) =
-            [&] {
-                value_type_.type_invalid_assignment_check(
-                    vectors.at(lvalue), vectors.at(rvalue), "0");
-                vectors.at(lvalue).get().data["0"] =
-                    vectors.at(rvalue).get().data["0"];
-            },
-        m::pattern |
-            m::ds(m::app(vector_contains, true), m::app(local_contains, true)) =
-            [&] {
-                value_type_.type_invalid_assignment_check(
-                    rvalue, vectors.at(lvalue), "0");
-                vectors.at(lvalue).get().data["0"] =
-                    locals.get_symbol_by_name(rvalue);
-            },
-        m::pattern |
-            m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
-            [&] {
-                auto vector_rvalue = vectors.at(rvalue).get().data.at("0");
-                value_type_.type_invalid_assignment_check(
-                    lvalue, vectors.at(rvalue), "0");
-                locals.set_symbol_by_name(
-                    lvalue, vectors.at(rvalue).get().data["0"]);
-            });
+    auto const& type = literal.second.first;
+    if (type == "string")
+        return Value{ Storage::POINTER, type };
+    auto constant = credence::type::get_value_from_rvalue_data_type(
+        credence::type::get_rvalue_datatype_from_string(
+            literal::literal_to_string(literal)));
+    return Value{ Storage::SCALAR, type, {}, constant };
 }
 
 /**
- * @brief
- * Type check the left-hand-side lvalue type and right-hand-side with a
- * vector lvalue, If both are the same type, then assign from a vector to lvalue
- * or vice-versa is allowed
- */
-void Pointer_Vector_Decay_Checker::type_safe_assign_vector(LValue const& lvalue,
-    RValue const& rvalue)
-{
-    auto& locals = stack_frame_.locals;
-    RValue lvalue_offset{ "0" };
-    RValue rvalue_offset{ "0" };
-    auto vector_contains = [&](LValue const& label) {
-        return objects_.vector_contains(label);
-    };
-    auto local_contains = [&](LValue const& label) {
-        return objects_.local_contains(label);
-    };
-
-    auto lvalue_direct = m::match(lvalue)(
-        m::pattern | m::app(binding::is_vector_lvalue, true) =
-            [&] {
-                lvalue_offset = type::from_decay_offset(lvalue);
-                return type::from_lvalue_offset(lvalue);
-            },
-        m::pattern | m::_ = [&] { return lvalue; });
-
-    auto rvalue_direct = m::match(rvalue)(
-        m::pattern | m::app(binding::is_vector_lvalue, true) =
-            [&] {
-                rvalue_offset = type::from_decay_offset(rvalue);
-                return type::from_lvalue_offset(rvalue);
-            },
-        m::pattern | m::_ = [&] { return rvalue; });
-
-    m::match(lvalue_direct, rvalue_direct)(
-        m::pattern | m::ds(m::app(vector_contains, true),
-                         m::app(vector_contains, true)) =
-            [&] {
-                value_type_.type_invalid_assignment_check(
-                    objects_.vectors.at(lvalue_direct),
-                    objects_.vectors.at(rvalue_direct),
-                    lvalue_offset,
-                    rvalue_offset);
-                objects_.vectors.at(lvalue_direct).get().data[lvalue_offset] =
-                    objects_.vectors.at(rvalue_direct)
-                        .get()
-                        .data[rvalue_offset];
-            },
-        m::pattern |
-            m::ds(m::app(vector_contains, true), m::app(local_contains, true)) =
-            [&] {
-                value_type_.type_invalid_assignment_check(rvalue_direct,
-                    objects_.vectors.at(lvalue_direct),
-                    lvalue_offset);
-                objects_.vectors.at(lvalue_direct).get().data[lvalue_offset] =
-                    locals.get_symbol_by_name(rvalue_direct);
-            },
-        m::pattern |
-            m::ds(m::app(local_contains, true), m::app(vector_contains, true)) =
-            [&] {
-                if (locals.is_defined(rvalue_offset)) {
-                    rvalue_offset = type::get_value_from_rvalue_data_type(
-                        binding::get_rvalue_at_lvalue_object_storage(
-                            rvalue_offset, stack_frame_, objects_.vectors));
-                    is_boundary_out_of_range(
-                        fmt::format("{}[{}]", rvalue_direct, rvalue_offset));
-                }
-                auto& vector = objects_.vectors.at(rvalue_direct).get();
-                if (vector.data.empty())
-                    throw_type_check_error(objects_,
-                        fmt::format("invalid vector assignment, vector '{}' "
-                                    "has no elements",
-                            rvalue_direct),
-                        lvalue_direct);
-                // an offset not known at compile time, e.g. `x[errno]`,
-                // resolves to the type of the first element of the vector
-                if (!vector.data.contains(rvalue_offset))
-                    rvalue_offset = vector.data.first().first;
-                value_type_.type_invalid_assignment_check(
-                    lvalue_direct, vector, rvalue_offset);
-                locals.set_symbol_by_name(
-                    lvalue_direct, vector.data.at(rvalue_offset));
-            },
-        m::pattern | m::_ = [&] { credence_error("unreachable"); });
-}
-
-/**
- * @brief Type check the assignment of dereferenced lvalue pointers
- */
-void Pointer_Vector_Decay_Checker::type_safe_assign_dereference(
-    LValue const& lvalue,
-    RValue const& rvalue)
-{
-    auto& locals = stack_frame_.locals;
-    auto& vectors = objects_.vectors;
-
-    auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
-    auto rhs_lvalue = type::get_unary_rvalue_reference(rvalue);
-
-    if (locals.is_pointer(lvalue) and type::is_dereference_expression(rvalue))
-        throw_type_check_error(objects_,
-            "invalid pointer dereference, "
-            "right-hand-side is not a pointer",
-            lvalue);
-    if (locals.is_pointer(rvalue) and type::is_dereference_expression(lvalue))
-        throw_type_check_error(objects_,
-            "invalid pointer dereference, "
-            "right-hand-side is not a pointer",
-            lvalue);
-    if (type::is_dereference_expression(rvalue)) {
-        auto symbol = get_rvalue_at_lvalue_object_storage(
-            rhs_lvalue, stack_frame_, vectors, __source__);
-        if (type::get_type_from_rvalue_data_type(symbol) == "null")
-            throw_type_check_error(objects_,
-                "invalid pointer dereference, "
-                "right-hand-side is a null pointer!",
-                lvalue);
-    }
-    if (!locals.is_pointer(lhs_lvalue) and
-        not type::is_dereference_expression(rvalue))
-        throw_type_check_error(objects_,
-            "invalid pointer dereference, "
-            "left-hand-side is not a pointer",
-            lhs_lvalue);
-    if (!locals.is_pointer(rhs_lvalue) and
-        not type::is_dereference_expression(lvalue))
-        throw_type_check_error(objects_,
-            "invalid pointer dereference, "
-            "right-hand-side is not a pointer",
-            lhs_lvalue);
-    if (type::is_dereference_expression(lvalue) and
-        type::get_type_from_rvalue_data_type(rvalue) != "null") {
-        locals.set_symbol_by_name(lhs_lvalue, rvalue);
-        return;
-    }
-
-    auto lhs_address = get_rvalue_at_lvalue_object_storage(
-        lhs_lvalue, stack_frame_, vectors, __source__);
-    auto rhs_address = get_rvalue_at_lvalue_object_storage(
-        rhs_lvalue, stack_frame_, vectors, __source__);
-
-    if (type::get_type_from_rvalue_data_type(lhs_address) != "null" and
-        !trivial_type_.lhs_rhs_type_is_equal(lhs_address, rhs_address))
-        throw_type_check_error(objects_,
-            fmt::format(
-                "invalid dereference assignment, dereference rvalue of "
-                "left-hand-side with type '{}' is not the same type ({})",
-                type::get_type_from_rvalue_data_type(lhs_address),
-                type::get_type_from_rvalue_data_type(rhs_address)),
-            lvalue);
-
-    locals.set_symbol_by_name(lhs_lvalue, rvalue);
-}
-
-/**
- * @brief Type-safe assignment of pointers and vectors, or scalers and
- * dereferenced pointers
+ * @brief Type equality of a left-hand-side and right-hand-side type
  *
- * Note: To get a better idea of how this function works,
- * check the test cases in test/fixtures/types
+ * An unassigned "null" type or an untyped "word" agrees with every type
  */
-void Pointer_Vector_Decay_Checker::type_safe_assign_pointer_or_vector_lvalue(
-    LValue const& lvalue,
-    type::RValue_Reference_Type const& rvalue,
-    bool indirection)
+bool Type_Checker::is_compatible(Type const& lhs, Type const& rhs)
 {
-    auto& locals = stack_frame_.locals;
+    return lhs == "null" or rhs == "null" or lhs == "word" or rhs == "word" or
+           lhs == rhs;
+}
+
+/**
+ * @brief Check that a type is a numeric type
+ */
+bool Type_Checker::is_numeric(Type const& type)
+{
+    return type == "word" or
+           std::ranges::find(credence::type::integral_unary_types, type) !=
+               credence::type::integral_unary_types.end();
+}
+
+/**
+ * @brief Evaluate the storage and type of an HIR expression
+ */
+Value Type_Checker::from_expression(Data_Kind::Kind const& expression)
+{
+    Value value{};
     // clang-format off
     std::visit(
         util::overload{
-        [&](RValue const& value) {
-            if (value == "NULL")
-                throw_type_check_error(objects_,
-                    "invalid pointer dereference assignment, "
-                    "right-hand-side is a NULL pointer!",
-                    lvalue);
-            if (value_storage_.is_trivial_vector_assignment(lvalue, value)) {
-                type_safe_assign_trivial_vector(lvalue, value);
-                return; // Done
-            }
-            if (objects_.is_pointer(lvalue) or objects_.is_pointer(value)) {
-                if (!type::is_dereference_expression(value)) {
-                    type_safe_assign_pointer(lvalue, value);
-                    return; // Done
-                }
-            }
-            if (objects_.is_vector(lvalue) or objects_.is_vector(value)) {
-                type_safe_assign_vector(lvalue, value);
-                return; // Done
-            }
-            // A dereference assignment, check for invalid or
-            // null pointers
-            if (type::is_dereference_expression(lvalue) or
-                type::is_dereference_expression(value)) {
-                type_safe_assign_dereference(lvalue, value);
-                return;
-            }
-            locals.set_symbol_by_name(lvalue, value);
-        },
-        [&](type::Data_Type const& value) {
-            if (!indirection and locals.is_pointer(lvalue))
-                throw_type_check_error(objects_,
-                    "invalid lvalue assignment, left-hand-side is a "
-                    "pointer to non-pointer rvalue",
-                    lvalue);
-            if (binding::is_vector_lvalue(lvalue))
-                is_boundary_out_of_range(lvalue);
-            // the lvalue and rvalue vector data entry type must match
-            if (objects_.get_type_from_object_data_type(lvalue) != "null" and
-                !trivial_type_.lhs_rhs_type_is_equal(lvalue, value))
-                throw_type_check_error(objects_,
-                    fmt::format("invalid lvalue assignment, left-hand-side "
-                                "'{}' "
-                                "with "
-                                "type '{}' is not the same type ({})",
-                        lvalue,
-                        objects_.get_type_from_object_data_type(lvalue),
-                        type::get_type_from_rvalue_data_type(value)),
-                    lvalue);
-            locals.set_symbol_by_name(lvalue, value);
-        } },
-    rvalue);
+            [&](std::monostate) {},
+            [&](Data_Kind::Pointer const& pointer) {
+                value = from_expression(pointer->value);
+            },
+            [&](literal::Array const&) {
+                value = Value{ Storage::SCALAR, "word" };
+            },
+            [&](literal::Literal const& literal) {
+                value = from_literal(literal);
+            },
+            [&](Data_Kind::Symbol const& assignment) {
+                value = from_assignment_expression(assignment);
+            },
+            [&](Data_Kind::Unary const& unary) {
+                value = from_unary_expression(unary);
+            },
+            [&](Data_Kind::Relation const& relation) {
+                value = from_relation_expression(relation);
+            },
+            [&](Data_Kind::Function const& function) {
+                value = from_function_expression(function);
+            },
+            [&](Data_Kind::LValue const& lvalue) {
+                value = from_lvalue(lvalue.first);
+            } },
+        expression);
     // clang-format on
+    return value;
 }
 
 /**
- * @brief Check the boundary of a vector or pointer offset
- *.    The allocation size and type data is in the table object
+ * @brief Type check a return value against the function's previous returns
+ *
+ *  Examples:
+ *
+ *    if (x) return(1);
+ *    return(2);          // allowed
+ *    return(2.5);        // not allowed, int and double
  */
-void Pointer_Vector_Decay_Checker::is_boundary_out_of_range(
-    RValue const& rvalue)
+void Type_Checker::from_return_expression(Data_Kind::Kind const& expression)
 {
-    credence_assert(util::contains(rvalue, "["));
-    credence_assert(util::contains(rvalue, "]"));
-    auto& vectors = objects_.vectors;
-    auto lvalue = type::from_lvalue_offset(rvalue);
-    auto offset = type::from_decay_offset(rvalue);
-    if (!vectors.contains(lvalue))
-        throw_type_check_error(objects_,
-            fmt::format("invalid vector assignment, vector identifier "
-                        "'{}' does not "
-                        "exist",
-                lvalue),
-            rvalue);
-    if (util::is_numeric(offset)) {
-        auto global_symbol = objects_.hoisted_symbols[lvalue];
-        auto ul_offset = std::stoul(offset);
-        if (ul_offset > binding::Vector::max_size)
-            throw_type_check_error(objects_,
-                fmt::format("invalid rvalue, integer offset '{}' is a"
-                            "buffer-overflow",
-                    ul_offset),
-                rvalue);
-        if (!vectors.contains(lvalue))
-            throw_type_check_error(objects_,
-                fmt::format(
-                    "invalid vector assignment, right-hand-side does not "
-                    "exist '{}'",
-                    lvalue),
-                rvalue);
-        if (ul_offset > vectors.at(lvalue).get().size - 1)
-            throw_type_check_error(objects_,
-                fmt::format("invalid out-of-range vector assignment '{}' at "
-                            "index "
-                            "'{}'",
-                    lvalue,
-                    ul_offset),
-                rvalue);
-    } else {
-        auto& locals = stack_frame_.locals;
-        if (!locals.is_defined(offset) and
-            not stack_frame_.is_scaler_parameter(offset))
-            throw_type_check_error(objects_,
-                fmt::format("invalid vector offset '{}'", offset),
-                rvalue);
-    }
-}
-
-/**
- * @brief Type checking on vector-to-vector same index assignment
- */
-void Value_Type_Assignment_Checker::type_invalid_assignment_check(
-    binding::Vector& vector_lhs,
-    binding::Vector& vector_rhs,
-    RValue const& index)
-{
-    auto vector_lvalue = vector_lhs.data.at(index);
-    auto vector_rvalue = vector_rhs.data.at(index);
-    if (!trivial_type_.lhs_rhs_type_is_equal(vector_lvalue, vector_rvalue))
-        throw_type_check_error(objects_,
-            fmt::format("invalid vector assignment, left-hand-side '{}' "
-                        "with type '{}' "
-                        "is not the same type ({})",
-                vector_lhs.symbol,
-                type::get_type_from_rvalue_data_type(vector_lvalue),
-                type::get_type_from_rvalue_data_type(vector_rvalue)),
-            vector_rhs.symbol);
-}
-
-/**
- * @brief Type checking on vector-to-vector index assignment
- */
-void Value_Type_Assignment_Checker::type_invalid_assignment_check(
-    binding::Vector& vector_lhs,
-    binding::Vector& vector_rhs,
-    RValue const& index_lhs,
-    RValue const& index_rhs)
-{
-    auto vector_lvalue = vector_lhs.data.at(index_lhs);
-    auto vector_rvalue = vector_rhs.data.at(index_rhs);
-
-    if (!trivial_type_.lhs_rhs_type_is_equal(vector_lvalue, vector_rvalue))
-        throw_type_check_error(objects_,
-            fmt::format("invalid vector assignment, left-hand-side '{}' "
-                        "at index '{}' "
-                        "with type '{}' is not the same type as "
-                        "right-hand-side vector "
-                        "'{}' at index '{}' ({})",
-                vector_lhs.symbol,
-                index_lhs,
-                type::get_type_from_rvalue_data_type(vector_lvalue),
-                vector_rhs.symbol,
-                index_rhs,
-                type::get_type_from_rvalue_data_type(vector_rvalue)),
-            vector_lhs.symbol);
-}
-
-/**
- * @brief Type checking on scaler lvalue and rvalues
- */
-void Value_Type_Assignment_Checker::type_invalid_assignment_check(
-    LValue const& lvalue,
-    RValue const& rvalue)
-{
-    auto& locals = stack_frame_.locals;
-    if (objects_.get_type_from_object_data_type(lvalue) == "null")
-        return;
-    if (locals.is_pointer(lvalue) and locals.is_pointer(rvalue))
-        return;
-    if (!trivial_type_.lhs_rhs_type_is_equal(lvalue, rvalue))
-        throw_type_check_error(objects_,
-            fmt::format("invalid assignment, right-hand-side '{}' "
-                        "with type '{}' is not the same type ({})",
-                rvalue,
-                objects_.get_type_from_object_data_type(rvalue),
-                objects_.get_type_from_object_data_type(lvalue)),
-            lvalue);
-}
-
-/**
- * @brief Type checking on lvalue-to-vector assignment
- */
-void Value_Type_Assignment_Checker::type_invalid_assignment_check(
-    LValue const& lvalue,
-    binding::Vector& vector_rhs,
-    RValue const& index)
-{
-    // an unassigned element has no type to check against
-    if (!vector_rhs.data.contains(index))
-        return;
-    auto vector_rvalue = vector_rhs.data.at(index);
-    if (objects_.get_type_from_object_data_type(lvalue) != "null" and
-        not trivial_type_.lhs_rhs_type_is_equal(lvalue, vector_rvalue))
-        throw_type_check_error(objects_,
-            fmt::format("invalid lvalue assignment to a "
-                        "vector, left-hand-side '{}' with "
-                        "type '{}' is not the same type "
+    auto value = from_expression(expression);
+    Type type = value.storage == Storage::POINTER ? "word" : value.type;
+    if (frame_.ret.has_value() and not is_compatible(*frame_.ret, type))
+        type_error(
+            fmt::format("invalid return statement, right-hand-side '{}' with "
+                        "type '{}' is not the same type as a previous return "
                         "({})",
-                lvalue,
-                objects_.get_type_from_object_data_type(lvalue),
-                type::get_type_from_rvalue_data_type(vector_rvalue)),
-            vector_rhs.symbol);
+                get_symbol_from_expression(expression),
+                type,
+                *frame_.ret),
+            frame_.symbol);
+    if (!frame_.ret.has_value() or *frame_.ret == "null" or
+        *frame_.ret == "word")
+        frame_.ret = type;
 }
 
 /**
- * @brief Type checking on lvalue and Data_type (e.g. (10:"int":4UL))
+ * @brief The value of a literal, where a string literal is a pointer
  */
-void Value_Type_Assignment_Checker::type_invalid_assignment_check(
-    LValue const& lvalue,
-    type::Data_Type const& rvalue)
+Value Type_Checker::from_literal(literal::Literal const& literal)
 {
-    if (objects_.get_type_from_object_data_type(lvalue) == "null")
+    return get_value_from_literal(literal);
+}
+
+/**
+ * @brief The value of a local, parameter, vector, or vector offset lvalue
+ *
+ *  * A vector name is its first element, e.g. the vector `unit 10;`
+ *
+ *  * An indirect lvalue, `*p`, is the dereference of its pointer
+ */
+Value Type_Checker::from_lvalue(LValue const& lvalue)
+{
+    if (lvalue.starts_with("*")) {
+        auto pointer = lvalue.substr(1);
+        return from_dereference(from_lvalue(pointer), pointer);
+    }
+    if (util::contains(lvalue, "["))
+        return from_vector_offset(lvalue);
+    if (frame_.locals.contains(lvalue))
+        return frame_.locals.at(lvalue);
+    if (auto* vector = get_vector(lvalue)) {
+        if (vector->data.contains("0"))
+            return vector->data.at("0");
+        return Value{ Storage::POINTER, "word" };
+    }
+    return Value{ Storage::SCALAR, "word" };
+}
+
+/**
+ * @brief The value of an element at a vector offset
+ *
+ *  * An offset not known at compile time is the type of the first element
+ *
+ *  * An element that was never assigned is an error
+ */
+Value Type_Checker::from_vector_offset(LValue const& lvalue)
+{
+    auto* vector = get_vector_at_offset(lvalue);
+    if (vector == nullptr)
+        return Value{ Storage::SCALAR, "word" };
+    auto offset = get_constant_offset(lvalue);
+    if (vector->data.contains(offset))
+        return vector->data.at(offset);
+    if (vector->unknown_offset.has_value())
+        return *vector->unknown_offset;
+    if (!util::is_numeric(offset) and not vector->data.empty())
+        return vector->data.begin()->second;
+    type_error(
+        fmt::format(
+            "invalid vector access, element at '{}' does not exist", offset),
+        lvalue);
+    return Value{};
+}
+
+/**
+ * @brief The value of a unary expression
+ */
+Value Type_Checker::from_unary_expression(Data_Kind::Unary const& unary)
+{
+    auto const& [op, operand] = unary;
+    switch (op) {
+        case Operator::U_ADDR_OF:
+            return from_address_of_expression(operand->value);
+        case Operator::U_INDIRECTION:
+            return from_dereference_expression(operand->value);
+        case Operator::PRE_INC:
+        case Operator::POST_INC:
+        case Operator::PRE_DEC:
+        case Operator::POST_DEC:
+            return from_increment_expression(operand->value);
+        default:
+            break;
+    }
+    auto value = from_expression(operand->value);
+    if (value.storage == Storage::POINTER)
+        return Value{ Storage::SCALAR, "word" };
+    return Value{ Storage::SCALAR, value.type };
+}
+
+/**
+ * @brief The value of an address-of expression
+ *
+ *  Examples:
+ *
+ *    p = &x;          // allowed
+ *    p = &array[2];   // allowed
+ *    p = &strings[1]; // not allowed, a pointer to a string pointer
+ */
+Value Type_Checker::from_address_of_expression(Data_Kind::Kind const& operand)
+{
+    auto const& kind = unwrap(operand);
+    auto symbol = get_symbol_from_expression(operand);
+    if (!std::holds_alternative<Data_Kind::LValue>(kind))
+        type_error("invalid address-of expression, the operand is not an "
+                   "lvalue",
+            symbol);
+    auto value = from_lvalue(symbol);
+    if (util::contains(symbol, "[") and value.type == "string")
+        type_error(fmt::format("invalid address-of expression, '&{}' is a "
+                               "pointer to a string pointer, which is not "
+                               "allowed",
+                       symbol),
+            symbol);
+    return Value{ Storage::POINTER, value.type, symbol };
+}
+
+/**
+ * @brief The value of a dereference expression
+ *
+ *  * The operand must be a pointer
+ *
+ *  * The pointer must not be null, or point to an uninitialized object
+ */
+Value Type_Checker::from_dereference_expression(Data_Kind::Kind const& operand)
+{
+    return from_dereference(
+        from_expression(operand), get_symbol_from_expression(operand));
+}
+
+/**
+ * @brief The value of the object a pointer value points to
+ */
+Value Type_Checker::from_dereference(Value const& value, RValue const& symbol)
+{
+    if (value.storage != Storage::POINTER)
+        type_error(
+            fmt::format(
+                "invalid pointer dereference, '{}' is not a pointer", symbol),
+            symbol);
+    if (value.address.has_value()) {
+        auto object = from_lvalue(*value.address);
+        if (object.storage == Storage::SCALAR and object.type == "null")
+            type_error(fmt::format("invalid pointer dereference, '{}' points "
+                                   "to an uninitialized object",
+                           symbol),
+                symbol);
+        return object;
+    }
+    if (value.type == "null")
+        type_error(
+            fmt::format(
+                "invalid pointer dereference, '{}' is a null pointer", symbol),
+            symbol);
+    if (value.type == "string")
+        return Value{ Storage::SCALAR, "char" };
+    return Value{ Storage::SCALAR, value.type };
+}
+
+/**
+ * @brief The value of an increment or decrement expression
+ *
+ *  Examples:
+ *
+ *    auto x, y, *p;
+ *    x = 5;
+ *    x++;            // allowed
+ *    y = x + 1;
+ *    y++;            // allowed, a word
+ *    p = &x;
+ *    p++;            // allowed, pointer arithmetic
+ *    auto z;
+ *    z++;            // not allowed, z has no type
+ */
+Value Type_Checker::from_increment_expression(Data_Kind::Kind const& operand)
+{
+    auto value = from_expression(operand);
+    auto symbol = get_symbol_from_expression(operand);
+    if (value.storage == Storage::POINTER)
+        return value;
+    if (!is_numeric(value.type))
+        type_error(fmt::format("invalid numeric unary expression, '{}' with "
+                               "type '{}' is not a numeric type",
+                       symbol,
+                       value.type),
+            symbol);
+    return value;
+}
+
+/**
+ * @brief The value of a binary or ternary relation is a word
+ */
+Value Type_Checker::from_relation_expression(
+    Data_Kind::Relation const& relation)
+{
+    for (auto const& block : relation.second)
+        from_expression(block->value);
+    return Value{ Storage::SCALAR, "word" };
+}
+
+/**
+ * @brief The value of a function call is a word
+ *
+ * Each argument is recorded, so a parameter that is passed a pointer is a
+ * pointer. A string, a string element of a vector, and an element of `argv`
+ * are addresses.
+ */
+Value Type_Checker::from_function_expression(
+    Data_Kind::Function const& function)
+{
+    auto const& [callee, arguments] = function;
+    for (std::size_t index = 0; index < arguments.size(); index++) {
+        auto value = from_expression(arguments[index]->value);
+        if (call_arguments_ == nullptr)
+            continue;
+        auto symbol = get_symbol_from_expression(arguments[index]->value);
+        auto is_argv =
+            frame_.symbol == "main" and
+            ::credence::type::from_lvalue_offset(symbol) == "argv" and
+            util::contains(symbol, "[");
+        call_arguments_->emplace_back(Call_Argument{ frame_.symbol,
+            callee.first,
+            index,
+            value.storage == Storage::POINTER or value.type == "string" or
+                is_argv,
+            frame_.parameters.contains(symbol) ? symbol : LValue{} });
+    }
+    return Value{ Storage::SCALAR, "word" };
+}
+
+/**
+ * @brief Type check an assignment expression
+ */
+Value Type_Checker::from_assignment_expression(
+    Data_Kind::Symbol const& assignment)
+{
+    auto const& [lvalue, expression] = assignment;
+    auto symbol = get_symbol_from_expression(expression->value);
+    auto rvalue = from_expression(expression->value);
+    assign(lvalue.first, rvalue, symbol);
+    return rvalue;
+}
+
+/**
+ * @brief Assign a value to a local, parameter, dereference, or vector lvalue
+ */
+void Type_Checker::assign(LValue const& lvalue,
+    Value const& rvalue,
+    RValue const& symbol)
+{
+    if (lvalue.starts_with("*")) {
+        assign_to_dereference(lvalue.substr(1), rvalue, symbol);
         return;
-    if (!trivial_type_.lhs_rhs_type_is_equal(lvalue, rvalue))
-        throw_type_check_error(objects_,
-            fmt::format("invalid assignment, right-hand-side '{}' "
-                        "with type '{}' is not the same type ({})",
-                std::get<0>(rvalue),
-                type::get_type_from_rvalue_data_type(rvalue),
-                objects_.get_type_from_object_data_type(lvalue)),
+    }
+    if (util::contains(lvalue, "[")) {
+        assign_to_vector(lvalue, rvalue, symbol);
+        return;
+    }
+    if (frame_.locals.contains(lvalue)) {
+        if (frame_.locals.at(lvalue).storage == Storage::POINTER)
+            assign_to_pointer(lvalue, rvalue, symbol);
+        else
+            assign_to_scalar(lvalue, rvalue, symbol);
+        return;
+    }
+    if (get_vector(lvalue) != nullptr)
+        assign_to_vector(fmt::format("{}[0]", lvalue), rvalue, symbol);
+}
+
+/**
+ * @brief Type check an assignment to a scalar local or parameter
+ *
+ *  Examples:
+ *
+ *    auto x, y, *p;
+ *    x = 5;            // allowed
+ *    y = x;            // allowed
+ *    y = x + 1;        // allowed, a word
+ *    x = 2.5;          // not allowed, int and double
+ *    x = p;            // not allowed, x is not a pointer
+ *    x = "hello";      // not allowed, x is not a pointer
+ */
+void Type_Checker::assign_to_scalar(LValue const& lvalue,
+    Value const& rvalue,
+    RValue const& symbol)
+{
+    auto& object = frame_.locals.at(lvalue);
+    if (rvalue.storage == Storage::POINTER)
+        type_error(fmt::format("invalid pointer assignment, left-hand-side "
+                               "'{}' is not a pointer",
+                       lvalue),
+            symbol);
+    if (!is_compatible(object.type, rvalue.type))
+        type_error(fmt::format("invalid assignment, right-hand-side '{}' with "
+                               "type '{}' is not the same type ({})",
+                       symbol,
+                       rvalue.type,
+                       object.type),
             lvalue);
+    if (rvalue.type != "null")
+        object.type = rvalue.type;
+    object.constant = rvalue.constant;
+}
+
+/**
+ * @brief Type check an assignment to a pointer local or parameter
+ *
+ * Once a pointer points to a type, it may only point to that type
+ *
+ *  Examples:
+ *
+ *    auto *p, *q, x, d;
+ *    x = 5;
+ *    d = 2.5;
+ *    p = &x;           // allowed
+ *    q = p;            // allowed
+ *    p = p + 1;        // allowed, a word
+ *    p = &d;           // not allowed, a pointer to int and double
+ *    p = x;            // not allowed, x is not a pointer
+ */
+void Type_Checker::assign_to_pointer(LValue const& lvalue,
+    Value const& rvalue,
+    RValue const& symbol)
+{
+    auto& object = frame_.locals.at(lvalue);
+    if (rvalue.storage == Storage::POINTER) {
+        auto type = get_pointer_type(object);
+        if (!is_compatible(type, get_pointer_type(rvalue)))
+            type_error(fmt::format("invalid pointer assignment, left-hand-side "
+                                   "'{}' is a pointer to '{}', and '{}' is a "
+                                   "pointer to '{}'",
+                           lvalue,
+                           type,
+                           symbol,
+                           get_pointer_type(rvalue)),
+                lvalue);
+        object = rvalue;
+        return;
+    }
+    if (rvalue.type == "word" or rvalue.type == "string") {
+        object = Value{ Storage::POINTER, rvalue.type };
+        return;
+    }
+    type_error(fmt::format("invalid pointer assignment, right-hand-side '{}' "
+                           "is not a pointer",
+                   symbol),
+        lvalue);
+}
+
+/**
+ * @brief Type check an assignment through a dereferenced pointer
+ *
+ * A pointer from an address-of expression assigns to the object it points
+ * to. Otherwise, the right-hand-side must agree with the pointer's type,
+ * and the assignment through a null pointer sets the type it points to.
+ *
+ *  Examples:
+ *
+ *    auto *p, *q, x;
+ *    x = 5;
+ *    p = &x;
+ *    *p = 10;          // allowed, assigns to x
+ *    *p = 2.5;         // not allowed, int and double
+ *    *q = 5;           // allowed, q is now a pointer to int
+ *    *q = 2.5;         // not allowed, int and double
+ *    *q = p;           // not allowed, the right-hand-side is a pointer
+ */
+void Type_Checker::assign_to_dereference(LValue const& lvalue,
+    Value const& rvalue,
+    RValue const& symbol)
+{
+    if (!frame_.locals.contains(lvalue) or
+        frame_.locals.at(lvalue).storage != Storage::POINTER)
+        type_error(fmt::format("invalid pointer dereference assignment, "
+                               "left-hand-side '{}' is not a pointer",
+                       lvalue),
+            symbol);
+    auto& object = frame_.locals.at(lvalue);
+    if (object.address.has_value()) {
+        assign(*object.address, rvalue, symbol);
+        return;
+    }
+    if (rvalue.storage == Storage::POINTER and object.type != "word")
+        type_error(fmt::format("invalid pointer dereference assignment, "
+                               "right-hand-side '{}' is a pointer",
+                       symbol),
+            lvalue);
+    if (!is_compatible(object.type, rvalue.type))
+        type_error(fmt::format("invalid dereference assignment, '*{}' with "
+                               "type '{}' is not the same type ({})",
+                       lvalue,
+                       object.type,
+                       rvalue.type),
+            symbol);
+    if (object.type == "null")
+        object.type = rvalue.type;
+}
+
+/**
+ * @brief Type check an assignment to a vector element
+ *
+ *  Examples:
+ *
+ *    extrn numbers, strings;
+ *    numbers[0] = 5;           // allowed
+ *    strings[1] = "hi";        // allowed
+ *    strings[1] = numbers[2];  // not allowed, string and int
+ *    numbers[5] = 5;           // not allowed, numbers has 3 elements
+ */
+void Type_Checker::assign_to_vector(LValue const& lvalue,
+    Value const& rvalue,
+    RValue const& symbol)
+{
+    auto* vector = get_vector_at_offset(lvalue);
+    if (vector == nullptr)
+        return;
+    auto offset = credence::type::from_decay_offset(lvalue);
+    Type type = rvalue.type;
+    if (rvalue.storage == Storage::POINTER and rvalue.type != "string")
+        type = "word";
+    std::optional<Value> element{};
+    if (vector->data.contains(offset))
+        element = vector->data.at(offset);
+    else if (vector->unknown_offset.has_value())
+        element = vector->unknown_offset;
+    else if (!util::is_numeric(offset) and not vector->data.empty())
+        element = vector->data.begin()->second;
+    if (element.has_value() and not is_compatible(element->type, type))
+        type_error(fmt::format("invalid vector assignment, left-hand-side "
+                               "'{}' with type '{}' is not the same type ({})",
+                       lvalue,
+                       element->type,
+                       type),
+            symbol);
+    if (type == "null")
+        return;
+    // an offset not known at compile time may be any element in a loop
+    if (util::is_numeric(offset))
+        vector->data[offset] =
+            Value{ Storage::SCALAR, type, {}, rvalue.constant };
+    else
+        vector->unknown_offset = Value{ Storage::SCALAR, type };
+}
+
+/**
+ * @brief Check the boundary of a vector offset and get its vector
+ *
+ * Returns nullptr for an offset of a pointer or a parameter, which has no
+ * size at compile time.
+ */
+Vector* Type_Checker::get_vector_at_offset(LValue const& lvalue)
+{
+    auto label = credence::type::from_lvalue_offset(lvalue);
+    auto offset = credence::type::from_decay_offset(lvalue);
+    auto* vector = get_vector(label);
+    if (vector == nullptr) {
+        if (is_parameter_or_pointer(label))
+            return nullptr;
+        type_error(fmt::format("invalid vector access, vector identifier "
+                               "'{}' does not exist",
+                       label),
+            lvalue);
+    }
+    if (util::is_numeric(offset)) {
+        auto index = std::stoul(offset);
+        if (index > max_vector_size)
+            type_error(fmt::format("invalid vector offset, integer offset "
+                                   "'{}' is a buffer-overflow",
+                           index),
+                lvalue);
+        if (index >= vector->size)
+            type_error(fmt::format("invalid out-of-range vector access '{}' "
+                                   "at index '{}'",
+                           label,
+                           index),
+                lvalue);
+    } else if (!frame_.locals.contains(offset))
+        type_error(fmt::format("invalid vector offset '{}'", offset), lvalue);
+    auto constant = get_constant_offset(lvalue);
+    if (constant != offset and util::is_numeric(constant) and
+        std::stoul(constant) >= vector->size)
+        type_error(fmt::format("invalid out-of-range vector access '{}' at "
+                               "index '{}', the value of '{}'",
+                       label,
+                       constant,
+                       offset),
+            lvalue);
+    return vector;
+}
+
+/**
+ * @brief The offset of a vector lvalue, or the constant of its scalar offset
+ *
+ *  Examples:
+ *
+ *    x = 2;
+ *    v[x];           // 2
+ *    v[i];           // i, not known at compile time
+ */
+RValue Type_Checker::get_constant_offset(LValue const& lvalue)
+{
+    auto offset = credence::type::from_decay_offset(lvalue);
+    if (frame_.locals.contains(offset) and
+        frame_.locals.at(offset).constant.has_value())
+        return *frame_.locals.at(offset).constant;
+    return offset;
+}
+
+/**
+ * @brief The type a pointer value points to
+ *
+ * The type of a pointer from an address-of expression is the current type
+ * of the object it points to
+ */
+Type Type_Checker::get_pointer_type(Value const& value)
+{
+    if (!value.address.has_value() or
+        not frame_.locals.contains(*value.address))
+        return value.type;
+    auto const& object = frame_.locals.at(*value.address);
+    return object.storage == Storage::POINTER ? Type{ "word" } : object.type;
+}
+
+/**
+ * @brief Get a vector in the stack frame or the global vectors
+ */
+Vector* Type_Checker::get_vector(LValue const& label)
+{
+    if (frame_.locals.contains(label))
+        return nullptr;
+    if (frame_.vectors.contains(label))
+        return &frame_.vectors.at(label);
+    if (globals_.contains(label))
+        return &globals_.at(label);
+    return nullptr;
+}
+
+/**
+ * @brief Check if a label is a parameter or a pointer in the stack frame
+ */
+bool Type_Checker::is_parameter_or_pointer(LValue const& label)
+{
+    return frame_.parameters.contains(label) or
+           (frame_.locals.contains(label) and
+               frame_.locals.at(label).storage == Storage::POINTER);
+}
+
+/**
+ * @brief Raise a type check error in the current stack frame
+ */
+void Type_Checker::type_error(std::string_view message,
+    std::string_view symbol,
+    std::source_location const& location)
+{
+    throw_compiletime_error(
+        message, symbol, location, "symbol", frame_.symbol, hoisted_symbols_);
 }
 
 } // namespace credence::language::hir::checking

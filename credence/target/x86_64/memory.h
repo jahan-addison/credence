@@ -26,35 +26,51 @@
 #include <functional>                           // for function
 #include <matchit.h>                            // for pattern, PatternHelper
 #include <memory>                               // for shared_ptr, make_shared
+#include <optional>                             // for optional
 #include <string>                               // for basic_string, string
 #include <utility>                              // for move
 
 /****************************************************************************
+ * x86-64 Memory Accessor
  *
- * x86-64 Memory Accessors
+ * The memory accessor facade of the x86-64 target, and the address of each
+ * lvalue. A local is on the stack below rbp, a global is relative to rip,
+ * and a vector element is an offset in its vector.
  *
- * ARM64 memory data type accessors and memory accessor facade.
+ *  Example:
  *
- * Example - local variable access:
+ *    main() {
+ *      auto x, arr[5];
+ *      extrn value;
+ *      x = value;
+ *      arr[2] = 42;
+ *    }
  *
- *   B code:    auto x; x = 10;
+ *  Becomes:
  *
- * Memory accessor generates:
- *   mov dword ptr [rbp - 4], 10    ; x at [rbp - 4]
+ *    mov eax, dword ptr [rip + value]   // a global, from rip
+ *    mov dword ptr [rbp - 4], eax       // x
+ *    mov dword ptr [rbp - 12], 42       // arr[2]
  *
- * Example - array access:
+ ****************************************************************************/
+
+/****************************************************************************
+ * Register selection table:
  *
- *   B code:    auto arr[5]; arr[2] = 42;
- *
- * Memory accessor generates:
- *   mov qword ptr [rbp - 24], 42   ; arr[2] at base + 2*4
- *
- * Example - global access:
- *
- *   B code:    extrn value; x = value;
- *
- * Memory accessor generates:
- *   mov rax, qword ptr [rip + value]  ; RIP-relative
+ *   rax      = The default "accumulator" register for expression expansion,
+ *              and the return value
+ *   rdi, r8, r9, rsi, rdx, rcx
+ *            = The arguments of a call to a function of the program
+ *   rdi, rsi, rdx, rcx, r8, r9
+ *            = The arguments of a call to the standard library, System V
+ *   xmm0 - xmm7
+ *            = The float and double arguments of the standard library
+ *   r10      = The address register of a dereference
+ *   r11      = The scratch register of the right-hand-side of a binary
+ *              expression, and the value of a global argument
+ *   rcx      = The shift count of a shift by a register, in cl
+ *   r15      = The address of argc, argv on the stack
+ *   rbp      = The frame pointer, every local is below it
  *
  *****************************************************************************/
 
@@ -117,12 +133,12 @@ using Stack_Frame = common::memory::Stack_Frame;
 using X8664_Memory_Accessor = common::memory::Memory_Accessor;
 
 /**
- * @brief Stack frame object that keeps a stack of function calls and arguments
- */
-using Stack_Frame = target::common::memory::Stack_Frame;
-
-/**
- * @brief Get the intel-format prefix for storage device sizes
+ * @brief Get the Intel syntax size prefix of a memory operand
+ *
+ *  Examples:
+ *
+ *    storage_prefix_from_operand_size(Operand_Size::Dword)   // dword ptr
+ *    storage_prefix_from_operand_size(Operand_Size::Qword)   // qword ptr
  */
 constexpr std::string storage_prefix_from_operand_size(
     assembly::Operand_Size size)
@@ -164,6 +180,12 @@ using Operand_Lambda = std::function<bool(RValue)>;
 
 using Flag_Accessor = common::Flag_Accessor;
 
+/**
+ * @brief The accumulator register of x86-64, al, ax, eax, or rax
+ *
+ * A signal register set by an inserter is returned once in place of the
+ * accumulator, and the signal register is eax when it is not set
+ */
 struct Accumulator_Accessor : public X8664_Accumulator_Accessor
 {
     explicit Accumulator_Accessor(Register* signal_register)
@@ -193,6 +215,20 @@ struct Accumulator_Accessor : public X8664_Accumulator_Accessor
     }
 };
 
+/**
+ * @brief The address of an lvalue and the instructions that load it
+ *
+ * A local is its offset below rbp, a global is relative to rip with its
+ * size prefix, and a dereference is the address loaded into rax
+ *
+ *  Example:
+ *
+ *    x = value;
+ *
+ *  Becomes, where value is global:
+ *
+ *    dword ptr [rip + value]
+ */
 struct Address_Accessor : public X8664_Address_Accessor
 {
   public:
@@ -210,6 +246,10 @@ struct Address_Accessor : public X8664_Address_Accessor
         bool use_prefix = true);
 };
 
+/**
+ * @brief The offset and operand size of an element of a global vector on
+ * x86-64
+ */
 struct Vector_Accessor : public X8664_Vector_Accessor
 {
   public:
@@ -223,9 +263,18 @@ struct Vector_Accessor : public X8664_Vector_Accessor
     }
 };
 
+/**
+ * @brief The x86-64 instructions of the program
+ */
 struct Instruction_Accessor : public X8664_Instruction_Accessor
 {};
 
+/**
+ * @brief The argument registers of a call to a function of the program
+ *
+ * Each argument takes the next register of its size, and the registers are
+ * reset after the call
+ */
 struct Register_Accessor
 {
     explicit Register_Accessor(Register* signal_register,
@@ -248,7 +297,7 @@ struct Register_Accessor
     }
 
     /**
-     * @brief Get a second accumulator register from an Operand Size
+     * @brief Get the second operand register of a size, edi or rdi
      */
     static constexpr Register get_second_register_from_size(Operand_Size size)
     {
@@ -269,7 +318,11 @@ struct Register_Accessor
 } // namespace detail
 
 /**
- * @brief The Memory registry and mediator that orchestrates access to memory
+ * @brief The memory accessor facade of the x86-64 target
+ *
+ * The inserters, visitor, and emitter share one facade, which holds each
+ * accessor, the stack, the instructions of the program, and the state that
+ * is passed from one IR instruction to the next
  */
 class Memory_Accessor final : public X8664_Memory_Accessor
 {
@@ -306,6 +359,13 @@ class Memory_Accessor final : public X8664_Memory_Accessor
 
   public:
     Stack_Pointer stack;
+
+  public:
+    // the temporary and the register that holds it after the instruction
+    // that computes it, valid until the next instruction
+    std::optional<std::pair<LValue, Register>> accumulator_temporary{};
+    // a relational expression inserted the conditional jump of the next IF
+    bool relational_jump{ false };
 
   public:
     detail::Flag_Accessor flag_accessor{};

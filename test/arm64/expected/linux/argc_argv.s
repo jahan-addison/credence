@@ -20,15 +20,15 @@ _start:
     bl printf
     adrp x0, ._L_str2__
     add x0, x0, :lo12:._L_str2__
-    ldr x1, [x19, #8]
+    ldr x1, [x19, #16]
     bl printf
     adrp x0, ._L_str3__
     add x0, x0, :lo12:._L_str3__
-    ldr x1, [x19, #16]
+    ldr x1, [x19, #24]
     bl printf
     adrp x0, ._L_str4__
     add x0, x0, :lo12:._L_str4__
-    ldr x1, [x19, #24]
+    ldr x1, [x19, #32]
     bl printf
     ldr x19, [sp, #16]
     ldp x29, x30, [sp], #32

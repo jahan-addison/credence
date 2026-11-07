@@ -26,11 +26,13 @@
 #include "memory.h"                          // for Memory_Accessor, Instru...
 #include "stack.h"                           // for Stack
 #include "syscall.h"                         // for exit_syscall
+#include <algorithm>                         // for any_of
 #include <credence/language/hir/binding.h>   // for Object, Function, Label
 #include <credence/target/common/runtime.h>  // for is_stdlib_function, is_...
 #include <deque>                             // for deque
 #include <matchit.h>                         // for Wildcard, App, Ds, app
 #include <memory>                            // for shared_ptr
+#include <ranges>                            // for split
 #include <string>                            // for basic_string, char_traits
 #include <string_view>                       // for basic_string_view
 #include <tuple>                             // for get, tuple
@@ -38,44 +40,54 @@
 #include <variant>                           // for variant
 
 /****************************************************************************
- *
  * ARM64 IR Visitor
  *
- * Visits ITA intermediate representation instructions and emits ARM64
- * machine code. Implements the IR_Visitor interface for ARM64 ISA.
+ * Translates each ITA instruction into ARM64 instructions. A function's
+ * locals are in registers when its frame makes no calls, and on the stack
+ * otherwise, and the value of an expression is in the accumulator, w8 or x8.
  *
- * Example - visiting assignment:
+ *  Example:
  *
- *   ITA:    x = 42;  (x is first local variable)
+ *    _p4_3 = (1:int:4);
+ *    _p5_4 = (2:int:4);
+ *    PUSH _p5_4;
+ *    PUSH _p4_3;
+ *    CALL compute;
+ *    POP 16;
+ *    _t8 = RET;
  *
- * Visitor generates:
- *   mov w9, #42              ; x in register w9
+ *  Becomes:
  *
- * Example - visiting function call:
+ *    mov x0, #1
+ *    mov x1, #2
+ *    bl compute
+ *    mov w8, w0
  *
- *   ITA:    CALL add
- *
- * Visitor generates:
- *   bl add
- *
- *****************************************************************************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Register selection table:
  *
- *   x6  = intermediate scratch and data section register
- *      s6  = floating point
- *      d6  = double
- *      v6  = SIMD
- *   x15      = Second data section register
- *   x7       = multiplication scratch register
+ *   x0 - x7  = The arguments of a call, and x0 the return value
+ *   x6       = The data section address register, and the second operand
+ *              of a binary expression in a temporary
+ *      s6    = floating point
+ *      d6    = double
+ *   x7       = The scratch register of the right-hand-side of a binary
+ *              expression
  *   x8       = The default "accumulator" register for expression expansion
- *   x10      = The stack move register; additional scratch register
- *   x9 - x18 = If there are no function calls in a stack frame, local scope
- *             variables are stored in x9-x18, after which the stack is used
+ *   x9, x11 - x14, x16, x17
+ *            = If there are no function calls in a stack frame, local scope
+ *              variables are stored in these registers, after which the
+ *              stack is used
+ *   x10      = The stack move register, and the address register of a
+ *              pointer on the stack
+ *   x15      = The address of a vector element on the stack
+ *   x18      = The platform register on Darwin, never used
  *   x19      = The argc, argv scratch register
  *
- *   Vectors and vector offsets will always be on the stack
+ *   A local whose address is taken, vectors, and vector offsets are always
+ *   on the stack
  *
  *****************************************************************************/
 
@@ -85,6 +97,23 @@ namespace m = matchit;
 
 /**
  * @brief IR Instruction Instruction::FUNC_START
+ *
+ * The frame record, x29 and x30, is stored at the bottom of the frame by a
+ * pre-indexed store of the frame size, which is set at the end of the
+ * function. The `main` function also saves x19 and sets up `argc` and
+ * `argv`: in x0 and x1 on Darwin, and at the top of the stack on Linux.
+ *
+ *  Example:
+ *
+ *    main(argc, argv) {
+ *
+ *  Becomes, on Darwin:
+ *
+ *    stp x29, x30, [sp, #-32]!
+ *    str x19, [sp, #16]
+ *    mov x29, sp
+ *    str w0, [sp, #20]
+ *    mov x19, x1
  */
 void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
 {
@@ -95,16 +124,16 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
     accessor_->device_accessor.reset_storage_devices();
     stack_frame_.symbol = name;
     stack_frame_.set_stack_frame(name);
-    auto& frame = table->functions.at(name).get();
-    if (ir::stack_frame_contains_call_instruction(
-            frame, accessor_->table_accessor.get_ir_instructions())) {
-        accessor_->stack->allocate(16);
-    }
+    // the frame pointer and link register are saved at the bottom of the
+    // frame
+    accessor_->stack->allocate(16);
     table->reset_frame_calls();
     set_alignment_flag(Align_SP);
     arm64_add__asm(instructions, stp, x29, x30, alignment__integer());
+    // x19 is callee saved, and is saved in the slot above the frame record
     if (name == "main" and
         common::runtime::argc_argv_kernel_runtime_access(stack_frame_).first) {
+        accessor_->stack->allocate(8);
         auto argv_imm = direct_immediate("[sp, #16]");
         arm64_add__asm(instructions, str, x19, argv_imm);
     }
@@ -133,11 +162,34 @@ void IR_Instruction_Visitor::from_func_start_ita(Label const& name)
                 "argv", Operand_Size::Doubleword);
 #endif
         }
+        return;
+    }
+    // a call overwrites the argument registers, so each parameter of a
+    // frame with calls is stored in its slot
+    auto& frame = table->functions.at(name).get();
+    if (!ir::stack_frame_contains_call_instruction(
+            frame, accessor_->table_accessor.get_ir_instructions()))
+        return;
+    for (std::size_t index = 0; index < frame.parameters.size(); index++) {
+        auto const& parameter = frame.parameters.at(index);
+        auto pointer = parameter.starts_with("*");
+        auto slot = fmt::format(
+            "__parameter_{}", type::get_unary_rvalue_reference(parameter));
+        accessor_->stack->set_address_from_size(
+            slot, pointer ? Operand_Size::Doubleword : Operand_Size::Word);
+        auto value =
+            pointer ? memory::registers::available_doubleword_argument.at(index)
+                    : memory::registers::available_word_argument.at(index);
+        arm64_add__asm(
+            instructions, str, value, accessor_->stack->get(slot).first);
     }
 }
 
 /**
- * @brief Reset available general purpose registers at end of frame
+ * @brief IR Instruction Instruction::FUNC_END
+ *
+ * The frame size of the function is recorded for its prologue and
+ * epilogue, and the registers and stack are reset for the next function
  */
 void IR_Instruction_Visitor::from_func_end_ita()
 {
@@ -146,7 +198,12 @@ void IR_Instruction_Visitor::from_func_end_ita()
     accessor_->stack->clear();
 }
 
-// Unused
+/**
+ * @brief IR Instruction Instruction::CMP
+ *
+ * A comparison is a temporary, `_t3 = CMP x`, and the JMP_E that follows it
+ * makes the comparison, so there is no CMP instruction to translate
+ */
 void IR_Instruction_Visitor::from_cmp_ita(
     [[maybe_unused]] ir::Quadruple const& inst)
 {
@@ -154,6 +211,32 @@ void IR_Instruction_Visitor::from_cmp_ita(
 
 /**
  * @brief IR Instruction Instruction::MOV
+ *
+ * The lvalue and rvalue select the inserter:
+ *
+ *  * An argument slot, `_p1_1`, of a temporary or dereference is stored on
+ *    the stack, since the accumulator is overwritten before the call
+ *
+ *  * A temporary is the value of its expression in the accumulator
+ *
+ *  * A dereference, `*b = x`, is a store through the pointer
+ *
+ *  * An element of a global vector is a load or store from the data section
+ *
+ *  * Any other assignment is a mov between storage devices
+ *
+ * A local on the stack is stored after the assignment.
+ *
+ *  Example:
+ *
+ *    _t7 = x + (10:int:4);
+ *    y = _t7;
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    add w8, w8, #10
+ *    mov w10, w8
  */
 void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
 {
@@ -172,27 +255,31 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
     };
 
     m::match(lhs, rhs)(
-        m::pattern | m::ds(m::app(is_parameter, true), m::_) = [&] {},
+        // an argument of a computed value is stored before the next
+        // instruction, otherwise it's resolved when it's pushed
+        m::pattern | m::ds(m::app(is_parameter, true), m::_) =
+            [&] {
+                auto const& held = accessor_->accumulator_temporary;
+                if ((type::is_temporary(rhs) and
+                        ((held.has_value() and held->first == rhs) or
+                            accessor_->stack->is_allocated(rhs))) or
+                    type::is_dereference_expression(rhs))
+                    insert_temporary_to_stack(rhs, lhs);
+            },
         m::pattern | m::ds(m::app(type::is_temporary, true), m::_) =
             [&] {
                 expression_inserter.insert_lvalue_at_temporary_object_address(
                     lhs);
+                auto const& held = accessor_->accumulator_temporary;
+                if (held.has_value() and held->first == lhs and
+                    is_temporary_used_after_next_instruction(lhs))
+                    insert_temporary_to_stack(lhs, lhs);
             },
-        m::pattern | m::ds(m::app(type::is_dereference_expression, true),
-                         m::app(type::is_dereference_expression, true)) =
+        // an assignment through a pointer, `*b = x`
+        m::pattern |
+            m::ds(m::app(type::is_dereference_expression, true), m::_) =
             [&] {
-                auto unary_inserter = Unary_Operator_Inserter{ accessor_ };
-                unary_inserter.insert_from_unary_to_unary_assignment(lhs, rhs);
-            },
-        m::pattern | m::ds(m::app(type::is_dereference_expression, true),
-                         m::app(type::is_dereference_expression, false)) =
-            [&] {
-                auto lhs_s = accessor_->device_accessor.get_device_by_lvalue(
-                    type::get_unary_rvalue_reference(lhs));
-                auto rhs_s =
-                    accessor_->device_accessor.get_operand_rvalue_device(rhs);
-                unary_inserter.insert_from_unary_operator_operands(
-                    "*", rhs_s, lhs_s);
+                insert_to_pointer(type::get_unary_rvalue_reference(lhs), rhs);
             },
         m::pattern | m::ds(m::app(is_global_vector, true), m::_) =
             [&] {
@@ -207,7 +294,9 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
         m::pattern | m::_ =
             [&] { operand_inserter.insert_from_mnemonic_operand(lhs, rhs); });
 
-    if (accessor_->stack->is_allocated(lhs)) {
+    // the register the lvalue was loaded into is stored back to its slot
+    if (!is_parameter(lhs) and not type::is_temporary(lhs) and
+        accessor_->stack->is_allocated(lhs)) {
         auto& instructions =
             accessor_->instruction_accessor->get_instructions();
         auto stack_register =
@@ -217,54 +306,201 @@ void IR_Instruction_Visitor::from_mov_ita(ir::Quadruple const& inst)
         arm64_add__asm(instructions, str, stack_register, stack_address);
     }
 
+    // the scratch registers of an assignment are free after it
     if (!type::is_temporary(lhs) and
         not accessor_->register_accessor.stack.empty())
         accessor_->register_accessor.stack.clear();
 }
 
 /**
- * @brief Update the address in the stack that holds the pointer of an lvalue
+ * @brief Check if a temporary is an operand after the next instruction
+ *
+ * The accumulator holds a temporary until the next instruction, so a
+ * temporary used after it is stored on the stack. The lvalue of a MOV is
+ * its destination, not an operand, so it is skipped.
+ *
+ *  Example:
+ *
+ *    _t2 = x;
+ *    x = ++x;
+ *    y = _t2;
+ *
+ *  Becomes:
+ *
+ *    is_temporary_used_after_next_instruction("_t2")   // true
  */
-void IR_Instruction_Visitor::set_pointer_address_of_lvalue(LValue const& lvalue)
+bool IR_Instruction_Visitor::is_temporary_used_after_next_instruction(
+    LValue const& temporary)
 {
-    auto device_storage =
-        accessor_->device_accessor.get_device_by_lvalue(lvalue);
-    auto address_storage = accessor_->stack->get(lvalue).first;
-    if (!stack_frame_.get_stack_frame().tokens.empty())
-        address_storage += 16;
+    auto& ir_instructions = accessor_->table_accessor.get_ir_instructions();
+    auto is_operand = [&](std::string_view operand) {
+        return std::ranges::any_of(
+            std::views::split(operand, ' '), [&](auto const& part) {
+                return std::string_view{ part.begin(), part.end() } ==
+                       temporary;
+            });
+    };
+    for (auto index = iterator_index_ + 2; index < ir_instructions.size();
+        index++) {
+        auto const& inst = ir_instructions.at(index);
+        if (std::get<0>(inst) == ir::Instruction::FUNC_END)
+            break;
+        if ((std::get<0>(inst) != ir::Instruction::MOV and
+                is_operand(std::get<1>(inst))) or
+            is_operand(std::get<2>(inst)) or is_operand(std::get<3>(inst)))
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Store the value of a temporary in a stack slot
+ *
+ * The slot is the temporary itself, or the argument slot it is assigned to,
+ * and is allocated at the size of the value
+ *
+ *  Example:
+ *
+ *    _t2 = x;
+ *    x = ++x;
+ *    y = _t2;
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    str w8, [sp, #16]
+ *    add w9, w9, #1
+ *    ldr w10, [sp, #16]
+ */
+void IR_Instruction_Visitor::insert_temporary_to_stack(LValue const& temporary,
+    LValue const& slot)
+{
     auto& instructions = accessor_->instruction_accessor->get_instructions();
-    accessor_->flag_accessor.set_instruction_flag(
-        common::flag::Indirect_Source, instructions.size());
-    arm64_add__asm(instructions, str, device_storage, address_storage);
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto value = std::get<Register>(
+        operand_inserter.get_operand_storage_from_expression_operand(
+            temporary));
+    auto size = assembly::is_doubleword_register(value)
+                    ? Operand_Size::Doubleword
+                    : Operand_Size::Word;
+    if (!accessor_->stack->is_allocated(slot))
+        accessor_->stack->set_address_from_size(slot, size);
+    arm64_add__asm(instructions, str, value, accessor_->stack->get(slot).first);
+}
+
+/**
+ * @brief Store a value at the address in a pointer
+ *
+ * The store is the size of the object the pointer points to, so a word is
+ * sign extended into a pointer to a doubleword. The pointer is a parameter
+ * register, a local register, or a stack slot loaded into x10.
+ *
+ *  Example:
+ *
+ *    *b = x;
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    str w8, [x0]
+ */
+void IR_Instruction_Visitor::insert_to_pointer(LValue const& pointer,
+    RValue const& rvalue)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto value = operand_inserter.insert_operand_into_accumulator(rvalue);
+    if (operand_inserter.get_pointee_size(pointer) == 8UL) {
+        if (!assembly::is_doubleword_register(value)) {
+            arm64_add__asm(instructions, sxtw, x8, value);
+            value = Register::x8;
+        }
+    } else
+        value = assembly::get_word_register_from_doubleword(value);
+    auto address =
+        assembly::get_doubleword_register_from_word(std::get<Register>(
+            operand_inserter.get_operand_storage_from_expression_operand(
+                pointer)));
+    arm64_add__asm(instructions,
+        str,
+        value,
+        direct_immediate(fmt::format("[{}]",
+            common::assembly::get_storage_as_string<Register>(address))));
 }
 
 /**
  * @brief IR Instruction Instruction::PUSH
+ *
+ * The arguments of a call are pushed in reverse order, so each is added to
+ * the front of the argument stack, and the first argument is at the front.
+ * An argument stored in a slot before the call is loaded from its slot.
+ *
+ *  Example:
+ *
+ *    PUSH _p5_4;
+ *    PUSH _p4_3;
+ *
+ *  Becomes:
+ *
+ *    argument_stack   // { (1:int:4), (2:int:4) }
  */
 void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& table = accessor_->table_accessor.get_table();
     auto& frame = stack_frame_.get_stack_frame();
+    auto argument = std::get<1>(inst);
     stack_frame_.argument_stack.emplace_front(
-        table->lvalue_at_temporary_object_address(std::get<1>(inst), frame));
+        table->lvalue_at_temporary_object_address(argument, frame));
+    stack_frame_.argument_slots.emplace_front(
+        accessor_->stack->is_allocated(argument) ? argument : "");
 }
 
 /**
  * @brief IR Instruction Instruction::RETURN
+ *
+ * The value of the return statement is moved to the return register, w0 or
+ * x0. A function may return from more than one statement.
+ *
+ *  Example:
+ *
+ *    RET z ;
+ *
+ *  Becomes:
+ *
+ *    mov w0, w11
  */
-void IR_Instruction_Visitor::from_return_ita()
+void IR_Instruction_Visitor::from_return_ita(ir::Quadruple const& inst)
 {
     auto inserter = Expression_Inserter{ accessor_ };
     auto& frame = accessor_->table_accessor.get_table()
                       ->functions.at(stack_frame_.symbol)
                       .get();
-    if (frame.ret.has_value())
-        inserter.insert_from_return_rvalue(frame.ret);
+    if (!frame.ret.has_value())
+        return;
+    // each return statement returns its own rvalue
+    auto rvalue = util::str_trim_ws(std::get<1>(inst));
+    inserter.insert_from_return_rvalue(
+        std::make_pair(frame.ret->first, rvalue));
 }
 
 /**
  * @brief IR Instruction Instruction::LEAVE
+ *
+ * The frame record is restored by a post-indexed load of the frame size,
+ * which is set at the end of the function. A function returns to its
+ * caller, and `main` exits with the exit syscall.
+ *
+ *  Example:
+ *
+ *    LEAVE;
+ *
+ *  Becomes, in `main` on Darwin:
+ *
+ *    ldp x29, x30, [sp], #32
+ *    mov w0, #0
+ *    mov x16, #1
+ *    svc #0x80
  */
 void IR_Instruction_Visitor::from_leave_ita()
 {
@@ -294,6 +530,8 @@ void IR_Instruction_Visitor::from_leave_ita()
 
 /**
  * @brief IR Instruction Instruction::LABEL
+ *
+ * A label is local to its function, `_L4` in `main` is `._L4__main`
  */
 void IR_Instruction_Visitor::from_label_ita(ir::Quadruple const& inst)
 {
@@ -303,47 +541,36 @@ void IR_Instruction_Visitor::from_label_ita(ir::Quadruple const& inst)
 }
 
 /**
- * @brief Clean up argument stack after function call
+ * @brief IR Instruction Instruction::POP
+ *
+ * The arguments of the call are in registers, so the argument stack and
+ * slots are cleared and nothing is emitted
  */
 void IR_Instruction_Visitor::from_pop_ita()
 {
     stack_frame_.size = 0;
     stack_frame_.argument_stack.clear();
+    stack_frame_.argument_slots.clear();
     if (!stack_frame_.call_stack.empty())
         stack_frame_.call_stack.pop_back();
 }
 
 /**
- * @brief Check if the parameter stack of the same function already been
- * allocated before a function call
- */
-bool IR_Instruction_Visitor::parameters_in_return_stack(Label const& label)
-{
-    auto& table = accessor_->table_accessor;
-    auto& parameters = table.get_table()->get_ir_parameters(label);
-    if (parameters.size() < 2)
-        return false;
-
-    auto parameter_stack = parameters.back();
-    auto last_stack = parameters.at(parameters.size() - 2);
-    for (std::size_t j = 0UL; j < parameter_stack.size(); j++) {
-        if (parameter_stack.at(j) != last_stack.at(j))
-            return false;
-    }
-    return true;
-}
-
-unsigned int* IR_Instruction_Visitor::get_function_frame_calls(
-    Label const& label)
-{
-    auto& table = accessor_->table_accessor.get_table();
-    credence_assert_message(table->function_contains(label), label);
-    auto& object_frame = table->functions.at(label).get();
-    return &object_frame.calls;
-}
-
-/**
  * @brief IR Instruction Instruction::CALL
+ *
+ * A call is to a syscall, a function of the standard library, or a
+ * function of the program, and its arguments are loaded from the argument
+ * stack into the argument registers
+ *
+ *  Example:
+ *
+ *    CALL compute;
+ *
+ *  Becomes:
+ *
+ *    mov x0, #1
+ *    mov x1, #2
+ *    bl compute
  */
 void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 {
@@ -408,6 +635,14 @@ void IR_Instruction_Visitor::from_call_ita(ir::Quadruple const& inst)
 
 /**
  * @brief IR Instruction Instruction::GOTO
+ *
+ *  Example:
+ *
+ *    GOTO _L4;
+ *
+ *  Becomes:
+ *
+ *    b ._L4__main
  */
 void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
 {
@@ -420,6 +655,19 @@ void IR_Instruction_Visitor::from_goto_ita(ir::Quadruple const& inst)
 
 /**
  * @brief IR Instruction Instruction::LOCL
+ *
+ * A pointer is a doubleword and a vector is allocated on the stack, and any
+ * other local is a register or stack slot of its size
+ *
+ *  Example:
+ *
+ *    LOCL x;
+ *    LOCL *p;
+ *
+ *  Becomes, in a frame with no calls:
+ *
+ *    x  -> w9
+ *    p  -> x10
  */
 void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
 {
@@ -453,6 +701,20 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
 
 /**
  * @brief IR Instruction Instruction::JMP_E
+ *
+ * A case of a switch statement, the jump is taken when the operand of its
+ * CMP temporary is equal to the case
+ *
+ *  Example:
+ *
+ *    _t3 = CMP x;
+ *    JMP_E _t3 (1:int:4) _L5;
+ *
+ *  Becomes:
+ *
+ *    mov w8, w9
+ *    cmp w8, #1
+ *    b.eq ._L5__main
  */
 void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
 {
@@ -473,10 +735,29 @@ void IR_Instruction_Visitor::from_jmp_e_ita(ir::Quadruple const& inst)
 }
 
 /**
- * @brief Unused - read-ahead during relational jumps
+ * @brief IR Instruction Instruction::IF
+ *
+ * A relational condition inserted its own conditional jump, otherwise the
+ * jump is taken when the condition is not zero
  */
-void IR_Instruction_Visitor::from_if_ita(
-    [[maybe_unused]] ir::Quadruple const& inst)
+void IR_Instruction_Visitor::from_if_ita(ir::Quadruple const& inst)
 {
+    if (accessor_->relational_jump) {
+        accessor_->relational_jump = false;
+        return;
+    }
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    auto condition =
+        operand_inserter.get_operand_storage_from_expression_operand(
+            std::get<1>(inst));
+    if (is_variant(Immediate, condition)) {
+        arm64_add__asm(instructions, mov, w7, condition);
+        condition = Register::w7;
+    }
+    auto label = common::assembly::make_direct_immediate(
+        assembly::make_label(std::get<3>(inst), stack_frame_.symbol));
+    arm64_add__asm(instructions, cmp, condition, u32_int_immediate(0));
+    arm64_add__asm(instructions, b_ne, label);
 }
 }

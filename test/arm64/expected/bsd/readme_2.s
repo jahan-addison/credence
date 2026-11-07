@@ -10,41 +10,50 @@
     .global _putchar
 
 _start:
-    stp x29, x30, [sp, #-32]!
+    stp x29, x30, [sp, #-80]!
     str x19, [sp, #16]
     mov x29, sp
-    str w0, [sp, #20]
+    str w0, [sp, #24]
     mov x19, x1
-    ldr x10, [sp, #28]
+    ldr x10, [sp, #32]
     adrp x6, ._L_str4__@PAGE
     add x6, x6, ._L_str4__@PAGEOFF
     mov x10, x6
-    str x10, [sp, #28]
+    str x10, [sp, #32]
 ._L2__main:
-    mov x8, x19
-    cmp x8, #1
+    ldr w10, [sp, #24]
+    mov w8, w10
+    cmp w8, #1
     b.gt ._L4__main
 ._L3__main:
     b ._L1__main
 ._L4__main:
-    ldr x0, [sp, #28]
+    ldr x0, [sp, #32]
     bl identity
-    mov x0, x0
+    mov x8, x0
+    str x8, [sp, #40]
+    ldr x0, [sp, #40]
     bl identity
-    mov x0, x0
+    mov x8, x0
+    str x8, [sp, #48]
+    ldr x0, [sp, #48]
     bl identity
-    ldr x0, [sp, #28]
+    mov x8, x0
+    str x8, [sp, #56]
+    ldr x0, [sp, #56]
     ldr x1, [x19, #8]
     bl _printf
     adrp x6, strings@PAGE
     add x6, x6, strings@PAGEOFF
-    ldr x0, [x6]
+    ldr x10, [x6, #0]
+    str x10, [sp, #64]
+    ldr x0, [sp, #64]
     mov w1, #14
     bl _print
     b ._L3__main
 ._L1__main:
     ldr x19, [sp, #16]
-    ldp x29, x30, [sp], #32
+    ldp x29, x30, [sp], #80
     mov w0, #0
     mov x16, #1
     svc #0x80

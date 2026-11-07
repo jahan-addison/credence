@@ -15,7 +15,7 @@ _start:
     lea r15, [rsp]
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 40
     lea rcx, [rip + ._L_str4__]
     mov qword ptr [rbp - 8], rcx
 ._L2__main:
@@ -27,14 +27,19 @@ _start:
 ._L4__main:
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rdi, rax
+    mov qword ptr [rbp - 16], rax
+    mov rdi, qword ptr [rbp - 16]
     call identity
-    mov rdi, rax
+    mov qword ptr [rbp - 24], rax
+    mov rdi, qword ptr [rbp - 24]
     call identity
-    mov rdi, rax
+    mov qword ptr [rbp - 32], rax
+    mov rdi, qword ptr [rbp - 32]
     mov rsi, [r15 + 8 * 2]
     call printf
-    mov rdi, qword ptr [rip + strings]
+    mov r11, qword ptr [rip + strings]
+    mov qword ptr [rbp - 40], r11
+    mov rdi, qword ptr [rbp - 40]
     mov esi, 14
     call print
     jmp ._L3__main
@@ -49,7 +54,7 @@ identity:
     push rbp
     mov rbp, rsp
     mov rax, rdi
-    pop rbp
+    leave
     ret
 
 .data

@@ -10,19 +10,22 @@
 _start:
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 40
     lea rcx, [rip + ._L_str1__]
     mov qword ptr [rbp - 8], rcx
     mov rdi, qword ptr [rbp - 8]
     call identity
-    mov rdi, rax
+    mov qword ptr [rbp - 16], rax
+    mov rdi, qword ptr [rbp - 16]
     call identity
-    mov rdi, rax
+    mov qword ptr [rbp - 24], rax
+    mov rdi, qword ptr [rbp - 24]
     call identity
-    mov rdi, rax
+    mov qword ptr [rbp - 32], rax
+    mov rdi, qword ptr [rbp - 32]
     mov esi, 18
     call print
-    add rsp, 16
+    add rsp, 40
     mov rax, 33554433
     mov rdi, 0
     syscall
@@ -32,7 +35,7 @@ identity:
     push rbp
     mov rbp, rsp
     mov rax, rdi
-    pop rbp
+    leave
     ret
 
 .data
