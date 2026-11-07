@@ -101,6 +101,7 @@ printf:
 
 .do_int:
     mov     rdi, [rbp + r14]
+    movsxd  rdi, edi
     sub     r14, 8
     call    itoa
     jmp     .loop

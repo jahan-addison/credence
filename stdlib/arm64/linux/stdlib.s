@@ -69,6 +69,7 @@ printf:
 
 .do_int:
     ldr     x0, [x26, x20]
+    sxtw    x0, w0
     add     x20, x20, #8
     bl      itoa
     b       .loop
