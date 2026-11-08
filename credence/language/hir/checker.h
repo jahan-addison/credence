@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include "hir.h"                       // for Data_Kind
-#include "types.h"                     // for LValue, RValue, Type, Label
-#include <credence/language/literal.h> // for Literal
+#include "../literal.h"    // for Literal
+#include "hir.h"           // for Data_Kind
+#include "types.h"         // for LValue, RValue, Type, Label
 #include <credence/util.h> // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <cstddef>         // for size_t
 #include <map>             // for map

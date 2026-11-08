@@ -13,12 +13,12 @@
 
 #include "checker.h"
 
-#include "hir.h"                         // for Data_Kind, data_kind_to_string
-#include "types.h"                       // for LValue, RValue, Type
-#include <algorithm>                     // for find
-#include <credence/error.h>              // for throw_compiletime_error
-#include <credence/language/literal.h>   // for Literal
-#include <credence/language/operators.h> // for Operator
+#include "../literal.h"     // for Literal
+#include "../operators.h"   // for Operator
+#include "hir.h"            // for Data_Kind, data_kind_to_string
+#include "types.h"          // for LValue, RValue, Type
+#include <algorithm>        // for find
+#include <credence/error.h> // for throw_compiletime_error
 #include <credence/types.h> // for from_decay_offset, from_lvalue...
 #include <credence/util.h>  // for contains, is_numeric, overload
 #include <easyjson.h>       // for JSON

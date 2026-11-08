@@ -13,22 +13,22 @@
 
 #include "table.h"
 
-#include "binding.h"                        // for Object_Table, Vector
-#include "checker.h"                        // for Type_Checker, Value
-#include "hir.h"                            // for data_kind_to_string
-#include <credence/error.h>                 // for throw_compiletime_error
-#include <credence/language/ast_lowering.h> // for AST_Lowering
-#include <credence/language/literal.h>      // for Literal, NULL_LITERAL
-#include <credence/symbol.h>                // for Symbol_Table
-#include <credence/types.h>                 // for get_rvalue_datatype_fr...
-#include <credence/util.h>                  // for AST_Node
-#include <cstddef>                          // for size_t
-#include <easyjson.h>                       // for JSON
-#include <fmt/format.h>                     // for format
-#include <matchit.h>                        // for pattern, match, Pattern...
-#include <string>                           // for basic_string, to_string
-#include <utility>                          // for cmp_not_equal
-#include <variant>                          // for get
+#include "../ast_lowering.h" // for AST_Lowering
+#include "../literal.h"      // for Literal, NULL_LITERAL
+#include "binding.h"         // for Object_Table, Vector
+#include "checker.h"         // for Type_Checker, Value
+#include "hir.h"             // for data_kind_to_string
+#include <credence/error.h>  // for throw_compiletime_error
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for get_rvalue_datatype_fr...
+#include <credence/util.h>   // for AST_Node
+#include <cstddef>           // for size_t
+#include <easyjson.h>        // for JSON
+#include <fmt/format.h>      // for format
+#include <matchit.h>         // for pattern, match, Pattern...
+#include <string>            // for basic_string, to_string
+#include <utility>           // for cmp_not_equal
+#include <variant>           // for get
 
 /****************************************************************************
  * Table

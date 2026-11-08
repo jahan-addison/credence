@@ -51,7 +51,7 @@
 namespace credence::target::x86_64::syscall_ns {
 
 /**
- * @brief General purpsoe register stack in ABI system V order
+ * @brief General purpose register stack in ABI system V order
  */
 std::pair<memory::registers::general_purpose,
     memory::registers::general_purpose>
