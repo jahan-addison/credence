@@ -941,6 +941,22 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
         return rvalue.starts_with("CMP");
     };
 
+    auto is_stdlib_function = [&](Label const& label) {
+#if defined(__linux__)
+        return common::runtime::is_stdlib_function(label,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::ARM64);
+#elif defined(__APPLE__) || defined(__bsdi__)
+        return common::runtime::is_stdlib_function(label,
+            common::assembly::OS_Type::BSD,
+            common::assembly::Arch_Type::ARM64);
+#elif defined(_WIN32) || defined(_WIN64)
+        return common::runtime::is_stdlib_function(label,
+            common::assembly::OS_Type::Linux,
+            common::assembly::Arch_Type::ARM64);
+#endif
+    };
+
     m::match(rvalue)(
         m::pattern | m::app(type::is_binary_expression, true) =
             [&] {
@@ -989,22 +1005,8 @@ void Expression_Inserter::insert_from_temporary_rvalue(RValue const& rvalue)
                     result_ = Register::w8;
                     return;
                 }
-#if defined(__linux__)
-                if (common::runtime::is_stdlib_function(stack_frame_.tail,
-                        common::assembly::OS_Type::Linux,
-                        common::assembly::Arch_Type::ARM64))
+                if (is_stdlib_function(stack_frame_.tail))
                     return;
-#elif defined(__APPLE__) || defined(__bsdi__)
-                if (common::runtime::is_stdlib_function(stack_frame_.tail,
-                        common::assembly::OS_Type::BSD,
-                        common::assembly::Arch_Type::ARM64))
-                    return;
-#elif defined(_WIN32) || defined(_WIN64)
-                if (common::runtime::is_stdlib_function(stack_frame_.tail,
-                        common::assembly::OS_Type::Linux,
-                        common::assembly::Arch_Type::ARM64))
-                    return;
-#endif
                 credence_assert(table->functions.contains(stack_frame_.tail));
                 auto& frame = table->functions.at(stack_frame_.tail).get();
                 credence_assert(frame.ret.has_value());

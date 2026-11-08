@@ -19,6 +19,7 @@
 #include <credence/util.h>             // for CREDENCE_PRIVATE_UNLESS_TESTED
 #include <fmt/format.h>                // for format
 #include <map>                         // for map
+#include <ranges>                      // for keys, keys_view
 #include <set>                         // for set
 #include <source_location>             // for source_location
 #include <string>                      // for basic_string, string
@@ -104,18 +105,14 @@ class Symbol_Table
 
     inline Keys get_symbols()
     {
-        Keys keys{};
-        for (auto const& key : table_)
-            keys.insert(key.first);
-        return keys;
+        auto keys = std::views::keys(table_);
+        return Keys{ keys.begin(), keys.end() };
     }
 
     inline Keys get_pointers()
     {
-        Keys keys{};
-        for (auto const& key : addr_)
-            keys.insert(key.first);
-        return keys;
+        auto keys = std::views::keys(addr_);
+        return Keys{ keys.begin(), keys.end() };
     }
 
     inline Symbol get_symbol_by_name(std::string const& name,

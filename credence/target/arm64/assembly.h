@@ -382,7 +382,6 @@ enum class Register
     v29,
     v30,
     v31,
-
 };
 
 constexpr const auto DOUBLEWORD_REGISTER = { Register::x0,
