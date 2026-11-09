@@ -97,32 +97,32 @@ Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes
 
 ## Unions
 
-A union is the one construct with no counterpart in augur's grammar. `union` is a keyword, and the parser reads a `union` definition and a `union` statement by the token after the union's name - a `{` starts a definition, and a name declares variables.
+A union is the only construct with no equivalent in augur's grammar. `union` is a keyword, and the parser distinguishes a `union` definition from a `union` statement by the token after the name of the union - a `{` begins a definition, and a name declares variables.
 
 ```C
-union shape {
-  radius 0.0f,
-  side (0, 0)
+union value {
+  real 0.0f,
+  pair (0, 0)
 };
 
 main() {
-  union shape s;
+  union value v;
 }
 ```
 
 ```json
 {
   "node": "union_definition",
-  "root": "shape",
+  "root": "value",
   "left": [
     {
       "node": "tag",
-      "root": "radius",
+      "root": "real",
       "left": [{ "node": "float_literal", "root": 0.0 }]
     },
     {
       "node": "tag",
-      "root": "side",
+      "root": "pair",
       "left": [
         { "node": "integer_literal", "root": 0 },
         { "node": "integer_literal", "root": 0 }
@@ -136,14 +136,14 @@ main() {
 {
   "node": "statement",
   "root": "union",
-  "left": "shape",
-  "right": [{ "node": "lvalue", "root": "s" }]
+  "left": "value",
+  "right": [{ "node": "lvalue", "root": "v" }]
 }
 ```
 
-* Each `tag` node holds its initial values, one constant or a parenthesized list of them, and its type is the type of those values
-* A `union` statement, or a `union` definition at the top level, declares variables of a union type, and each holds one tag at a time
-* `s is shape.radius` tests the active tag of `s`. An identifier may contain `.`, so `s.radius` and `shape.radius` are each a single name to the lexer
+* A `tag` node holds its initial values, a constant or a parenthesized list of constants, and its type is the type of those values
+* A `union` statement, or a `union` definition at the top level, declares variables of a union type, and each variable holds one tag at a time
+* `v is value.real` tests the active tag of `v`. An identifier may contain `.`, so `v.real` and `value.real` are each a single identifier to the lexer
 
 ## Symbol Builder
 
