@@ -9,7 +9,7 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-**Brocoli** is a systems language derived from B, the predecessor of C. It extends B with a type system by inference, tagged unions, kernel syscalls **that do not depend on libc**, and other improvements. Most B programs are valid Brocoli, and source files keep the `.b` extension.
+**Brocoli** is a systems language derived from B, the predecessor of C. It extends B with a type system by inference, tagged unions, kernel syscalls **that do not depend on libc**, and other improvements. Most B programs are valid Brocoli, so source files keep the `.b` extension.
 
 **Credence** is the Brocoli compiler, written in modern C++, with backends for x86-64 and ARM64 on Linux and Darwin.
 
@@ -303,7 +303,7 @@ _L3:
 
 ### Code Generation
 
-The `_L3` loop body of `rule` above, on ARM64 Darwin. The syscall number of `write` is in `x16`, and `svc` enters the kernel. The stack frame makes calls, so the local `i` is on the stack:
+The `_L3` loop body of `rule` above, on ARM64 Darwin. The syscall number of `write` is in `x16`.
 
 ```asm
 ._L3__rule:
