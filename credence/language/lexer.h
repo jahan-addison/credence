@@ -125,10 +125,8 @@ class Lexer
      */
     Token next();
 
-    /**
-     * @brief SIMD-powered scanning to skip and count whitespace in chunks
-     */
-    void skip_whitespace();
+    // The SIMD whitespace scanner in lexer.re, not compiled.
+    // void skip_whitespace();
 
     /**
      * @brief Scan the entire source, ending with one END_OF_FILE token
