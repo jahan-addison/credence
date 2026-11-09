@@ -1,5 +1,8 @@
 <div align="center">
-  <img src="docs/images/credence-compiler-logo.png" width="800px" alt="credence"> </img>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/brocoli-dark.svg">
+    <img src="docs/images/brocoli-light.svg" width="800px" alt="Brocoli - a systems language that grew out of B">
+  </picture>
 </div>
 
 <br>
