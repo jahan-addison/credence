@@ -51,6 +51,8 @@ std::string_view token_type_to_string(Token_Type type)
             return "KEYWORD_EXTRN";
         case Token_Type::KEYWORD_CASE:
             return "KEYWORD_CASE";
+        case Token_Type::KEYWORD_UNION:
+            return "KEYWORD_UNION";
         case Token_Type::KEYWORD_GOTO:
             return "KEYWORD_GOTO";
         case Token_Type::KEYWORD_IF:
@@ -279,6 +281,7 @@ Token Lexer::next()
         "return"        { return make_token(Token_Type::KEYWORD_RETURN); }
         "while"         { return make_token(Token_Type::KEYWORD_WHILE); }
         "switch"        { return make_token(Token_Type::KEYWORD_SWITCH); }
+        "union"         { return make_token(Token_Type::KEYWORD_UNION); }
         "break"         { return make_token(Token_Type::KEYWORD_BREAK); }
         "true"          { return make_token(Token_Type::BOOL_LITERAL); }
         "false"         { return make_token(Token_Type::BOOL_LITERAL); }

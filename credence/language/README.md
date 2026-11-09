@@ -42,6 +42,13 @@ In hindsight, the AST_Lowering <-> Shunting_Yard pair is a replacement for Pratt
 
 A lexer built with the lexer-generator re2c from [`lexer.re`](/credence/language/lexer.re) into `lexer.cc` (see `Token`, `Token_Type` in [`lexer.h`](/credence/language/lexer.h)).
 
+To rebuild, assuming `re2c` is installed:
+
+```bash
+cmake --build build --target regenerate_lexer
+clang-format -i --style=file credence/language/lexer.cc
+```
+
 An identifier is at most 16 characters. A longer identifier is its own token, and the parser reports it as a syntax error at its position rather than splitting it into two names.
 
 ## Parser

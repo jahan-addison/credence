@@ -71,9 +71,11 @@ class Parser
     util::AST_Node parse_definition();
     util::AST_Node parse_function_definition(Token const& name);
     util::AST_Node parse_vector_definition(Token const& name);
+    util::AST_Node parse_union_definition();
     util::AST_Node parse_call_arguments_or_parameters();
-    util::AST_Node parse_v_symbol();
-    std::optional<util::AST_Node> parse_v_size();
+    util::AST_Node parse_vector_symbol();
+    util::AST_Node parse_union_tag_symbol();
+    std::optional<util::AST_Node> parse_vector_size();
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     util::AST_Node parse_function_body();
@@ -82,6 +84,7 @@ class Parser
     util::AST_Node parse_label_statement();
     util::AST_Node parse_auto_statement();
     util::AST_Node parse_extrn_statement();
+    util::AST_Node parse_union_statement();
     util::AST_Node parse_case_statement();
     util::AST_Node parse_goto_statement();
     util::AST_Node parse_if_statement();

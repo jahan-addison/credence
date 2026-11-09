@@ -206,6 +206,10 @@ util::AST_Node Parser::parse_program()
  */
 util::AST_Node Parser::parse_definition()
 {
+    if (check(Token_Type::KEYWORD_UNION) and
+        check_ahead(1, Token_Type::IDENTIFIER) and
+        check_ahead(2, Token_Type::LBRACE))
+        return parse_union_definition();
     auto name = expect(Token_Type::IDENTIFIER, "an identifier");
     if (check(Token_Type::LPAREN))
         return parse_function_definition(name);
@@ -232,13 +236,13 @@ util::AST_Node Parser::parse_function_definition(Token const& name)
  */
 util::AST_Node Parser::parse_vector_definition(Token const& name)
 {
-    auto size = parse_v_size();
+    auto size = parse_vector_size();
     auto values = util::AST::array();
     if (!check(Token_Type::SEMICOLON)) {
-        values.append(parse_v_symbol());
+        values.append(parse_vector_symbol());
         while (!check(Token_Type::SEMICOLON)) {
             match(Token_Type::COMMA); // the separating comma is optional
-            values.append(parse_v_symbol());
+            values.append(parse_vector_symbol());
         }
     }
     expect(Token_Type::SEMICOLON, "';'");
@@ -246,6 +250,28 @@ util::AST_Node Parser::parse_vector_definition(Token const& name)
         json_string(std::string(name.lexeme)),
         size,
         values);
+}
+
+/**
+ * @brief Parse a union definition and its initial tag values
+ */
+util::AST_Node Parser::parse_union_definition()
+{
+    advance(); // 'union'
+    auto name = std::string(expect(Token_Type::IDENTIFIER, "an lvalue").lexeme);
+    auto values = util::AST::array();
+    util::AST_Node lvalue = make_node("lvalue", json_string(name));
+    expect(Token_Type::LBRACE, "'{'");
+
+    if (!check(Token_Type::RBRACE)) {
+        while (!check(Token_Type::RBRACE)) {
+            values.append(parse_union_tag_symbol());
+            match(Token_Type::COMMA); // the separating comma is optional
+        }
+    }
+    expect(Token_Type::RBRACE, "'}'");
+    expect(Token_Type::SEMICOLON, "';'");
+    return make_node("union_definition", json_string(name), values);
 }
 
 /**
@@ -270,7 +296,7 @@ util::AST_Node Parser::parse_call_arguments_or_parameters()
 /**
  * @brief Parse one vector initial value: either a constant or a bare name
  */
-util::AST_Node Parser::parse_v_symbol()
+util::AST_Node Parser::parse_vector_symbol()
 {
     if (check(Token_Type::IDENTIFIER)) {
         auto name = std::string(current().lexeme);
@@ -281,9 +307,33 @@ util::AST_Node Parser::parse_v_symbol()
 }
 
 /**
+ * @brief Parse one union initial tag: an identifier and its tag type
+ */
+util::AST_Node Parser::parse_union_tag_symbol()
+{
+    auto name = std::string(expect(Token_Type::IDENTIFIER, "an lvalue").lexeme);
+    auto left = util::AST::array();
+    if (check(Token_Type::LPAREN)) {
+        // The union item is a tagged vector:
+        // union data_t {
+        //     list (0, "", "", 0.0f),
+        // };
+        expect(Token_Type::LPAREN, "'('");
+        left.append(parse_constant());
+        while (match(Token_Type::COMMA)) {
+            left.append(parse_constant());
+        }
+        expect(Token_Type::RPAREN, "')'");
+    } else {
+        left.append(parse_constant());
+    }
+    return make_node("tag", json_string(name), left, std::nullopt);
+}
+
+/**
  * @brief Parse a vector's optional "[" constant? "]" size
  */
-std::optional<util::AST_Node> Parser::parse_v_size()
+std::optional<util::AST_Node> Parser::parse_vector_size()
 {
     if (!check(Token_Type::LBRACKET))
         return std::nullopt;
@@ -369,6 +419,8 @@ util::AST_Node Parser::parse_statement(bool allow_block_and_return)
             Token_Type::KEYWORD_AUTO = [&] { return parse_auto_statement(); },
         m::pattern |
             Token_Type::KEYWORD_EXTRN = [&] { return parse_extrn_statement(); },
+        m::pattern |
+            Token_Type::KEYWORD_UNION = [&] { return parse_union_statement(); },
         m::pattern |
             Token_Type::KEYWORD_IF = [&] { return parse_if_statement(); },
         m::pattern |
@@ -457,6 +509,27 @@ util::AST_Node Parser::parse_extrn_statement()
     }
     expect(Token_Type::SEMICOLON, "';'");
     return make_node("statement", json_string("extrn"), left, std::nullopt);
+}
+
+/**
+ * @brief Parse "union" TYPE NAME ("," NAME)* ";"
+ */
+util::AST_Node Parser::parse_union_statement()
+{
+    advance(); // 'union'
+    auto left = json_string(
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme));
+    auto right = util::AST::array();
+    auto name =
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
+    right.append(make_node("lvalue", json_string(name)));
+    while (match(Token_Type::COMMA)) {
+        auto name =
+            std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
+        right.append(make_node("lvalue", json_string(name)));
+    }
+    expect(Token_Type::SEMICOLON, "';'");
+    return make_node("statement", json_string("union"), left, right);
 }
 
 /**

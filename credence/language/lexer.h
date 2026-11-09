@@ -48,6 +48,7 @@ enum class Token_Type
     KEYWORD_AUTO,
     KEYWORD_EXTRN,
     KEYWORD_CASE,
+    KEYWORD_UNION,
     KEYWORD_GOTO,
     KEYWORD_IF,
     KEYWORD_ELSE,
