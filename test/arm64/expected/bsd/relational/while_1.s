@@ -55,13 +55,13 @@ _start:
 ._L13__main:
     adrp x0, ._L_str1__@PAGE
     add x0, x0, ._L_str1__@PAGEOFF
-    mov w1, #4
+    mov w1, #3
     bl _print
     b ._L12__main
 ._L16__main:
     adrp x0, ._L_str3__@PAGE
     add x0, x0, ._L_str3__@PAGEOFF
-    mov w1, #6
+    mov w1, #5
     bl _print
     b ._L12__main
 ._L1__main:

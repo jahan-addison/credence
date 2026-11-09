@@ -527,9 +527,11 @@ AST_Lowering::Literal AST_Lowering::from_string_literal_node(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "string_literal");
     auto string_literal = util::unescape_string(node["root"].to_string());
+    auto value = string_literal.substr(1, string_literal.size() - 2);
+    // The value keeps its escape sequences for the data section, and the
+    // size is the length of the string in memory, so "\n" is 1 byte
     return {
-        string_literal.substr(1, string_literal.size() - 2),
-        { "string", string_literal.substr(1, string_literal.size() - 2).size() }
+        value, { "string", util::unescape_string(value).size() }
     };
 }
 

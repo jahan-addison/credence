@@ -44,12 +44,12 @@ _start:
     jmp ._L6__main
 ._L13__main:
     lea rdi, [rip + ._L_str1__]
-    mov esi, 4
+    mov esi, 3
     call print
     jmp ._L12__main
 ._L16__main:
     lea rdi, [rip + ._L_str3__]
-    mov esi, 6
+    mov esi, 5
     call print
     jmp ._L12__main
 ._L1__main:

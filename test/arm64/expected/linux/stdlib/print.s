@@ -24,7 +24,7 @@ _start:
     str x10, [sp, #24]
     adrp x0, ._L_str2__
     add x0, x0, :lo12:._L_str2__
-    mov w1, #13
+    mov w1, #12
     bl print
     ldr x0, [sp, #24]
     mov w1, #6
@@ -34,7 +34,7 @@ _start:
     ldr x10, [x6, #8]
     str x10, [sp, #32]
     ldr x0, [sp, #32]
-    mov w1, #7
+    mov w1, #6
     bl print
     mov w0, #1
     adrp x1, ._L_str3__

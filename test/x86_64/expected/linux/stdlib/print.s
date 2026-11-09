@@ -20,7 +20,7 @@ _start:
     mov rax, qword ptr [rip + mess]
     mov qword ptr [rbp - 12], rax
     lea rdi, [rip + ._L_str2__]
-    mov esi, 13
+    mov esi, 12
     call print
     mov rdi, qword ptr [rbp - 12]
     mov esi, 6
@@ -28,7 +28,7 @@ _start:
     mov r11, qword ptr [rip + mess+8]
     mov qword ptr [rbp - 20], r11
     mov rdi, qword ptr [rbp - 20]
-    mov esi, 7
+    mov esi, 6
     call print
     mov rax, 1
     mov edi, 1

@@ -2,7 +2,7 @@
 
 #include <credence/language/ast_lowering.h> // for AST_Lowering
 #include <credence/language/hir/hir.h>      // for Data_Kind
-#include <credence/language/literal.h>      // for Literal, NULL_LITERAL
+#include <credence/language/literal.h>      // for Literal, NULL_LITERAL, lit...
 #include <credence/symbol.h>                // for Symbol_Table
 #include <deque>                            // for deque
 #include <easyjson.h>                       // for JSON
@@ -817,6 +817,29 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_string_literal")
     CHECK(std::get<std::string>(value) == "hello world");
     CHECK(type.first == "string");
     CHECK(type.second == std::string{ "hello world" }.size());
+
+    obj["escaped"] = credence::util::AST_Node::load(
+        "{\"node\" : \"string_literal\", \"root\" : \"\\\"hello\\\\n\\\"\"}");
+    auto [escaped_value, escaped_type] =
+        temp.from_string_literal_node(obj["escaped"]);
+    CHECK(std::get<std::string>(escaped_value) == "hello\\n");
+    CHECK(escaped_type.second == 6UL);
+}
+
+TEST_CASE("literal_to_string")
+{
+    auto escaped = language::literal::Literal{
+        std::string{ "hello\\n" },
+        { "string", 6UL }
+    };
+    CHECK(language::literal::literal_to_string(escaped) ==
+          "(\"hello\\n\":string:6)");
+    auto plain = language::literal::Literal{
+        std::string{ "hello" },
+        { "string", 5UL }
+    };
+    CHECK(
+        language::literal::literal_to_string(plain) == "(\"hello\":string:5)");
 }
 
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_constant_literal")

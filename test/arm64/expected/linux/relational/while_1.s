@@ -55,13 +55,13 @@ _start:
 ._L13__main:
     adrp x0, ._L_str1__
     add x0, x0, :lo12:._L_str1__
-    mov w1, #4
+    mov w1, #3
     bl print
     b ._L12__main
 ._L16__main:
     adrp x0, ._L_str3__
     add x0, x0, :lo12:._L_str3__
-    mov w1, #6
+    mov w1, #5
     bl print
     b ._L12__main
 ._L1__main:
