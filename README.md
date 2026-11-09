@@ -9,7 +9,7 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-**Brocoli** is a systems language derived from B, the typeless predecessor of C. It extends B with a type system by inference, tagged unions, and kernel syscalls that do not depend on libc, so I no longer consider it B. Most B programs are valid Brocoli, and source files keep the `.b` extension.
+**Brocoli** is a systems language derived from B, the predecessor of C. It extends B with a type system by inference, tagged unions, kernel syscalls **that do not depend on libc**, and other improvements. Most B programs are valid Brocoli, and source files keep the `.b` extension.
 
 **Credence** is the Brocoli compiler, written in modern C++, with backends for x86-64 and ARM64 on Linux and Darwin.
 
@@ -98,9 +98,7 @@ hello, world, you passed 1 argument
 
 ## The Language
 
-### From B
-
-These features are not in the original B language specification.
+These features are extensions that were not in the original B language specification.
 
 * **Strongly typed by type inference**, see the [type system](#type-system)
 * **Tagged unions**, see [unions](#unions)
