@@ -20,9 +20,9 @@
 
 /****************************************************************************
  *
- * B language lexer
+ * Brocoli language lexer
  *
- * Hand-written tokenizer for the B language grammar (see grammar.lark),
+ * Hand-written tokenizer for the Brocoli language grammar (see grammar.lark),
  * with a re2c-generated scanner.
  *
  *****************************************************************************/

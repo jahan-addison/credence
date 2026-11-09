@@ -18,7 +18,7 @@
 
 /****************************************************************************
  *
- * B language Symbol Table
+ * Brocoli language Symbol Table
  *
  * Rebuilds the flat "name -> {type, size?, void?}" symbol map that augur's
  * transformer.py used to build as a side effect of its own AST transform, by

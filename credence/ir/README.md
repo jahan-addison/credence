@@ -93,7 +93,7 @@ A `GOTO` directly after another `GOTO` is unreachable, and the ITA drops it when
 
 ## Example:
 
-B Code:
+Brocoli Code:
 
 ```C
 main() {

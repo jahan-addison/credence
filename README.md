@@ -6,8 +6,10 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
+Credence is the compiler of **Brocoli**, a systems language that started as B - the typeless predecessor of C. It has since grown a type system by inference and kernel syscalls with no C library in between, so I no longer call it B. Most B programs are still valid Brocoli, and source files keep the `.b` extension.
+
 * Language grammar: [here](credence/language/grammar.lark)
-* Language reference: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
+* B, where Brocoli started: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 
 #### Check out the <a href="https://jahans.blog/tag/credence/">blog series</a>!
 
@@ -26,7 +28,7 @@ The compiler works in 3 stages:
 flowchart LR
     subgraph Frontend [" "]
         direction LR
-        A[B source] --> B(Lexer)
+        A[Brocoli source] --> B(Lexer)
         B --> C(Parser)
         C --> H(HIR)
         H --> I(Semantic analysis)
@@ -59,7 +61,7 @@ flowchart LR
 
 ## Features
 
-These features are not in the original B language specification.
+These are what Brocoli adds to, or changes from, the original B language specification.
 
 * **Strongly typed by type inference**, see below
 * Vectors may be non-homogeneous but their type is determined by their initial values and may not be changed
@@ -81,7 +83,7 @@ Note that windows is not supported. Please open an issue or pull request for any
 
 ## Type System
 
-The original B has no types, but credence is strongly typed by type inference. A [semantic pass](/credence/language/hir/table.h) over the HIR gives each variable a storage - a scalar, or a pointer and the type it points to - and a type from its first assignment, such as `int`, `long`, `float`, `double`, `char`, or `string`. Every assignment after it is checked at compile time.
+The original B has no types, but Brocoli is strongly typed by type inference. A [semantic pass](/credence/language/hir/table.h) over the HIR gives each variable a storage - a scalar, or a pointer and the type it points to - and a type from its first assignment, such as `int`, `long`, `float`, `double`, `char`, or `string`. Every assignment after it is checked at compile time.
 
 * Uninitialized variables are an internal `null` type until their first assignment
 * A `word` is a machine word, such as a parameter, a call result, or a binary expression, and agrees with every type
@@ -115,7 +117,7 @@ A complete assembler and linking tool is installed via the installation script.
 ## Usage
 
 ```
-Credence :: B Language Compiler
+Credence :: Brocoli Compiler
 Usage:
   Credence [OPTION...] positional parameters
 
@@ -127,7 +129,7 @@ Usage:
                          stdout
   -o, --output arg       Output file (default: stdout)
   -h, --help             Print usage
-      --source-code arg  B Source file
+      --source-code arg  Brocoli source file
 ```
 
 ## Building

@@ -6,7 +6,7 @@ The lexer, symbol builder, literal, HIR, AST lowering, and precedence pieces are
 
 ```mermaid
 flowchart LR
-    A[B source] -->|lexer.re| B(Tokens)
+    A[Brocoli source] -->|lexer.re| B(Tokens)
     B -->|parser.cc| C(AST_Node)
     C -->|symbol_builder.cc| H(Symbol_Builder)
     C -->|hir/table.cc| S(Semantic analysis)

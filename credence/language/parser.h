@@ -22,7 +22,7 @@
 
 /****************************************************************************
  *
- * B language Parser
+ * Brocoli language Parser
  *
  * Hand-written recursive-descent parser that transforms a token stream (see
  * lexer.h) into the same AST and parse tree shape produced by the Python

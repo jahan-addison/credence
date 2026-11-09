@@ -38,7 +38,7 @@
  * non-expression nodes are out of scope here - Shunting_Yard (precedence.h)
  * is the next pass, fixing precedence over the HIR this class produces.
  *
- *   B source:  x = 5 + 3 * 2
+ *   Brocoli source:  x = 5 + 3 * 2
  *
  *   ast node:  {"node": "assignment_expression",
  *               "root": ["="],

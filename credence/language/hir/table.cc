@@ -66,7 +66,7 @@ using checking::Value;
 /**
  * @brief Construct the object table from a set of definitions
  *
- *  A set of definitions constitute a B program.
+ *  A set of definitions constitute a Brocoli program.
  *
  *   Definition grammar:
  *

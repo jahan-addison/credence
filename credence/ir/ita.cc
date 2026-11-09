@@ -91,7 +91,7 @@ std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
 /**
  * @brief Construct a set of ita instructions from a set of definitions
  *
- *  A set of definitions constitute a B program.
+ *  A set of definitions constitute a Brocoli program.
  *
  *   Definition grammar:
  *

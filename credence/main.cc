@@ -65,7 +65,7 @@ int main(int argc, const char* argv[])
 {
     namespace m = matchit;
     try {
-        cxxopts::Options options("Credence", "Credence :: B Language Compiler");
+        cxxopts::Options options("Credence", "Credence :: Brocoli Compiler");
         options.show_positional_help();
         // clang-format off
         options.add_options()
@@ -82,7 +82,8 @@ int main(int argc, const char* argv[])
             ("o,output", "Output file",
                 cxxopts::value<std::string>()->default_value("stdout"))
             ("h,help", "Print usage")
-            ("source-code", "B Source file", cxxopts::value<std::string>());
+            ("source-code", "Brocoli source file",
+                cxxopts::value<std::string>());
         // clang-format on
         options.parse_positional({ "source-code" });
 
