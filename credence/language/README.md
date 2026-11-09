@@ -95,6 +95,56 @@ Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes
 * A char literal that is exactly one whitespace character (`' '`) keeps its surrounding quotes in `root`; every other char literal strips them. The original grammar had a second, redundant-looking rule matching a quoted space that never went through the same quote-stripping path as the general case. [`ast_lowering.h`](/credence/language/ast_lowering.h) takes the character inside the quotes, so `' '` is a space.
 * Consecutive expression-statements (`x = 1; y = 2;`) merge into a single `rvalue_statement` node rather than two separate statements, because `expression+` is embedded inside the `rvalue_statement` rule itself, not at the statement-list level above it.
 
+## Unions
+
+A union is the one construct with no counterpart in augur's grammar. `union` is a keyword, and the parser reads a `union` definition and a `union` statement by the token after the union's name - a `{` starts a definition, and a name declares variables.
+
+```C
+union shape {
+  radius 0.0f,
+  side (0, 0)
+};
+
+main() {
+  union shape s;
+}
+```
+
+```json
+{
+  "node": "union_definition",
+  "root": "shape",
+  "left": [
+    {
+      "node": "tag",
+      "root": "radius",
+      "left": [{ "node": "float_literal", "root": 0.0 }]
+    },
+    {
+      "node": "tag",
+      "root": "side",
+      "left": [
+        { "node": "integer_literal", "root": 0 },
+        { "node": "integer_literal", "root": 0 }
+      ]
+    }
+  ]
+}
+```
+
+```json
+{
+  "node": "statement",
+  "root": "union",
+  "left": "shape",
+  "right": [{ "node": "lvalue", "root": "s" }]
+}
+```
+
+* Each `tag` node holds its initial values, one constant or a parenthesized list of them, and its type is the type of those values
+* A `union` statement, or a `union` definition at the top level, declares variables of a union type, and each holds one tag at a time
+* `s is shape.radius` tests the active tag of `s`. An identifier may contain `.`, so `s.radius` and `shape.radius` are each a single name to the lexer
+
 ## Symbol Builder
 
 [`symbol_builder.h`](/credence/language/symbol_builder.h)'s `Symbol_Builder` rebuilds the flat `name -> {type, size?, void?}` symbol table that augur's transformer used to build as a side effect of its own transform. It walks the finished `AST_Node` tree post-order, so children are visited before their parent - the same bottom-up timing as the original Lark transform, quirks included (a function only ever gets `"void": false`, never `true`).

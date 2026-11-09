@@ -16,8 +16,12 @@ program : ( definition ) *
 
 definition : function_definition
  | vector_definition
+ | union_definition
+ | union_statement
 
 vector_definition   :  NAME v_size (v_symbol ( ","? v_symbol ) * )? SEMI_COLON
+
+union_definition    :  "union" NAME "{" ( u_symbol ( ","? u_symbol ) * )? "}" SEMI_COLON
 
 function_definition :  ( NAME "(" parameters ")" function_body )
 
@@ -28,10 +32,14 @@ v_symbol : constant
 
 v_size : [ ( "[" ( constant ) ? "]" ) ]
 
+u_symbol : NAME constant
+    | NAME "(" constant ( "," constant ) * ")"
+
 statement : block_statement
     | label_statement
     | auto_statement
     | extrn_statement
+    | union_statement
     | if_statement
     | while_statement
     | switch_statement
@@ -44,6 +52,7 @@ statement : block_statement
 statement_2 : label_statement
     | auto_statement
     | extrn_statement
+    | union_statement
     | if_statement
     | while_statement
     | switch_statement
@@ -57,6 +66,8 @@ function_body      :  ( "{" ((statement_2) *  (return_statement) ?)  "}" )
 auto_statement     : "auto" lvalue ("," lvalue )* SEMI_COLON
 
 extrn_statement    : "extrn" NAME ("," NAME)* SEMI_COLON
+
+union_statement    : "union" NAME NAME ("," NAME)* SEMI_COLON
 
 case_statement     : "case" constant ":" (statement *)
 
@@ -94,11 +105,14 @@ rvalue : unary_address_of
  | ternary_expression
  | assignment_expression
  | evaluated_expression
+ | is_expression
 
 
 function_expression     : lvalue "(" parameters  ")"
 
 ternary_expression      : rvalue "?" rvalue ":" rvalue
+
+is_expression           : lvalue "is" NAME
 
 relation_expression     : rvalue binary rvalue
 

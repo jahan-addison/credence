@@ -9,7 +9,7 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-**Brocoli** is a systems language derived from B, the typeless predecessor of C. It extends B with a type system by inference and kernel syscalls that do not depend on libc, so I no longer consider it B. Most B programs are valid Brocoli, and source files keep the `.b` extension.
+**Brocoli** is a systems language derived from B, the typeless predecessor of C. It extends B with a type system by inference, tagged unions, and kernel syscalls that do not depend on libc, so I no longer consider it B. Most B programs are valid Brocoli, and source files keep the `.b` extension.
 
 **Credence** is the Brocoli compiler, written in modern C++, with backends for x86-64 and ARM64 on Linux and Darwin.
 
@@ -103,6 +103,7 @@ hello, world, you passed 1 argument
 These features are not in the original B language specification.
 
 * **Strongly typed by type inference**, see the [type system](#type-system)
+* **Tagged unions**, see [unions](#unions)
 * Syscalls and a standard library with no libc, see [below](#standard-library-and-syscalls)
 * Compile-time out-of-range checks on vectors and pointer arithmetic
 * Vectors may be non-homogeneous, but the type of each element is determined by its initial value and may not be changed
@@ -150,6 +151,36 @@ Credence Error ::
 ```
 
 See details [here](/credence/language/README.md#semantic-analysis).
+
+### Unions
+
+A union is defined with the syntax of C, and is tagged like an enum in Rust - each member is a tag, and a union holds one tag at a time. The type of a tag is determined by its initial value, as with the elements of a vector, and a tag with a list of values is a tuple of their types.
+
+```C
+union value {
+  integer 0,
+  real 0.0f,
+  pair (0, 0)
+};
+
+union value unit;
+
+main() {
+  union value v;
+  v.real = 2.5f;
+  if (v is value.real) {
+    printf("real %f\n", v.real);
+  }
+}
+```
+
+* `union value { ... };` defines a union, and the comma between tags is optional
+* `union value v, w;` declares union variables in a function, or as a global definition
+* An assignment to a tag, `v.real = 2.5f;`, makes it the active tag of `v`
+* `v is value.real` is true when `real` is the active tag of `v`
+* A tag may only be assigned a value of its type
+
+See details [here](/credence/language/README.md#unions).
 
 ### Standard Library and Syscalls
 
