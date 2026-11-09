@@ -36,7 +36,7 @@ main(argc, argv) {
   pid = getpid();
   printf("pid %d, parent %d, uid %d\n", pid, getppid(), getuid());
 
-  // umask returns the mask it replaces, so a second call restores it
+  // umask twice
   mask = umask(63);
   printf("umask was %d, then %d\n", mask, umask(mask));
 
@@ -52,12 +52,12 @@ main(argc, argv) {
   rule(32);
 }
 
-// a line of dashes
+// a horizontal rule
 rule(width) {
   auto i;
   i = 0;
   while (i < width) {
-    write(1, "-", 1);
+    write(1, "#", 1);
     i++;
   }
   write(1, "\n", 1);
@@ -87,13 +87,13 @@ Use `-t x86_64` on an x86-64 host. The first argument after the program name is 
 
 ```
 ### credence syscall example ###
---------------------------------
-pid 71226, parent 71211, uid 501
+################################
+pid 83864, parent 83559, uid 501
 umask was 18, then 63
 written to a duplicate of stdout
 wrote 33 bytes to descriptor 3
 hello, world, you passed 1 argument
---------------------------------
+################################
 ```
 
 ## The Language
@@ -250,43 +250,66 @@ The generated machine code is compliant with the Application Binary Interface (A
 
 **Note**: The default compile target is the IR, [ITA](credence/ir/README.md).
 
-The `plural` function of the example:
+The `rule` function of the example:
 
 ```C
-plural(count) {
-  if (count == 1)
-    return("");
-  return("s");
+rule(width) {
+  auto i;
+  i = 0;
+  while (i < width) {
+    write(1, "#", 1);
+    i++;
+  }
+  write(1, "\n", 1);
 }
 ```
 
 Produces:
 
 ```asm
-__plural(count):
+__rule(width):
  BeginFunc ;
+    LOCL i;
+    i = (0:int:4);
 _L2:
-    _t5 = count == (1:int:4);
-    IF _t5 GOTO _L4;
-_L3:
-    RET ("s":string:1) ;
+_L4:
+    _t5 = i < width;
+    IF _t5 GOTO _L3;
+    _p10_29 = (1:int:4);
+    _p11_30 = ("\n":string:1);
+    _p12_31 = (1:int:4);
+    PUSH _p12_31;
+    PUSH _p11_30;
+    PUSH _p10_29;
+    CALL write;
+    POP 24;
+    _t13 = RET;
 _L1:
     LEAVE;
-_L4:
-    RET ("":string:0) ;
-    GOTO _L1;
+_L3:
+    _p6_26 = (1:int:4);
+    _p7_27 = ("#":string:1);
+    _p8_28 = (1:int:4);
+    PUSH _p8_28;
+    PUSH _p7_27;
+    PUSH _p6_26;
+    CALL write;
+    POP 24;
+    _t9 = RET;
+    i = ++i;
+    GOTO _L2;
  EndFunc ;
 ```
 
 ### Code Generation
 
-The loop of `rule` in the example, on ARM64 Darwin. The syscall number of `write` is in `x16`, and `svc` enters the kernel. The stack frame makes calls, so the local `i` is on the stack:
+The `_L3` loop body of `rule` above, on ARM64 Darwin. The syscall number of `write` is in `x16`, and `svc` enters the kernel. The stack frame makes calls, so the local `i` is on the stack:
 
 ```asm
 ._L3__rule:
     mov w0, #1
-    adrp x1, ._L_str3__@PAGE
-    add x1, x1, ._L_str3__@PAGEOFF
+    adrp x1, ._L_str2__@PAGE
+    add x1, x1, ._L_str2__@PAGEOFF
     mov w2, #1
     mov x16, #4
     svc #0x80

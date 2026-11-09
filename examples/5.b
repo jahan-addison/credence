@@ -24,7 +24,7 @@ main(argc, argv) {
   pid = getpid();
   printf("pid %d, parent %d, uid %d\n", pid, getppid(), getuid());
 
-  // umask returns the mask it replaces, so a second call restores it
+  // umask twice
   mask = umask(63);
   printf("umask was %d, then %d\n", mask, umask(mask));
 
@@ -40,12 +40,12 @@ main(argc, argv) {
   rule(32);
 }
 
-// a line of dashes
+// a horizontal rule
 rule(width) {
   auto i;
   i = 0;
   while (i < width) {
-    write(1, "-", 1);
+    write(1, "#", 1);
     i++;
   }
   write(1, "\n", 1);
