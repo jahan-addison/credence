@@ -9,22 +9,168 @@
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-Credence is the compiler of **Brocoli**, a systems language that started as B - the typeless predecessor of C. It has since grown a type system by inference and kernel syscalls with no C library in between, so I no longer call it B. Most B programs are still valid Brocoli, and source files keep the `.b` extension.
+**Brocoli** is a systems language derived from B, the typeless predecessor of C. It extends B with a type system by inference and kernel syscalls that do not depend on libc, so I no longer consider it B. Most B programs are valid Brocoli, and source files keep the `.b` extension.
+
+**Credence** is the Brocoli compiler, written in modern C++, with backends for x86-64 and ARM64 on Linux and Darwin.
 
 * Language grammar: [here](credence/language/grammar.lark)
 * B, where Brocoli started: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
+* Building, cross-compilation, and the test suite: [here](development.md)
 
 #### Check out the <a href="https://jahans.blog/tag/credence/">blog series</a>!
 
-## Overview
+## Example
 
-The compiler works in 3 stages:
+[`examples/5.b`](examples/5.b) uses the syscalls available on every platform - `write`, `getpid`, `getppid`, `getuid`, `umask`, `dup`, and `close` - and prints their results with the standard library `printf`.
+
+```C
+main(argc, argv) {
+  auto pid, mask, fd, n;
+  extrn banner, report;
+
+  write(1, banner, 32);
+  print("\n");
+  rule(32);
+
+  // the process and its parent
+  pid = getpid();
+  printf("pid %d, parent %d, uid %d\n", pid, getppid(), getuid());
+
+  // umask returns the mask it replaces, so a second call restores it
+  mask = umask(63);
+  printf("umask was %d, then %d\n", mask, umask(mask));
+
+  // a duplicate of stdout
+  fd = dup(1);
+  n = write(fd, report, 33);
+  close(fd);
+  printf("wrote %d bytes to descriptor %d\n", n, fd);
+
+  if (argc > 1)
+    greet(argv[1], argc - 1);
+
+  rule(32);
+}
+
+// a line of dashes
+rule(width) {
+  auto i;
+  i = 0;
+  while (i < width) {
+    write(1, "-", 1);
+    i++;
+  }
+  write(1, "\n", 1);
+}
+
+greet(name, count) {
+  printf("hello, %s, you passed %d argument%s\n", name, count, plural(count));
+}
+
+plural(count) {
+  if (count == 1)
+    return("");
+  return("s");
+}
+
+banner "### credence syscall example ###\n";
+
+report "written to a duplicate of stdout\n";
+```
+
+```bash
+credence -t arm64 -o syscalls examples/5.b
+./syscalls world
+```
+
+Use `-t x86_64` on an x86-64 host. The first argument after the program name is printed by `greet`:
+
+```
+### credence syscall example ###
+--------------------------------
+pid 71226, parent 71211, uid 501
+umask was 18, then 63
+written to a duplicate of stdout
+wrote 33 bytes to descriptor 3
+hello, world, you passed 1 argument
+--------------------------------
+```
+
+## The Language
+
+### From B
+
+These features are not in the original B language specification.
+
+* **Strongly typed by type inference**, see the [type system](#type-system)
+* Syscalls and a standard library with no libc, see [below](#standard-library-and-syscalls)
+* Compile-time out-of-range checks on vectors and pointer arithmetic
+* Vectors may be non-homogeneous, but the type of each element is determined by its initial value and may not be changed
+* C style `float` and `double` literals, e.g. `5.55f`, and C style constant literals
+* Identifiers may be up to 16 characters, B allows 8
+* `argc` and `argv` support
+* C++ style comments
+* Logical and bitwise operators, and operator precedence, behave like C
+
+The following differ from B:
+
+* `goto` and labels are not supported, use control structures
+* A `switch` condition is always enclosed in `(` and `)`
+* A binary operator may not be used directly after the `=` operator
+
+### Type System
+
+The original B has no types, but Brocoli is strongly typed by type inference. A [semantic pass](/credence/language/hir/table.h) over the HIR gives each variable a storage - a scalar, or a pointer and the type it points to - and a type from its first assignment, such as `int`, `long`, `float`, `double`, `char`, or `string`. Every assignment after it is checked at compile time.
+
+* Uninitialized variables are an internal `null` type until their first assignment
+* A `word` is a machine word, such as a parameter, a call result, or a binary expression, and is compatible with every type
+* Once a scalar has a type it may not be assigned another, e.g. `x = 10; x = 3.14;` is an error
+* Once a pointer points to a type it may **only** point to that type
+* An assignment through a null pointer, `*m = 5;`, makes `m` a pointer to `int`, and a dereference of `m` before it is a null pointer dereference
+* Vector offsets and pointer arithmetic are checked for out-of-range access at compile time
+* A function may return from more than one statement, but each return value must be the same type
+* A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`
+
+An index past the end of a vector is a compile-time error:
+
+```C
+main() {
+  extrn strings;
+  print(strings[10]);
+}
+
+strings [3] "Good afternoon", "Good morning", "Good evening";
+```
+
+```
+Credence Error ::
+  Credence could not compile source:
+    on symbol 'strings[10]'
+    with: "invalid out-of-range vector access 'strings' at index '10' in function 'main'"
+```
+
+See details [here](/credence/language/README.md#semantic-analysis).
+
+### Standard Library and Syscalls
+
+Credence provides a few useful [standard library](credence/target/common/runtime.h) functions that **do not** depend on libc or an external runtime. The standard library is hand-written assembly, pre-compiled in `stdlib/` for each platform and ISA:
+
+* `printf` - a format string and up to 8 arguments, `%d`, `%f`, `%g`, `%s`, `%b`, and `%c`
+* `print` - a string or buffer, with its length resolved at compile time
+* `putchar` - writes a single byte character to stdout
+* `getchar` - reads a single byte character from stdin
+
+In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h). The syscalls in `examples/5.b` are available on every platform.
+
+## The Compiler
+
+Credence works in 3 stages:
 
 * A Lexer generated with [re2c](https://github.com/skvadrik/re2c) that is used with a hand-written [Recursive-Descent Parser](/credence/language/parser.h), whose expressions are lowered into a [High Level Intermediate Representation or HIR](/credence/language/hir/hir.h) - a tree of expression kinds with `(value:type:size)` tuples
     * See details [here](/credence/language/README.md)
 * An IR (intermediate representation) I've named [Instruction Tuple Abstraction or ITA](credence/ir/README.md) - a linear 4-tuple set of platform-agnostic instructions that represent program flow and scope
     * See details [here](/credence/ir/README.md)
-* The target platforms, instruction selection and ISAs - x86-64, ARM64 for Linux and BSD, Darwin
+* The target platforms, instruction selection and ISAs - x86-64 and ARM64 for Linux and Darwin
     * See details [here](/credence/target/README.md)
 
 ```mermaid
@@ -62,60 +208,75 @@ flowchart LR
     style I fill:#2d2d2d,stroke:#888,color:#fff
 ```
 
-## Features
+### Targets
 
-These are what Brocoli adds to, or changes from, the original B language specification.
+The generated machine code is compliant with the Application Binary Interface (ABI) for System V, and the ARM64 Procedure Call Standard (PCS).
 
-* **Strongly typed by type inference**, see below
-* Vectors may be non-homogeneous but their type is determined by their initial values and may not be changed
-* Uninitialized variables are set to an internal `null` type
-* Compiletime out-of-range boundary checks on vectors and pointer arithmetic
-* `goto` and labels are not supported, use control structures
-* C style `float` and `double` literal types (e.g. `5.55f`)
-* C style constant literals
-* C++ style comment support
-* Identifiers may be up to 16 characters, B allows 8
-* `argc` and `argv` support
-* Logical and bitwise operators behave like C
-* Operator precedence behaves like C
-* VSCode extension provided
-* Switch statement condition must always be enclosed with `(` and `)`
-* Binary operators may not be used directly after the `=` operator
+* Linux - ARM64 (AArch64) and x86-64
+* Darwin - ARM64 (AArch64) and x86-64 (Intel)
 
-Note that windows is not supported. Please open an issue or pull request for any bugs you encounter.
+**Note**: Windows is not supported.
 
-## Type System
+### Intermediate Representation
 
-The original B has no types, but Brocoli is strongly typed by type inference. A [semantic pass](/credence/language/hir/table.h) over the HIR gives each variable a storage - a scalar, or a pointer and the type it points to - and a type from its first assignment, such as `int`, `long`, `float`, `double`, `char`, or `string`. Every assignment after it is checked at compile time.
+**Note**: The default compile target is the IR, [ITA](credence/ir/README.md).
 
-* Uninitialized variables are an internal `null` type until their first assignment
-* A `word` is a machine word, such as a parameter, a call result, or a binary expression, and agrees with every type
-* Once a scalar has a type it may not be assigned another, e.g. `x = 10; x = 3.14;` is an error
-* Once a pointer points to a type it may **only** point to that type
-* An assignment through a null pointer, `*m = 5;`, makes `m` a pointer to `int`, and a dereference of `m` before it is a null pointer dereference
-* Vector offsets and pointer arithmetic are checked for out-of-range access at compile time
-* A function may return from more than one statement, but each return value must be the same type
-* A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`
+The `plural` function of the example:
 
-See details [here](/credence/language/README.md#semantic-analysis).
+```C
+plural(count) {
+  if (count == 1)
+    return("");
+  return("s");
+}
+```
 
-## Targets
+Produces:
 
-The generated machine code is compliant with the Application Binary Interface (ABI) for System V, and ARM64 Standard Procedure Call Standard (PCS).
+```asm
+__plural(count):
+ BeginFunc ;
+_L2:
+    _t5 = count == (1:int:4);
+    IF _t5 GOTO _L4;
+_L3:
+    RET ("s":string:1) ;
+_L1:
+    LEAVE;
+_L4:
+    RET ("":string:0) ;
+    GOTO _L1;
+ EndFunc ;
+```
 
-Support:
- - Linux:
-    - Arm64, AArch64
-    - x86-64
- - BSD (Darwin)
-    - Arm64, AArch64
-    - x86-64 (Intel)
+### Code Generation
+
+The loop of `rule` in the example, on ARM64 Darwin. The syscall number of `write` is in `x16`, and `svc` enters the kernel. The stack frame makes calls, so the local `i` is on the stack:
+
+```asm
+._L3__rule:
+    mov w0, #1
+    adrp x1, ._L_str3__@PAGE
+    add x1, x1, ._L_str3__@PAGEOFF
+    mov w2, #1
+    mov x16, #4
+    svc #0x80
+    mov w8, w0
+    ldr w10, [sp, #20]
+    add w10, w10, #1
+    str w10, [sp, #20]
+    b ._L2__rule
+```
+
+Check out additional code generation examples in the [arm64 test suite](/test/arm64/expected/) and [x86_64 test suite](/test/x86_64/expected/).
 
 ## Installation
 
 Download via `git clone` then run the `bin/install.sh` script with `bash bin/install.sh`
 
-A complete assembler and linking tool is installed via the installation script.
+A complete assembler and linking tool is installed via the installation script, and `credence` is available in `~/.local/bin`.
+
+A VSCode extension is provided in [`vscode-b-language-1.2.3.vsix`](vscode-b-language-1.2.3.vsix).
 
 ## Usage
 
@@ -135,327 +296,21 @@ Usage:
       --source-code arg  Brocoli source file
 ```
 
+* `-t ir` prints the ITA IR of a program, and `-t arm64` or `-t x86_64` prints its assembly
+* With `-o`, an `arm64` or `x86_64` target is assembled and linked into an executable
+
 ## Building
 
-The recommended build commands:
-
 ```bash
-cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DIWYU=OFF
 cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 ```
 
-There is a docker image and cross-compilation toolchain available to run the compiler in arm64 on a x86_64 host:
-
-```bash
-cmake -B build-arm64 -DCMAKE_TOOLCHAIN_FILE=aarch64-toolchain.cmake -DUSE_SANITIZER=OFF -DCMAKE_BUILD_TYPE=Debug -DIWYU=OFF
-cmake --build build-arm64 --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
-```
-
-And the same for x86-64 on an arm64 host. `bin/x86_64_runner.sh` runs, traces, or debugs an x86-64 Linux binary in the `Dockerfile.x86_64` image, and `--suite` builds Credence and runs the test suite with x86-64 code generation in the image:
-
-```bash
-cmake -B build-x86_64 -DCMAKE_TOOLCHAIN_FILE=x86_64-toolchain.cmake -DUSE_SANITIZER=OFF -DCMAKE_BUILD_TYPE=Debug -DIWYU=OFF
-cmake --build build-x86_64 --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
-./bin/x86_64_runner.sh --suite
-```
-
-### Test Suite
-
-Credence [line and function code coverage](https://jahan-addison.github.io/Brocoli/) is available with exhaustive type checking, ast, and code generation test suites.
-
-To build the test suite and coverage yourself (with `llvm-cov`), run:
-
-```bash
-
-cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DUSE_SANITIZER="Address;Undefined" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DIWYU=OFF -DENABLE_TEST_COVERAGE=ON
-cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
-cmake --build build --target coverage
-
-```
-
----
-
-### [The Standard Library](credence/target/common/runtime.h#34)
-
-Credence provides a few useful standard library functions that **do not** depend on libc or an external runtime. The standard library object file is pre-compiled in `stdlib/` for each platform and ISA.
-
-The standard library is hand-written assembly in `stdlib/<arch>/<os>/stdlib.s`. After a change to a `stdlib.s` file, the `stdlib` target re-assembles each object in the `Dockerfile.stdlib` image:
-
-```bash
-cmake --build build --target stdlib
-```
-
-* Docker is required. Without it the target is unavailable, and the compiler and test suite use the committed objects
-* The Linux objects are assembled with the GNU cross binutils, and the Darwin objects with the clang integrated assembler - no Mac or SDK is needed
-* Only the objects whose `stdlib.s` changed are assembled
-* `CREDENCE_STDLIB_PLATFORMS` selects the platforms, e.g. `-DCREDENCE_STDLIB_PLATFORMS="arm64/linux"`. The cross-compilation toolchains set it to their own platform
-
-**Note**: Commit the `stdlib.o` files with the `stdlib.s` change.
-
-In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h).
-
----
-
-## Example
-
-```C
-main(argc, argv) {
-  auto *x;
-  extrn strings;
-  x = "Hello, how are you, %s!\n";
-  // using the provided standard library printf function in stdlib/
-  if (argc > 1) {
-    printf(identity(identity(identity(x))), argv[1]);
-    // stdlib print in stdlib/
-    print(strings[0]);
-  }
-}
-
-identity(*y) {
-  return(y);
-}
-
-strings [3] "Good afternoon", "Good morning", "Good evening";
-```
-#### Result (ARM64, Darwin):
-
-Check out additional code generation examples in the [arm64 test suite](/test/arm64/expected/) and [x86_64 test suite](/test/x86_64/expected/).
-
-<img src="docs/images/credence-example-3.png" width="800px" alt="example"> </img>
-
-
-```asm
-
-
-.section	__TEXT,__text,regular,pure_instructions
-
-    .p2align 3
-
-    .global _start
-    .global _getchar
-    .global _print
-    .global _printf
-    .global _putchar
-
-_start:
-    stp x29, x30, [sp, #-80]!
-    str x19, [sp, #16]
-    mov x29, sp
-    str w0, [sp, #24]
-    mov x19, x1
-    ldr x10, [sp, #32]
-    adrp x6, ._L_str4__@PAGE
-    add x6, x6, ._L_str4__@PAGEOFF
-    mov x10, x6
-    str x10, [sp, #32]
-._L2__main:
-    ldr w10, [sp, #24]
-    mov w8, w10
-    cmp w8, #1
-    b.gt ._L4__main
-._L3__main:
-    b ._L1__main
-._L4__main:
-    ldr x0, [sp, #32]
-    bl identity
-    mov x8, x0
-    str x8, [sp, #40]
-    ldr x0, [sp, #40]
-    bl identity
-    mov x8, x0
-    str x8, [sp, #48]
-    ldr x0, [sp, #48]
-    bl identity
-    mov x8, x0
-    str x8, [sp, #56]
-    ldr x0, [sp, #56]
-    ldr x1, [x19, #8]
-    bl _printf
-    adrp x6, strings@PAGE
-    add x6, x6, strings@PAGEOFF
-    ldr x10, [x6, #0]
-    str x10, [sp, #64]
-    ldr x0, [sp, #64]
-    mov w1, #14
-    bl _print
-    b ._L3__main
-._L1__main:
-    ldr x19, [sp, #16]
-    ldp x29, x30, [sp], #80
-    mov w0, #0
-    mov x16, #1
-    svc #0x80
-
-
-identity:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-    mov x0, x0
-    ldp x29, x30, [sp], #16
-    ret
-
-.section	__TEXT,__const
-
-.section	__TEXT,__cstring,cstring_literals
-
-._L_str1__:
-    .asciz "Good afternoon"
-
-._L_str2__:
-    .asciz "Good evening"
-
-._L_str3__:
-    .asciz "Good morning"
-
-._L_str4__:
-    .asciz "Hello, how are you, %s!\n"
-
-.section	__DATA,__data
-
-    .p2align 3
-
-
-strings:
-    .xword ._L_str1__
-
-    .xword ._L_str3__
-
-    .xword ._L_str2__
-
-```
-
----
-
-See [`examples/5.b`](/examples/5.b) for a larger example of the syscalls that are available on every platform - `getpid`, `umask`, `dup`, `write`, and `close` - with no C library in between.
-
-Here is an example of compile-time boundary checking, if the `print(strings[0])` line is changed to `print(strings[10])` you get the following error:
-
-<img src="docs/images/credence-out-of-range-2.png" width="800px" alt="error"> </img>
-
-
-## Intermediate Representation
-
-*Note*: The default compile target is currently the IR, [ITA](credence/ir/README.md):
-
-### Example:
-
-```C
-main() {
-  auto *a;
-  auto c, i, j;
-  extrn unit;
-  c = unit;
-  a = &c;
-  i = 1;
-  j = add(c, sub(c, i)) - 2;
-  if (c > i) {
-    while(j > i) {
-      j--;
-    }
-  }
-  c = 0;
-}
-
-str(i) {
-  extrn mess;
-  return(mess[i]);
-}
-
-add(x,y) {
-  return(x + y);
-}
-
-sub(x,y) {
-  return(x - y);
-}
-
-unit 10;
-
-mess [3] "too bad", "tough luck", "that's the breaks";
-
-```
-
-### Produces:
-
-
-```asm
-__main():
- BeginFunc ;
-    LOCL *a;
-    LOCL c;
-    LOCL i;
-    LOCL j;
-    GLOBL unit;
-    c = unit;
-    _t2 = & c;
-    a = _t2;
-    i = (1:int:4);
-    _p1 = c;
-    _p3 = c;
-    _p4 = i;
-    PUSH _p4;
-    PUSH _p3;
-    CALL sub;
-    POP 16;
-    _t3 = RET;
-    _p2 = _t3;
-    PUSH _p2;
-    PUSH _p1;
-    CALL add;
-    POP 16;
-    _t4 = RET;
-    _t5 = _t4;
-    j = (2:int:4) - _t5;
-_L6:
-    _t9 = c > i;
-    IF _t9 GOTO _L8;
-_L7:
-    c = (0:int:4);
-_L1:
-    LEAVE;
-_L8:
-_L10:
-_L12:
-    _t13 = j > i;
-    IF _t13 GOTO _L11;
-    GOTO _L7;
-_L11:
-    j = --j;
-    GOTO _L10;
- EndFunc ;
-
-
-__str(i):
- BeginFunc ;
-    GLOBL mess;
-    RET mess[i] ;
-_L1:
-    LEAVE;
- EndFunc ;
-
-
-__add(x,y):
- BeginFunc ;
-    _t2 = x + y;
-    RET _t2;
-_L1:
-    LEAVE;
- EndFunc ;
-
-
-__sub(x,y):
- BeginFunc ;
-    _t2 = x - y;
-    RET _t2;
-_L1:
-    LEAVE;
- EndFunc ;
-
-```
+See details [here](development.md) for sanitizers, cross-compilation, the test suite and coverage, and regenerating the standard library and lexer.
 
 ## Dependencies
 
-**Note: These are installed automatically via CPM and cmake.**
+**Note**: These are installed automatically via CPM and cmake.
 
 * `easyjson` - [Lightweight memory safe json library](https://github.com/jahan-addison/easyjson)
 * `cxxopts` - Lightweight commandline parser
