@@ -26,8 +26,8 @@
  * Brocoli language Parser
  *
  * Hand-written recursive-descent parser that transforms a token stream (see
- * lexer.h) into the same AST and parse tree shape produced by the Python
- * frontend's Lark transformer:
+ * lexer.h) into the same AST and parse tree structure produced by the
+ * Python frontend's Lark transformer:
  *
  * https://github.com/jahan-addison/augur/blob/master/augur/transformer.py
  *
@@ -63,7 +63,7 @@ AST_Node operator_root(std::string_view op)
     return arr;
 }
 
-bool is_lvalue_shaped(AST_Node const& node)
+bool is_lvalue_node(AST_Node const& node)
 {
     auto type = node["node"].to_string();
     return type == "lvalue" || type == "vector_lvalue" ||
@@ -638,19 +638,20 @@ bool Parser::at_binary_operator() const
  * recursing into parse_rvalue() again for the right-hand side in each
  * case. See parser.h for why this, rather than real precedence, is the
  * correct thing to reproduce: the shunting-yard Shunting_Yard in
- * precedence.h is what recovers correct precedence downstream, not this
- * parse tree's shape.
+ * precedence.h is what recovers correct precedence downstream, not the
+ * structure of this parse tree.
  */
 util::AST_Node Parser::parse_rvalue()
 {
     auto left = parse_rvalue_primary();
 
-    // A non-lvalue-shaped left here isn't necessarily a syntax error: left
-    // may just be an intermediate operand (e.g. the parenthesized operand
-    // of '*' in "*(p + q) = 1") whose enclosing rvalue is the one this '='
-    // actually belongs to. Leaving it unconsumed lets that caller see it;
-    // if nothing ever claims it, expect(SEMICOLON, ...) reports the error.
-    if (check(Token_Type::ASSIGN) && is_lvalue_shaped(left)) {
+    // A left operand that is not an lvalue node isn't necessarily a syntax
+    // error: left may just be an intermediate operand (e.g. the
+    // parenthesized operand of '*' in "*(p + q) = 1") whose enclosing rvalue
+    // is the one this '=' actually belongs to. Leaving it unconsumed lets
+    // that caller see it; if nothing ever claims it, expect(SEMICOLON, ...)
+    // reports the error.
+    if (check(Token_Type::ASSIGN) && is_lvalue_node(left)) {
         advance();
         auto right = parse_rvalue();
         return make_node(

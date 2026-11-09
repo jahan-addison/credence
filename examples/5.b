@@ -7,8 +7,9 @@
 //   ./bin/credence -t arm64 -o syscalls examples/5.b
 //   ./syscalls world
 //
-// Any argument after the program name is greeted, and the output is the
-// process ids, the umask, and a write to a duplicate of stdout.
+// The first argument after the program name is printed by greet, and the
+// output is the process ids, the umask, and a write to a duplicate of
+// stdout.
 ///////////////////////////////////////////////////////////////////////////
 
 main(argc, argv) {

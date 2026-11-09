@@ -21,7 +21,7 @@ namespace credence::language {
 namespace m = matchit;
 
 /**
- * @brief Recurse into "left"/"right" before dispatching on the node's shape
+ * @brief Recurse into "left"/"right" before dispatching on the node type
  *
  * Children are visited before their parent acts on them, matching the
  * bottom-up order augur's Lark transform.

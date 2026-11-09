@@ -1,6 +1,6 @@
 # Language Frontend
 
-Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11. This folder is a native C++ replacement for that: a re2c-generated lexer and a hand-written recursive-descent parser that produces the exact same JSON AST shape as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend did not need to change.
+Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11. This folder is a native C++ replacement for that: a re2c-generated lexer and a hand-written recursive-descent parser that produces the exact same JSON AST as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend did not need to change.
 
 The lexer, symbol builder, literal, HIR, AST lowering, and precedence pieces are comparatively straightforward once you understand the parser's constraints. Here are the passes:
 
@@ -80,7 +80,7 @@ main() { auto x; x = 5 < 4 ? 10 : 1; }
 }
 ```
 
-Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes the `<` comparison ends up as the ternary node's `root`, not as the relation's own `right` operand. This isn't a design choice - it's what a 1-token-lookahead parser does when it sees `?` before it's reduced `<`. [`ast_lowering.h`](/credence/language/ast_lowering.h)'s `from_relation_expression_node` already has a branch that unwinds exactly this shape back into `(condition) ? then : else`.
+Semantically this is `(5 < 4) ? 10 : 1`, but structurally the `4` that completes the `<` comparison ends up as the ternary node's `root`, not as the relation's own `right` operand. This isn't a design choice - it's what a 1-token-lookahead parser does when it sees `?` before it's reduced `<`. [`ast_lowering.h`](/credence/language/ast_lowering.h)'s `from_relation_expression_node` already has a branch that unwinds exactly this structure back into `(condition) ? then : else`.
 
 ### Other Weirdness
 
@@ -109,7 +109,7 @@ These tuples are the leaves of the HIR.
 
 ## HIR
 
-[`hir.h`](/credence/language/hir/hir.h)'s `Data_Kind` is the HIR node. `Data_Kind::Kind` is the algebraic sum of every expression shape the rest of the compiler cares about: `Literal`, `Array`, `Symbol`, `Unary`, `Relation`, `Function`, `LValue`. "Type" is kept for the middle of the tuple - a value's data type - and "kind" is which expression shape a node is.
+[`hir.h`](/credence/language/hir/hir.h)'s `Data_Kind` is the HIR node. `Data_Kind::Kind` is the algebraic sum of every kind of expression the rest of the compiler operates on: `Literal`, `Array`, `Symbol`, `Unary`, `Relation`, `Function`, `LValue`. "Type" is kept for the middle of the tuple - a value's data type - and "kind" is which of these expressions a node is.
 
 ```
 x = 5 + 3 * 2
@@ -149,12 +149,12 @@ p  -> pointer to int
 error: invalid pointer assignment, right-hand-side 'x' is not a pointer
 ```
 
-* A `word` is a machine word with no narrower type, such as a parameter, a call result, or a binary expression, and agrees with every type
+* A `word` is a machine word with no narrower type, such as a parameter, a call result, or a binary expression, and is compatible with every type
 * Once a scalar has a type, it may not be assigned another type, e.g. `x = 10; x = 3.14;` is an error
 * Once a pointer points to a type, it may only point to that type. An assignment through a null pointer, `*m = 5;`, makes it a pointer to `int`, and a dereference before it is a null pointer dereference
 * A string literal is a pointer, but a string element of a vector is a scalar
 * A function may return from more than one statement, but each return value must be the same type
-* A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`. Each call is recorded, and after every function is built the pointer is carried through parameters passed to other functions, so `show(s) { print2(s); }` makes both `s` and the parameter of `print2` pointers
+* A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`. Each call is recorded, and after every function is built the pointer is propagated to the parameters passed to other functions, so `show(s) { print2(s); }` makes both `s` and the parameter of `print2` pointers
 
 ## Example
 
