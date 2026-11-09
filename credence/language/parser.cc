@@ -258,16 +258,13 @@ util::AST_Node Parser::parse_vector_definition(Token const& name)
 util::AST_Node Parser::parse_union_definition()
 {
     advance(); // 'union'
-    auto name = std::string(expect(Token_Type::IDENTIFIER, "an lvalue").lexeme);
+    auto name =
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
     auto values = util::AST::array();
-    util::AST_Node lvalue = make_node("lvalue", json_string(name));
     expect(Token_Type::LBRACE, "'{'");
-
-    if (!check(Token_Type::RBRACE)) {
-        while (!check(Token_Type::RBRACE)) {
-            values.append(parse_union_tag_symbol());
-            match(Token_Type::COMMA); // the separating comma is optional
-        }
+    while (!check(Token_Type::RBRACE)) {
+        values.append(parse_union_tag_symbol());
+        match(Token_Type::COMMA); // the separating comma is optional
     }
     expect(Token_Type::RBRACE, "'}'");
     expect(Token_Type::SEMICOLON, "';'");
@@ -311,7 +308,8 @@ util::AST_Node Parser::parse_vector_symbol()
  */
 util::AST_Node Parser::parse_union_tag_symbol()
 {
-    auto name = std::string(expect(Token_Type::IDENTIFIER, "an lvalue").lexeme);
+    auto name =
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
     auto left = util::AST::array();
     if (check(Token_Type::LPAREN)) {
         // The union item is a tagged vector:
@@ -524,7 +522,7 @@ util::AST_Node Parser::parse_union_statement()
         std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
     right.append(make_node("lvalue", json_string(name)));
     while (match(Token_Type::COMMA)) {
-        auto name =
+        name =
             std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
         right.append(make_node("lvalue", json_string(name)));
     }
