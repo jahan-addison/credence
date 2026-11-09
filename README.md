@@ -161,7 +161,7 @@ cmake --build build-x86_64 --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu)
 
 ### Test Suite
 
-Credence [line and function code coverage](https://jahan-addison.github.io/credence/) is available with exhaustive type checking, ast, and code generation test suites.
+Credence [line and function code coverage](https://jahan-addison.github.io/Brocoli/) is available with exhaustive type checking, ast, and code generation test suites.
 
 To build the test suite and coverage yourself (with `llvm-cov`), run:
 

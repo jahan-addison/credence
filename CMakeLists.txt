@@ -28,6 +28,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(
   credence
   VERSION 1.4.0
+  DESCRIPTION "The compiler of Brocoli, a systems language that grew out of B"
+  HOMEPAGE_URL "https://github.com/jahan-addison/Brocoli"
   LANGUAGES CXX)
 
 include(GNUInstallDirs)
@@ -113,20 +115,30 @@ cpmaddpackage("gh:fmtlib/fmt#12.1.0")
 cpmaddpackage(NAME matchit VERSION 1.0.1 GITHUB_REPOSITORY BowenFu/matchit.cpp)
 
 # ##############################################################################
-# re2c (B language lexer)
+# re2c (Brocoli lexer)
 # ##############################################################################
 
-# credence/language/lexer.cc is generated from lexer.re
+# credence/language/lexer.cc is generated from lexer.re. The paths are relative
+# to the source directory, so the #line directives in lexer.cc name
+# credence/language/lexer.re and not a path on the machine that generated it.
+# The output is formatted when clang-format is available, as the pre-commit hook
+# expects.
 find_program(RE2C_EXECUTABLE re2c)
+find_program(CLANG_FORMAT_EXECUTABLE clang-format)
 if(RE2C_EXECUTABLE)
+  set(CREDENCE_LEXER "${PROJECT_NAME}/language/lexer")
+  set(CREDENCE_FORMAT_LEXER)
+  if(CLANG_FORMAT_EXECUTABLE)
+    set(CREDENCE_FORMAT_LEXER COMMAND ${CLANG_FORMAT_EXECUTABLE} -i
+                              --style=file ${CREDENCE_LEXER}.cc)
+  endif()
   add_custom_target(
     regenerate_lexer
-    COMMAND
-      ${RE2C_EXECUTABLE} -o
-      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/language/lexer.cc"
-      "${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}/language/lexer.re" -W
+    COMMAND ${RE2C_EXECUTABLE} -W -o ${CREDENCE_LEXER}.cc ${CREDENCE_LEXER}.re
+            ${CREDENCE_FORMAT_LEXER}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Regenerating B language lexer (re2c) from lexer.re")
+    COMMENT "Regenerating the Brocoli lexer (re2c) from lexer.re"
+    VERBATIM)
 else()
   message(
     STATUS "re2c not found. `regenerate_lexer` target unavailable (lexer.cc is "
