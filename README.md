@@ -1,23 +1,21 @@
 <div align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/brocoli-dark.svg">
-    <img src="docs/images/brocoli-light.svg" width="800px" alt="Brocoli - a systems language that grew out of B">
-  </picture>
+  <img src="docs/images/brocoli-light.svg?version=2" width="800px" alt="Brocoli">
 </div>
 
 <br>
 
 > Dual-licensed under Apache License v2 and GPL v3, see details [here](#licensing).
 
-**Brocoli** is a systems language derived from B, the predecessor of C. It extends B with a type system by inference, tagged unions, kernel syscalls **that do not depend on libc**, and other improvements. Most B programs are valid Brocoli, so source files keep the `.b` extension.
+**Brocoli** is a systems language derived from B, the predecessor of C. This project began as a compiler for the B language with extensions. It has since grown into a new language with a type system by inference, tagged unions, kernel syscalls **that do not depend on libc**, with other improvements. Most B programs are still valid Brocoli, so source files can use the `.b` extension.
 
 **Credence** is the Brocoli compiler, written in modern C++, with backends for x86-64 and ARM64 on Linux and Darwin.
 
 * Language grammar: [here](credence/language/grammar.lark)
-* B, where Brocoli started: [here](https://www.nokia.com/bell-labs/about/dennis-m-ritchie/btut.pdf)
 * Building, cross-compilation, and the test suite: [here](development.md)
 
-#### Check out the <a href="https://jahans.blog/tag/credence/">blog series</a>!
+I have a professional history of building languages and compilers in my workplace. **This project was not built with AI.**
+
+### Check out the <a href="https://jahans.blog/tag/credence/">blog series</a>!
 
 ## Example
 
@@ -106,7 +104,7 @@ These features are extensions that were not in the original B language specifica
 * Compile-time out-of-range checks on vectors and pointer arithmetic
 * Vectors may be non-homogeneous, but the type of each element is determined by its initial value and may not be changed
 * C style `float` and `double` literals, e.g. `5.55f`, and C style constant literals
-* Identifiers may be up to 16 characters, B allows 8
+* Identifiers may be up to 16 characters
 * `argc` and `argv` support
 * C++ style comments
 * Logical and bitwise operators, and operator precedence, behave like C
