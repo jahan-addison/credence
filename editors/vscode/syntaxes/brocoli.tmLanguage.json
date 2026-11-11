@@ -1,0 +1,385 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Brocoli",
+  "scopeName": "source.brocoli",
+  "fileTypes": [
+    "b"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#union-definition"
+    },
+    {
+      "include": "#union-declaration"
+    },
+    {
+      "include": "#is-expression"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#characters"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#function-definition"
+    },
+    {
+      "include": "#builtins"
+    },
+    {
+      "include": "#syscalls"
+    },
+    {
+      "include": "#function-call"
+    },
+    {
+      "include": "#member-access"
+    },
+    {
+      "include": "#label"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#identifiers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.brocoli",
+          "match": "(//).*$",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.comment.brocoli"
+            }
+          }
+        },
+        {
+          "name": "comment.block.brocoli",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.begin.brocoli"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.end.brocoli"
+            }
+          }
+        }
+      ]
+    },
+    "union-definition": {
+      "begin": "\\b(union)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.union.brocoli"
+        },
+        "2": {
+          "name": "entity.name.type.union.brocoli"
+        },
+        "3": {
+          "name": "punctuation.section.block.begin.brocoli"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.block.end.brocoli"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#characters"
+        },
+        {
+          "include": "#numbers"
+        },
+        {
+          "include": "#constants"
+        },
+        {
+          "name": "variable.other.enummember.brocoli",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+        },
+        {
+          "include": "#punctuation"
+        }
+      ]
+    },
+    "union-declaration": {
+      "match": "\\b(union)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+      "captures": {
+        "1": {
+          "name": "storage.type.union.brocoli"
+        },
+        "2": {
+          "name": "entity.name.type.union.brocoli"
+        }
+      }
+    },
+    "is-expression": {
+      "patterns": [
+        {
+          "match": "\\b(is)\\s+([A-Za-z_][A-Za-z0-9_]*)(\\.)([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.expression.is.brocoli"
+            },
+            "2": {
+              "name": "entity.name.type.union.brocoli"
+            },
+            "3": {
+              "name": "punctuation.accessor.brocoli"
+            },
+            "4": {
+              "name": "variable.other.enummember.brocoli"
+            }
+          }
+        },
+        {
+          "name": "keyword.operator.expression.is.brocoli",
+          "match": "\\bis\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.brocoli",
+      "begin": "\"",
+      "end": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.brocoli"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.brocoli"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.brocoli",
+          "match": "\\\\."
+        },
+        {
+          "name": "constant.other.placeholder.brocoli",
+          "match": "%[-+ #0]*(\\d+|\\*)?(\\.(\\d+|\\*))?(hh|h|ll|l|L|z|j|t)?[diouxXeEfFgGaAcspn%]"
+        }
+      ]
+    },
+    "characters": {
+      "name": "string.quoted.single.brocoli",
+      "begin": "'",
+      "end": "'",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.brocoli"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.brocoli"
+        }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.brocoli",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.brocoli",
+          "match": "\\b\\d+(\\.\\d+)?[fF]\\b"
+        },
+        {
+          "name": "constant.numeric.double.brocoli",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.brocoli",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.brocoli",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.brocoli",
+          "match": "\\b(if|else|while|switch|case|break|goto|return)\\b"
+        },
+        {
+          "name": "storage.modifier.brocoli",
+          "match": "\\b(auto|extrn)\\b"
+        },
+        {
+          "name": "storage.type.union.brocoli",
+          "match": "\\bunion\\b"
+        }
+      ]
+    },
+    "function-definition": {
+      "match": "^([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.brocoli"
+        }
+      }
+    },
+    "builtins": {
+      "match": "\\b(print|printf|putchar|getchar)\\b(?=\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "support.function.builtin.brocoli"
+        }
+      }
+    },
+    "syscalls": {
+      "match": "\\b(__disable_threadsignal|__pthread_canceled|__pthread_kill|__pthread_markcancel|__pthread_sigmask|__semwait_signal|__sigwait|_sysctl|accept|accept4|access|access_extended|acct|add_key|adjtime|adjtimex|afs_syscall|alarm|arch_prctl|bind|bpf|brk|cachestat|capget|capset|chdir|chflags|chmod|chmod_extended|chown|chroot|clock_adjtime|clock_getres|clock_gettime|clock_nanosleep|clock_settime|clone|clone3|close|close_range|connect|copy_file_range|copyfile|creat|create_module|csops|csops_audittoken|delete|delete_module|dup|dup2|dup3|epoll_create|epoll_create1|epoll_ctl|epoll_ctl_old|epoll_pwait|epoll_pwait2|epoll_wait|epoll_wait_old|eventfd|eventfd2|exchangedata|execve|execveat|exit|exit_group|faccessat|faccessat2|fadvise64|fallocate|fanotify_init|fanotify_mark|fchdir|fchflags|fchmod|fchmod_extended|fchmodat|fchmodat2|fchown|fchownat|fcntl|fdatasync|ffsctl|fgetattrlist|fgetxattr|fhopen|finit_module|flistxattr|flock|fork|fpathconf|fremovexattr|fsconfig|fsctl|fsetattrlist|fsetxattr|fsmount|fsopen|fspick|fstat|fstat_extended|fstatfs|fsync|ftruncate|futex|futex_requeue|futex_wait|futex_waitv|futex_wake|futimes|futimesat|get_kernel_syms|get_mempolicy|get_robust_list|get_thread_area|getattrlist|getcpu|getcwd|getdents|getdents64|getdirentries|getdirentriesattr|getdtablesize|getegid|geteuid|getfh|getgid|getgroups|gethostuuid|getitimer|getlogin|getpeername|getpgid|getpgrp|getpid|getpmsg|getppid|getpriority|getrandom|getresgid|getresuid|getrlimit|getrusage|getsgroups|getsid|getsockname|getsockopt|gettid|gettimeofday|getuid|getwgroups|getxattr|identitysvc|init_module|initgroups|inotify_add_watch|inotify_init|inotify_init1|inotify_rm_watch|io_cancel|io_destroy|io_getevents|io_pgetevents|io_setup|io_submit|io_uring_enter|io_uring_register|io_uring_setup|ioctl|ioperm|iopl|ioprio_get|ioprio_set|issetugid|kcmp|kdebug_trace|kdebug_trace64|kdebug_trace_string|kdebug_typefilter|kexec_file_load|kexec_load|keyctl|kill|landlock_add_rule|landlock_create_ruleset|landlock_restrict_self|lchown|lgetxattr|link|linkat|listen|listxattr|llistxattr|lookup_dcookie|lremovexattr|lseek|lsetxattr|lstat|lstat_extended|madvise|map_shadow_stack|mbind|membarrier|memfd_create|memfd_secret|migrate_pages|mincore|minherit|mkdir|mkdir_extended|mkdirat|mkfifo|mkfifo_extended|mknod|mknodat|mlock|mlock2|mlockall|mmap|modify_ldt|mount|mount_setattr|move_mount|move_pages|mprotect|mq_getsetattr|mq_notify|mq_open|mq_timedreceive|mq_timedsend|mq_unlink|mremap|msgctl|msgget|msgrcv|msgsnd|msgsys|msync|munlock|munlockall|munmap|name_to_handle_at|nanosleep|newfstatat|nfsclnt|nfsservctl|nfssvc|open|open_by_handle_at|open_dprotected_np|open_extended|open_tree|openat|openat2|pathconf|pause|perf_event_open|personality|pidfd_getfd|pidfd_open|pidfd_send_signal|pipe|pipe2|pivot_root|pkey_alloc|pkey_free|pkey_mprotect|poll|posix_spawn|ppoll|prctl|pread|pread64|preadv|preadv2|prlimit64|process_madvise|process_mrelease|process_vm_readv|process_vm_writev|pselect6|ptrace|putpmsg|pwrite|pwrite64|pwritev|pwritev2|query_module|quotactl|quotactl_fd|read|readahead|readlink|readlinkat|readv|reboot|recvfrom|recvmmsg|recvmsg|remap_file_pages|removexattr|rename|renameat|renameat2|request_key|restart_syscall|revoke|rmdir|rseq|rt_sigaction|rt_sigpending|rt_sigprocmask|rt_sigqueueinfo|rt_sigreturn|rt_sigsuspend|rt_sigtimedwait|rt_tgsigqueueinfo|sched_get_priority_max|sched_get_priority_min|sched_getaffinity|sched_getattr|sched_getparam|sched_getscheduler|sched_rr_get_interval|sched_setaffinity|sched_setattr|sched_setparam|sched_setscheduler|sched_yield|searchfs|seccomp|security|select|sem_close|sem_open|sem_post|sem_trywait|sem_unlink|sem_wait|semctl|semget|semop|semsys|semtimedop|sendfile|sendmmsg|sendmsg|sendto|set_mempolicy|set_mempolicy_home_node|set_robust_list|set_thread_area|set_tid_address|setattrlist|setdomainname|setegid|seteuid|setfsgid|setfsuid|setgid|setgroups|sethostname|setitimer|setlogin|setns|setpgid|setpriority|setprivexec|setregid|setresgid|setresuid|setreuid|setrlimit|setsgroups|setsid|setsockopt|settid|settimeofday|setuid|setwgroups|setxattr|shared_region_check_np|shm_open|shm_unlink|shmat|shmctl|shmdt|shmget|shmsys|shutdown|sigaction|sigaltstack|signalfd|signalfd4|sigpending|sigprocmask|sigreturn|sigsuspend|socket|socketpair|splice|stat|stat_extended|statfs|statx|swapoff|swapon|symlink|symlinkat|sync|sync_file_range|syncfs|sysctl|sysctlbyname|sysfs|sysinfo|syslog|tee|tgkill|thread_selfcounts|time|timer_create|timer_delete|timer_getoverrun|timer_gettime|timer_settime|timerfd_create|timerfd_gettime|timerfd_settime|times|tkill|truncate|tuxcall|umask|umask_extended|umount2|uname|undelete|unlink|unlinkat|unmount|unshare|uselib|userfaultfd|ustat|utime|utimensat|utimes|vfork|vhangup|vmsplice|vserver|wait4|waitid|write|writev)\\b(?=\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "support.function.syscall.brocoli"
+        }
+      }
+    },
+    "function-call": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "entity.name.function.call.brocoli"
+        }
+      }
+    },
+    "member-access": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(\\.)([A-Za-z_][A-Za-z0-9_]*)\\b",
+      "captures": {
+        "1": {
+          "name": "variable.other.object.brocoli"
+        },
+        "2": {
+          "name": "punctuation.accessor.brocoli"
+        },
+        "3": {
+          "name": "variable.other.property.brocoli"
+        }
+      }
+    },
+    "label": {
+      "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*(:)(?!:)",
+      "captures": {
+        "1": {
+          "name": "entity.name.label.brocoli"
+        },
+        "2": {
+          "name": "punctuation.separator.label.brocoli"
+        }
+      }
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.increment.brocoli",
+          "match": "\\+\\+|--"
+        },
+        {
+          "name": "keyword.operator.bitwise.shift.brocoli",
+          "match": "<<|>>"
+        },
+        {
+          "name": "keyword.operator.comparison.brocoli",
+          "match": "==|!=|<=|>=|<|>"
+        },
+        {
+          "name": "keyword.operator.logical.brocoli",
+          "match": "&&|\\|\\||!"
+        },
+        {
+          "name": "keyword.operator.assignment.brocoli",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.brocoli",
+          "match": "[-+*/%]"
+        },
+        {
+          "name": "keyword.operator.bitwise.brocoli",
+          "match": "[&|^~]"
+        },
+        {
+          "name": "keyword.operator.ternary.brocoli",
+          "match": "[?:]"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.terminator.statement.brocoli",
+          "match": ";"
+        },
+        {
+          "name": "punctuation.separator.comma.brocoli",
+          "match": ","
+        },
+        {
+          "name": "punctuation.section.block.brocoli",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.section.brackets.brocoli",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.section.parens.brocoli",
+          "match": "[()]"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.brocoli",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}

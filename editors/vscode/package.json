@@ -1,0 +1,46 @@
+{
+  "name": "brocoli",
+  "displayName": "Brocoli",
+  "description": "Syntax highlighting for Brocoli, the language of the credence compiler",
+  "version": "2.0.0",
+  "publisher": "jahan-addison",
+  "author": "Jahan Addison",
+  "license": "(Apache-2.0 OR GPL-3.0-or-later)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jahan-addison/Brocoli",
+    "directory": "editors/vscode"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "scripts": {
+    "syscalls": "python3 scripts/syscalls.py",
+    "package": "vsce package --out brocoli.vsix"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "brocoli",
+        "aliases": [
+          "Brocoli",
+          "brocoli"
+        ],
+        "extensions": [
+          ".b"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "brocoli",
+        "scopeName": "source.brocoli",
+        "path": "./syntaxes/brocoli.tmLanguage.json"
+      }
+    ]
+  }
+}

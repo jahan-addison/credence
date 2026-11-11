@@ -13,7 +13,7 @@
 * Language grammar: [here](credence/language/grammar.lark)
 * Building, cross-compilation, and the test suite: [here](development.md)
 
-I have a professional history of building languages and compilers in my workplace. **This project was not built with AI.**
+I have a professional history of building languages and compilers in my workplace and research. **This project was not built with AI.**
 
 ### Check out the <a href="https://jahans.blog/tag/credence/">blog series</a>!
 
@@ -114,6 +114,7 @@ The following differ from B:
 * `goto` and labels are not supported, use control structures
 * A `switch` condition is always enclosed in `(` and `)`
 * A binary operator may not be used directly after the `=` operator
+* A global variable, e.g. `unit 10;`, has at most one initial value. A global with more is a vector, and is defined with `[]`, e.g. `mess[] "too bad", "tough luck";`
 
 ### Type System
 
@@ -326,7 +327,7 @@ Download via `git clone` then run the `bin/install.sh` script with `bash bin/ins
 
 A complete assembler and linking tool is installed via the installation script, and `credence` is available in `~/.local/bin`.
 
-A VSCode extension is provided in [`vscode-b-language-1.2.3.vsix`](vscode-b-language-1.2.3.vsix).
+A VSCode extension for Brocoli is provided in [`brocoli-2.0.0.vsix`](brocoli-2.0.0.vsix), installed with `code --install-extension brocoli-2.0.0.vsix`. The source is in [`editors/vscode`](editors/vscode).
 
 ## Usage
 
