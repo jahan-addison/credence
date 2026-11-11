@@ -21,7 +21,7 @@
 #include <credence/error.h>                  // for credence_assert
 #include <credence/ir/ita.h>                 // for make_ita_instructions
 #include <credence/ir/table.h>               // for make_table, Table
-#include <credence/language/hir/binding.h>   // for Object, Label, RValue
+#include <credence/object.h>                 // for Object, Label, RValue
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/accessor.h> // for Buffer_Accessor
 #include <credence/target/common/assembly.h> // for get_storage_as_string

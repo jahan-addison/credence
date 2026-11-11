@@ -15,10 +15,10 @@
 
 #include "../ast_lowering.h" // for AST_Lowering
 #include "../literal.h"      // for Literal, NULL_LITERAL
-#include "binding.h"         // for Object_Table, Vector
 #include "checker.h"         // for Type_Checker, Value
 #include "hir.h"             // for data_kind_to_string
 #include <credence/error.h>  // for throw_compiletime_error
+#include <credence/object.h> // for Object_Table, Vector
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/types.h>  // for get_rvalue_datatype_fr...
 #include <credence/util.h>   // for AST_Node

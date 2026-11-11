@@ -13,10 +13,10 @@
 
 #pragma once
 
-#include <credence/ir/ita.h>               // for Quadruple, Instructions, ITA
-#include <credence/language/hir/binding.h> // for Object_Table, LValue, Label
-#include <credence/language/hir/table.h>   // for Object_Table_PTR, Table
-#include <credence/symbol.h>               // for Symbol_Table
+#include <credence/ir/ita.h>             // for Quadruple, Instructions, ITA
+#include <credence/language/hir/table.h> // for Object_Table_PTR, Table
+#include <credence/object.h>             // for Object_Table, LValue, Label
+#include <credence/symbol.h>             // for Symbol_Table
 #include <credence/types.h> // for Data_Type, Address, Parameters, RVal...
 #include <credence/util.h>  // for CREDENCE_PRIVATE_UNLESS_TESTED, AST_...
 #include <easyjson.h>       // for JSON
@@ -51,8 +51,6 @@
 
 namespace credence::ir {
 
-namespace binding = language::hir::binding;
-
 using Object_Table_PTR = language::hir::Object_Table_PTR;
 using Instructions_PTR = std::shared_ptr<Instructions>;
 
@@ -70,7 +68,7 @@ class Table
 #ifdef CREDENCE_TEST
     explicit Table(ITA::Node const& hoisted_symbols)
     {
-        objects_ = std::make_shared<binding::Object_Table>();
+        objects_ = std::make_shared<object::Object_Table>();
         objects_->hoisted_symbols = hoisted_symbols;
         instructions_ = std::make_shared<ir::Instructions>();
         objects_->globals = Symbol_Table<>{};
@@ -131,7 +129,7 @@ class Table
 };
 // clang-format on
 
-bool stack_frame_contains_call_instruction(binding::Function const& frame,
+bool stack_frame_contains_call_instruction(object::Function const& frame,
     Instructions const& instructions);
 
 /**

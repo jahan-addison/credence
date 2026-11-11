@@ -13,22 +13,22 @@
 
 #include <credence/ir/table.h>
 
-#include <algorithm>                       // for find_if
-#include <credence/error.h>                // for credence_assert
-#include <credence/ir/ita.h>               // for Instruction, Quadruple, emit
-#include <credence/language/hir/binding.h> // for Object, Function, LValue
-#include <credence/symbol.h>               // for Symbol_Table
-#include <credence/types.h> // for get_rvalue_datatype_from_string
-#include <credence/util.h>  // for contains, AST_Node, str_trim_ws
-#include <deque>            // for deque
-#include <easyjson.h>       // for JSON
-#include <fmt/format.h>     // for format
-#include <map>              // for operator!=
-#include <matchit.h>        // for pattern, PatternHelper, Patt...
-#include <string>           // for basic_string, char_traits
-#include <string_view>      // for basic_string_view, string_view
-#include <tuple>            // for get, tuple, operator==
-#include <utility>          // for pair, get
+#include <algorithm>         // for find_if
+#include <credence/error.h>  // for credence_assert
+#include <credence/ir/ita.h> // for Instruction, Quadruple, emit
+#include <credence/object.h> // for Object, Function, LValue
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for get_rvalue_datatype_from_string
+#include <credence/util.h>   // for contains, AST_Node, str_trim_ws
+#include <deque>             // for deque
+#include <easyjson.h>        // for JSON
+#include <fmt/format.h>      // for format
+#include <map>               // for operator!=
+#include <matchit.h>         // for pattern, PatternHelper, Patt...
+#include <string>            // for basic_string, char_traits
+#include <string_view>       // for basic_string_view, string_view
+#include <tuple>             // for get, tuple, operator==
+#include <utility>           // for pair, get
 
 /****************************************************************************
  * Table
@@ -169,7 +169,7 @@ void Table::from_return_instruction(Quadruple const& instruction)
     if (is_single_rvalue_data_type(return_rvalue))
         objects_->insert_address_storage_rvalue(
             type::get_rvalue_datatype_from_string(return_rvalue));
-    binding::set_stack_frame_return_value(return_rvalue, frame, *objects_);
+    object::set_stack_frame_return_value(return_rvalue, frame, *objects_);
 }
 
 /**
@@ -349,7 +349,7 @@ void Table::bind_pointer(LValue const& lvalue, RValue const& rvalue)
     if (locals.is_pointer(rvalue)) {
         locals.set_symbol_by_name(lvalue,
             type::get_rvalue_data_type_as_string(
-                binding::get_rvalue_at_lvalue_object_storage(
+                object::get_rvalue_at_lvalue_object_storage(
                     rvalue, frame, objects_->vectors, __source__)));
         return;
     }
@@ -367,7 +367,7 @@ void Table::bind_pointer(LValue const& lvalue, RValue const& rvalue)
     // pointer to string storage in a vector
     if (objects_->is_vector(rvalue) and
         type::get_type_from_rvalue_data_type(
-            binding::get_rvalue_at_lvalue_object_storage(
+            object::get_rvalue_at_lvalue_object_storage(
                 rvalue, frame, objects_->vectors)) == "string")
         locals.set_symbol_by_name(lvalue, rvalue);
 }
@@ -423,7 +423,7 @@ void Table::bind_vector(LValue const& lvalue, RValue const& rvalue)
     };
 
     auto lvalue_direct = m::match(lvalue)(
-        m::pattern | m::app(binding::is_vector_lvalue, true) =
+        m::pattern | m::app(object::is_vector_lvalue, true) =
             [&] {
                 lvalue_offset = type::from_decay_offset(lvalue);
                 return type::from_lvalue_offset(lvalue);
@@ -431,7 +431,7 @@ void Table::bind_vector(LValue const& lvalue, RValue const& rvalue)
         m::pattern | m::_ = [&] { return lvalue; });
 
     auto rvalue_direct = m::match(rvalue)(
-        m::pattern | m::app(binding::is_vector_lvalue, true) =
+        m::pattern | m::app(object::is_vector_lvalue, true) =
             [&] {
                 rvalue_offset = type::from_decay_offset(rvalue);
                 return type::from_lvalue_offset(rvalue);
@@ -461,7 +461,7 @@ void Table::bind_vector(LValue const& lvalue, RValue const& rvalue)
             [&] {
                 if (locals.is_defined(rvalue_offset))
                     rvalue_offset = type::get_value_from_rvalue_data_type(
-                        binding::get_rvalue_at_lvalue_object_storage(
+                        object::get_rvalue_at_lvalue_object_storage(
                             rvalue_offset, frame, objects_->vectors));
                 auto& vector = objects_->vectors.at(rvalue_direct).get();
                 if (vector.data.empty())
@@ -700,7 +700,7 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
 /**
  * @brief Search the ir instructions in a stack frame for a call instruction
  */
-bool stack_frame_contains_call_instruction(binding::Function const& frame,
+bool stack_frame_contains_call_instruction(object::Function const& frame,
     Instructions const& instructions)
 {
     auto end = instructions.begin() + frame.address_location[1];

@@ -189,7 +189,7 @@ Symbol(LValue("x"),
 
 [`table.h`](/credence/language/hir/table.h)'s `Table` is a pass over each definition and statement of a program, before the IR is constructed. It lowers each expression into the HIR, and the [type checker](/credence/language/hir/checker.h) evaluates the storage and type of its value in its stack frame - a scalar, or a pointer and the type it points to. An assignment between storage or types that do not agree is a compile-time error, as are out-of-range vector offsets, null pointer dereferences, duplicate labels and functions, and return values of different types.
 
-The result is the definitions of the [object table](/credence/language/hir/binding.h) - vectors, functions, and their parameters - that `ir::Table` binds the IR onto.
+The result is the definitions of the [object table](/credence/object.h) - vectors, functions, and their parameters - that `ir::Table` binds the IR onto.
 
 ```C
 main() {

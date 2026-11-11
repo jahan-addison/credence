@@ -13,9 +13,9 @@
 
 #pragma once
 
-#include "binding.h"         // for Object_Table
 #include "checker.h"         // for Frame, Value, Vectors
 #include "types.h"           // for Label, LValue
+#include <credence/object.h> // for Object_Table
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
 #include <map>               // for map
@@ -52,7 +52,7 @@
 
 namespace credence::language::hir {
 
-using Object_Table_PTR = std::shared_ptr<binding::Object_Table>;
+using Object_Table_PTR = std::shared_ptr<object::Object_Table>;
 
 /**
  * @brief Semantic analysis and object table definitions from the HIR
@@ -67,7 +67,7 @@ class Table
     Table& operator=(Table&&) = default;
     explicit Table(util::AST_Node const& hoisted_symbols)
         : hoisted_symbols_(hoisted_symbols)
-        , objects_(std::make_shared<binding::Object_Table>())
+        , objects_(std::make_shared<object::Object_Table>())
     {
     }
 

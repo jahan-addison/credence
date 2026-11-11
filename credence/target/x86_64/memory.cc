@@ -19,7 +19,7 @@
 #include "credence/target/common/types.h"    // for Stack_Offset
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for throw_compiletime_error
-#include <credence/language/hir/binding.h>   // for Object, LValue, RValue
+#include <credence/object.h>                 // for Object, LValue, RValue
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/assembly.h> // for make_direct_immediate
 #include <credence/types.h>                  // for from_decay_offset, from...

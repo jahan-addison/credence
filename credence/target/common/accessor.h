@@ -13,20 +13,20 @@
 
 #pragma once
 
-#include "stack_frame.h" // for Locals
-#include "types.h"       // for RValue, LValue, Stack_Pointer, Table...
-#include <concepts>      // for derived_from
-#include <credence/language/hir/binding.h> // for Object, get_rvalue_at_lvalue_object_...
-#include <credence/symbol.h>               // for Symbol_Table
-#include <credence/types.h> // for from_lvalue_offset, get_rvalue_data_...
-#include <credence/util.h>  // for __source__, overload
-#include <cstddef>          // for size_t
-#include <deque>            // for deque
-#include <memory>           // for shared_ptr, unique_ptr
-#include <string>           // for basic_string, char_traits, string
-#include <string_view>      // for basic_string_view, operator==, strin...
-#include <utility>          // for pair
-#include <variant>          // for monostate, visit
+#include "stack_frame.h"     // for Locals
+#include "types.h"           // for RValue, LValue, Stack_Pointer, Table...
+#include <concepts>          // for derived_from
+#include <credence/object.h> // for Object, get_rvalue_at_lvalue_object_...
+#include <credence/symbol.h> // for Symbol_Table
+#include <credence/types.h>  // for from_lvalue_offset, get_rvalue_data_...
+#include <credence/util.h>   // for __source__, overload
+#include <cstddef>           // for size_t
+#include <deque>             // for deque
+#include <memory>            // for shared_ptr, unique_ptr
+#include <string>            // for basic_string, char_traits, string
+#include <string_view>       // for basic_string_view, operator==, strin...
+#include <utility>           // for pair
+#include <variant>           // for monostate, visit
 
 namespace credence::target::common {
 struct Flag_Accessor;
@@ -73,8 +73,7 @@ namespace credence::target::common::memory {
 class Memory_Accessor
 {
   public:
-    explicit Memory_Accessor(
-        std::shared_ptr<language::hir::binding::Object_Table> objects);
+    explicit Memory_Accessor(std::shared_ptr<object::Object_Table> objects);
     ~Memory_Accessor();
     Memory_Accessor(const Memory_Accessor&) = delete;
     Memory_Accessor& operator=(const Memory_Accessor&) = delete;
@@ -258,8 +257,7 @@ class Vector_Accessor
         Immediate const& immediate) = 0;
 
   public:
-    using Entry_Pair =
-        std::pair<language::hir::binding::Vector::Address, Entry>;
+    using Entry_Pair = std::pair<object::Vector::Address, Entry>;
 
     Entry_Pair get_offset_address(LValue const& lvalue, RValue const& offset);
 
@@ -385,11 +383,9 @@ class Address_Accessor
             auto& frame = table_->get_stack_frame();
             return type::get_type_from_rvalue_data_type(
                        type::get_rvalue_data_type_as_string(
-                           language::hir::binding::
-                               get_rvalue_at_lvalue_object_storage(lvalue,
-                                   frame,
-                                   table_->vectors,
-                                   __source__))) == type_check;
+                           object::get_rvalue_at_lvalue_object_storage(
+                               lvalue, frame, table_->vectors, __source__))) ==
+                   type_check;
         } catch (...) {
             return false;
         }

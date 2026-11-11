@@ -86,7 +86,7 @@ See the branch state machine object for details [here](https://github.com/jahan-
 
 ## Table
 
-The `Table` binds the IR onto the [object table](/credence/language/hir/binding.h) built by [semantic analysis](/credence/language/README.md#semantic-analysis) on the HIR - the addresses of functions and labels, temporaries, call parameters, and the storage of each local in its stack frame. Type checking and out-of-range boundary checks are done before the IR is constructed, so the `Table` raises no compile errors of its own. Each string, float, and double literal is recorded for the data section, including the operands of a binary expression and the value of a `RET`. The result provides a base for generating type- and size-safe platform-specific machine code.
+The `Table` binds the IR onto the [object table](/credence/object.h) built by [semantic analysis](/credence/language/README.md#semantic-analysis) on the HIR - the addresses of functions and labels, temporaries, call parameters, and the storage of each local in its stack frame. Type checking and out-of-range boundary checks are done before the IR is constructed, so the `Table` raises no compile errors of its own. Each string, float, and double literal is recorded for the data section, including the operands of a binary expression and the value of a `RET`. The result provides a base for generating type- and size-safe platform-specific machine code.
 
 A `GOTO` directly after another `GOTO` is unreachable, and the ITA drops it when it constructs a function. A `RET` jumps to the end of its function, unless it's the last statement of the function body.
 

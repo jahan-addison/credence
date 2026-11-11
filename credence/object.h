@@ -13,7 +13,6 @@
 
 #pragma once
 
-#include "types.h"           // for RValue, LValue, ...
 #include <array>             // for array
 #include <credence/map.h>    // for Ordered_Map
 #include <credence/symbol.h> // for Symbol_Table
@@ -29,27 +28,40 @@
 #include <utility>           // for pair, move
 
 /****************************************************************************
- * Name Resolution and Object Binding
+ * Object Table
  *
- * Provides an object storage interface from the IR for target platform passes.
- * Represents vectors, functions, stack frames, and symbol tables as queryable
- * lvalues and rvalues for backend code generation.
+ * The vectors, functions, and stack frames of a program, as queryable
+ * lvalues and rvalues. hir::Table defines each function, vector, and label,
+ * ir::Table binds the IR onto their frames and storage, and each backend
+ * allocates and addresses memory from it.
  *
- * Example:
+ *   main() {
+ *     auto array[10];
+ *     array[5] = 42;
+ *   }
  *
- *  main() {
- *    auto array[10];
- *    array[5] = 42;
- *  }
+ * Becomes:
  *
- *  Creates an Object table with:
- *    - Vector "array" with size 10
- *    - Function frame "main" with locals
- *    - Storage for array[5] = (42:int:4)
+ *  * a Vector "array" of size 10, where array[5] is (42:int:4)
+ *
+ *  * a Function "main", with "array" in its locals
  *
  ****************************************************************************/
 
-namespace credence::language::hir::binding {
+namespace credence::object {
+
+using type::Labels;
+using type::Locals;
+using type::Parameters;
+using type::Pointers;
+using type::RValues;
+using type::semantic::Address;
+using type::semantic::Label;
+using type::semantic::LValue;
+using type::semantic::RValue;
+using type::semantic::Size;
+using type::semantic::Type;
+using Stack = std::deque<type::semantic::RValue>;
 
 constexpr bool is_vector_lvalue(LValue const& lvalue)
 {
@@ -184,8 +196,6 @@ using Argument_Stack = std::map<Label, std::deque<credence::type::Parameters>>;
  * @brief Object_Table table of types, functions, and vectors in a frame
  */
 
-// @TODO: This needs to be moved, this is not binding.
-
 class Object_Table
 {
   public:
@@ -271,4 +281,4 @@ void set_stack_frame_return_value(RValue const& rvalue,
     Function& frame,
     Object_Table& objects);
 
-} // namespace credence::language::hir::binding
+} // namespace credence::object

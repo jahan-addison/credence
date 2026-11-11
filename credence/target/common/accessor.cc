@@ -15,8 +15,8 @@
 #include "types.h"                              // for RValue, Table_Pointer
 #include <credence/error.h>                     // for credence_assert, thr...
 #include <credence/ir/ita.h>                    // for Instruction
-#include <credence/language/hir/binding.h>      // for Object, Function
 #include <credence/language/literal.h>          // for is_integer_string
+#include <credence/object.h>                    // for Object, Function
 #include <credence/target/common/memory.h>      // for is_vector_offset
 #include <credence/target/common/stack_frame.h> // for Stack_Frame, Locals
 #include <credence/types.h>                     // for get_size_from_rvalue...
@@ -64,7 +64,7 @@ namespace credence::target::common::memory {
 
 struct Memory_Accessor::impl
 {
-    explicit impl(std::shared_ptr<language::hir::binding::Object_Table> obj)
+    explicit impl(std::shared_ptr<object::Object_Table> obj)
         : objects(std::move(obj))
         , stack_frame(objects)
     {
@@ -74,12 +74,11 @@ struct Memory_Accessor::impl
         , stack_frame(other.objects)
     {
     }
-    std::shared_ptr<language::hir::binding::Object_Table> objects;
+    std::shared_ptr<object::Object_Table> objects;
     Stack_Frame stack_frame;
 };
 
-Memory_Accessor::Memory_Accessor(
-    std::shared_ptr<language::hir::binding::Object_Table> objects)
+Memory_Accessor::Memory_Accessor(std::shared_ptr<object::Object_Table> objects)
     : pimpl(std::make_unique<impl>(std::move(objects)))
 {
 }
@@ -199,9 +198,8 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
                 locals.get_pointer_by_name(lvalue)));
     }
     if (locals.is_pointer(lvalue)) {
-        auto rvalue_address =
-            language::hir::binding::get_rvalue_at_lvalue_object_storage(
-                lvalue, frame, pimpl->table->vectors, __source__);
+        auto rvalue_address = object::get_rvalue_at_lvalue_object_storage(
+            lvalue, frame, pimpl->table->vectors, __source__);
         return type::get_size_from_rvalue_data_type(rvalue_address);
     }
     auto local_symbol = locals.get_symbol_by_name(lvalue);
@@ -257,7 +255,7 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
 
     if (type::is_dereference_expression(lvalue)) {
         return type::get_size_from_rvalue_data_type(
-            language::hir::binding::get_rvalue_at_lvalue_object_storage(
+            object::get_rvalue_at_lvalue_object_storage(
                 type::get_unary_rvalue_reference(lvalue), frame, vectors));
     }
 
@@ -267,9 +265,8 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index =
-                language::hir::binding::get_rvalue_at_lvalue_object_storage(
-                    offset, frame, vectors, __source__);
+            auto index = object::get_rvalue_at_lvalue_object_storage(
+                offset, frame, vectors, __source__);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
         return type::get_size_from_rvalue_data_type(vector.data.at(key));
@@ -281,9 +278,8 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
         if (util::is_numeric(offset)) {
             key = offset;
         } else {
-            auto index =
-                language::hir::binding::get_rvalue_at_lvalue_object_storage(
-                    offset, frame, vectors, __source__);
+            auto index = object::get_rvalue_at_lvalue_object_storage(
+                offset, frame, vectors, __source__);
             key = std::string{ type::get_value_from_rvalue_data_type(index) };
         }
         return type::get_size_from_rvalue_data_type(vector.data.at(key));
@@ -294,7 +290,7 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
             type::get_rvalue_datatype_from_string(lvalue));
     else
         return type::get_size_from_rvalue_data_type(
-            language::hir::binding::get_rvalue_at_lvalue_object_storage(
+            object::get_rvalue_at_lvalue_object_storage(
                 lvalue, frame, vectors, __source__));
 }
 
@@ -553,7 +549,7 @@ auto Vector_Accessor<Entry>::get_offset_from_hoisted_symbols(
 {
     auto& frame = table_->get_stack_frame();
     auto& vectors = table_->vectors;
-    auto index = language::hir::binding::get_rvalue_at_lvalue_object_storage(
+    auto index = object::get_rvalue_at_lvalue_object_storage(
         offset, frame, vectors, __source__);
     auto key = std::string{ type::get_value_from_rvalue_data_type(index) };
     if (!vectors.at(vector).get().data.contains(key))

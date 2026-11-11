@@ -14,7 +14,7 @@
 #pragma once
 
 #include <credence/ir/table.h>
-#include <credence/language/hir/binding.h>
+#include <credence/object.h>
 #include <memory>
 #include <string>
 
@@ -77,7 +77,7 @@ struct Stack_Frame
     {
     }
 
-    using Frame = language::hir::binding::Function;
+    using Frame = object::Function;
     using Label = std::string;
 
     inline void set_stack_frame(Label const& name)

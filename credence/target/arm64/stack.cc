@@ -14,8 +14,8 @@
 #include "stack.h"
 #include "assembly.h"                      // for Operand_Size, get_size_fr...
 #include <algorithm>                       // for find_if, min, __find_if
-#include <credence/language/hir/binding.h> // for LValue, Size, Vector, Type
 #include <credence/map.h>                  // for Ordered_Map
+#include <credence/object.h>               // for LValue, Size, Vector, Type
 #include <credence/target/common/memory.h> // for align_up_to
 #include <credence/target/common/types.h>  // for base_stack_pointer
 #include <credence/types.h>                // for Size
@@ -206,13 +206,13 @@ class Stack::Stack_IMPL
     common::Stack_Offset get_stack_offset_from_table_vector_index(
         LValue const& lvalue,
         std::string const& key,
-        language::hir::binding::Vector const& vector)
+        object::Vector const& vector)
     {
         // a pointer increment is the next element
         if (util::is_numeric(key))
             return get(lvalue).first + (8UL * std::stoul(key));
-        auto search = std::ranges::find_if(vector.data,
-            [&](language::hir::binding::Vector::Entry const& entry) {
+        auto search = std::ranges::find_if(
+            vector.data, [&](object::Vector::Entry const& entry) {
                 return entry.first == key;
             });
         return get(lvalue).first +
@@ -225,8 +225,7 @@ class Stack::Stack_IMPL
      *
      * Each element is an 8 byte slot, with 16 bytes after the elements
      */
-    Size get_stack_size_from_table_vector(
-        language::hir::binding::Vector const& vector)
+    Size get_stack_size_from_table_vector(object::Vector const& vector)
     {
         return 16UL + (8UL * std::max(vector.size, vector.data.size()));
     }
@@ -364,12 +363,11 @@ void Stack::set_stack_frame_allocation_size(Label const& label)
 common::Stack_Offset Stack::get_stack_offset_from_table_vector_index(
     LValue const& lvalue,
     std::string const& key,
-    language::hir::binding::Vector const& vector)
+    object::Vector const& vector)
 {
     return pimpl->get_stack_offset_from_table_vector_index(lvalue, key, vector);
 }
-Size Stack::get_stack_size_from_table_vector(
-    language::hir::binding::Vector const& vector)
+Size Stack::get_stack_size_from_table_vector(object::Vector const& vector)
 {
     return pimpl->get_stack_size_from_table_vector(vector);
 }

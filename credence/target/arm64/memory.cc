@@ -20,7 +20,7 @@
 #include "flags.h"                           // for flags
 #include "stack.h"                           // for Stack
 #include <credence/error.h>                  // for credence_assert, creden...
-#include <credence/language/hir/binding.h>   // for LValue, Object, get_rva...
+#include <credence/object.h>                 // for LValue, Object, get_rva...
 #include <credence/symbol.h>                 // for Symbol_Table
 #include <credence/target/common/assembly.h> // for direct_immediate, make_...
 #include <credence/types.h>                  // for get_size_from_rvalue_da...
@@ -527,7 +527,7 @@ void Device_Accessor::insert_lvalue_to_device(LValue const& lvalue,
     auto stack_frame_has_jump = ir::stack_frame_contains_call_instruction(
         table_->get_stack_frame(stack_frame_.symbol),
         table_accessor_.get_ir_instructions());
-    auto rvalue = language::hir::binding::get_rvalue_at_lvalue_object_storage(
+    auto rvalue = object::get_rvalue_at_lvalue_object_storage(
         lvalue, frame, table_->vectors, DEBUG_SOURCE);
     auto operand = assembly::get_operand_size_from_rvalue_datatype(rvalue);
 
@@ -661,15 +661,14 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
                     return assembly::get_size_from_operand_size(
                         get_word_size_from_lvalue(lvalue_reference));
                 else
-                    return type::get_size_from_rvalue_data_type(language::hir::
-                            binding::get_rvalue_at_lvalue_object_storage(
-                                lvalue_reference, frame, table_->vectors));
+                    return type::get_size_from_rvalue_data_type(
+                        object::get_rvalue_at_lvalue_object_storage(
+                            lvalue_reference, frame, table_->vectors));
             },
         m::pattern | m::_ =
             [&] {
-                auto immediate =
-                    language::hir::binding::get_rvalue_at_lvalue_object_storage(
-                        lvalue, frame, table_->vectors);
+                auto immediate = object::get_rvalue_at_lvalue_object_storage(
+                    lvalue, frame, table_->vectors);
                 return type::get_size_from_rvalue_data_type(immediate);
             }
 

@@ -13,19 +13,19 @@
 
 #include "runtime.h"
 
-#include "assembly.h"       // for get_os_type, Arch_Type
-#include "easyjson.h"       // for JSON, object
-#include "stack_frame.h"    // for Stack_Frame
-#include "syscall.h"        // for get_platform_syscall_symbols
-#include "types.h"          // for Label
-#include <algorithm>        // for __find, find
-#include <array>            // for array
-#include <credence/error.h> // for assert_equal_impl, credence_assert_e...
-#include <credence/language/hir/binding.h> // for Function
-#include <credence/types.h>                // for Label
-#include <credence/util.h>                 // for AST_Node, AST, __source__
-#include <string>      // for basic_string, string, operator==
-#include <string_view> // for basic_string_view
+#include "assembly.h"        // for get_os_type, Arch_Type
+#include "easyjson.h"        // for JSON, object
+#include "stack_frame.h"     // for Stack_Frame
+#include "syscall.h"         // for get_platform_syscall_symbols
+#include "types.h"           // for Label
+#include <algorithm>         // for __find, find
+#include <array>             // for array
+#include <credence/error.h>  // for assert_equal_impl, credence_assert_e...
+#include <credence/object.h> // for Function
+#include <credence/types.h>  // for Label
+#include <credence/util.h>   // for AST_Node, AST, __source__
+#include <string>            // for basic_string, string, operator==
+#include <string_view>       // for basic_string_view
 
 /****************************************************************************
  * Standard Library

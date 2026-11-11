@@ -15,7 +15,7 @@
 
 #include "assembly.h"                           // for Register, Operand_Size
 #include "stack.h"                              // for Stack
-#include <credence/language/hir/binding.h>      // for RValue, LValue, Object
+#include <credence/object.h>                    // for RValue, LValue, Object
 #include <credence/target/common/accessor.h>    // for Accumulator_Accessor
 #include <credence/target/common/flags.h>       // for Flag_Accessor
 #include <credence/target/common/memory.h>      // for Operand_Type, is_imm...
@@ -136,7 +136,7 @@ const general_purpose available_dword_register = { Register::edi,
 using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
-using Table_Pointer = std::shared_ptr<language::hir::binding::Object_Table>;
+using Table_Pointer = std::shared_ptr<object::Object_Table>;
 using Stack_Frame = common::memory::Stack_Frame;
 
 using X8664_Memory_Accessor = common::memory::Memory_Accessor;

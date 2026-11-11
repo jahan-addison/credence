@@ -17,7 +17,7 @@
 #include "stack.h"                              // for Stack
 #include <array>                                // for get, array
 #include <credence/error.h>                     // for credence_assert
-#include <credence/language/hir/binding.h>      // for get_rvalue_at_lvalue...
+#include <credence/object.h>                    // for get_rvalue_at_lvalue...
 #include <credence/target/common/assembly.h>    // for get_storage_as_string
 #include <credence/target/common/runtime.h>     // for library_list
 #include <credence/target/common/stack_frame.h> // for Locals
@@ -113,7 +113,7 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
                     return;
                 }
                 auto type = type::get_type_from_rvalue_data_type(
-                    language::hir::binding::get_rvalue_at_lvalue_object_storage(
+                    object::get_rvalue_at_lvalue_object_storage(
                         lvalue, stack_frame, table->vectors, __source__));
                 is_buffer = type == "null" or type == "string";
             },

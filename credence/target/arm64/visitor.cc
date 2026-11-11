@@ -27,7 +27,7 @@
 #include "stack.h"                           // for Stack
 #include "syscall.h"                         // for exit_syscall
 #include <algorithm>                         // for any_of
-#include <credence/language/hir/binding.h>   // for Object, Function, Label
+#include <credence/object.h>                 // for Object, Function, Label
 #include <credence/target/common/runtime.h>  // for is_stdlib_function, is_...
 #include <deque>                             // for deque
 #include <matchit.h>                         // for Wildcard, App, Ds, app

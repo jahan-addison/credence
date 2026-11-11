@@ -26,7 +26,7 @@
 #include "stack.h"                              // for Stack
 #include "syscall.h"                            // for syscall_arguments_t
 #include "visitor.h"                            // for IR_Instruction_Visitor
-#include <credence/language/hir/binding.h>      // for RValue, Function
+#include <credence/object.h>                    // for RValue, Function
 #include <credence/target/common/flags.h>       // for Instruction_Flag
 #include <credence/target/common/stack_frame.h> // for Stack_Frame, Locals
 #include <cstddef>                              // for size_t
@@ -104,7 +104,7 @@ namespace {
  *
  * A pointer, a pointer parameter, or a string is a qword
  */
-bool is_qword_return_value(language::hir::binding::Function& frame)
+bool is_qword_return_value(object::Function& frame)
 {
     if (!frame.ret.has_value())
         return false;
@@ -743,7 +743,7 @@ Size Operand_Inserter::get_pointee_size(LValue const& pointer)
     auto& table = accessor_->table_accessor.get_table();
     if (!frame.locals.is_pointer(pointer))
         return 4UL;
-    auto data = language::hir::binding::get_rvalue_at_lvalue_object_storage(
+    auto data = object::get_rvalue_at_lvalue_object_storage(
         pointer, frame, table->vectors);
     return std::get<2>(data) == 8UL ? 8UL : 4UL;
 }
@@ -1876,7 +1876,7 @@ std::optional<Register> Expression_Inserter::insert_from_address_of_value(
  *    mov rax, rdi
  */
 void Expression_Inserter::insert_from_return_rvalue(
-    language::hir::binding::Function::Return_RValue const& ret)
+    object::Function::Return_RValue const& ret)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto operand_inserter = Operand_Inserter{ accessor_ };

@@ -21,7 +21,7 @@
 #include "syscall.h"
 #include "types.h"
 
-#include <credence/language/hir/binding.h>
+#include <credence/object.h>
 #include <credence/types.h>
 #include <credence/util.h>
 #include <matchit.h>
@@ -313,7 +313,7 @@ struct Expression_Inserter
         LValue const& lvalue) = 0;
     virtual void insert_from_temporary_rvalue(RValue const& rvalue) = 0;
     virtual void insert_from_return_rvalue(
-        language::hir::binding::Function::Return_RValue const& ret) = 0;
+        object::Function::Return_RValue const& ret) = 0;
 
   protected:
     memory::Memory_Access<Accessor> accessor_;

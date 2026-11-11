@@ -27,7 +27,7 @@
 #include "runtime.h"                            // for Library_Call_Inserter
 #include "stack.h"                              // for Stack
 #include "syscall.h"                            // for syscall_arguments_t
-#include <credence/language/hir/binding.h>      // for RValue, Function
+#include <credence/object.h>                    // for RValue, Function
 #include <credence/target/common/flags.h>       // for Instruction_Flag
 #include <credence/target/common/stack_frame.h> // for Stack_Frame, Locals
 #include <cstddef>                              // for size_t
@@ -103,7 +103,7 @@ namespace {
  *
  * A pointer, a pointer parameter, or a string is a doubleword
  */
-bool is_doubleword_return_value(language::hir::binding::Function& frame)
+bool is_doubleword_return_value(object::Function& frame)
 {
     if (!frame.ret.has_value())
         return false;
@@ -788,7 +788,7 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
  *    mov x0, x0
  */
 void Expression_Inserter::insert_from_return_rvalue(
-    language::hir::binding::Function::Return_RValue const& ret)
+    object::Function::Return_RValue const& ret)
 {
     auto& instructions = accessor_->instruction_accessor->get_instructions();
     auto operand_inserter = Operand_Inserter{ accessor_ };
@@ -1881,7 +1881,7 @@ Size Operand_Inserter::get_pointee_size(LValue const& pointer)
     auto& table = accessor_->table_accessor.get_table();
     if (!frame.locals.is_pointer(pointer))
         return 4UL;
-    auto data = language::hir::binding::get_rvalue_at_lvalue_object_storage(
+    auto data = object::get_rvalue_at_lvalue_object_storage(
         pointer, frame, table->vectors);
     return std::get<2>(data) == 8UL ? 8UL : 4UL;
 }
@@ -2031,7 +2031,7 @@ common::Stack_Offset Invocation_Inserter::insert_global_argument_to_stack(
         accessor_->vector_accessor.get_offset_address(rvalue, key).first;
     // a string element is the address of the string
     auto type = type::get_type_from_rvalue_data_type(
-        language::hir::binding::get_rvalue_at_lvalue_object_storage(
+        object::get_rvalue_at_lvalue_object_storage(
             rvalue, stack_frame_.get_stack_frame(), table->vectors));
     auto size = type == "string" or type == "long" or type == "double"
                     ? Operand_Size::Doubleword

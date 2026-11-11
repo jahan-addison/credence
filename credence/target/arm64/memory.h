@@ -15,8 +15,8 @@
 
 #include "assembly.h"                           // for Register, Operand_Size
 #include "stack.h"                              // for Stack
-#include <credence/language/hir/binding.h>      // for LValue, Size, RValue
 #include <credence/map.h>                       // for Ordered_Map
+#include <credence/object.h>                    // for LValue, Size, RValue
 #include <credence/target/common/accessor.h>    // for Accumulator_Accessor
 #include <credence/target/common/flags.h>       // for Flag_Accessor
 #include <credence/target/common/memory.h>      // for Operand_Type, is_imm...
@@ -166,7 +166,7 @@ const general_purpose available_word_argument = { Register::w0,
 using Memory_Access = std::shared_ptr<Memory_Accessor>;
 using Instruction_Pointer = std::shared_ptr<detail::Instruction_Accessor>;
 using Stack_Pointer = std::shared_ptr<assembly::Stack>;
-using Table_Pointer = std::shared_ptr<language::hir::binding::Object_Table>;
+using Table_Pointer = std::shared_ptr<object::Object_Table>;
 using Stack_Frame = target::common::memory::Stack_Frame;
 
 Register get_second_register_for_binary_operand(assembly::Operand_Size size);
