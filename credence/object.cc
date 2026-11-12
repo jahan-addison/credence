@@ -165,28 +165,17 @@ Vector& Object_Table::set_vector_definition(Label const& label, Address size_of)
 }
 
 /**
- * @brief Pattern matching helpers
+ * @brief Whether a vector is defined in the object table
  */
 bool Object_Table::vector_contains(LValue const& lvalue)
 {
     return vectors.contains(lvalue);
 }
 
-bool Object_Table::function_contains(Label const& label)
-{
-    return functions.contains(label);
-}
-
-bool Object_Table::local_contains(LValue const& lvalue)
-{
-    const auto& locals = get_stack_frame_symbols();
-    return locals.is_defined(lvalue) and not is_vector_lvalue(lvalue);
-}
-
 /**
- * @brief Save literals that need %rip address in the data section
+ * @brief Save a literal that is addressed relative to the program counter
  */
-void Object_Table::insert_address_storage_rvalue(RValue const& rvalue)
+void Data_Section::insert(RValue const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
@@ -197,7 +186,7 @@ void Object_Table::insert_address_storage_rvalue(RValue const& rvalue)
         strings.insert(type::get_value_from_rvalue_data_type(rvalue));
 }
 
-void Object_Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
+void Data_Section::insert(type::Data_Type const& rvalue)
 {
     auto type = type::get_type_from_rvalue_data_type(rvalue);
     if (type == "float")
@@ -209,21 +198,7 @@ void Object_Table::insert_address_storage_rvalue(type::Data_Type const& rvalue)
 }
 
 /**
- * @brief Argument stack of ir parameters by function label
- */
-void Object_Table::set_ir_parameters(Label const& label, Parameters& parameters)
-{
-    ir_parameters[label].emplace_back(parameters);
-}
-
-std::deque<Parameters>& Object_Table::get_ir_parameters(Label const& label)
-{
-    credence_assert(ir_parameters.contains(label));
-    return ir_parameters.at(label);
-}
-
-/**
- * @brief Stack frame helpers
+ * @brief Reset the number of calls of each function
  */
 void Object_Table::reset_frame_calls()
 {
@@ -232,54 +207,52 @@ void Object_Table::reset_frame_calls()
     }
 }
 
-Function& Object_Table::get_stack_frame()
-{
-    credence_assert(functions.contains(stack_frame_symbol));
-    return functions.at(stack_frame_symbol);
-}
-
+/**
+ * @brief The stack frame of a function by its label
+ */
 Function& Object_Table::get_stack_frame(Label const& label)
 {
     credence_assert(functions.contains(label));
     return functions.at(label);
 }
 
-Locals& Object_Table::get_stack_frame_symbols()
-{
-    return get_stack_frame().locals;
-}
-
 /**
- * @brief Storage type helpers in the current stack frame
+ * @brief Whether an rvalue, or the vector of an element, is a vector
  */
-bool Object_Table::is_vector(RValue const& rvalue)
+bool is_vector(RValue const& rvalue, Vectors& vectors)
 {
     auto label =
         util::contains(rvalue, "[") ? type::from_lvalue_offset(rvalue) : rvalue;
     return vectors.contains(label);
 }
 
-bool Object_Table::is_pointer(RValue const& rvalue)
+/**
+ * @brief Whether an rvalue is a pointer, an address-of, or a string literal
+ */
+bool is_pointer(RValue const& rvalue, Function& stack_frame)
 {
-    return get_stack_frame_symbols().is_pointer(rvalue) or
-           rvalue.starts_with("&") or type::is_rvalue_data_type_string(rvalue);
+    return stack_frame.locals.is_pointer(rvalue) or rvalue.starts_with("&") or
+           type::is_rvalue_data_type_string(rvalue);
 }
 
-bool Object_Table::is_vector_or_pointer(RValue const& rvalue)
+/**
+ * @brief Whether an rvalue is a vector, a pointer, or a dereference
+ */
+bool is_vector_or_pointer(RValue const& rvalue,
+    Function& stack_frame,
+    Vectors& vectors)
 {
-    return is_vector(rvalue) or is_pointer(rvalue) or
+    return is_vector(rvalue, vectors) or is_pointer(rvalue, stack_frame) or
            type::is_dereference_expression(rvalue);
 }
 
-bool Object_Table::is_null_symbol(LValue const& lvalue)
+/**
+ * @brief Whether an lvalue is a local of a stack frame, and not a vector
+ */
+bool local_contains(LValue const& lvalue, Function& stack_frame)
 {
-    auto& locals = get_stack_frame_symbols();
-    if (is_vector(lvalue))
-        return false;
-    if (is_pointer(lvalue))
-        return locals.get_pointer_by_name(lvalue) == "NULL";
-    return type::get_type_from_rvalue_data_type(locals.get_symbol_by_name(
-               util::str_trim_ws(lvalue).data())) == "null";
+    return stack_frame.locals.is_defined(lvalue) and
+           not is_vector_lvalue(lvalue);
 }
 
 /**
@@ -288,9 +261,11 @@ bool Object_Table::is_null_symbol(LValue const& lvalue)
  * Note: vector boundaries are not checked here, see
  * Pointer_Vector_Decay_Checker::is_boundary_out_of_range
  */
-Type Object_Table::get_type_from_object_data_type(LValue const& lvalue)
+Type get_type_from_object_data_type(LValue const& lvalue,
+    Function& stack_frame,
+    Vectors& vectors)
 {
-    auto& locals = get_stack_frame_symbols();
+    auto& locals = stack_frame.locals;
     if (is_vector_lvalue(lvalue)) {
         auto address = type::from_lvalue_offset(lvalue);
         auto offset = type::from_decay_offset(lvalue);
@@ -298,29 +273,6 @@ Type Object_Table::get_type_from_object_data_type(LValue const& lvalue)
         return std::get<1>(vectors.at(address).get().data[offset]);
     }
     return std::get<1>(locals.get_symbol_by_name(lvalue));
-}
-
-/**
- * @brief Get the size from a symbol in the stack frame or vector storage
- *
- * Note: vector boundaries are not checked here, see
- * Pointer_Vector_Decay_Checker::is_boundary_out_of_range
- */
-Size Object_Table::get_size_from_object_name(LValue const& lvalue)
-{
-    auto& locals = get_stack_frame_symbols();
-    if (is_vector_lvalue(lvalue)) {
-        auto address = type::from_lvalue_offset(lvalue);
-        auto offset = type::from_decay_offset(lvalue);
-        credence_assert(vectors.contains(address));
-        return std::get<2>(vectors.at(address).get().data[offset]);
-    }
-    if (get_type_from_object_data_type(lvalue) == "word" and
-        locals.is_defined(type::get_unary_rvalue_reference(lvalue))) {
-        return std::get<2>(locals.get_symbol_by_name(
-            type::get_unary_rvalue_reference(lvalue)));
-    }
-    return std::get<2>(locals.get_symbol_by_name(lvalue));
 }
 
 /**
@@ -375,7 +327,7 @@ type::Data_Type get_rvalue_at_lvalue_object_storage(LValue const& lvalue,
 /**
  * @brief Resolve the rvalue at a temporary storage address in the object table
  */
-RValue Object_Table::lvalue_at_temporary_object_address(LValue const& lvalue,
+RValue lvalue_at_temporary_object_address(LValue const& lvalue,
     Function& stack_frame)
 {
     auto rvalue = type::is_temporary(lvalue) or util::contains(lvalue, "_p")
@@ -392,26 +344,9 @@ RValue Object_Table::lvalue_at_temporary_object_address(LValue const& lvalue,
 }
 
 /**
- * @brief Resolve the size of an rvalue data type that is NOT a word literal
- */
-Size Object_Table::get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
-    Function& stack_frame)
-{
-    auto& locals = stack_frame.locals;
-    credence_assert(locals.is_defined(lvalue));
-    auto datatype = locals.get_symbol_by_name(lvalue);
-    if (type::is_rvalue_data_type_word(datatype))
-        return lvalue_size_at_temporary_object_address(
-            type::get_value_from_rvalue_data_type(datatype), stack_frame);
-    else
-        return type::get_size_from_rvalue_data_type(
-            locals.get_symbol_by_name(lvalue));
-}
-
-/**
  * @brief Resolve the size at a temporary storage address in the object table
  */
-Size Object_Table::lvalue_size_at_temporary_object_address(LValue const& lvalue,
+Size lvalue_size_at_temporary_object_address(LValue const& lvalue,
     Function& stack_frame)
 {
     auto rvalue = lvalue_at_temporary_object_address(lvalue, stack_frame);
@@ -471,7 +406,7 @@ Size Object_Table::lvalue_size_at_temporary_object_address(LValue const& lvalue,
     return 0UL;
 }
 
-Size Object_Table::get_size_of_temporary_binary_rvalue(RValue const& rvalue,
+Size get_size_of_temporary_binary_rvalue(RValue const& rvalue,
     Function& stack_frame)
 {
     Size size = 0UL;
@@ -499,7 +434,8 @@ Size Object_Table::get_size_of_temporary_binary_rvalue(RValue const& rvalue,
  */
 void set_stack_frame_return_value(RValue const& rvalue,
     Function& frame,
-    Object_Table& objects)
+    Vectors& vectors,
+    Stack const& stack)
 {
     auto local_contains = [&](LValue const& lvalue) {
         const auto& locals = frame.locals;
@@ -520,13 +456,13 @@ void set_stack_frame_return_value(RValue const& rvalue,
             },
         m::pattern | m::app(is_parameter, true) =
             [&] {
-                if (objects.stack.empty()) {
+                if (stack.empty()) {
                     frame.ret = std::make_pair("NULL", rvalue);
                     return;
                 }
                 auto index_of = frame.get_index_of_parameter(rvalue);
                 credence_assert_nequal(index_of, -1);
-                frame.ret = std::make_pair(objects.stack.at(index_of), rvalue);
+                frame.ret = std::make_pair(stack.at(index_of), rvalue);
             },
         m::pattern | m::app(local_contains, true) =
             [&] {
@@ -543,7 +479,7 @@ void set_stack_frame_return_value(RValue const& rvalue,
         m::pattern | m::app(is_vector_lvalue, true) =
             [&] {
                 auto value_at = get_rvalue_at_lvalue_object_storage(
-                    rvalue, frame, objects.vectors, __source__);
+                    rvalue, frame, vectors, __source__);
                 frame.ret = std::make_pair(
                     type::get_value_from_rvalue_data_type(value_at), rvalue);
             },

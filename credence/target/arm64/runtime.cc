@@ -314,7 +314,8 @@ void Library_Call_Inserter::make_library_call(Instructions& instructions,
             (std::get<Register>(arg) == Register::x0 or
                 std::get<Register>(arg) == Register::w0)) {
             auto lvalue = accessor_->table_accessor.get_last_lvalue_assignment(
-                accessor_->table_accessor.get_index());
+                accessor_->table_accessor.get_index(),
+                accessor_->get_frame_in_memory().get_stack_frame());
             auto stack_address = accessor_->stack->get(lvalue).first;
             arm64_add__asm(instructions, ldr, storage, stack_address);
         } else {

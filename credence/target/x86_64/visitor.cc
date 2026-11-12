@@ -208,7 +208,9 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
             },
         m::pattern | m::_ =
             [&] {
-                auto type = table->get_type_from_object_data_type(locl_lvalue);
+                auto type = object::get_type_from_object_data_type(locl_lvalue,
+                    stack_frame_.get_stack_frame(),
+                    table->vectors);
                 stack->set_address_from_type(locl_lvalue, type);
             }
 
@@ -224,11 +226,10 @@ void IR_Instruction_Visitor::from_locl_ita(ir::Quadruple const& inst)
  */
 void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
-    auto& table = accessor_->table_accessor.get_table();
     auto& frame = stack_frame_.get_stack_frame();
     auto argument = std::get<1>(inst);
     stack_frame_.argument_stack.emplace_front(
-        table->lvalue_at_temporary_object_address(argument, frame));
+        object::lvalue_at_temporary_object_address(argument, frame));
     stack_frame_.argument_slots.emplace_front(
         accessor_->stack->is_allocated(argument) ? argument : "");
 }

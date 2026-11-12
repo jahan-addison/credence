@@ -1605,7 +1605,6 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
     LValue const& lvalue)
 {
     auto& frame = stack_frame_.get_stack_frame();
-    auto& table = accessor_->table_accessor.get_table();
     // a copy of a temporary, e.g. `_t3 = _t2;`, is the value of `_t2`
     // when it was computed, not its expression computed again
     if (frame.temporary.contains(lvalue) and
@@ -1616,7 +1615,7 @@ void Expression_Inserter::insert_lvalue_at_temporary_object_address(
         accessor_->accumulator_temporary = { lvalue, accumulator };
         return;
     }
-    auto temporary = table->lvalue_at_temporary_object_address(lvalue, frame);
+    auto temporary = object::lvalue_at_temporary_object_address(lvalue, frame);
     result_.reset();
     insert_from_rvalue(temporary);
     if (result_.has_value())

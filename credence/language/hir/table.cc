@@ -277,7 +277,7 @@ void Table::build_vector_definitions_from_globals()
             auto key = std::to_string(index++);
             auto value = credence::type::get_rvalue_datatype_from_string(
                 data_kind_to_string(item, false));
-            objects_->insert_address_storage_rvalue(value);
+            objects_->data.insert(value);
             vector.data[key] = value;
         }
     }

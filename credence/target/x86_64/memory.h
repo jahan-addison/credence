@@ -243,8 +243,9 @@ struct Address_Accessor : public X8664_Address_Accessor
   public:
     explicit Address_Accessor(Table_Pointer& table,
         X8664_Address_Accessor::Stack_Pointer_Type& stack,
-        Flag_Accessor& flag_accessor)
-        : X8664_Address_Accessor(table, stack, flag_accessor)
+        Flag_Accessor& flag_accessor,
+        Stack_Frame& stack_frame)
+        : X8664_Address_Accessor(table, stack, flag_accessor, stack_frame)
     {
     }
     bool is_qword_storage_size(assembly::Storage const& storage) const;
@@ -262,8 +263,8 @@ struct Address_Accessor : public X8664_Address_Accessor
 struct Vector_Accessor : public X8664_Vector_Accessor
 {
   public:
-    explicit Vector_Accessor(Table_Pointer& table)
-        : X8664_Vector_Accessor(table)
+    explicit Vector_Accessor(Table_Pointer& table, Stack_Frame& stack_frame)
+        : X8664_Vector_Accessor(table, stack_frame)
     {
     }
     Entry_Size get_size_from_vector_offset(Immediate const& immediate) override
@@ -347,8 +348,11 @@ class Memory_Accessor final : public X8664_Memory_Accessor
         , stack(std::move(stack_pointer))
         , table_accessor(table_, instructions_)
         , accumulator_accessor{ &signal_register }
-        , vector_accessor{ table_ }
-        , address_accessor{ table_, stack, flag_accessor }
+        , vector_accessor{ table_, get_frame_in_memory() }
+        , address_accessor{ table_,
+            stack,
+            flag_accessor,
+            get_frame_in_memory() }
         , register_accessor{ &signal_register, address_accessor }
     {
         instruction_accessor = std::make_shared<detail::Instruction_Accessor>();
@@ -380,8 +384,11 @@ class Memory_Accessor final : public X8664_Memory_Accessor
     detail::Flag_Accessor flag_accessor{};
     detail::Table_Accessor table_accessor{ table_, instructions_ };
     detail::Accumulator_Accessor accumulator_accessor{ &signal_register };
-    detail::Vector_Accessor vector_accessor{ table_ };
-    detail::Address_Accessor address_accessor{ table_, stack, flag_accessor };
+    detail::Vector_Accessor vector_accessor{ table_, get_frame_in_memory() };
+    detail::Address_Accessor address_accessor{ table_,
+        stack,
+        flag_accessor,
+        get_frame_in_memory() };
     detail::Register_Accessor register_accessor{ &signal_register,
         address_accessor };
     Instruction_Pointer instruction_accessor{};

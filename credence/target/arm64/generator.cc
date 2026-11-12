@@ -228,7 +228,7 @@ void Data_Emitter::set_data_strings()
 {
     index_before_strings = instructions_.size();
     auto& table = accessor_->table_accessor.get_table();
-    for (auto const& string : table->strings) {
+    for (auto const& string : table->data.strings) {
         auto data_instruction =
             assembly::asciz(accessor_->address_accessor.buffer_accessor
                                 .get_constant_size_index(),
@@ -246,9 +246,9 @@ void Data_Emitter::set_data_strings()
 void Data_Emitter::set_data_floats()
 {
     auto& table = accessor_->table_accessor.get_table();
-    if (!table->floats.empty())
+    if (!table->data.floats.empty())
         insert_arm64_alignment_directive(instructions_, 2);
-    for (auto const& floatz : table->floats) {
+    for (auto const& floatz : table->data.floats) {
         auto data_instruction =
             assembly::floatz(accessor_->address_accessor.buffer_accessor
                                  .get_constant_size_index(),
@@ -266,9 +266,9 @@ void Data_Emitter::set_data_doubles()
 {
     auto& table = accessor_->table_accessor.get_table();
 
-    if (!table->doubles.empty())
+    if (!table->data.doubles.empty())
         insert_arm64_alignment_directive(instructions_, 3);
-    for (auto const& doublez : table->doubles) {
+    for (auto const& doublez : table->data.doubles) {
         auto data_instruction =
             assembly::doublez(accessor_->address_accessor.buffer_accessor
                                   .get_constant_size_index(),

@@ -447,11 +447,10 @@ void IR_Instruction_Visitor::insert_to_pointer(LValue const& pointer,
 void IR_Instruction_Visitor::from_push_ita(ir::Quadruple const& inst)
 {
     auto instruction_accessor = accessor_->instruction_accessor;
-    auto& table = accessor_->table_accessor.get_table();
     auto& frame = stack_frame_.get_stack_frame();
     auto argument = std::get<1>(inst);
     stack_frame_.argument_stack.emplace_front(
-        table->lvalue_at_temporary_object_address(argument, frame));
+        object::lvalue_at_temporary_object_address(argument, frame));
     stack_frame_.argument_slots.emplace_front(
         accessor_->stack->is_allocated(argument) ? argument : "");
 }

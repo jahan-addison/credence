@@ -166,7 +166,7 @@ Address_Accessor::get_lvalue_address_and_insertion_instructions(
     std::size_t instruction_index,
     bool use_prefix)
 {
-    auto vector_accessor = Vector_Accessor{ table_ };
+    auto vector_accessor = Vector_Accessor{ table_, stack_frame_ };
     assembly::Instruction_Pair instructions{ Register::eax, {} };
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);

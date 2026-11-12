@@ -98,7 +98,7 @@ bool Library_Call_Inserter::is_address_device_pointer_to_buffer(
 {
     auto& table = accessor_->table_accessor.get_table();
     auto& stack = accessor_->stack;
-    auto& stack_frame = table->get_stack_frame();
+    auto& stack_frame = accessor_->get_frame_in_memory().get_stack_frame();
     bool is_buffer{ false };
 
     std::visit(

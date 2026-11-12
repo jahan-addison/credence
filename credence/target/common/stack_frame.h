@@ -80,10 +80,7 @@ struct Stack_Frame
     using Frame = object::Function;
     using Label = std::string;
 
-    inline void set_stack_frame(Label const& name)
-    {
-        objects_->set_stack_frame(name);
-    }
+    inline void set_stack_frame(Label const& name) { symbol = name; }
     inline Frame& get_stack_frame(Label const& name) const
     {
         return objects_->functions.at(name).get();

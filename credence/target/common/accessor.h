@@ -181,7 +181,8 @@ struct Table_Accessor
     Table_Accessor& operator=(const Table_Accessor&) = delete;
 
     void set_ir_iterator_index(unsigned int index_);
-    LValue get_last_lvalue_assignment(unsigned int index_);
+    LValue get_last_lvalue_assignment(unsigned int index_,
+        object::Function& stack_frame);
     bool is_ir_instruction_temporary();
     LValue get_ir_instruction_lvalue();
     bool last_ir_instruction_is_assignment();
@@ -246,8 +247,9 @@ class Vector_Accessor
     using Entry_Size = Entry;
 
   public:
-    explicit Vector_Accessor(Table_Pointer& table)
+    explicit Vector_Accessor(Table_Pointer& table, Stack_Frame& stack_frame)
         : table_(table)
+        , stack_frame_(stack_frame)
     {
     }
 
@@ -272,6 +274,7 @@ class Vector_Accessor
 
   protected:
     Table_Pointer& table_;
+    Stack_Frame& stack_frame_;
 };
 
 /**
@@ -348,10 +351,12 @@ class Address_Accessor
   public:
     explicit Address_Accessor(Table_Pointer& table,
         Stack_Pointer<Stack>& stack,
-        Flag_Accessor& flag_accessor)
+        Flag_Accessor& flag_accessor,
+        Stack_Frame& stack_frame)
         : table_(table)
         , stack_(stack)
         , flag_accessor_(flag_accessor)
+        , stack_frame_(stack_frame)
         , buffer_accessor(table)
     {
     }
@@ -380,7 +385,7 @@ class Address_Accessor
         std::string_view type_check)
     {
         try {
-            auto& frame = table_->get_stack_frame();
+            auto& frame = stack_frame_.get_stack_frame();
             return type::get_type_from_rvalue_data_type(
                        type::get_rvalue_data_type_as_string(
                            object::get_rvalue_at_lvalue_object_storage(
@@ -412,6 +417,7 @@ class Address_Accessor
     Table_Pointer& table_;
     Stack_Pointer<Stack>& stack_;
     Flag_Accessor& flag_accessor_;
+    Stack_Frame& stack_frame_;
 
   public:
     Buffer_Accessor buffer_accessor;

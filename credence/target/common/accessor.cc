@@ -190,7 +190,7 @@ Size Buffer_Accessor::get_size_in_local_address(LValue const& lvalue,
     Stack_Frame const& stack_frame)
 {
     auto& frame = stack_frame.get_stack_frame();
-    auto& locals = pimpl->table->get_stack_frame_symbols();
+    auto& locals = frame.locals;
     if (locals.is_pointer(lvalue) and
         type::is_rvalue_data_type_string(locals.get_pointer_by_name(lvalue))) {
         return type::get_size_from_rvalue_data_type(
@@ -250,7 +250,7 @@ Size Buffer_Accessor::get_size_of_string_lvalue_buffer_address(
     if (lvalue == "RET")
         return get_size_of_return_string(stack_frame);
 
-    if (pimpl->table->get_stack_frame_symbols().is_defined(lvalue))
+    if (frame.locals.is_defined(lvalue))
         return get_size_in_local_address(lvalue, stack_frame);
 
     if (type::is_dereference_expression(lvalue)) {
@@ -441,15 +441,16 @@ bool Table_Accessor::is_ir_instruction_temporary()
  *
  *  Becomes:
  *
- *    get_last_lvalue_assignment(2)   // x
+ *    get_last_lvalue_assignment(2, frame)   // x
  */
-LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_)
+LValue Table_Accessor::get_last_lvalue_assignment(unsigned int index_,
+    object::Function& stack_frame)
 {
     for (; index_ > 0; index_--) {
         auto ir_inst = pimpl->instructions_->at(index_);
         auto lvalue = std::get<1>(ir_inst);
         if (std::get<0>(ir_inst) == ir::Instruction::MOV and
-            pimpl->table_->local_contains(lvalue) and
+            object::local_contains(lvalue, stack_frame) and
             not lvalue.starts_with("_p") and not lvalue.starts_with("_t")) {
             return lvalue;
         }
@@ -547,7 +548,7 @@ auto Vector_Accessor<Entry>::get_offset_from_hoisted_symbols(
     LValue const& vector,
     RValue const& offset) -> Entry_Pair
 {
-    auto& frame = table_->get_stack_frame();
+    auto& frame = stack_frame_.get_stack_frame();
     auto& vectors = table_->vectors;
     auto index = object::get_rvalue_at_lvalue_object_storage(
         offset, frame, vectors, __source__);

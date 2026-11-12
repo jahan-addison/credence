@@ -21,7 +21,6 @@
 #include <cstddef>           // for size_t
 #include <deque>             // for deque
 #include <functional>        // for std::reference_wrapper
-#include <map>               // for map
 #include <optional>          // for optional
 #include <source_location>   // for source_location
 #include <string>            // for basic_string, string
@@ -190,12 +189,52 @@ credence::type::Data_Type get_rvalue_at_lvalue_object_storage(
     Vectors& vectors,
     std::source_location const& location = std::source_location::current());
 
-using Argument_Stack = std::map<Label, std::deque<credence::type::Parameters>>;
+/**
+ * @brief Query the storage of an rvalue in a stack frame
+ *
+ * Each query resolves an lvalue or rvalue against a stack frame, and the
+ * vectors of the program where an element may be resolved, so the frame
+ * under translation is an argument of the stage that walks the program.
+ */
+bool is_vector(RValue const& rvalue, Vectors& vectors);
+bool is_pointer(RValue const& rvalue, Function& stack_frame);
+bool is_vector_or_pointer(RValue const& rvalue,
+    Function& stack_frame,
+    Vectors& vectors);
+bool local_contains(LValue const& lvalue, Function& stack_frame);
+Type get_type_from_object_data_type(LValue const& lvalue,
+    Function& stack_frame,
+    Vectors& vectors);
 
 /**
- * @brief Object_Table table of types, functions, and vectors in a frame
+ * @brief Resolve a temporary to the rvalue or size it holds in a stack frame
  */
+RValue lvalue_at_temporary_object_address(LValue const& lvalue,
+    Function& stack_frame);
+Size lvalue_size_at_temporary_object_address(LValue const& lvalue,
+    Function& stack_frame);
+Size get_size_of_temporary_binary_rvalue(RValue const& rvalue,
+    Function& stack_frame);
 
+/**
+ * @brief The string, float, and double literals of the data section
+ *
+ * Each literal that is addressed relative to the program counter, rather
+ * than as an immediate, is stored once.
+ */
+struct Data_Section
+{
+    void insert(RValue const& rvalue);
+    void insert(credence::type::Data_Type const& rvalue);
+
+    RValues strings{};
+    RValues floats{};
+    RValues doubles{};
+};
+
+/**
+ * @brief The functions, vectors, symbols, and data section of a program
+ */
 class Object_Table
 {
   public:
@@ -208,55 +247,9 @@ class Object_Table
   public:
     Function& set_function_definition(Label const& label);
     Vector& set_vector_definition(Label const& label, Address size_of);
-
-  public:
     bool vector_contains(LValue const& lvalue);
-    bool function_contains(Label const& label);
-    bool local_contains(LValue const& lvalue);
-
-  public:
-    void insert_address_storage_rvalue(RValue const& rvalue);
-    void insert_address_storage_rvalue(credence::type::Data_Type const& rvalue);
-
-  public:
-    void set_ir_parameters(Label const& label,
-        credence::type::Parameters& parameters);
-    std::deque<credence::type::Parameters>& get_ir_parameters(
-        Label const& label);
-
-  public:
-    constexpr bool is_stack_frame() { return !stack_frame_symbol.empty(); }
-    constexpr void set_stack_frame(Label const& label)
-    {
-        stack_frame_symbol = label;
-    }
-    constexpr void reset_stack_frame() { stack_frame_symbol = std::string{}; }
-    void reset_frame_calls();
-    Function& get_stack_frame();
     Function& get_stack_frame(Label const& label);
-    Locals& get_stack_frame_symbols();
-
-  public:
-    RValue lvalue_at_temporary_object_address(LValue const& lvalue,
-        Function& stack_frame);
-    Size lvalue_size_at_temporary_object_address(LValue const& lvalue,
-        Function& stack_frame);
-    Size get_size_of_temporary_binary_rvalue(RValue const& rvalue,
-        Function& stack_frame);
-
-  public:
-    bool is_vector(RValue const& rvalue);
-    bool is_pointer(RValue const& rvalue);
-    bool is_vector_or_pointer(RValue const& rvalue);
-    bool is_null_symbol(LValue const& lvalue);
-
-  public:
-    Type get_type_from_object_data_type(LValue const& lvalue);
-    Size get_size_from_object_name(LValue const& lvalue);
-
-  private:
-    Size get_symbol_size_from_rvalue_data_type(LValue const& lvalue,
-        Function& stack_frame);
+    void reset_frame_calls();
 
   private:
     std::deque<Function> function_storage_{};
@@ -265,20 +258,15 @@ class Object_Table
   public:
     util::AST_Node hoisted_symbols;
     Symbol_Table<> globals{};
-    Function::Address_Table address_table{};
-    std::string stack_frame_symbol{};
-    Stack stack{};
-    Argument_Stack ir_parameters{};
     Functions functions{};
     Vectors vectors{};
-    RValues strings{};
-    RValues floats{};
-    RValues doubles{};
+    Data_Section data{};
     Labels labels{};
 };
 
 void set_stack_frame_return_value(RValue const& rvalue,
     Function& frame,
-    Object_Table& objects);
+    Vectors& vectors,
+    Stack const& stack);
 
 } // namespace credence::object

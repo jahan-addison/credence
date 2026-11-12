@@ -132,8 +132,6 @@ void Table::build_from_ir_instructions()
                 [&] { from_return_instruction(instruction); },
             m::pattern |
                 Instruction::PUSH = [&] { from_push_instruction(instruction); },
-            m::pattern | Instruction::CALL =
-                [&] { from_call_ita_instruction(std::get<1>(instruction)); },
             m::pattern |
                 Instruction::POP = [&] { from_pop_instruction(instruction); },
             m::pattern | Instruction::MOV =
@@ -149,7 +147,7 @@ void Table::build_from_ir_instructions()
 void Table::from_locl_ita_instruction(Quadruple const& instruction)
 {
     auto label = std::get<1>(instruction);
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     if (label.starts_with("*"))
         frame.locals.set_symbol_by_name(label.substr(1), "NULL");
     else
@@ -164,12 +162,13 @@ void Table::from_locl_ita_instruction(Quadruple const& instruction)
 void Table::from_return_instruction(Quadruple const& instruction)
 {
     auto return_rvalue = util::str_trim_ws(std::get<1>(instruction));
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     // a returned literal, such as a string, is a literal of the data section
     if (is_single_rvalue_data_type(return_rvalue))
-        objects_->insert_address_storage_rvalue(
+        objects_->data.insert(
             type::get_rvalue_datatype_from_string(return_rvalue));
-    object::set_stack_frame_return_value(return_rvalue, frame, *objects_);
+    object::set_stack_frame_return_value(
+        return_rvalue, frame, objects_->vectors, stack);
 }
 
 /**
@@ -177,14 +176,8 @@ void Table::from_return_instruction(Quadruple const& instruction)
  */
 void Table::from_globl_ita_instruction(Label const& label)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     frame.locals.set_symbol_by_name(label, type::NULL_RVALUE_LITERAL);
-}
-
-void Table::from_call_ita_instruction(Label const& label)
-{
-    objects_->set_ir_parameters(label, temporary_parameter_stack);
-    temporary_parameter_stack.clear();
 }
 
 /**
@@ -194,8 +187,8 @@ void Table::from_call_ita_instruction(Label const& label)
 void Table::from_label_ita_instruction(Quadruple const& instruction)
 {
     Label label = std::get<1>(instruction);
-    if (objects_->is_stack_frame()) {
-        auto& frame = objects_->get_stack_frame();
+    if (is_stack_frame()) {
+        auto& frame = get_stack_frame();
         frame.labels.emplace(label);
         frame.label_address.set_symbol_by_name(label, instruction_index);
     }
@@ -217,19 +210,21 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
     LValue lhs = std::get<1>(instruction);
     auto rvalue = get_rvalue_from_mov_qaudruple(instruction);
     RValue rhs = rvalue.first;
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
 
     if (lhs.starts_with("_t") or lhs.starts_with("_p")) {
         from_temporary_assignment(lhs, rhs);
         return;
     }
-    if (objects_->is_stack_frame() and
-        (rhs.starts_with("_t") or rhs.starts_with("_p"))) {
+    if (is_stack_frame() and (rhs.starts_with("_t") or rhs.starts_with("_p"))) {
         from_temporary_reassignment(lhs, rhs);
         return;
     }
-    if (objects_->is_vector_or_pointer(lhs) or
-        objects_->is_vector_or_pointer(rhs) or rvalue.second == "&") {
+    if (object::is_vector_or_pointer(
+            lhs, get_stack_frame(), objects_->vectors) or
+        object::is_vector_or_pointer(
+            rhs, get_stack_frame(), objects_->vectors) or
+        rvalue.second == "&") {
         from_pointer_or_vector_assignment(lhs, rhs);
         return;
     }
@@ -258,7 +253,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
     frame.locals.set_symbol_by_name(lhs, rvalue_symbol);
     frame.allocation += std::get<2>(rvalue_symbol);
 
-    objects_->insert_address_storage_rvalue(rvalue_symbol);
+    objects_->data.insert(rvalue_symbol);
 }
 
 /**
@@ -277,7 +272,7 @@ void Table::from_mov_ita_instruction(Quadruple const& instruction)
 void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
     RValue const& rvalue)
 {
-    auto& locals = objects_->get_stack_frame_symbols();
+    auto& locals = get_stack_frame().locals;
     auto& vectors = objects_->vectors;
 
     // the right-hand-side is a vector offset, `m = v[2];` or `k = &v[2];`
@@ -291,7 +286,7 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
         auto offset = type::from_decay_offset(lvalue);
         if (type::is_rvalue_data_type(rvalue)) {
             auto value = type::get_rvalue_datatype_from_string(rvalue);
-            objects_->insert_address_storage_rvalue(value);
+            objects_->data.insert(value);
             if (vectors.contains(lhs_lvalue))
                 vectors.at(lhs_lvalue).get().data[offset] = value;
         }
@@ -312,12 +307,13 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
 void Table::bind_pointer_or_vector_lvalue(LValue const& lvalue,
     RValue const& rvalue)
 {
-    auto& locals = objects_->get_stack_frame_symbols();
+    auto& locals = get_stack_frame().locals;
     if (is_trivial_vector_assignment(lvalue, rvalue)) {
         bind_trivial_vector(lvalue, rvalue);
         return;
     }
-    if ((objects_->is_pointer(lvalue) or objects_->is_pointer(rvalue)) and
+    if ((object::is_pointer(lvalue, get_stack_frame()) or
+            object::is_pointer(rvalue, get_stack_frame())) and
         not type::is_dereference_expression(rvalue)) {
         bind_pointer(lvalue, rvalue);
         return;
@@ -327,7 +323,8 @@ void Table::bind_pointer_or_vector_lvalue(LValue const& lvalue,
         bind_dereference(lvalue, rvalue);
         return;
     }
-    if (objects_->is_vector(lvalue) or objects_->is_vector(rvalue)) {
+    if (object::is_vector(lvalue, objects_->vectors) or
+        object::is_vector(rvalue, objects_->vectors)) {
         bind_vector(lvalue, rvalue);
         return;
     }
@@ -341,7 +338,7 @@ void Table::bind_pointer_or_vector_lvalue(LValue const& lvalue,
  */
 void Table::bind_pointer(LValue const& lvalue, RValue const& rvalue)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     auto& locals = frame.locals;
     if (!locals.is_pointer(lvalue))
         return;
@@ -360,12 +357,13 @@ void Table::bind_pointer(LValue const& lvalue, RValue const& rvalue)
     }
     // pointer to string literal
     if (type::is_rvalue_data_type_string(rvalue)) {
-        objects_->strings.insert(type::get_value_from_rvalue_data_type(rvalue));
+        objects_->data.strings.insert(
+            type::get_value_from_rvalue_data_type(rvalue));
         locals.set_symbol_by_name(lvalue, rvalue);
         return;
     }
     // pointer to string storage in a vector
-    if (objects_->is_vector(rvalue) and
+    if (object::is_vector(rvalue, objects_->vectors) and
         type::get_type_from_rvalue_data_type(
             object::get_rvalue_at_lvalue_object_storage(
                 rvalue, frame, objects_->vectors)) == "string")
@@ -381,9 +379,9 @@ void Table::bind_trivial_vector(LValue const& lvalue, RValue const& rvalue)
         return objects_->vector_contains(label);
     };
     auto local_contains = [&](LValue const& label) {
-        return objects_->local_contains(label);
+        return object::local_contains(label, get_stack_frame());
     };
-    auto& locals = objects_->get_stack_frame_symbols();
+    auto& locals = get_stack_frame().locals;
     auto& vectors = objects_->vectors;
     m::match(lvalue, rvalue)(
         m::pattern | m::ds(m::app(vector_contains, true),
@@ -411,7 +409,7 @@ void Table::bind_trivial_vector(LValue const& lvalue, RValue const& rvalue)
  */
 void Table::bind_vector(LValue const& lvalue, RValue const& rvalue)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     auto& locals = frame.locals;
     RValue lvalue_offset{ "0" };
     RValue rvalue_offset{ "0" };
@@ -419,7 +417,7 @@ void Table::bind_vector(LValue const& lvalue, RValue const& rvalue)
         return objects_->vector_contains(label);
     };
     auto local_contains = [&](LValue const& label) {
-        return objects_->local_contains(label);
+        return object::local_contains(label, get_stack_frame());
     };
 
     auto lvalue_direct = m::match(lvalue)(
@@ -484,7 +482,7 @@ void Table::bind_vector(LValue const& lvalue, RValue const& rvalue)
  */
 void Table::bind_dereference(LValue const& lvalue, RValue const& rvalue)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     auto lhs_lvalue = type::get_unary_rvalue_reference(lvalue);
     // the object a pointer parameter points to has no storage in the table
     if (!type::is_dereference_expression(lvalue) and
@@ -512,10 +510,10 @@ bool Table::is_trivial_vector_assignment(LValue const& lhs, LValue const& rhs)
 void Table::from_func_start_ita_instruction(Label const& label)
 {
     Label human_label = type::get_label_as_human_readable(label);
-    objects_->address_table.set_symbol_by_name(label, instruction_index - 1);
+    address_table.set_symbol_by_name(label, instruction_index - 1);
     auto& frame = objects_->get_stack_frame(human_label);
     frame.address_location[0] = instruction_index + 1;
-    objects_->set_stack_frame(human_label);
+    frame_symbol_ = human_label;
 }
 
 /**
@@ -523,10 +521,10 @@ void Table::from_func_start_ita_instruction(Label const& label)
  */
 void Table::from_func_end_ita_instruction()
 {
-    if (objects_->is_stack_frame())
-        objects_->get_stack_frame().address_location[1] = instruction_index - 1;
+    if (is_stack_frame())
+        get_stack_frame().address_location[1] = instruction_index - 1;
 
-    objects_->reset_stack_frame();
+    frame_symbol_.clear();
 }
 
 /**
@@ -535,10 +533,9 @@ void Table::from_func_end_ita_instruction()
 void Table::from_push_instruction(Quadruple const& instruction)
 {
     RValue operand = std::get<1>(instruction);
-    auto& frame = objects_->get_stack_frame();
-    if (objects_->is_stack_frame()) {
-        temporary_parameter_stack.emplace_back(operand);
-        objects_->stack.emplace_back(frame.temporary.at(operand));
+    auto& frame = get_stack_frame();
+    if (is_stack_frame()) {
+        stack.emplace_back(frame.temporary.at(operand));
     }
 }
 
@@ -549,7 +546,7 @@ void Table::from_pop_instruction(Quadruple const& instruction)
 {
     auto operand = std::stoul(std::get<1>(instruction));
     auto pop_size = operand / sizeof(void*);
-    credence_assert(pop_size <= objects_->stack.size());
+    credence_assert(pop_size <= stack.size());
 }
 
 /**
@@ -559,7 +556,7 @@ type::Data_Type Table::from_rvalue_unary_expression(LValue const& lvalue,
     RValue const& rvalue,
     std::string_view unary_operator)
 {
-    auto& locals = objects_->get_stack_frame_symbols();
+    auto& locals = get_stack_frame().locals;
 
     return m::match(unary_operator)(
         m::pattern | "*" =
@@ -595,13 +592,14 @@ type::Data_Type Table::from_rvalue_unary_expression(LValue const& lvalue,
  */
 void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
 {
-    auto& frame = objects_->get_stack_frame();
-    auto& locals = objects_->get_stack_frame_symbols();
-    auto rvalue = objects_->lvalue_at_temporary_object_address(rhs, frame);
+    auto& frame = get_stack_frame();
+    auto& locals = get_stack_frame().locals;
+    auto rvalue = object::lvalue_at_temporary_object_address(rhs, frame);
     if (locals.is_pointer(lhs) and rvalue == "RET") {
         locals.set_symbol_by_name(lhs, "RET");
     }
-    if (objects_->is_vector_or_pointer(rvalue)) {
+    if (object::is_vector_or_pointer(
+            rvalue, get_stack_frame(), objects_->vectors)) {
         from_pointer_or_vector_assignment(lhs, rvalue);
         return;
     }
@@ -632,20 +630,19 @@ void Table::from_temporary_reassignment(LValue const& lhs, LValue const& rhs)
  */
 void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     frame.temporary[lhs] = rhs;
     if (lhs.starts_with("_p"))
         frame.locals.set_symbol_by_name(lhs, rhs);
     // each literal operand of a binary expression is a literal of the data
     // section
     if (is_single_rvalue_data_type(rhs)) {
-        objects_->insert_address_storage_rvalue(
-            type::get_rvalue_datatype_from_string(rhs));
+        objects_->data.insert(type::get_rvalue_datatype_from_string(rhs));
     } else if (type::is_binary_expression(rhs)) {
         auto [left, right, _] = type::from_rvalue_binary_expression(rhs);
         for (auto const& operand : { left, right })
             if (is_single_rvalue_data_type(operand))
-                objects_->insert_address_storage_rvalue(
+                objects_->data.insert(
                     type::get_rvalue_datatype_from_string(operand));
     }
 }
@@ -657,7 +654,7 @@ void Table::from_temporary_assignment(LValue const& lhs, LValue const& rhs)
  */
 void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     auto& locals = frame.locals;
     if (frame.is_parameter(rhs) and not locals.is_defined(rhs)) {
         locals.set_symbol_by_name(lhs, { rhs, "word", sizeof(void*) });
@@ -673,7 +670,7 @@ void Table::from_scaler_symbol_assignment(LValue const& lhs, LValue const& rhs)
  */
 type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
 {
-    auto& frame = objects_->get_stack_frame();
+    auto& frame = get_stack_frame();
     auto& locals = frame.locals;
     auto rvalue = type::get_unary_rvalue_reference(lvalue);
 
@@ -695,6 +692,15 @@ type::Data_Type Table::from_integral_unary_expression(RValue const& lvalue)
                    : type::get_rvalue_datatype_from_string(rhs);
     }
     return symbol;
+}
+
+/**
+ * @brief The stack frame of the function under translation
+ */
+object::Function& Table::get_stack_frame()
+{
+    credence_assert(objects_->functions.contains(frame_symbol_));
+    return objects_->functions.at(frame_symbol_);
 }
 
 /**

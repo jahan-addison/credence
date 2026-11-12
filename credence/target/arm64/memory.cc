@@ -275,8 +275,7 @@ Device_Accessor::Device Device_Accessor::get_operand_rvalue_device(
 #endif
         auto& frame = stack_frame_.get_stack_frame();
         auto size = assembly::get_operand_size_from_size(
-            address_accessor_.table_->lvalue_size_at_temporary_object_address(
-                rvalue, frame));
+            object::lvalue_size_at_temporary_object_address(rvalue, frame));
         if (size == Operand_Size::Doubleword)
             return Register::x8;
         else
@@ -307,7 +306,7 @@ Address_Accessor::get_lvalue_address_and_from_unary_and_vectors(
     LValue const& lvalue,
     std::size_t instruction_index)
 {
-    auto vector_accessor = Vector_Accessor{ table_ };
+    auto vector_accessor = Vector_Accessor{ table_, stack_frame_ };
     auto lhs = type::from_lvalue_offset(lvalue);
     auto offset = type::from_decay_offset(lvalue);
     auto& inst = instructions.second;
@@ -644,7 +643,7 @@ Size Device_Accessor::get_size_from_rvalue_data_type(LValue const& lvalue,
         m::pattern |
             m::app(arm64_is_temporary_datatype_binary_expression, true) =
             [&] {
-                return table_->get_size_of_temporary_binary_rvalue(
+                return object::get_size_of_temporary_binary_rvalue(
                     type::get_value_from_rvalue_data_type(rvalue), frame);
             },
         m::pattern | m::app(arm64_is_binary_datatype_expression, true) =

@@ -300,8 +300,9 @@ struct Address_Accessor : public ARM64_Address_Accessor
     explicit Address_Accessor(Table_Pointer& table,
         ARM64_Address_Accessor::Stack_Pointer_Type& stack,
         Flag_Accessor& flag_accessor,
-        Register_Accessor& register_accessor)
-        : ARM64_Address_Accessor(table, stack, flag_accessor)
+        Register_Accessor& register_accessor,
+        Stack_Frame& stack_frame)
+        : ARM64_Address_Accessor(table, stack, flag_accessor, stack_frame)
         , register_accessor_(register_accessor)
     {
     }
@@ -418,8 +419,8 @@ class Device_Accessor
 struct Vector_Accessor : public ARM64_Vector_Accessor
 {
   public:
-    explicit Vector_Accessor(Table_Pointer& table)
-        : ARM64_Vector_Accessor(table)
+    explicit Vector_Accessor(Table_Pointer& table, Stack_Frame& stack_frame)
+        : ARM64_Vector_Accessor(table, stack_frame)
     {
     }
     Entry_Size get_size_from_vector_offset(Immediate const& immediate) override
@@ -451,9 +452,13 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
         , stack(std::move(stack_pointer))
         , table_accessor(table_, instructions_)
         , accumulator_accessor{ &signal_register }
-        , vector_accessor{ table_ }
+        , vector_accessor{ table_, get_frame_in_memory() }
         , register_accessor{ &signal_register }
-        , address_accessor{ table_, stack, flag_accessor, register_accessor }
+        , address_accessor{ table_,
+            stack,
+            flag_accessor,
+            register_accessor,
+            get_frame_in_memory() }
     {
         instruction_accessor = std::make_shared<detail::Instruction_Accessor>();
     }
@@ -487,12 +492,13 @@ class Memory_Accessor final : public ARM64_Memory_Accessor
     detail::Flag_Accessor flag_accessor{};
     detail::Table_Accessor table_accessor{ table_, instructions_ };
     detail::Accumulator_Accessor accumulator_accessor{ &signal_register };
-    detail::Vector_Accessor vector_accessor{ table_ };
+    detail::Vector_Accessor vector_accessor{ table_, get_frame_in_memory() };
     detail::Register_Accessor register_accessor{ &signal_register };
     detail::Address_Accessor address_accessor{ table_,
         stack,
         flag_accessor,
-        register_accessor };
+        register_accessor,
+        get_frame_in_memory() };
     detail::Device_Accessor device_accessor{ address_accessor,
         table_accessor,
         get_frame_in_memory(),

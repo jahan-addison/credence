@@ -88,11 +88,14 @@ class Table
   public:
     void build_from_ir_instructions();
 
+  public:
+    constexpr bool is_stack_frame() const { return not frame_symbol_.empty(); }
+    object::Function& get_stack_frame();
+
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void from_func_start_ita_instruction(Label const& label);
     void from_func_end_ita_instruction();
-    void from_call_ita_instruction(Label const& label);
     void from_globl_ita_instruction(Label const& label);
     void from_locl_ita_instruction(Quadruple const& instruction);
     void from_push_instruction(Quadruple const& instruction);
@@ -122,10 +125,14 @@ class Table
     bool is_trivial_vector_assignment(LValue const& lhs, LValue const& rhs);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    type::Parameters temporary_parameter_stack{};
     type::semantic::Address instruction_index{ 0 };
     Instructions_PTR instructions_{};
     Object_Table_PTR objects_;
+    // the function under translation, empty between functions
+    Label frame_symbol_{};
+    // the arguments of the next call, pushed by PUSH
+    object::Stack stack{};
+    object::Function::Address_Table address_table{};
 };
 // clang-format on
 
