@@ -19,7 +19,7 @@ I have a professional history of building languages and compilers in my workplac
 
 ## Example
 
-[`examples/5.b`](examples/5.b) uses the syscalls available on every platform - `write`, `getpid`, `getppid`, `getuid`, `umask`, `dup`, and `close` - and prints their results with the standard library `printf`.
+[`examples/syscalls.b`](examples/syscalls.b) uses the syscalls available on every platform - `write`, `getpid`, `getppid`, `getuid`, `umask`, `dup`, and `close` - and prints their results with the standard library `printf`.
 
 ```C
 main(argc, argv) {
@@ -77,7 +77,7 @@ report "written to a duplicate of stdout\n";
 ```
 
 ```bash
-credence -t arm64 -o syscalls examples/5.b
+credence -t arm64 -o syscalls examples/syscalls.b
 ./syscalls world
 ```
 
@@ -172,7 +172,7 @@ main() {
 ```
 
 * `union value { ... };` defines a union, and the comma between tags is optional
-* `union value v, w;` declares union variables in a function, or as a global definition that a function declares with `extrn`, as any global
+* `union value v, w;` declares union variables in a function, or at the top level, where a function declares them with `extrn`, as any global
 * An assignment to a tag, `v.real = 2.5f;`, makes it the active tag of `v`
 * `v is value.real` is true when `real` is the active tag of `v`
 * A tag may only be assigned a value of its type
@@ -190,7 +190,7 @@ Credence provides a few useful [standard library](credence/target/common/runtime
 * `putchar` - writes a single byte character to stdout
 * `getchar` - reads a single byte character from stdin
 
-In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h). The syscalls in `examples/5.b` are available on every platform.
+In addition, an interface for kernel syscall tables such as `write(3)` is available for each platform, see details [here](credence/target/common/syscall.h). The syscalls in [`examples/syscalls.b`](examples/syscalls.b) are available on every platform.
 
 ## The Compiler
 

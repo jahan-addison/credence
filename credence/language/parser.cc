@@ -26,8 +26,9 @@
  * Brocoli language Parser
  *
  * Hand-written recursive-descent parser that transforms a token stream (see
- * lexer.h) into the same AST and parse tree structure produced by the
- * Python frontend's Lark transformer:
+ * lexer.h) into an AST. It began as the AST and parse tree structure of the
+ * Python frontend's Lark transformer, and has grown with Brocoli - the
+ * program node and its declarations, unions, and `is` expressions:
  *
  * https://github.com/jahan-addison/augur/blob/master/augur/transformer.py
  *
@@ -296,7 +297,7 @@ Parser::Node Parser::parse_vector_definition(Token const& name)
 }
 
 /**
- * @brief Parse a top-level union definition declaration
+ * @brief Parse a top-level union declaration
  */
 Parser::Node Parser::parse_union_declaration()
 {
@@ -531,9 +532,10 @@ Parser::Node Parser::parse_label_statement()
     expect(Token_Type::COLON, "':'");
     // The original grammar lexed a label as a single `NAME [\s]* ":"`
     // token and built its name by slicing off just the trailing ':', so
-    // whitespace between the name and ':' (see examples/2.b's "loop :")
-    // ends up preserved in the label's name. Match that by carrying over
-    // whatever the source actually had there.
+    // whitespace between the name and ':' (see
+    // test/fixtures/language/label_with_space.b) ends up preserved in the
+    // label's name. Match that by carrying over whatever the source actually
+    // had there.
     if (colon_start > name_end)
         name += lexer_.source().substr(name_end, colon_start - name_end);
     auto left = util::AST::array();
@@ -1004,8 +1006,8 @@ Parser::Node Parser::parse_constant()
                 // char rule matching a quoted single whitespace character
                 // (' ') that, unlike the general case, keeps its
                 // surrounding quotes in the AST. Reproduce that quirk
-                // rather than "fixing" it, since examples/1.b's ' ' case
-                // relies on it.
+                // rather than "fixing" it, see
+                // test/fixtures/language/char_literal_space.b
                 if (inner.size() == 1 &&
                     std::isspace(static_cast<unsigned char>(inner[0])))
                     return make_node(

@@ -4,7 +4,7 @@
 //
 // Example:
 //
-//   ./bin/credence -t arm64 -o syscalls examples/5.b
+//   ./bin/credence -t arm64 -o syscalls examples/syscalls.b
 //   ./syscalls world
 //
 // The first argument after the program name is printed by greet, and the
