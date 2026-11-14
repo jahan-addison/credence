@@ -400,7 +400,7 @@ void Table::set_unset_global_values()
 }
 
 /**
- * @brief Global union variables of a union definition
+ * @brief Global union variables of a union declaration
  *
  * A global union variable is declared in a function with `extrn`, as any
  * global

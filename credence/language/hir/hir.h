@@ -35,7 +35,9 @@
  * Data_Kind::Kind is the algebraic sum of every kind of expression the
  * rest of the compiler operates on - Literal, Array, Symbol, Unary,
  * Relation, Function, and LValue. The leaves are the
- * ( Value : Type : Size ) tuple from literal.h.
+ * ( Value : Type : Size ) tuple from literal.h. An `is` pattern that binds
+ * the values of a tag, `m is data_t.list(a, b)`, is a Function of the tag
+ * and the lvalue of each local.
  *
  *  Example:
  *

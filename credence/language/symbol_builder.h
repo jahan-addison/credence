@@ -20,9 +20,11 @@
  *
  * Brocoli language Symbol Table
  *
- * Rebuilds the flat "name -> {type, size?, void?}" symbol map that augur's
+ * Builds the flat "name -> {type, size?, void?}" symbol map that augur's
  * transformer.py used to build as a side effect of its own AST transform, by
- * walking the finished AST_Node tree parser.cc produces instead.
+ * walking the finished AST_Node tree parser.cc produces instead. Each union
+ * definition, global variable, and global union variable has an entry, and
+ * a global union variable the label of its union.
  *
  * Not to be confused with the Symbol_Table template in symbol.h -
  * Symbol_Builder builds the program-wide "internal symbols" table handed to

@@ -1,6 +1,6 @@
 # Language Frontend
 
-Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11. This folder is a native C++ replacement for that: a re2c-generated lexer and a hand-written recursive-descent parser that produces the exact same JSON AST as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py). So that the rest of the frontend did not need to change.
+Initially, the source-to-AST step was an entirely separate, older Python project, [augur](https://github.com/jahan-addison/augur). It was built on [Lark](https://github.com/lark-parser/lark) and embedded into credence at runtime via pybind11. This folder is a native C++ replacement for that: a re2c-generated lexer and a hand-written recursive-descent parser. The parser started by producing the exact same JSON AST as augur's [`transformer.py`](https://github.com/jahan-addison/augur/blob/master/augur/transformer.py), so that the rest of the frontend did not need to change, and its AST has since grown with Brocoli - the program node and its declarations, unions, and `is` expressions.
 
 The lexer, symbol builder, literal, HIR, AST lowering, and precedence pieces are comparatively straightforward once you understand the parser's constraints. Here are the passes:
 
@@ -46,8 +46,9 @@ To rebuild, assuming `re2c` is installed:
 
 ```bash
 cmake --build build --target regenerate_lexer
-clang-format -i --style=file credence/language/lexer.cc
 ```
+
+The target runs re2c, then formats `lexer.cc` with clang-format when it is installed.
 
 An identifier is at most 16 characters. A longer identifier is its own token, and the parser reports it as a syntax error at its position rather than splitting it into two names.
 
@@ -181,7 +182,9 @@ if (v is value.pair(a, b) && a > 0) {
 
 ## Symbol Builder
 
-[`symbol_builder.h`](/credence/language/symbol_builder.h)'s `Symbol_Builder` rebuilds the flat `name -> {type, size?, void?}` symbol table that augur's transformer used to build as a side effect of its own transform. It walks the finished `AST_Node` tree post-order, so children are visited before their parent - the same bottom-up timing as the original Lark transform, quirks included (a function only ever gets `"void": false`, never `true`).
+[`symbol_builder.h`](/credence/language/symbol_builder.h)'s `Symbol_Builder` builds the flat `name -> {type, size?, void?}` symbol table that augur's transformer used to build as a side effect of its own transform. It walks the finished `AST_Node` tree post-order, so children are visited before their parent - the same bottom-up timing as the original Lark transform, quirks included (a function only ever gets `"void": false`, never `true`).
+
+The table also has an entry for each union definition, `union_definition`, each global variable, `variable_declaration`, and each global union variable, `union_declaration`, with the label of its union in `union`.
 
 This is not the `Symbol_Table` template in [`symbol.h`](/credence/symbol.h). That one maps lvalues to their `Literal` per scope, local and global, while `Symbol_Builder` builds the program-wide table handed to `AST_Lowering` and the IR.
 
@@ -210,6 +213,8 @@ Symbol(LValue("x"),
                 Literal(5:int:4),
                 Relation(B_MUL, ...)))
 ```
+
+An `is` expression is a `Relation` of `R_IS`. Its right-hand-side is the `LValue` of the tag, `data_t.ab`, or a `Function` of the tag and the lvalue of each local it binds, `data_t.list(a, b)`.
 
 ## AST Lowering
 
@@ -296,4 +301,4 @@ add(a, b) {
 }
 ```
 
-The definitions of a program are the `left` of its node, and its declarations, global variables and global union variables, are the `right`.
+The definitions of a program are the `left` of its node, and its declarations - global variables and global union variables - are the `right`.

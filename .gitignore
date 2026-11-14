@@ -13,3 +13,6 @@ CMakeCache.txt
 .ast_cache
 .roxas_cache
 .credence_cache
+
+# notes on the work left, kept between sessions
+todo.md

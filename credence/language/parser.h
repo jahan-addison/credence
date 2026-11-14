@@ -25,8 +25,9 @@
  * Brocoli language Parser
  *
  * Hand-written recursive-descent parser that transforms a token stream (see
- * lexer.h) into the same AST and parse tree structure produced by the
- * Python frontend's Lark transformer:
+ * lexer.h) into an AST. It began as the AST and parse tree structure of the
+ * Python frontend's Lark transformer, and has grown with Brocoli - the
+ * program node and its declarations, unions, and `is` expressions:
  *
  * https://github.com/jahan-addison/augur/blob/master/augur/transformer.py
  *

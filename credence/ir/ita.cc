@@ -247,7 +247,7 @@ void ITA::build_from_vector_definition(Node const& node)
 }
 
 /**
- * @brief Construct the globals of a vector of a size and its values
+ * @brief Construct a global vector of a size and its values
  */
 void ITA::build_from_global_vector(std::string const& name,
     std::size_t size,
