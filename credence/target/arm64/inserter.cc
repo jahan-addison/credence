@@ -1096,6 +1096,26 @@ void Expression_Inserter::insert_from_global_vector_assignment(
 {
     auto instruction_accessor = accessor_->instruction_accessor;
     auto& instructions = instruction_accessor->get_instructions();
+    auto& table = accessor_->table_accessor.get_table();
+    auto lhs_reference = type::from_lvalue_offset(lhs);
+    if (table->vectors.contains(lhs_reference) and
+        table->globals.is_pointer(lhs_reference)) {
+        insert_to_global_vector(lhs, rhs);
+        return;
+    }
+    // a local with no size at its LOCL, `u = unit;`, is allocated at its
+    // first assignment with the size of the global element
+    auto& frame = accessor_->get_frame_in_memory().get_stack_frame();
+    if (!type::is_unary_expression(lhs) and frame.locals.is_defined(lhs) and
+        not accessor_->device_accessor.is_lvalue_allocated_in_memory(lhs)) {
+        auto element = object::get_rvalue_at_lvalue_object_storage(rhs,
+            frame,
+            accessor_->table_accessor.get_table()->vectors,
+            __source__);
+        auto size = assembly::get_operand_size_from_rvalue_datatype(element);
+        accessor_->device_accessor.insert_lvalue_to_device(
+            lhs, size == Operand_Size::Empty ? Operand_Size::Doubleword : size);
+    }
     auto [lhs_storage, lhs_storage_inst] =
         accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
             lhs, instructions.size(), accessor_->device_accessor);
@@ -1107,6 +1127,70 @@ void Expression_Inserter::insert_from_global_vector_assignment(
     accessor_->flag_accessor.set_instruction_flag(
         common::flag::Indirect_Source, instructions.size());
     arm64_add__asm(instructions, ldr, lhs_storage, rhs_storage);
+}
+
+/**
+ * @brief Store a value to a global, from a register of the size of its
+ * element
+ *
+ *  Example:
+ *
+ *    unit = 1;
+ *
+ *  Becomes:
+ *
+ *    mov w8, #1
+ *    adrp x6, unit@PAGE
+ *    add x6, x6, unit@PAGEOFF
+ *    str w8, [x6]
+ */
+void Expression_Inserter::insert_to_global_vector(LValue const& lhs,
+    RValue const& rhs)
+{
+    auto& instructions = accessor_->instruction_accessor->get_instructions();
+    auto operand_inserter = Operand_Inserter{ accessor_ };
+    Register value{ Register::x8 };
+    // a string, float, or double global is the address of its literal in
+    // the data section
+    auto type = type::is_rvalue_data_type(rhs)
+                    ? type::get_type_from_rvalue_data_type(rhs)
+                    : type::semantic::Type{};
+    if (type == "string" or type == "float" or type == "double") {
+        auto& buffer = accessor_->address_accessor.buffer_accessor;
+        auto key = type::get_value_from_rvalue_data_type(rhs);
+        auto literal = type == "string" ? buffer.get_string_address_offset(key)
+                       : type == "float"
+                           ? buffer.get_float_address_offset(key)
+                           : buffer.get_double_address_offset(key);
+        arm64_add__asm(instructions,
+            adrp,
+            value,
+            assembly::page_offset_upper_immediate(literal));
+        arm64_add__asm(instructions,
+            add,
+            value,
+            value,
+            assembly::page_offset_lower_immediate(literal));
+    } else
+        value = operand_inserter.insert_operand_into_accumulator(rhs);
+    auto [lhs_storage, lhs_storage_inst] =
+        accessor_->address_accessor.get_arm64_lvalue_and_insertion_instructions(
+            lhs, instructions.size(), accessor_->device_accessor);
+    assembly::inserter(instructions, lhs_storage_inst);
+    auto element = object::get_rvalue_at_lvalue_object_storage(lhs,
+        accessor_->get_frame_in_memory().get_stack_frame(),
+        accessor_->table_accessor.get_table()->vectors,
+        __source__);
+    auto size = assembly::get_operand_size_from_rvalue_datatype(element);
+    if (size == Operand_Size::Doubleword and
+        not assembly::is_doubleword_register(value)) {
+        auto wide = assembly::get_doubleword_register_from_word(value);
+        arm64_add__asm(instructions, sxtw, wide, value);
+        value = wide;
+    } else if (size != Operand_Size::Doubleword and
+               assembly::is_doubleword_register(value))
+        value = assembly::get_word_register_from_doubleword(value);
+    arm64_add__asm(instructions, str, value, lhs_storage);
 }
 
 /**
@@ -1350,6 +1434,14 @@ void Operand_Inserter::insert_from_mnemonic_operand(LValue const& lhs,
     // a copy of a parameter, `b = a`, is from its argument register, or the
     // stack for `argc`
     if (stack_frame_.get_stack_frame().is_parameter(rhs)) {
+        insert_from_accumulator_to_lvalue(
+            lhs, insert_operand_into_accumulator(rhs));
+        return;
+    }
+    // an assignment to a parameter, `s = 1`, is to its argument register or
+    // its slot
+    if (stack_frame_.get_stack_frame().is_parameter(lhs) and
+        not type::is_dereference_expression(lhs)) {
         insert_from_accumulator_to_lvalue(
             lhs, insert_operand_into_accumulator(rhs));
         return;

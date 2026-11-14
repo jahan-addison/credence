@@ -335,7 +335,9 @@ constexpr bool is_unary_data_type_expression(Data_Type const& datatype)
  */
 constexpr bool is_dereference_expression(RValue_Reference rvalue)
 {
-    if (util::substring_count_of(rvalue, " ") >= 2)
+    // a literal is not a dereference, such as the string "bad syntax*n"
+    if (util::substring_count_of(rvalue, " ") >= 2 or
+        is_rvalue_data_type(semantic::RValue{ rvalue }))
         return false;
     return get_unary_operator(rvalue) == "*";
 }

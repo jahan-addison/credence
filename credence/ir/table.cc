@@ -292,6 +292,9 @@ void Table::from_pointer_or_vector_assignment(LValue const& lvalue,
         }
         return;
     }
+    // a literal assigned to a global, `ratio = 2.5;`, is in the data section
+    if (vectors.contains(lvalue) and type::is_rvalue_data_type(rvalue))
+        objects_->data.insert(type::get_rvalue_datatype_from_string(rvalue));
     // the right-hand-side is an address-of rvalue, `k = &m;`
     if (rvalue.starts_with("&")) {
         locals.set_symbol_by_name(

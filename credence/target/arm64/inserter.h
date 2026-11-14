@@ -297,6 +297,7 @@ struct Expression_Inserter : public ARM64_Expression_Inserter
     void insert_from_double(RValue const& str) override;
     void insert_from_global_vector_assignment(LValue const& lhs,
         LValue const& rhs) override;
+    void insert_to_global_vector(LValue const& lhs, RValue const& rhs);
     void insert_lvalue_at_temporary_object_address(
         LValue const& lvalue) override;
     void insert_lvalue_from_return_rvalue(LValue const& lvalue);
