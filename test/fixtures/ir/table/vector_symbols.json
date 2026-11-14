@@ -1,0 +1,118 @@
+{
+  "errno": {
+    "column": 7,
+    "end_column": 12,
+    "end_pos": 73,
+    "line": 7,
+    "start_pos": 68,
+    "type": "lvalue"
+  },
+  "main": {
+    "column": 1,
+    "end_column": 5,
+    "end_pos": 4,
+    "line": 1,
+    "start_pos": 0,
+    "type": "function_definition"
+  },
+  "mess": {
+    "column": 1,
+    "end_column": 5,
+    "end_pos": 343,
+    "line": 29,
+    "size": 6,
+    "start_pos": 339,
+    "type": "vector_definition"
+  },
+  "print": {
+    "column": 10,
+    "end_column": 7,
+    "end_pos": 289,
+    "line": 20,
+    "start_pos": 283,
+    "type": "function_definition",
+    "void": false
+  },
+  "printf": {
+    "column": 1,
+    "end_column": 7,
+    "end_pos": 289,
+    "line": 20,
+    "start_pos": 283,
+    "type": "function_definition",
+    "void": false
+  },
+  "putchar": {
+    "column": 1,
+    "end_column": 8,
+    "end_pos": 318,
+    "line": 24,
+    "start_pos": 311,
+    "type": "vector_definition"
+  },
+  "s": {
+    "column": 8,
+    "end_column": 9,
+    "end_pos": 291,
+    "line": 20,
+    "start_pos": 290,
+    "type": "lvalue"
+  },
+  "snide": {
+    "column": 1,
+    "end_column": 6,
+    "end_pos": 67,
+    "line": 7,
+    "start_pos": 62,
+    "type": "function_definition"
+  },
+  "t": {
+    "column": 8,
+    "end_column": 9,
+    "end_pos": 85,
+    "line": 8,
+    "start_pos": 84,
+    "type": "lvalue"
+  },
+  "u": {
+    "column": 9,
+    "end_column": 10,
+    "end_pos": 117,
+    "line": 10,
+    "start_pos": 116,
+    "type": "lvalue"
+  },
+  "unit": {
+    "column": 1,
+    "end_column": 5,
+    "end_pos": 332,
+    "line": 26,
+    "start_pos": 328,
+    "type": "vector_definition"
+  },
+  "x": {
+    "column": 8,
+    "end_column": 9,
+    "end_pos": 18,
+    "line": 2,
+    "size": 50,
+    "start_pos": 17,
+    "type": "vector_lvalue"
+  },
+  "y": {
+    "column": 15,
+    "end_column": 16,
+    "end_pos": 25,
+    "line": 2,
+    "start_pos": 24,
+    "type": "indirect_lvalue"
+  },
+  "z": {
+    "column": 17,
+    "end_column": 18,
+    "end_pos": 27,
+    "line": 2,
+    "start_pos": 26,
+    "type": "lvalue"
+  }
+}

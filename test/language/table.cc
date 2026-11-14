@@ -145,6 +145,91 @@ TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_from_vector_definition")
     REQUIRE(table.vectors_.at("v").data.at("1").type == "double");
 }
 
+TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_global_vector")
+{
+    CHECK(has_semantic_error("main() { } v [2] 1, 2; v [1] 3;",
+        "identifier is already defined in global scope"));
+    // a vector with empty brackets is the size of its values
+    Node ast{};
+    auto table = make_table("main() { } v [] 1, 2, 3;", ast);
+    REQUIRE(table.vectors_.at("v").size == 3);
+    CHECK(has_semantic_error(
+        "main() { } v [];", "a vector has a size or values"));
+}
+
+TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_from_variable_declaration")
+{
+    Node ast{};
+    auto table = make_table("main() { extrn unit; } unit 10;", ast);
+    REQUIRE(table.vectors_.at("unit").size == 1);
+    REQUIRE(table.vectors_.at("unit").data.at("0").type == "int");
+    REQUIRE(table.objects_->vectors.at("unit").get().size == 1);
+    // a global variable with no initial value is unset
+    auto unset = make_table("main() { extrn unit; unit = 5; } unit;", ast);
+    REQUIRE(unset.vectors_.at("unit").size == 1);
+    REQUIRE(unset.vectors_.at("unit").data.at("0").type == "int");
+    CHECK(has_semantic_error("main() { } unit 10; unit 5;",
+        "identifier is already defined in global scope"));
+}
+
+TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_from_union_definition")
+{
+    Node ast{};
+    auto table = make_table(
+        "union data_t { ab \"\", cd 0, list (0, \"\") }; main() { }", ast);
+    auto const& tags = table.unions_.at("data_t").tags;
+    REQUIRE(tags.at("ab").front().type == "string");
+    REQUIRE(tags.at("cd").front().type == "int");
+    REQUIRE(tags.at("list").size() == 2);
+    CHECK(has_semantic_error(
+        "union data_t { ab 0 }; union data_t { cd 0 }; main() { }",
+        "union is already defined"));
+    CHECK(has_semantic_error("union data_t { ab 0, ab 1 }; main() { }",
+        "tag 'ab' is already defined in union"));
+    CHECK(has_semantic_error(
+        "union data_t { }; main() { }", "a union has a tag"));
+}
+
+TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_from_union_statement")
+{
+    Node ast{};
+    auto table =
+        make_table("union data_t { ab 0 }; main() { union data_t m, k; }", ast);
+    REQUIRE(table.frames_.at("main").unions.at("m") == "data_t");
+    REQUIRE(table.frames_.at("main").unions.at("k") == "data_t");
+    CHECK(has_semantic_error(
+        "main() { union data_t m; }", "union is not defined"));
+    CHECK(has_semantic_error(
+        "union data_t { ab 0 }; main() { auto m; union data_t m; }",
+        "identifier is already defined in union declaration"));
+}
+
+TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_from_union_declaration")
+{
+    Node ast{};
+    auto table = make_table(R"b(
+union data_t { ab 0, ll 0.0f };
+union data_t k;
+
+main() {
+  extrn k;
+  k.ll = 5.555f;
+}
+)b",
+        ast);
+    REQUIRE(table.union_globals_.at("k") == "data_t");
+    REQUIRE(table.frames_.at("main").unions.at("k") == "data_t");
+    CHECK(has_semantic_error(
+        "union data_t k; main() { }", "union is not defined"));
+    CHECK(has_semantic_error("union data_t { ab 0 }; union data_t k; k 5; "
+                             "main() { }",
+        "identifier is already defined in global scope"));
+    // a global union variable is declared in a function with extrn
+    CHECK(has_semantic_error(
+        "union data_t { ab 0 }; union data_t k; main() { k.ab = 1; }",
+        "not declared with 'auto' or 'extrn'"));
+}
+
 TEST_CASE_FIXTURE(HIR_Table_Fixture, "build_from_function_definition")
 {
     CHECK(has_semantic_error(

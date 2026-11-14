@@ -1,0 +1,98 @@
+{
+  "left": [
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "x"
+        },
+        {
+          "node": "lvalue",
+          "root": "C"
+        },
+        {
+          "node": "lvalue",
+          "root": "s"
+        },
+        {
+          "node": "lvalue",
+          "root": "j"
+        }
+      ],
+      "node": "statement",
+      "root": "auto"
+    },
+    {
+      "left": [
+        [
+          {
+            "left": {
+              "node": "lvalue",
+              "root": "j"
+            },
+            "node": "assignment_expression",
+            "right": {
+              "node": "integer_literal",
+              "root": 0
+            },
+            "root": [
+              "="
+            ]
+          }
+        ],
+        [
+          {
+            "node": "post_inc_dec_expression",
+            "right": {
+              "node": "lvalue",
+              "root": "j"
+            },
+            "root": [
+              "++"
+            ]
+          }
+        ],
+        [
+          {
+            "left": {
+              "node": "lvalue",
+              "root": "C"
+            },
+            "node": "assignment_expression",
+            "right": {
+              "left": {
+                "node": "lvalue",
+                "root": "char"
+              },
+              "node": "function_expression",
+              "right": [
+                {
+                  "node": "lvalue",
+                  "root": "s"
+                },
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "j"
+                  },
+                  "node": "pre_inc_dec_expression",
+                  "root": [
+                    "++"
+                  ]
+                }
+              ],
+              "root": "char"
+            },
+            "root": [
+              "="
+            ]
+          }
+        ]
+      ],
+      "node": "statement",
+      "root": "rvalue"
+    }
+  ],
+  "node": "statement",
+  "root": "block"
+}

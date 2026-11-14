@@ -704,6 +704,7 @@ Instructions queue_to_ita_instructions(
                         case Operator::R_GT:
                         case Operator::R_LE:
                         case Operator::R_GE:
+                        case Operator::R_IS:
                         case Operator::R_OR:
                         case Operator::R_AND:
                         // arithmetic binary operators

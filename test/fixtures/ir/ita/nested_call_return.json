@@ -1,0 +1,220 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "x"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "x"
+                  },
+                  "node": "assignment_expression",
+                  "right": {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "exp"
+                    },
+                    "node": "function_expression",
+                    "right": [
+                      {
+                        "left": {
+                          "node": "lvalue",
+                          "root": "exp"
+                        },
+                        "node": "function_expression",
+                        "right": [
+                          {
+                            "node": "integer_literal",
+                            "root": 2
+                          },
+                          {
+                            "node": "integer_literal",
+                            "root": 5
+                          }
+                        ],
+                        "root": "exp"
+                      },
+                      {
+                        "node": "integer_literal",
+                        "root": 2
+                      }
+                    ],
+                    "root": "exp"
+                  },
+                  "root": [
+                    "=",
+                    null
+                  ]
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    },
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "x"
+        },
+        {
+          "node": "lvalue",
+          "root": "y"
+        }
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "x"
+              },
+              {
+                "node": "lvalue",
+                "root": "y"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "x"
+                  },
+                  "node": "relation_expression",
+                  "right": {
+                    "node": "lvalue",
+                    "root": "y"
+                  },
+                  "root": [
+                    "*"
+                  ]
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "exp"
+    },
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "x"
+        }
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": {
+              "left": {
+                "node": "lvalue",
+                "root": "x"
+              },
+              "node": "relation_expression",
+              "right": {
+                "node": "integer_literal",
+                "root": 0
+              },
+              "root": [
+                "=="
+              ]
+            },
+            "node": "statement",
+            "right": [
+              {
+                "left": [
+                  {
+                    "left": [
+                      {
+                        "node": "lvalue",
+                        "root": "x"
+                      }
+                    ],
+                    "node": "statement",
+                    "root": "return"
+                  }
+                ],
+                "node": "statement",
+                "root": "block"
+              },
+              null
+            ],
+            "root": "if"
+          },
+          {
+            "left": [
+              {
+                "left": {
+                  "node": "lvalue",
+                  "root": "sub"
+                },
+                "node": "function_expression",
+                "right": [
+                  {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    "node": "relation_expression",
+                    "right": {
+                      "node": "integer_literal",
+                      "root": 1
+                    },
+                    "root": [
+                      "-"
+                    ]
+                  }
+                ],
+                "root": "sub"
+              }
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "sub"
+    }
+  ],
+  "node": "program",
+  "root": "root",
+  "right": []
+}

@@ -23,7 +23,7 @@
       "end_pos": 101,
       "line": 9,
       "start_pos": 97,
-      "type": "vector_definition"
+      "type": "variable_declaration"
     },
     "x": {
       "column": 8,
@@ -128,18 +128,8 @@
         "root": "main"
       },
       {
-        "node": "vector_definition",
-        "right": [
-          {
-            "node": "integer_literal",
-            "root": 5
-          }
-        ],
-        "root": "unit"
-      },
-      {
         "left": {
-          "node": "integer_literal",
+          "node": "v_size",
           "root": 3
         },
         "node": "vector_definition",
@@ -161,6 +151,19 @@
       }
     ],
     "node": "program",
-    "root": "definitions"
+    "root": "root",
+    "right": [
+      {
+        "left": "unit",
+        "node": "declaration",
+        "right": [
+          {
+            "node": "integer_literal",
+            "root": 5
+          }
+        ],
+        "root": "variable"
+      }
+    ]
   }
 ]

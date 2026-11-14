@@ -89,25 +89,46 @@ std::pair<std::string, std::string> get_rvalue_from_mov_qaudruple(
 }
 
 /**
- * @brief Construct a set of ita instructions from a set of definitions
+ * @brief Construct a set of ita instructions from the definitions and
+ * declarations of a program
  *
- *  A set of definitions constitute a Brocoli program.
+ *  The definitions are the left-hand-side of the program node, and the
+ *  declarations are its right-hand-side.
  *
- *   Definition grammar:
+ *   Program grammar:
+ *
+ *     program : ( definition | declaration ) *
  *
  *     definition : function_definition
+ *         | union_definition
  *         | vector_definition
-
- *  Note that vector definitions are scanned first
+ *
+ *     declaration : union_declaration
+ *         | variable_declaration
+ *
+ *  Vector definitions and global variables are scanned first, and a global
+ *  variable is a vector of one element
  */
 Instructions ITA::build_from_definitions(Node const& node)
 {
-    credence_assert_equal(node["root"].to_string(), "definitions");
+    credence_assert_equal(node["node"].to_string(), "program");
     Instructions instructions{};
     auto definitions = node["left"].array_range();
     for (auto& definition : definitions)
         if (definition["node"].to_string() == "vector_definition")
             build_from_vector_definition(definition);
+    if (node.has_key("right"))
+        for (auto& declaration : node["right"].array_range())
+            if (declaration["root"].to_string() == "variable") {
+                auto name = declaration["left"].to_string();
+                // a global variable with no initial value is unset
+                if (declaration["right"].to_deque().empty())
+                    globals_.set_symbol_by_name(name,
+                        std::vector<language::literal::Literal>{
+                            language::literal::NULL_LITERAL });
+                else
+                    build_from_global_vector(name, 1, declaration["right"]);
+            }
     for (auto& definition : definitions) {
         if (definition["node"].to_string() == "function_definition") {
             auto function_instructions =
@@ -219,9 +240,20 @@ void ITA::build_from_vector_definition(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "vector_definition");
     credence_assert(node.has_key("right"));
-    auto name = node["root"].to_string();
-    auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
-    auto right_child_node = node["right"];
+    auto size = node.has_key("left")
+                    ? static_cast<std::size_t>(node["left"]["root"].to_int())
+                    : node["right"].to_deque().size();
+    build_from_global_vector(node["root"].to_string(), size, node["right"]);
+}
+
+/**
+ * @brief Construct the globals of a vector of a size and its values
+ */
+void ITA::build_from_global_vector(std::string const& name,
+    std::size_t size,
+    Node const& values)
+{
+    auto right_child_node = values;
     std::vector<language::literal::Literal> values_at{};
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
@@ -415,27 +447,42 @@ std::string ITA::build_from_branch_comparator_rvalue(Node const& block,
     Instructions& instructions)
 {
     std::string temp_lvalue{};
-    auto rvalue =
+    auto lowered =
         language::AST_Lowering::lower(block, internal_symbols_, symbols_);
     auto comparator_instructions = ast_to_ita_instructions(
         symbols_, block, internal_symbols_, &temporary, &identifier)
                                        .first;
+    // a parenthesized rvalue is the rvalue it encloses, e.g. `switch ((x))`
+    auto const* value = &lowered.value;
+    while (std::holds_alternative<language::hir::Data_Kind::Pointer>(*value))
+        value = &std::get<language::hir::Data_Kind::Pointer>(*value)->value;
+    auto const& rvalue = *value;
 
-    m::match(language::hir::get_kind_name(rvalue.value))(
+    m::match(language::hir::get_kind_name(rvalue))(
         m::pattern | m::or_(std::string{ "relation" },
                          std::string{ "unary" },
-                         std::string{ "symbol" },
                          std::string{ "array" }) =
             [&] {
                 ir::insert(instructions, comparator_instructions);
                 temp_lvalue =
                     std::get<1>(instructions[instructions.size() - 1]);
             },
+        // the value of an assignment is its lvalue, e.g. `switch (C = c)`
+        m::pattern | std::string{ "symbol" } =
+            [&] {
+                ir::insert(instructions, comparator_instructions);
+                auto rhs = fmt::format("{} {}",
+                    detail::instruction_to_string(Instruction::CMP),
+                    std::get<1>(instructions[instructions.size() - 1]));
+                auto temp = ir::make_temporary(&temporary, rhs);
+                instructions.emplace_back(temp);
+                temp_lvalue = std::get<1>(temp);
+            },
         m::pattern | m::or_(std::string{ "lvalue" }, std::string{ "literal" }) =
             [&] {
                 auto rhs = fmt::format("{} {}",
                     detail::instruction_to_string(Instruction::CMP),
-                    language::hir::data_kind_to_string(rvalue.value, false));
+                    language::hir::data_kind_to_string(rvalue, false));
                 auto temp = ir::make_temporary(&temporary, rhs);
                 instructions.emplace_back(temp);
                 temp_lvalue = std::get<1>(temp);

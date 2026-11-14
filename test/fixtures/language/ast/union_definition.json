@@ -1,0 +1,61 @@
+{
+  "left": [
+    {
+      "left": [
+        {
+          "left": [
+            {
+              "node": "string_literal",
+              "root": "\"\""
+            }
+          ],
+          "node": "tag",
+          "root": "ab"
+        },
+        {
+          "left": [
+            {
+              "node": "integer_literal",
+              "root": 0
+            }
+          ],
+          "node": "tag",
+          "root": "cd"
+        },
+        {
+          "left": [
+            {
+              "node": "float_literal",
+              "root": 1.5
+            }
+          ],
+          "node": "tag",
+          "root": "ll"
+        },
+        {
+          "left": [
+            {
+              "node": "string_literal",
+              "root": "\"\""
+            },
+            {
+              "node": "integer_literal",
+              "root": 0
+            },
+            {
+              "node": "bool_literal",
+              "root": "false"
+            }
+          ],
+          "node": "tag",
+          "root": "list"
+        }
+      ],
+      "node": "union_definition",
+      "root": "data_t"
+    }
+  ],
+  "node": "program",
+  "right": [],
+  "root": "root"
+}

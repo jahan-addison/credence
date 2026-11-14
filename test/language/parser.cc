@@ -53,9 +53,69 @@ TEST_CASE("parser.cc: vector definition, sized with no initial values")
     SETUP_PARSE_FIXTURE_AND_TEST_AST("vector_no_size");
 }
 
-TEST_CASE("parser.cc: vector definition, bare (no size, no initial values)")
+TEST_CASE("parser.cc: global variable declarations, with and without a value")
 {
-    SETUP_PARSE_FIXTURE_AND_TEST_AST("vector_bare");
+    SETUP_PARSE_FIXTURE_AND_TEST_AST("variable_declaration");
+}
+
+TEST_CASE("parser.cc: a global variable has at most one value")
+{
+    using credence::language::Parser;
+    CHECK_NOTHROW(Parser::parse("nums[] 1, 2;"));
+    try {
+        Parser::parse("nums 1, 2;");
+        FAIL("expected a syntax error");
+    } catch (credence::detail::Credence_Exception const& e) {
+        CHECK(std::string_view{ e.what() }.find(
+                  "'nums' has more than one value, a vector is defined with "
+                  "'[]'") != std::string_view::npos);
+    }
+}
+
+TEST_CASE("parser.cc: a global is initialized with a constant")
+{
+    using credence::language::Parser;
+    try {
+        Parser::parse("counter 5; alias counter;");
+        FAIL("expected a syntax error");
+    } catch (credence::detail::Credence_Exception const& e) {
+        CHECK(std::string_view{ e.what() }.find(
+                  "a global is initialized with a constant, found "
+                  "'counter'") != std::string_view::npos);
+    }
+}
+
+TEST_CASE("parser.cc: a vector size is an integer")
+{
+    using credence::language::Parser;
+    try {
+        Parser::parse("nums[n];");
+        FAIL("expected a syntax error");
+    } catch (credence::detail::Credence_Exception const& e) {
+        CHECK(std::string_view{ e.what() }.find(
+                  "expected an integer vector size") != std::string_view::npos);
+    }
+}
+
+TEST_CASE("parser.cc: union definition, including a list of tag values")
+{
+    SETUP_PARSE_FIXTURE_AND_TEST_AST("union_definition");
+}
+
+TEST_CASE("parser.cc: top-level union declarations, before and after a "
+          "function")
+{
+    SETUP_PARSE_FIXTURE_AND_TEST_AST("union_declaration");
+}
+
+TEST_CASE("parser.cc: is expressions, with a union tag and its bindings")
+{
+    SETUP_PARSE_FIXTURE_AND_TEST_AST("is_expression");
+}
+
+TEST_CASE("parser.cc: union statement in a function body")
+{
+    SETUP_PARSE_FIXTURE_AND_TEST_AST("union_statement");
 }
 
 TEST_CASE("parser.cc: auto statement, including a local vector")

@@ -1,0 +1,220 @@
+{
+  "left": [
+    null
+  ],
+  "node": "function_definition",
+  "right": {
+    "left": [
+      {
+        "left": [
+          {
+            "node": "lvalue",
+            "root": "x"
+          },
+          {
+            "node": "lvalue",
+            "root": "y"
+          },
+          {
+            "node": "lvalue",
+            "root": "z"
+          }
+        ],
+        "node": "statement",
+        "root": "auto"
+      },
+      {
+        "left": [
+          [
+            {
+              "left": {
+                "node": "lvalue",
+                "root": "x"
+              },
+              "node": "assignment_expression",
+              "right": {
+                "node": "integer_literal",
+                "root": 5
+              },
+              "root": [
+                "=",
+                null
+              ]
+            }
+          ],
+          [
+            {
+              "left": {
+                "node": "lvalue",
+                "root": "y"
+              },
+              "node": "assignment_expression",
+              "right": {
+                "node": "integer_literal",
+                "root": 1
+              },
+              "root": [
+                "=",
+                null
+              ]
+            }
+          ],
+          [
+            {
+              "left": {
+                "node": "lvalue",
+                "root": "z"
+              },
+              "node": "assignment_expression",
+              "right": {
+                "left": {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "add"
+                  },
+                  "node": "function_expression",
+                  "right": [
+                    {
+                      "node": "lvalue",
+                      "root": "x"
+                    },
+                    {
+                      "left": {
+                        "node": "lvalue",
+                        "root": "sub"
+                      },
+                      "node": "function_expression",
+                      "right": [
+                        {
+                          "node": "lvalue",
+                          "root": "x"
+                        },
+                        {
+                          "node": "lvalue",
+                          "root": "y"
+                        }
+                      ],
+                      "root": "sub"
+                    }
+                  ],
+                  "root": "add"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 2
+                },
+                "root": [
+                  "-"
+                ]
+              },
+              "root": [
+                "=",
+                null
+              ]
+            }
+          ]
+        ],
+        "node": "statement",
+        "root": "rvalue"
+      },
+      {
+        "left": {
+          "left": {
+            "node": "lvalue",
+            "root": "x"
+          },
+          "node": "relation_expression",
+          "right": {
+            "node": "lvalue",
+            "root": "y"
+          },
+          "root": [
+            ">"
+          ]
+        },
+        "node": "statement",
+        "right": [
+          {
+            "left": [
+              {
+                "left": {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "z"
+                  },
+                  "node": "relation_expression",
+                  "right": {
+                    "node": "lvalue",
+                    "root": "x"
+                  },
+                  "root": [
+                    ">"
+                  ]
+                },
+                "node": "statement",
+                "right": [
+                  {
+                    "left": [
+                      {
+                        "left": [
+                          [
+                            {
+                              "node": "post_inc_dec_expression",
+                              "right": {
+                                "node": "lvalue",
+                                "root": "z"
+                              },
+                              "root": [
+                                "--"
+                              ]
+                            }
+                          ]
+                        ],
+                        "node": "statement",
+                        "root": "rvalue"
+                      }
+                    ],
+                    "node": "statement",
+                    "root": "block"
+                  }
+                ],
+                "root": "while"
+              }
+            ],
+            "node": "statement",
+            "root": "block"
+          },
+          null
+        ],
+        "root": "if"
+      },
+      {
+        "left": [
+          [
+            {
+              "left": {
+                "node": "lvalue",
+                "root": "x"
+              },
+              "node": "assignment_expression",
+              "right": {
+                "node": "integer_literal",
+                "root": 0
+              },
+              "root": [
+                "=",
+                null
+              ]
+            }
+          ]
+        ],
+        "node": "statement",
+        "root": "rvalue"
+      }
+    ],
+    "node": "statement",
+    "root": "block"
+  },
+  "root": "main"
+}

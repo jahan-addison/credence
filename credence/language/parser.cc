@@ -39,31 +39,29 @@ namespace m = matchit;
 
 namespace {
 
-using util::AST_Node;
-
-AST_Node json_string(std::string s)
+Parser::Node json_string(std::string s)
 {
-    return AST_Node(std::move(s));
+    return Parser::Node(std::move(s));
 }
 
-AST_Node json_int(long v)
+Parser::Node json_int(long v)
 {
-    return AST_Node(v);
+    return Parser::Node(v);
 }
 
-AST_Node json_float(double v)
+Parser::Node json_float(double v)
 {
-    return AST_Node(v);
+    return Parser::Node(v);
 }
 
-AST_Node operator_root(std::string_view op)
+Parser::Node operator_root(std::string_view op)
 {
     auto arr = util::AST::array();
     arr.append(json_string(std::string(op)));
     return arr;
 }
 
-bool is_lvalue_node(AST_Node const& node)
+bool is_lvalue_node(Parser::Node const& node)
 {
     auto type = node["node"].to_string();
     return type == "lvalue" || type == "vector_lvalue" ||
@@ -89,7 +87,7 @@ Parser::Parser(std::string source)
 /**
  * @brief Parse a whole source program in one call
  */
-util::AST_Node Parser::parse(std::string source)
+Parser::Node Parser::parse(std::string source)
 {
     Parser parser{ std::move(source) };
     return parser.parse_program();
@@ -171,12 +169,12 @@ void Parser::error(std::string_view message) const
 }
 
 /**
- * @brief AST_Node factory matching augur's transformer __construct_node
+ * @brief Parser::Node factory matching augur's transformer __construct_node
  */
-util::AST_Node Parser::make_node(std::string_view node_type,
-    util::AST_Node root,
-    std::optional<util::AST_Node> left,
-    std::optional<util::AST_Node> right)
+Parser::Node Parser::make_node(std::string_view node_type,
+    Parser::Node root,
+    Parser::Maybe_Node left,
+    Parser::Maybe_Node right)
 {
     auto node = util::AST::object();
     node["node"] = json_string(std::string(node_type));
@@ -189,37 +187,63 @@ util::AST_Node Parser::make_node(std::string_view node_type,
 }
 
 /**
- * @brief Program root: a run of function and vector definitions
+ * @brief Program root: definitions and declarations
  */
-util::AST_Node Parser::parse_program()
+Parser::Node Parser::parse_program()
 {
     auto definitions = util::AST::array();
+    auto declarations = util::AST::array();
     while (!check(Token_Type::END_OF_FILE)) {
+        auto declaration = parse_declaration();
+        if (declaration.has_value()) {
+            declarations.append(*declaration);
+            continue;
+        }
         definitions.append(parse_definition());
     }
-    return make_node(
-        "program", json_string("definitions"), definitions, std::nullopt);
+    return make_node("program", json_string("root"), definitions, declarations);
 }
 
 /**
- * @brief Dispatch a top-level definition by whether '(' follows its name
+ * @brief Parse a top-level definition
  */
-util::AST_Node Parser::parse_definition()
+Parser::Node Parser::parse_definition()
 {
     if (check(Token_Type::KEYWORD_UNION) and
         check_ahead(1, Token_Type::IDENTIFIER) and
-        check_ahead(2, Token_Type::LBRACE))
+        check_ahead(2, Token_Type::LBRACE)) {
         return parse_union_definition();
-    auto name = expect(Token_Type::IDENTIFIER, "an identifier");
-    if (check(Token_Type::LPAREN))
+    }
+    if (check(Token_Type::IDENTIFIER) and check_ahead(1, Token_Type::LPAREN)) {
+        auto name = expect(Token_Type::IDENTIFIER, "an identifier");
         return parse_function_definition(name);
+    }
+    auto name = expect(Token_Type::IDENTIFIER, "an identifier");
+    if (!check(Token_Type::LBRACKET))
+        error(fmt::format("expected '(' or '[' after '{}'", name.lexeme));
     return parse_vector_definition(name);
+}
+
+/**
+ * @brief Parse a top-level declaration
+ */
+Parser::Maybe_Node Parser::parse_declaration()
+{
+    if (check(Token_Type::KEYWORD_UNION) and
+        check_ahead(1, Token_Type::IDENTIFIER) and
+        check_ahead(2, Token_Type::IDENTIFIER))
+        return parse_union_declaration();
+    if (check(Token_Type::IDENTIFIER) and
+        not check_ahead(1, Token_Type::LPAREN) and
+        not check_ahead(1, Token_Type::LBRACKET))
+        return parse_variable_declaration();
+    return std::nullopt;
 }
 
 /**
  * @brief Parse a function definition's parameter list and body
  */
-util::AST_Node Parser::parse_function_definition(Token const& name)
+Parser::Node Parser::parse_function_definition(Token const& name)
 {
     advance(); // '('
     auto parameters = parse_call_arguments_or_parameters();
@@ -232,30 +256,9 @@ util::AST_Node Parser::parse_function_definition(Token const& name)
 }
 
 /**
- * @brief Parse a vector definition's optional size and initial values
- */
-util::AST_Node Parser::parse_vector_definition(Token const& name)
-{
-    auto size = parse_vector_size();
-    auto values = util::AST::array();
-    if (!check(Token_Type::SEMICOLON)) {
-        values.append(parse_vector_symbol());
-        while (!check(Token_Type::SEMICOLON)) {
-            match(Token_Type::COMMA); // the separating comma is optional
-            values.append(parse_vector_symbol());
-        }
-    }
-    expect(Token_Type::SEMICOLON, "';'");
-    return make_node("vector_definition",
-        json_string(std::string(name.lexeme)),
-        size,
-        values);
-}
-
-/**
  * @brief Parse a union definition and its initial tag values
  */
-util::AST_Node Parser::parse_union_definition()
+Parser::Node Parser::parse_union_definition()
 {
     advance(); // 'union'
     auto name =
@@ -272,15 +275,78 @@ util::AST_Node Parser::parse_union_definition()
 }
 
 /**
+ * @brief Parse a vector definition's optional size and initial values
+ */
+Parser::Node Parser::parse_vector_definition(Token const& name)
+{
+    auto values = util::AST::array();
+    auto size = parse_vector_size();
+    if (!check(Token_Type::SEMICOLON)) {
+        values.append(parse_vector_symbol());
+        while (!check(Token_Type::SEMICOLON)) {
+            match(Token_Type::COMMA); // the separating comma is optional
+            values.append(parse_vector_symbol());
+        }
+    }
+    expect(Token_Type::SEMICOLON, "';'");
+    return make_node("vector_definition",
+        json_string(std::string(name.lexeme)),
+        size,
+        values);
+}
+
+/**
+ * @brief Parse a top-level union definition declaration
+ */
+Parser::Node Parser::parse_union_declaration()
+{
+    advance(); // 'union'
+    auto left = json_string(
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme));
+    auto right = util::AST::array();
+    auto name =
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
+    right.append(make_node("lvalue", json_string(name)));
+    while (match(Token_Type::COMMA)) {
+        name =
+            std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
+        right.append(make_node("lvalue", json_string(name)));
+    }
+    expect(Token_Type::SEMICOLON, "';'");
+    return make_node("declaration", json_string("union"), left, right);
+}
+
+/**
+ * @brief Parse a global variable and its optional initial value
+ *
+ * A global with more than one value is a vector, and is defined with "[]".
+ */
+Parser::Node Parser::parse_variable_declaration()
+{
+    auto name =
+        std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
+    auto value = util::AST::array();
+    if (!check(Token_Type::SEMICOLON))
+        value.append(parse_vector_symbol());
+    if (!check(Token_Type::SEMICOLON))
+        error(fmt::format(
+            "'{}' has more than one value, a vector is defined with '[]'",
+            name));
+    expect(Token_Type::SEMICOLON, "';'");
+    return make_node(
+        "declaration", json_string("variable"), json_string(name), value);
+}
+
+/**
  * @brief Parse a parenthesized rvalue list, shared by calls and definitions
  */
-util::AST_Node Parser::parse_call_arguments_or_parameters()
+Parser::Node Parser::parse_call_arguments_or_parameters()
 {
     auto items = util::AST::array();
     if (check(Token_Type::RPAREN)) {
         // Matches Lark's maybe_placeholder for an entirely absent parameter
         // list: a single JSON null, not an empty array.
-        items.append(util::AST_Node{});
+        items.append(Parser::Node{});
         return items;
     }
     items.append(parse_rvalue());
@@ -291,22 +357,20 @@ util::AST_Node Parser::parse_call_arguments_or_parameters()
 }
 
 /**
- * @brief Parse one vector initial value: either a constant or a bare name
+ * @brief Parse one initial value of a global, a constant
  */
-util::AST_Node Parser::parse_vector_symbol()
+Parser::Node Parser::parse_vector_symbol()
 {
-    if (check(Token_Type::IDENTIFIER)) {
-        auto name = std::string(current().lexeme);
-        advance();
-        return json_string(name);
-    }
+    if (check(Token_Type::IDENTIFIER))
+        error(fmt::format("a global is initialized with a constant, found '{}'",
+            current().lexeme));
     return parse_constant();
 }
 
 /**
  * @brief Parse one union initial tag: an identifier and its tag type
  */
-util::AST_Node Parser::parse_union_tag_symbol()
+Parser::Node Parser::parse_union_tag_symbol()
 {
     auto name =
         std::string(expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
@@ -329,9 +393,9 @@ util::AST_Node Parser::parse_union_tag_symbol()
 }
 
 /**
- * @brief Parse a vector's optional "[" constant? "]" size
+ * @brief Parse a vector's "[" integer? "]" size
  */
-std::optional<util::AST_Node> Parser::parse_vector_size()
+Parser::Maybe_Node Parser::parse_vector_size()
 {
     if (!check(Token_Type::LBRACKET))
         return std::nullopt;
@@ -343,7 +407,9 @@ std::optional<util::AST_Node> Parser::parse_vector_size()
         advance();
         return std::nullopt;
     }
-    auto size = parse_constant();
+    auto text = std::string(
+        expect(Token_Type::INTEGER, "an integer vector size").lexeme);
+    auto size = make_node("v_size", json_int(std::stol(text)));
     expect(Token_Type::RBRACKET, "']'");
     return size;
 }
@@ -351,7 +417,7 @@ std::optional<util::AST_Node> Parser::parse_vector_size()
 /**
  * @brief Parse a function body: statement_2* followed by an optional return
  */
-util::AST_Node Parser::parse_function_body()
+Parser::Node Parser::parse_function_body()
 {
     expect(Token_Type::LBRACE, "'{'");
     auto body = util::AST::array();
@@ -399,14 +465,14 @@ bool Parser::at_label() const
 }
 
 /**
- * @brief Dispatch a statement by its leading token
+ * @brief Parse a statement by its leading token
  *
  * allow_block_and_return distinguishes `statement` (used inside blocks,
  * if/while/switch bodies) from `statement_2` (used directly in a function
  * body, where a block or a return would be ambiguous with the function's
  * own trailing return_statement).
  */
-util::AST_Node Parser::parse_statement(bool allow_block_and_return)
+Parser::Node Parser::parse_statement(bool allow_block_and_return)
 {
     if (allow_block_and_return && check(Token_Type::LBRACE))
         return parse_block_statement();
@@ -442,7 +508,7 @@ util::AST_Node Parser::parse_statement(bool allow_block_and_return)
 /**
  * @brief Parse "{" statement* "}"
  */
-util::AST_Node Parser::parse_block_statement()
+Parser::Node Parser::parse_block_statement()
 {
     expect(Token_Type::LBRACE, "'{'");
     auto body = util::AST::array();
@@ -456,7 +522,7 @@ util::AST_Node Parser::parse_block_statement()
 /**
  * @brief Parse a label: NAME ":"
  */
-util::AST_Node Parser::parse_label_statement()
+Parser::Node Parser::parse_label_statement()
 {
     auto name = std::string(current().lexeme);
     auto name_end = current().end_pos;
@@ -478,7 +544,7 @@ util::AST_Node Parser::parse_label_statement()
 /**
  * @brief Parse "auto" lvalue ("," lvalue)* ";"
  */
-util::AST_Node Parser::parse_auto_statement()
+Parser::Node Parser::parse_auto_statement()
 {
     advance(); // 'auto'
     auto left = util::AST::array();
@@ -493,7 +559,7 @@ util::AST_Node Parser::parse_auto_statement()
 /**
  * @brief Parse "extrn" NAME ("," NAME)* ";"
  */
-util::AST_Node Parser::parse_extrn_statement()
+Parser::Node Parser::parse_extrn_statement()
 {
     advance(); // 'extrn'
     auto left = util::AST::array();
@@ -510,9 +576,9 @@ util::AST_Node Parser::parse_extrn_statement()
 }
 
 /**
- * @brief Parse "union" TYPE NAME ("," NAME)* ";"
+ * @brief Parse "union" NAME NAME ("," NAME)* ";"
  */
-util::AST_Node Parser::parse_union_statement()
+Parser::Node Parser::parse_union_statement()
 {
     advance(); // 'union'
     auto left = json_string(
@@ -533,7 +599,7 @@ util::AST_Node Parser::parse_union_statement()
 /**
  * @brief Parse "case" constant ":" statement*
  */
-util::AST_Node Parser::parse_case_statement()
+Parser::Node Parser::parse_case_statement()
 {
     advance(); // 'case'
     auto value = parse_constant();
@@ -548,7 +614,7 @@ util::AST_Node Parser::parse_case_statement()
 /**
  * @brief Parse "goto" NAME ";"
  */
-util::AST_Node Parser::parse_goto_statement()
+Parser::Node Parser::parse_goto_statement()
 {
     advance(); // 'goto'
     auto name =
@@ -562,7 +628,7 @@ util::AST_Node Parser::parse_goto_statement()
 /**
  * @brief Parse "if" "(" rvalue ")" statement ["else" statement]
  */
-util::AST_Node Parser::parse_if_statement()
+Parser::Node Parser::parse_if_statement()
 {
     advance(); // 'if'
     expect(Token_Type::LPAREN, "'('");
@@ -573,7 +639,7 @@ util::AST_Node Parser::parse_if_statement()
     if (match(Token_Type::KEYWORD_ELSE)) {
         branches.append(parse_statement(true));
     } else {
-        branches.append(util::AST_Node{});
+        branches.append(Parser::Node{});
     }
     return make_node("statement", json_string("if"), condition, branches);
 }
@@ -581,7 +647,7 @@ util::AST_Node Parser::parse_if_statement()
 /**
  * @brief Parse "return" ["(" rvalue ")"] ";"
  */
-util::AST_Node Parser::parse_return_statement()
+Parser::Node Parser::parse_return_statement()
 {
     advance(); // 'return'
     auto left = util::AST::array();
@@ -589,7 +655,7 @@ util::AST_Node Parser::parse_return_statement()
         left.append(parse_rvalue());
         expect(Token_Type::RPAREN, "')'");
     } else {
-        left.append(util::AST_Node{});
+        left.append(Parser::Node{});
     }
     expect(Token_Type::SEMICOLON, "';'");
     return make_node("statement", json_string("return"), left, std::nullopt);
@@ -608,7 +674,7 @@ bool Parser::at_expression_start() const
 /**
  * @brief Parse one ";" or "rvalue ;", the unit rvalue_statement repeats
  */
-util::AST_Node Parser::parse_expression()
+Parser::Node Parser::parse_expression()
 {
     auto items = util::AST::array();
     if (!match(Token_Type::SEMICOLON)) {
@@ -621,7 +687,7 @@ util::AST_Node Parser::parse_expression()
 /**
  * @brief Parse expression+, greedily absorbing consecutive ";" statements
  */
-util::AST_Node Parser::parse_rvalue_statement()
+Parser::Node Parser::parse_rvalue_statement()
 {
     auto left = util::AST::array();
     left.append(parse_expression());
@@ -634,7 +700,7 @@ util::AST_Node Parser::parse_rvalue_statement()
 /**
  * @brief Parse "while" "(" rvalue ")" statement
  */
-util::AST_Node Parser::parse_while_statement()
+Parser::Node Parser::parse_while_statement()
 {
     advance(); // 'while'
     expect(Token_Type::LPAREN, "'('");
@@ -648,7 +714,7 @@ util::AST_Node Parser::parse_while_statement()
 /**
  * @brief Parse "switch" "(" rvalue ")" "{" case_statement* "}"
  */
-util::AST_Node Parser::parse_switch_statement()
+Parser::Node Parser::parse_switch_statement()
 {
     advance(); // 'switch'
     expect(Token_Type::LPAREN, "'('");
@@ -666,7 +732,7 @@ util::AST_Node Parser::parse_switch_statement()
 /**
  * @brief Parse "break" ";"
  */
-util::AST_Node Parser::parse_break_statement()
+Parser::Node Parser::parse_break_statement()
 {
     advance(); // 'break'
     expect(Token_Type::SEMICOLON, "';'");
@@ -712,7 +778,7 @@ bool Parser::at_binary_operator() const
  * precedence.h is what recovers correct precedence downstream, not the
  * structure of this parse tree.
  */
-util::AST_Node Parser::parse_rvalue()
+Parser::Node Parser::parse_rvalue()
 {
     auto left = parse_rvalue_primary();
 
@@ -737,6 +803,19 @@ util::AST_Node Parser::parse_rvalue()
         return make_node("ternary_expression", left, then_node, else_node);
     }
 
+    if (check(Token_Type::KEYWORD_IS)) {
+        advance();
+        auto is_node = make_node(
+            "is_expression", operator_root("is"), left, parse_union_tag());
+        if (!at_binary_operator())
+            return is_node;
+        auto op = std::string(current().lexeme);
+        advance();
+        auto right = parse_rvalue();
+        return make_node(
+            "relation_expression", operator_root(op), is_node, right);
+    }
+
     if (at_binary_operator()) {
         auto op = std::string(current().lexeme);
         advance();
@@ -748,9 +827,37 @@ util::AST_Node Parser::parse_rvalue()
 }
 
 /**
+ * @brief Parse the tag of an `is` expression and the locals that bind its
+ * values, NAME ( "(" NAME ( "," NAME ) * ")" ) ?
+ *
+ *  Example:
+ *
+ *    data_t.list2(a, b)
+ *
+ *  Becomes:
+ *
+ *    { node: union_tag, root: data_t.list2, left: [ lvalue a, lvalue b ] }
+ */
+Parser::Node Parser::parse_union_tag()
+{
+    auto name =
+        std::string(expect(Token_Type::IDENTIFIER, "a union tag").lexeme);
+    auto bindings = util::AST::array();
+    if (match(Token_Type::LPAREN)) {
+        do {
+            auto binding = std::string(
+                expect(Token_Type::IDENTIFIER, "an identifier").lexeme);
+            bindings.append(make_node("lvalue", json_string(binding)));
+        } while (match(Token_Type::COMMA));
+        expect(Token_Type::RPAREN, "')'");
+    }
+    return make_node("union_tag", json_string(name), bindings);
+}
+
+/**
  * @brief Parse the '&' / unary_modifier prefixed forms, else fall through
  */
-util::AST_Node Parser::parse_rvalue_primary()
+Parser::Node Parser::parse_rvalue_primary()
 {
     return m::match(current().type)(
         m::pattern | Token_Type::AMP =
@@ -782,7 +889,7 @@ util::AST_Node Parser::parse_rvalue_primary()
  * pre/post inc-dec, constants, parenthesized expressions, function calls,
  * and plain lvalues.
  */
-util::AST_Node Parser::parse_unary_operand()
+Parser::Node Parser::parse_unary_operand()
 {
     return m::match(current().type)(
         m::pattern | m::or_(Token_Type::INC, Token_Type::DEC) =
@@ -831,16 +938,16 @@ util::AST_Node Parser::parse_unary_operand()
             [&] {
                 error(fmt::format(
                     "expected an expression, found '{}'", current().lexeme));
-                return util::AST_Node{};
+                return Parser::Node{};
             });
 }
 
 /**
  * @brief Parse "*" rvalue | NAME, with any number of trailing "[" rvalue "]"
  */
-util::AST_Node Parser::parse_lvalue()
+Parser::Node Parser::parse_lvalue()
 {
-    util::AST_Node node;
+    Parser::Node node;
     if (check(Token_Type::STAR)) {
         advance();
         auto operand = parse_rvalue();
@@ -863,7 +970,7 @@ util::AST_Node Parser::parse_lvalue()
 /**
  * @brief Parse a numeric, char, string, or boolean constant
  */
-util::AST_Node Parser::parse_constant()
+Parser::Node Parser::parse_constant()
 {
     return m::match(current().type)(
         m::pattern | Token_Type::FLOAT =
@@ -922,7 +1029,7 @@ util::AST_Node Parser::parse_constant()
             [&] {
                 error(fmt::format(
                     "expected a constant, found '{}'", current().lexeme));
-                return util::AST_Node{};
+                return Parser::Node{};
             });
 }
 

@@ -1,0 +1,18 @@
+{
+  "counter": {
+    "type": "variable_declaration"
+  },
+  "main": {
+    "type": "function_definition",
+    "void": false
+  },
+  "str": {
+    "type": "variable_declaration"
+  },
+  "tail": {
+    "type": "variable_declaration"
+  },
+  "unit": {
+    "type": "variable_declaration"
+  }
+}

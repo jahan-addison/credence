@@ -115,7 +115,20 @@ class AST_Lowering
     inline bool is_symbol(Node const& node)
     {
         auto lvalue = node["root"].to_string();
-        return symbols_.is_defined(lvalue) or globals_.is_defined(lvalue);
+        return symbols_.is_defined(lvalue) or globals_.is_defined(lvalue) or
+               is_member_symbol(lvalue);
+    }
+
+    /**
+     * @brief Whether an lvalue is a member of a symbol, e.g. `m.ab`
+     *
+     * The type checker resolves the member against the union of its symbol
+     */
+    inline bool is_member_symbol(std::string const& lvalue)
+    {
+        auto separator = lvalue.find('.');
+        return separator != std::string::npos and
+               symbols_.is_defined(lvalue.substr(0, separator));
     }
 
     inline bool is_defined(std::string const& label)
@@ -136,6 +149,7 @@ class AST_Lowering
     Data_Kind from_ternary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
+    Data_Kind from_is_expression_node(Node const& node);
     Data_Kind from_unary_expression_node(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:

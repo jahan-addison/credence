@@ -12,12 +12,14 @@
 
 // Grammar syntax - https://lark-parser.readthedocs.io/en/stable/grammar.html
 
-program : ( definition ) *
+program : ( definition | declaration ) *
+
+declaration : union_declaration
+    | variable_declaration
 
 definition : function_definition
- | vector_definition
- | union_definition
- | union_statement
+    | union_definition
+    | vector_definition
 
 vector_definition   :  NAME v_size (v_symbol ( ","? v_symbol ) * )? SEMI_COLON
 
@@ -25,12 +27,15 @@ union_definition    :  "union" NAME "{" ( u_symbol ( ","? u_symbol ) * )? "}" SE
 
 function_definition :  ( NAME "(" parameters ")" function_body )
 
+union_declaration   :  "union" NAME NAME ( "," NAME ) * SEMI_COLON
+
+variable_declaration : NAME v_symbol? SEMI_COLON
+
 parameters          :  [ rvalue (( "," rvalue ) *) ]
 
 v_symbol : constant
-    | NAME
 
-v_size : [ ( "[" ( constant ) ? "]" ) ]
+v_size : "[" ( integer_literal ) ? "]"
 
 u_symbol : NAME constant
     | NAME "(" constant ( "," constant ) * ")"
@@ -112,7 +117,9 @@ function_expression     : lvalue "(" parameters  ")"
 
 ternary_expression      : rvalue "?" rvalue ":" rvalue
 
-is_expression           : lvalue "is" NAME
+is_expression           : lvalue "is" union_tag
+
+union_tag               : NAME ( "(" NAME ( "," NAME ) * ")" ) ?
 
 relation_expression     : rvalue binary rvalue
 

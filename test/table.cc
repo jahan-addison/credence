@@ -20,6 +20,7 @@
 #include <sstream>          // for basic_ostringstream, ostringstream
 #include <string>           // for basic_string, char_traits, string
 #include <string_view>      // for basic_string_view
+#include <test/fixture.h>   // for load_json_fixture
 #include <tuple>            // for get, tuple
 #include <utility>          // for get
 
@@ -28,7 +29,6 @@ namespace fs = std::filesystem;
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
 #define EMIT(os, inst) credence::ir::detail::emit_to(os, inst)
-#define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
 inline std::filesystem::path get_root_path()
 {
@@ -55,44 +55,8 @@ struct Table_Fixture
 {
     using NULL_symbols = std::deque<std::string>;
     using Node = credence::util::AST_Node;
-    const Node VECTOR_SYMBOLS = LOAD_JSON_FROM_STRING(
-        "{\n  \"errno\": {\n    \"column\": 7,\n    \"end_column\": 12,\n    "
-        "\"end_pos\": 73,\n    \"line\": 7,\n    \"start_pos\": 68,\n    "
-        "\"type\": \"lvalue\"\n  },\n  \"main\": {\n    \"column\": 1,\n    "
-        "\"end_column\": 5,\n    \"end_pos\": 4,\n    \"line\": 1,\n    "
-        "\"start_pos\": 0,\n    \"type\": \"function_definition\"\n  },\n  "
-        "\"mess\": {\n    \"column\": 1,\n    \"end_column\": 5,\n    "
-        "\"end_pos\": 343,\n    \"line\": 29,\n    \"size\": 6,\n    "
-        "\"start_pos\": 339,\n    \"type\": \"vector_definition\"\n  },\n  "
-        "\"print\": {\n    \"column\": 10,\n    \"end_column\": 7,\n    "
-        "\"end_pos\": 289,\n    \"line\": 20,\n    \"start_pos\": 283,\n    "
-        "\"type\": \"function_definition\",\n    \"void\": false\n  },\n  "
-        "\"printf\": {\n    \"column\": 1,\n    \"end_column\": 7,\n    "
-        "\"end_pos\": 289,\n    \"line\": 20,\n    \"start_pos\": 283,\n    "
-        "\"type\": \"function_definition\",\n    \"void\": false\n  },\n  "
-        "\"putchar\": {\n    \"column\": 1,\n    \"end_column\": 8,\n    "
-        "\"end_pos\": 318,\n    \"line\": 24,\n    \"start_pos\": 311,\n    "
-        "\"type\": \"vector_definition\"\n  },\n  \"s\": {\n    \"column\": "
-        "8,\n    \"end_column\": 9,\n    \"end_pos\": 291,\n    \"line\": "
-        "20,\n    \"start_pos\": 290,\n    \"type\": \"lvalue\"\n  },\n  "
-        "\"snide\": {\n    \"column\": 1,\n    \"end_column\": 6,\n    "
-        "\"end_pos\": 67,\n    \"line\": 7,\n    \"start_pos\": 62,\n    "
-        "\"type\": \"function_definition\"\n  },\n  \"t\": {\n    \"column\": "
-        "8,\n    \"end_column\": 9,\n    \"end_pos\": 85,\n    \"line\": 8,\n  "
-        "  \"start_pos\": 84,\n    \"type\": \"lvalue\"\n  },\n  \"u\": {\n    "
-        "\"column\": 9,\n    \"end_column\": 10,\n    \"end_pos\": 117,\n    "
-        "\"line\": 10,\n    \"start_pos\": 116,\n    \"type\": \"lvalue\"\n  "
-        "},\n  \"unit\": {\n    \"column\": 1,\n    \"end_column\": 5,\n    "
-        "\"end_pos\": 332,\n    \"line\": 26,\n    \"start_pos\": 328,\n    "
-        "\"type\": \"vector_definition\"\n  },\n  \"x\": {\n    \"column\": "
-        "8,\n    \"end_column\": 9,\n    \"end_pos\": 18,\n    \"line\": 2,\n  "
-        "  \"size\": 50,\n    \"start_pos\": 17,\n    \"type\": "
-        "\"vector_lvalue\"\n  },\n  \"y\": {\n    \"column\": 15,\n    "
-        "\"end_column\": 16,\n    \"end_pos\": 25,\n    \"line\": 2,\n    "
-        "\"start_pos\": 24,\n    \"type\": \"indirect_lvalue\"\n  },\n  \"z\": "
-        "{\n    \"column\": 17,\n    \"end_column\": 18,\n    \"end_pos\": "
-        "27,\n    \"line\": 2,\n    \"start_pos\": 26,\n    \"type\": "
-        "\"lvalue\"\n  }\n}");
+    const Node VECTOR_SYMBOLS =
+        credence::test::load_json_fixture("ir/table/vector_symbols");
     inline auto make_node() { return credence::util::AST::object(); }
     static inline credence::ir::Table make_table(Node const& symbols)
     {
@@ -150,118 +114,8 @@ TEST_CASE_FIXTURE(Table_Fixture, "from_locl_ita_instruction")
 
 TEST_CASE_FIXTURE(Table_Fixture, "build_vector_definitions_from_globals")
 {
-    auto ast = LOAD_JSON_FROM_STRING(
-        " {\n    \"left\" : [{\n        \"left\" : [null],\n        \"node\" : "
-        "\"function_definition\",\n        \"right\" : {\n          \"left\" : "
-        "[{\n              \"left\" : [{\n                  \"left\" : {\n     "
-        "               \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 50\n                  },\n                  \"node\" : "
-        "\"vector_lvalue\",\n                  \"root\" : \"x\"\n              "
-        "  }, {\n                  \"left\" : {\n                    \"node\" "
-        ": \"lvalue\",\n                    \"root\" : \"y\"\n                 "
-        " },\n                  \"node\" : \"indirect_lvalue\",\n              "
-        "    \"root\" : [\"*\"]\n                }, {\n                  "
-        "\"node\" : \"lvalue\",\n                  \"root\" : \"z\"\n          "
-        "      }],\n              \"node\" : \"statement\",\n              "
-        "\"root\" : \"auto\"\n            }, {\n              \"left\" : [{\n  "
-        "                \"node\" : \"lvalue\",\n                  \"root\" : "
-        "\"putchar\"\n                }],\n              \"node\" : "
-        "\"statement\",\n              \"root\" : \"extrn\"\n            }, "
-        "{\n              \"left\" : [[{\n                    \"left\" : {\n   "
-        "                   \"left\" : {\n                        \"node\" : "
-        "\"integer_literal\",\n                        \"root\" : 10\n         "
-        "             },\n                      \"node\" : "
-        "\"vector_lvalue\",\n                      \"root\" : \"x\"\n          "
-        "          },\n                    \"node\" : "
-        "\"assignment_expression\",\n                    \"right\" : {\n       "
-        "               \"node\" : \"integer_literal\",\n                      "
-        "\"root\" : 0\n                    },\n                    \"root\" : "
-        "[\"=\"]\n                  }]],\n              \"node\" : "
-        "\"statement\",\n              \"root\" : \"rvalue\"\n            "
-        "}],\n          \"node\" : \"statement\",\n          \"root\" : "
-        "\"block\"\n        },\n        \"root\" : \"main\"\n      }, {\n      "
-        "  \"left\" : [{\n            \"node\" : \"lvalue\",\n            "
-        "\"root\" : \"errno\"\n          }],\n        \"node\" : "
-        "\"function_definition\",\n        \"right\" : {\n          \"left\" : "
-        "[{\n              \"left\" : [{\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"t\"\n                "
-        "}],\n              \"node\" : \"statement\",\n              \"root\" "
-        ": \"auto\"\n            }, {\n              \"left\" : [{\n           "
-        "       \"node\" : \"lvalue\",\n                  \"root\" : "
-        "\"unit\"\n                }, {\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"mess\"\n                "
-        "}],\n              \"node\" : \"statement\",\n              \"root\" "
-        ": \"extrn\"\n            }, {\n              \"left\" : [{\n          "
-        "        \"node\" : \"lvalue\",\n                  \"root\" : \"u\"\n  "
-        "              }],\n              \"node\" : \"statement\",\n          "
-        "    \"root\" : \"auto\"\n            }, {\n              \"left\" : "
-        "[[{\n                    \"left\" : {\n                      \"node\" "
-        ": \"lvalue\",\n                      \"root\" : \"u\"\n               "
-        "     },\n                    \"node\" : \"assignment_expression\",\n  "
-        "                  \"right\" : {\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"unit\"\n              "
-        "      },\n                    \"root\" : [\"=\"]\n                  "
-        "}], [{\n                    \"left\" : {\n                      "
-        "\"node\" : \"lvalue\",\n                      \"root\" : \"unit\"\n   "
-        "                 },\n                    \"node\" : "
-        "\"assignment_expression\",\n                    \"right\" : {\n       "
-        "               \"node\" : \"integer_literal\",\n                      "
-        "\"root\" : 1\n                    },\n                    \"root\" : "
-        "[\"=\"]\n                  }], [{\n                    \"left\" : {\n "
-        "                     \"node\" : \"lvalue\",\n                      "
-        "\"root\" : \"t\"\n                    },\n                    "
-        "\"node\" : \"assignment_expression\",\n                    \"right\" "
-        ": {\n                      \"left\" : {\n                        "
-        "\"node\" : \"lvalue\",\n                        \"root\" : "
-        "\"errno\"\n                      },\n                      \"node\" : "
-        "\"vector_lvalue\",\n                      \"root\" : \"mess\"\n       "
-        "             },\n                    \"root\" : [\"=\"]\n             "
-        "     }], [{\n                    \"left\" : {\n                      "
-        "\"node\" : \"lvalue\",\n                      \"root\" : \"printf\"\n "
-        "                   },\n                    \"node\" : "
-        "\"function_expression\",\n                    \"right\" : [{\n        "
-        "                \"node\" : \"string_literal\",\n                      "
-        "  \"root\" : \"\\\"error number %d, %s*n'*,errno,mess[errno]\\\"\"\n  "
-        "                    }],\n                    \"root\" : \"printf\"\n  "
-        "                }], [{\n                    \"left\" : {\n            "
-        "          \"node\" : \"lvalue\",\n                      \"root\" : "
-        "\"unit\"\n                    },\n                    \"node\" : "
-        "\"assignment_expression\",\n                    \"right\" : {\n       "
-        "               \"node\" : \"lvalue\",\n                      \"root\" "
-        ": \"u\"\n                    },\n                    \"root\" : "
-        "[\"=\"]\n                  }]],\n              \"node\" : "
-        "\"statement\",\n              \"root\" : \"rvalue\"\n            "
-        "}],\n          \"node\" : \"statement\",\n          \"root\" : "
-        "\"block\"\n        },\n        \"root\" : \"snide\"\n      }, {\n     "
-        "   \"left\" : [{\n            \"node\" : \"lvalue\",\n            "
-        "\"root\" : \"s\"\n          }],\n        \"node\" : "
-        "\"function_definition\",\n        \"right\" : {\n          \"left\" : "
-        "[{\n              \"left\" : [{\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"s\"\n                "
-        "}],\n              \"node\" : \"statement\",\n              \"root\" "
-        ": \"return\"\n            }],\n          \"node\" : \"statement\",\n  "
-        "        \"root\" : \"block\"\n        },\n        \"root\" : "
-        "\"printf\"\n      }, {\n        \"node\" : \"vector_definition\",\n   "
-        "     \"right\" : [{\n            \"node\" : \"string_literal\",\n     "
-        "       \"root\" : \"\\\"puts\\\"\"\n          }],\n        \"root\" : "
-        "\"putchar\"\n      }, {\n        \"node\" : \"vector_definition\",\n  "
-        "      \"right\" : [{\n            \"node\" : \"integer_literal\",\n   "
-        "         \"root\" : 10\n          }],\n        \"root\" : \"unit\"\n  "
-        "    }, {\n        \"left\" : {\n          \"node\" : "
-        "\"integer_literal\",\n          \"root\" : 6\n        },\n        "
-        "\"node\" : \"vector_definition\",\n        \"right\" : [{\n           "
-        " \"node\" : \"string_literal\",\n            \"root\" : \"\\\"too "
-        "bad\\\"\"\n          }, {\n            \"node\" : "
-        "\"string_literal\",\n            \"root\" : \"\\\"tough luck\\\"\"\n  "
-        "        }, {\n            \"node\" : \"string_literal\",\n            "
-        "\"root\" : \"\\\"sorry, Charlie\\\"\"\n          }, {\n            "
-        "\"node\" : \"string_literal\",\n            \"root\" : \"\\\"that's "
-        "the breaks\\\"\"\n          }, {\n            \"node\" : "
-        "\"string_literal\",\n            \"root\" : \"\\\"what a "
-        "shame\\\"\"\n          }, {\n            \"node\" : "
-        "\"string_literal\",\n            \"root\" : \"\\\"some days you can't "
-        "win\\\"\"\n          }],\n        \"root\" : \"mess\"\n      }],\n    "
-        "\"node\" : \"program\",\n    \"root\" : \"definitions\"\n  }");
+    auto ast = credence::test::load_json_fixture(
+        "ir/table/vector_definitions_from_globals");
     auto table_pointer = make_table_with_global_symbols(ast, VECTOR_SYMBOLS);
     auto table = table_pointer.get_table_object();
     auto& locals = table->functions.at("main").get().locals;

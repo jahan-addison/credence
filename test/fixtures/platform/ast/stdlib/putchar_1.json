@@ -88,6 +88,7 @@
       }
     ],
     "node": "program",
-    "root": "definitions"
+    "root": "root",
+    "right": []
   }
 ]

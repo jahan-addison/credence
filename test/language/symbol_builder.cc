@@ -56,10 +56,9 @@ TEST_CASE("symbol_builder.cc: vector definition, sized with no initial values")
     SETUP_PARSE_FIXTURE_AND_TEST_SYMBOLS("vector_no_size");
 }
 
-TEST_CASE(
-    "symbol_builder.cc: vector definition, bare (no size, no initial values)")
+TEST_CASE("symbol_builder.cc: global variable declarations")
 {
-    SETUP_PARSE_FIXTURE_AND_TEST_SYMBOLS("vector_bare");
+    SETUP_PARSE_FIXTURE_AND_TEST_SYMBOLS("variable_declaration");
 }
 
 TEST_CASE("symbol_builder.cc: auto statement, including a local vector")

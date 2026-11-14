@@ -92,6 +92,14 @@ RValue get_symbol_from_expression(Data_Kind::Kind const& expression)
 }
 
 /**
+ * @brief Whether an lvalue is a tag of a union, e.g. `m.ab` or `data_t.ab`
+ */
+bool is_union_member(LValue const& lvalue)
+{
+    return util::contains(lvalue, ".") and not lvalue.starts_with("*");
+}
+
+/**
  * @brief The value of a literal and its constant
  *
  * A string literal is a pointer
@@ -215,6 +223,20 @@ Value Type_Checker::from_lvalue(LValue const& lvalue)
         auto pointer = lvalue.substr(1);
         return from_dereference(from_lvalue(pointer), pointer);
     }
+    if (is_union_member(lvalue))
+        return from_union_member(lvalue);
+    if (frame_.unions.contains(lvalue))
+        type_error(fmt::format("invalid use of union '{}', a tag of a union "
+                               "is accessed with '{}.<tag>'",
+                       lvalue,
+                       lvalue),
+            lvalue);
+    if (unions_.contains(lvalue))
+        type_error(fmt::format("invalid use of union definition '{}', a tag "
+                               "of a union is accessed with '{}.<tag>'",
+                       lvalue,
+                       lvalue),
+            lvalue);
     if (util::contains(lvalue, "["))
         return from_vector_offset(lvalue);
     if (frame_.locals.contains(lvalue))
@@ -225,6 +247,37 @@ Value Type_Checker::from_lvalue(LValue const& lvalue)
         return Value{ Storage::POINTER, "word" };
     }
     return Value{ Storage::SCALAR, "word" };
+}
+
+/**
+ * @brief The value of a tag of a union variable
+ *
+ * A tag is the type of its initial value. The values of a tuple tag are
+ * read by binding them to locals in an `is` expression.
+ *
+ *  Examples:
+ *
+ *    union data_t { ab "", cd 0, list (0, "") };
+ *    union data_t m;
+ *    m.ab;           // pointer to string
+ *    m.cd;           // int
+ *    m.list;         // not allowed, m is data_t.list(a, s) reads it
+ *    m.list[0];      // not allowed, m is data_t.list(a, s) reads it
+ *    m.xy;           // not allowed, xy is not a tag of data_t
+ */
+Value Type_Checker::from_union_member(LValue const& lvalue)
+{
+    auto tag = credence::type::from_lvalue_offset(lvalue);
+    auto const& values = get_union_tag(tag);
+    if (values.size() != 1 or util::contains(lvalue, "["))
+        type_error(fmt::format("invalid union access, the values of tuple "
+                               "tag '{}' are read with an 'is' expression, "
+                               "e.g. '{} is <union>.{}(a, b)'",
+                       tag,
+                       tag.substr(0, tag.find('.')),
+                       tag.substr(tag.find('.') + 1)),
+            lvalue);
+    return Value{ values.front().storage, values.front().type };
 }
 
 /**
@@ -383,9 +436,103 @@ Value Type_Checker::from_increment_expression(Data_Kind::Kind const& operand)
 Value Type_Checker::from_relation_expression(
     Data_Kind::Relation const& relation)
 {
+    if (relation.first == Operator::R_IS)
+        return from_is_expression(relation);
     for (auto const& block : relation.second)
         from_expression(block->value);
     return Value{ Storage::SCALAR, "word" };
+}
+
+/**
+ * @brief The value of an `is` expression is a word
+ *
+ * The left-hand-side is a union variable, and the right-hand-side is a tag
+ * of its union
+ *
+ *  Examples:
+ *
+ *    union data_t { ab "", cd 0 };
+ *    union other_t { ef 0 };
+ *    union data_t m;
+ *    m is data_t.ab;       // allowed
+ *    m is other_t.ef;      // not allowed, m is a data_t
+ *    m is data_t.xy;       // not allowed, xy is not a tag of data_t
+ *    m.cd is data_t.cd;    // not allowed, m.cd is not a union variable
+ */
+Value Type_Checker::from_is_expression(Data_Kind::Relation const& relation)
+{
+    credence_assert_equal(relation.second.size(), 2UL);
+    auto const& lhs = unwrap(relation.second.front()->value);
+    auto const& pattern = unwrap(relation.second.back()->value);
+    auto lhs_symbol = get_symbol_from_expression(lhs);
+    // a tag that binds its values is the tag and the lvalue of each local
+    auto const* bindings = std::holds_alternative<Data_Kind::Function>(pattern)
+                               ? &std::get<Data_Kind::Function>(pattern).second
+                               : nullptr;
+    Data_Kind::Kind rhs = pattern;
+    if (bindings != nullptr)
+        rhs = std::get<Data_Kind::Function>(pattern).first;
+    auto rhs_symbol = get_symbol_from_expression(rhs);
+    if (!std::holds_alternative<Data_Kind::LValue>(lhs) or
+        not frame_.unions.contains(lhs_symbol))
+        type_error(fmt::format("invalid 'is' expression, left-hand-side '{}' "
+                               "is not a union variable",
+                       lhs_symbol),
+            lhs_symbol);
+    auto const& label = frame_.unions.at(lhs_symbol);
+    auto separator = rhs_symbol.find('.');
+    if (!std::holds_alternative<Data_Kind::LValue>(rhs) or
+        separator == RValue::npos or rhs_symbol.substr(0, separator) != label or
+        not unions_.at(label).tags.contains(rhs_symbol.substr(separator + 1)))
+        type_error(fmt::format("invalid 'is' expression, right-hand-side '{}' "
+                               "is not a tag of union '{}', the union of '{}'",
+                       rhs_symbol,
+                       label,
+                       lhs_symbol),
+            rhs_symbol);
+    if (bindings != nullptr)
+        bind_union_tag(rhs_symbol, *bindings);
+    return Value{ Storage::SCALAR, "word" };
+}
+
+/**
+ * @brief Assign the values of a union tag to the locals of an `is` pattern
+ *
+ * Each value of the tag is assigned to its local, so a local is the type of
+ * its value, and a string value is bound to a pointer
+ *
+ *  Examples:
+ *
+ *    union data_t { list (0, "") };
+ *    auto n, *s, x;
+ *    union data_t m;
+ *    m is data_t.list(n, s);    // allowed, n is an int, s a string pointer
+ *    m is data_t.list(n);       // not allowed, list has 2 values
+ *    m is data_t.list(n, x);    // not allowed, x is not a pointer
+ */
+void Type_Checker::bind_union_tag(LValue const& tag,
+    std::vector<Data_Kind::Pointer> const& bindings)
+{
+    auto label = tag.substr(0, tag.find('.'));
+    auto const& values =
+        unions_.at(label).tags.at(tag.substr(tag.find('.') + 1));
+    if (bindings.size() != values.size())
+        type_error(fmt::format("invalid 'is' expression, tag '{}' has {} "
+                               "values, and {} are bound",
+                       tag,
+                       values.size(),
+                       bindings.size()),
+            tag);
+    for (std::size_t index = 0; index < bindings.size(); index++) {
+        auto symbol = get_symbol_from_expression(bindings[index]->value);
+        if (!frame_.locals.contains(symbol))
+            type_error(fmt::format("invalid 'is' expression, '{}' is not a "
+                                   "local",
+                           symbol),
+                symbol);
+        auto const& value = values[index];
+        assign(symbol, Value{ value.storage, value.type }, tag);
+    }
 }
 
 /**
@@ -442,6 +589,16 @@ void Type_Checker::assign(LValue const& lvalue,
         assign_to_dereference(lvalue.substr(1), rvalue, symbol);
         return;
     }
+    if (is_union_member(lvalue)) {
+        assign_to_union_member(lvalue, rvalue, symbol);
+        return;
+    }
+    if (frame_.unions.contains(lvalue))
+        type_error(fmt::format("invalid assignment, union '{}' is assigned "
+                               "through a tag, '{}.<tag>'",
+                       lvalue,
+                       lvalue),
+            symbol);
     if (util::contains(lvalue, "[")) {
         assign_to_vector(lvalue, rvalue, symbol);
         return;
@@ -633,6 +790,81 @@ void Type_Checker::assign_to_vector(LValue const& lvalue,
 }
 
 /**
+ * @brief Type check an assignment to a tag of a union variable
+ *
+ * The right-hand-side must be the type of the tag. Each value of a tuple tag
+ * is assigned at a constant offset, and must be the type of that value.
+ *
+ *  Examples:
+ *
+ *    union data_t { ab "", ll 0.0f, list (0, "") };
+ *    union data_t m;
+ *    m.ab = "hello";       // allowed
+ *    m.ll = 5.5f;          // allowed
+ *    m.list[1] = "hi";     // allowed
+ *    m.ll = 5;             // not allowed, float and int
+ *    m.ab = 5;             // not allowed, ab is a string pointer
+ *    m.list = 5;           // not allowed, list is a tuple
+ *    m.list[0] = "hi";     // not allowed, int and string
+ *    m.list[2] = 5;        // not allowed, list has 2 values
+ */
+void Type_Checker::assign_to_union_member(LValue const& lvalue,
+    Value const& rvalue,
+    RValue const& symbol)
+{
+    auto member = credence::type::from_lvalue_offset(lvalue);
+    auto const& values = get_union_tag(member);
+    std::size_t index = 0;
+    if (util::contains(lvalue, "[")) {
+        auto offset = credence::type::from_decay_offset(lvalue);
+        if (values.size() == 1 or not util::is_numeric(offset))
+            type_error(fmt::format("invalid union assignment, '{}' is not a "
+                                   "constant offset of a tuple tag",
+                           lvalue),
+                symbol);
+        index = std::stoul(offset);
+        if (index >= values.size())
+            type_error(fmt::format("invalid union assignment, '{}' is out of "
+                                   "range of tuple tag '{}' with {} values",
+                           lvalue,
+                           member,
+                           values.size()),
+                symbol);
+    } else if (values.size() != 1)
+        type_error(fmt::format("invalid union assignment, tag '{}' is a tuple "
+                               "of {} values, and each value is assigned with "
+                               "'{}[<index>]'",
+                       lvalue,
+                       values.size(),
+                       lvalue),
+            symbol);
+    auto const& tag = values[index];
+    if (tag.storage == Storage::SCALAR and rvalue.storage == Storage::POINTER)
+        type_error(fmt::format("invalid union assignment, left-hand-side '{}' "
+                               "is not a pointer",
+                       lvalue),
+            symbol);
+    if (tag.storage == Storage::POINTER and
+        rvalue.storage == Storage::SCALAR and rvalue.type != "word")
+        type_error(
+            fmt::format("invalid union assignment, right-hand-side '{}' "
+                        "is not a pointer, and '{}' is a pointer to '{}'",
+                symbol,
+                lvalue,
+                tag.type),
+            symbol);
+    if (!is_compatible(tag.type, rvalue.type))
+        type_error(
+            fmt::format("invalid union assignment, right-hand-side '{}' "
+                        "with type '{}' is not the type of tag '{}' ({})",
+                symbol,
+                rvalue.type,
+                lvalue,
+                tag.type),
+            symbol);
+}
+
+/**
  * @brief Check the boundary of a vector offset and get its vector
  *
  * Returns nullptr for an offset of a pointer or a parameter, which has no
@@ -733,6 +965,39 @@ bool Type_Checker::is_parameter_or_pointer(LValue const& label)
     return frame_.parameters.contains(label) or
            (frame_.locals.contains(label) and
                frame_.locals.at(label).storage == Storage::POINTER);
+}
+
+/**
+ * @brief The values of the tag of a union variable, e.g. `m.ab`
+ *
+ * A tag of a union definition, `data_t.ab`, is only the right-hand-side of
+ * an `is` expression
+ */
+std::vector<Value> const& Type_Checker::get_union_tag(LValue const& lvalue)
+{
+    auto separator = lvalue.find('.');
+    auto object = lvalue.substr(0, separator);
+    auto tag = lvalue.substr(separator + 1);
+    if (!frame_.unions.contains(object)) {
+        if (unions_.contains(object))
+            type_error(fmt::format("invalid union tag, '{}' is only the "
+                                   "right-hand-side of an 'is' expression",
+                           lvalue),
+                lvalue);
+        type_error(fmt::format("invalid member access, '{}' is not a union "
+                               "variable",
+                       object),
+            lvalue);
+    }
+    auto const& label = frame_.unions.at(object);
+    auto const& definition = unions_.at(label);
+    if (!definition.tags.contains(tag))
+        type_error(fmt::format("invalid union member access, '{}' is not a "
+                               "tag of union '{}'",
+                       tag,
+                       label),
+            lvalue);
+    return definition.tags.at(tag);
 }
 
 /**

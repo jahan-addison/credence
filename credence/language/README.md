@@ -142,8 +142,42 @@ main() {
 ```
 
 * A `tag` node holds its initial values, a constant or a parenthesized list of constants, and its type is the type of those values
-* A `union` statement, or a `union` definition at the top level, declares variables of a union type, and each variable holds one tag at a time
+* A `union` statement, or a `union` declaration at the top level, declares variables of a union type, and each variable holds one tag at a time
 * `v is value.real` tests the active tag of `v`. An identifier may contain `.`, so `v.real` and `value.real` are each a single identifier to the lexer
+
+The right-hand-side of `is` is a `union_tag` node - the tag, and the locals its values are bound to, if any. A binary operator after the tag takes the `is` expression as its left-hand-side.
+
+```C
+if (v is value.pair(a, b) && a > 0) {
+  ...
+}
+```
+
+```json
+{
+  "node": "relation_expression",
+  "root": ["&&"],
+  "left": {
+    "node": "is_expression",
+    "root": ["is"],
+    "left": { "node": "lvalue", "root": "v" },
+    "right": {
+      "node": "union_tag",
+      "root": "value.pair",
+      "left": [
+        { "node": "lvalue", "root": "a" },
+        { "node": "lvalue", "root": "b" }
+      ]
+    }
+  },
+  "right": {
+    "node": "relation_expression",
+    "root": [">"],
+    "left": { "node": "lvalue", "root": "a" },
+    "right": { "node": "integer_literal", "root": 0 }
+  }
+}
+```
 
 ## Symbol Builder
 
@@ -212,6 +246,11 @@ error: invalid pointer assignment, right-hand-side 'x' is not a pointer
 * A string literal is a pointer, but a string element of a vector is a scalar
 * A function may return from more than one statement, but each return value must be the same type
 * A parameter that any call passes a pointer, a string, or an element of `argv` is a pointer, even when it isn't declared `*name`. Each call is recorded, and after every function is built the pointer is propagated to the parameters passed to other functions, so `show(s) { print2(s); }` makes both `s` and the parameter of `print2` pointers
+* A global variable, `unit 10;`, is a vector of one element, and is declared in a function with `extrn`, as any global. A global variable with no initial value, `unit;`, is the zero of the type of its first assignment
+* A tag of a union is the type of its initial value, and a tag with a list of values is a tuple of their types. An assignment to a tag of a union variable, `m.ll = 5.555f;`, must be the type of the tag
+* Each value of a tuple tag is assigned at a constant offset, `m.list[1] = "hi";`, and the values of a tuple tag are read by binding them to locals in an `is` expression, `m is data_t.list(n, s)`. Each local is assigned its value, so a local bound to a string is a pointer
+* The left-hand-side of an `is` expression is a union variable, and the right-hand-side is a tag of its union, so `m is data_t.ab` is an error when `m` is not a `data_t`
+* A global union variable, `union data_t k;`, is declared in a function with `extrn`, as any global
 
 ## Example
 
@@ -224,7 +263,7 @@ add(a, b) {
 ```json
 {
   "node": "program",
-  "root": "definitions",
+  "root": "root",
   "left": [
     {
       "node": "function_definition",
@@ -252,6 +291,9 @@ add(a, b) {
         ]
       }
     }
-  ]
+  ],
+  "right": []
 }
 ```
+
+The definitions of a program are the `left` of its node, and its declarations, global variables and global union variables, are the `right`.

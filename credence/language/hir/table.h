@@ -18,8 +18,10 @@
 #include <credence/object.h> // for Object_Table
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
+#include <cstddef>           // for size_t
 #include <map>               // for map
 #include <memory>            // for shared_ptr, make_shared
+#include <set>               // for set
 #include <source_location>   // for source_location
 #include <string_view>       // for string_view
 #include <vector>            // for vector
@@ -30,7 +32,8 @@
  * Semantic analysis on the HIR. A pass over each definition and statement
  * of a program that lowers its expressions into the HIR and type checks
  * them in their stack frame. The result is the definitions of the object
- * table - vectors, functions, and parameters - that the IR binds onto.
+ * table - vectors, functions, and parameters - that the IR binds onto. A
+ * global variable is a vector of one element.
  *
  *  Example:
  *
@@ -76,14 +79,14 @@ class Table
 
   public:
     /**
-     * @brief Object table factory from the symbols and definitions of a
+     * @brief Object table factory from the symbols and program node of a
      * program
      */
     static inline Object_Table_PTR build(Node const& hoisted_symbols,
-        Node const& definitions)
+        Node const& program)
     {
         auto table = Table{ hoisted_symbols };
-        table.build_from_definitions(definitions);
+        table.build_from_definitions(program);
         return table.objects_;
     }
 
@@ -92,16 +95,27 @@ class Table
 
     // clang-format off
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    void build_from_vector_definition(Node const& node);
     void build_from_function_definition(Node const& node);
+    void build_from_union_definition(Node const& node);
+    void build_from_vector_definition(Node const& node);
+    void build_global_vector(Label const& name,
+        std::size_t size,
+        Node const& values);
     void build_vector_definitions_from_symbols();
     void build_vector_definitions_from_globals();
     void set_pointer_parameters_from_call_arguments();
+    void set_unset_global_values();
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    void build_from_declarations(Node const& node);
+    void build_from_variable_declaration(Node const& node);
+    void build_from_union_declaration(Node const& node);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     void build_from_statement(Node const& node);
     void build_from_block_statement(Node const& node);
     void build_from_auto_statement(Node const& node);
+    void build_from_union_statement(Node const& node);
     void build_from_extrn_statement(Node const& node);
     void build_from_if_statement(Node const& node);
     void build_from_while_statement(Node const& node);
@@ -115,6 +129,8 @@ class Table
     checking::Value from_expression_node(Node const& node);
     std::vector<Node> get_expression_nodes(Node const& node);
     checking::Frame& get_stack_frame();
+    void set_union_variable(LValue const& name, Label const& label);
+    void set_union_tag_symbols();
     // clang-format on
 
   private:
@@ -128,6 +144,11 @@ class Table
     Symbol_Table<> symbols_{};
     Symbol_Table<> globals_{};
     checking::Vectors vectors_{};
+    checking::Unions unions_{};
+    // each global union variable and the label of its union definition
+    std::map<LValue, Label> union_globals_{};
+    // each global variable with no initial value
+    std::set<LValue> unset_globals_{};
     std::map<Label, checking::Frame> frames_{};
     checking::Call_Arguments call_arguments_{};
     Label stack_frame_symbol_{};

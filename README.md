@@ -114,7 +114,7 @@ The following differ from B:
 * `goto` and labels are not supported, use control structures
 * A `switch` condition is always enclosed in `(` and `)`
 * A binary operator may not be used directly after the `=` operator
-* A global variable, e.g. `unit 10;`, has at most one initial value. A global with more is a vector, and is defined with `[]`, e.g. `mess[] "too bad", "tough luck";`
+* A global variable, e.g. `unit 10;`, has at most one initial value, and a global variable with none, `unit;`, is unset until it is assigned. A global with more is a vector, and is defined with `[]`, e.g. `mess[] "too bad", "tough luck";`
 
 ### Type System
 
@@ -172,10 +172,12 @@ main() {
 ```
 
 * `union value { ... };` defines a union, and the comma between tags is optional
-* `union value v, w;` declares union variables in a function, or as a global definition
+* `union value v, w;` declares union variables in a function, or as a global definition that a function declares with `extrn`, as any global
 * An assignment to a tag, `v.real = 2.5f;`, makes it the active tag of `v`
 * `v is value.real` is true when `real` is the active tag of `v`
 * A tag may only be assigned a value of its type
+* Each value of a tuple tag is assigned at its offset, `v.pair[0] = 1;`
+* `v is value.pair(a, b)` is true when `pair` is the active tag of `v`, and assigns its values to the locals `a` and `b`
 
 See details [here](/credence/language/README.md#unions).
 

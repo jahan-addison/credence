@@ -1,0 +1,114 @@
+{
+  "m": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 17,
+    "column": 9,
+    "end_pos": 18,
+    "end_column": 10
+  },
+  "i": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 19,
+    "column": 11,
+    "end_pos": 20,
+    "end_column": 12
+  },
+  "j": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 21,
+    "column": 13,
+    "end_pos": 22,
+    "end_column": 14
+  },
+  "c": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 23,
+    "column": 15,
+    "end_pos": 24,
+    "end_column": 16
+  },
+  "sign": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 25,
+    "column": 17,
+    "end_pos": 29,
+    "end_column": 21
+  },
+  "C": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 30,
+    "column": 22,
+    "end_pos": 31,
+    "end_column": 23
+  },
+  "s": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 32,
+    "column": 24,
+    "end_pos": 33,
+    "end_column": 25
+  },
+  "loop": {
+    "type": "lvalue",
+    "line": 3,
+    "start_pos": 43,
+    "column": 9,
+    "end_pos": 47,
+    "end_column": 13
+  },
+  "char": {
+    "type": "function_definition",
+    "line": 31,
+    "start_pos": 774,
+    "column": 1,
+    "end_pos": 778,
+    "end_column": 5
+  },
+  "error": {
+    "type": "function_definition",
+    "line": 34,
+    "start_pos": 789,
+    "column": 1,
+    "end_pos": 794,
+    "end_column": 6
+  },
+  "main": {
+    "type": "function_definition",
+    "line": 1,
+    "start_pos": 0,
+    "column": 1,
+    "end_pos": 4,
+    "end_column": 5
+  },
+  "a": {
+    "type": "lvalue",
+    "line": 31,
+    "start_pos": 779,
+    "column": 6,
+    "end_pos": 780,
+    "end_column": 7
+  },
+  "b": {
+    "type": "lvalue",
+    "line": 31,
+    "start_pos": 781,
+    "column": 8,
+    "end_pos": 782,
+    "end_column": 9
+  },
+  "printf": {
+    "type": "function_definition",
+    "line": 39,
+    "start_pos": 844,
+    "column": 1,
+    "end_pos": 850,
+    "end_column": 7
+  }
+}

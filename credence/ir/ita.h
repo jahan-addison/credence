@@ -16,6 +16,7 @@
 #include <compare>           // for _CmpUnspecifiedParam, operator<, strong...
 #include <credence/symbol.h> // for Symbol_Table
 #include <credence/util.h>   // for AST_Node, CREDENCE_PRIVATE_UNLESS_TESTED
+#include <cstddef>           // for size_t
 #include <deque>             // for deque, operator<=>, operator==
 #include <easyjson.h>        // for JSON, object
 #include <iomanip>           // for operator<<, setw
@@ -415,6 +416,9 @@ class ITA
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Instructions build_from_function_definition(Node const& node);
     void build_from_vector_definition(Node const& node);
+    void build_from_global_vector(std::string const& name,
+        std::size_t size,
+        Node const& values);
     constexpr std::string build_function_label_from_parameters(
         std::string_view name,
         Parameters const& parameters);

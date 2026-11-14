@@ -91,7 +91,33 @@ struct Vector
 using Vectors = std::map<LValue, Vector>;
 
 /**
- * @brief The objects, vectors, labels, and return type of a function
+ * @brief A union definition and the values of each of its tags
+ *
+ * A tag is the type of its initial value, and a tag with a list of values
+ * is a tuple of their types
+ *
+ *  Example:
+ *
+ *    union data_t { ab "", cd 0, list (0, "") };
+ *
+ *  Becomes:
+ *
+ *    tags["ab"]   -> { pointer string }
+ *    tags["cd"]   -> { scalar int }
+ *    tags["list"] -> { scalar int, pointer string }
+ */
+struct Union
+{
+    std::map<Label, std::vector<Value>> tags{};
+};
+
+using Unions = std::map<Label, Union>;
+
+/**
+ * @brief The objects, vectors, union variables, labels, and return type of a
+ * function
+ *
+ * Each union variable is mapped to the label of its union definition
  */
 struct Frame
 {
@@ -99,6 +125,7 @@ struct Frame
     std::map<LValue, Value> locals{};
     std::set<LValue> parameters{};
     Vectors vectors{};
+    std::map<LValue, Label> unions{};
     Labels labels{};
     std::optional<Type> ret{};
 };
@@ -142,10 +169,12 @@ class Type_Checker
     Type_Checker& operator=(Type_Checker const&) = delete;
     explicit Type_Checker(Frame& frame,
         Vectors& globals,
+        Unions const& unions,
         util::AST_Node const& hoisted_symbols,
         Call_Arguments* call_arguments = nullptr)
         : frame_(frame)
         , globals_(globals)
+        , unions_(unions)
         , hoisted_symbols_(hoisted_symbols)
         , call_arguments_(call_arguments)
     {
@@ -172,6 +201,10 @@ class Type_Checker
     Value from_dereference(Value const& value, RValue const& symbol);
     Value from_increment_expression(Data_Kind::Kind const& operand);
     Value from_relation_expression(Data_Kind::Relation const& relation);
+    Value from_is_expression(Data_Kind::Relation const& relation);
+    void bind_union_tag(LValue const& tag,
+        std::vector<Data_Kind::Pointer> const& bindings);
+    Value from_union_member(LValue const& lvalue);
     Value from_function_expression(Data_Kind::Function const& function);
     Value from_assignment_expression(Data_Kind::Symbol const& assignment);
 
@@ -188,6 +221,9 @@ class Type_Checker
     void assign_to_vector(LValue const& lvalue,
         Value const& rvalue,
         RValue const& symbol);
+    void assign_to_union_member(LValue const& lvalue,
+        Value const& rvalue,
+        RValue const& symbol);
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
     Vector* get_vector_at_offset(LValue const& lvalue);
@@ -195,6 +231,7 @@ class Type_Checker
     Type get_pointer_type(Value const& value);
     Vector* get_vector(LValue const& label);
     bool is_parameter_or_pointer(LValue const& label);
+    std::vector<Value> const& get_union_tag(LValue const& lvalue);
     // clang-format on
 
   public:
@@ -209,11 +246,14 @@ class Type_Checker
   private:
     Frame& frame_;
     Vectors& globals_;
+    Unions const& unions_;
     util::AST_Node const& hoisted_symbols_;
     Call_Arguments* call_arguments_;
 };
 
 RValue get_symbol_from_expression(Data_Kind::Kind const& expression);
+
+bool is_union_member(LValue const& lvalue);
 
 Value get_value_from_literal(literal::Literal const& literal);
 

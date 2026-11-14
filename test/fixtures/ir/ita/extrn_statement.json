@@ -1,0 +1,18 @@
+{
+  "left": [
+    {
+      "node": "lvalue",
+      "root": "a"
+    },
+    {
+      "node": "lvalue",
+      "root": "b"
+    },
+    {
+      "node": "lvalue",
+      "root": "c"
+    }
+  ],
+  "node": "statement",
+  "root": "extrn"
+}

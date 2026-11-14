@@ -1,0 +1,67 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              null
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "right": [
+    {
+      "left": "unit",
+      "node": "declaration",
+      "right": [],
+      "root": "variable"
+    },
+    {
+      "left": "counter",
+      "node": "declaration",
+      "right": [
+        {
+          "node": "integer_literal",
+          "root": 10
+        }
+      ],
+      "root": "variable"
+    },
+    {
+      "left": "str",
+      "node": "declaration",
+      "right": [
+        {
+          "node": "string_literal",
+          "root": "\"puts\""
+        }
+      ],
+      "root": "variable"
+    },
+    {
+      "left": "tail",
+      "node": "declaration",
+      "right": [
+        {
+          "node": "float_literal",
+          "root": 1.5
+        }
+      ],
+      "root": "variable"
+    }
+  ],
+  "root": "root"
+}

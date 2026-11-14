@@ -1,0 +1,34 @@
+{
+  "left": {
+    "node": "integer_literal",
+    "root": 6
+  },
+  "node": "vector_definition",
+  "right": [
+    {
+      "node": "string_literal",
+      "root": "\"too bad\""
+    },
+    {
+      "node": "string_literal",
+      "root": "\"tough luck\""
+    },
+    {
+      "node": "string_literal",
+      "root": "\"sorry, Charlie\""
+    },
+    {
+      "node": "string_literal",
+      "root": "\"that's the breaks\""
+    },
+    {
+      "node": "string_literal",
+      "root": "\"what a shame\""
+    },
+    {
+      "node": "string_literal",
+      "root": "\"some days you can't win\""
+    }
+  ],
+  "root": "mess"
+}

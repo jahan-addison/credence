@@ -27,7 +27,7 @@
  * Operator categories:
  * - Arithmetic: +, -, *, /, %
  * - Bitwise: &, |, ^, ~, <<, >>
- * - Relational: ==, !=, <, >, <=, >=
+ * - Relational: ==, !=, <, >, <=, >=, "is"
  * - Logical: &&, ||
  * - Unary: !, -, +, ~, ++, --
  * - Assignment: =
@@ -49,6 +49,7 @@ enum class Operator
     U_NOT,
     R_LT,
     R_GT,
+    R_IS,
     R_LE,
     R_GE,
     R_OR,
@@ -132,6 +133,7 @@ const auto OPERATOR_PRECEDENCE =
         // Left-to-right
         { Operator::R_EQUAL,           { Associativity::LEFT_TO_RIGHT, 7 }  },
         { Operator::R_NEQUAL,          { Associativity::LEFT_TO_RIGHT, 7 }  },
+        { Operator::R_IS,              { Associativity::LEFT_TO_RIGHT, 7 }  },
         // Left-to-right
         { Operator::AND,               { Associativity::LEFT_TO_RIGHT, 8 }  },
         // Left-to-right
@@ -152,6 +154,7 @@ const auto BINARY_OPERATORS = std::map<std::string_view, Operator>({
     { "&&", Operator::R_AND      },
     { "==", Operator::R_EQUAL    },
     { "!=", Operator::R_NEQUAL   },
+    { "is", Operator::R_IS       },
     { "<",  Operator::R_LT       },
     { "<=", Operator::R_LE       },
     { ">",  Operator::R_GT       },
@@ -200,6 +203,9 @@ constexpr std::ostream& operator<<(std::ostream& os, Operator const& op)
             break;
         case Operator::R_GE:
             os << ">=";
+            break;
+        case Operator::R_IS:
+            os << "is";
             break;
         case Operator::R_OR:
             os << "||";
@@ -321,6 +327,9 @@ constexpr std::string operator_to_string(Operator const& op)
             break;
         case Operator::R_OR:
             return "||";
+            break;
+        case Operator::R_IS:
+            return "is";
             break;
         case Operator::R_AND:
             return "&&";

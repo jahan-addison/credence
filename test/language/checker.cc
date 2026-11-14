@@ -283,3 +283,263 @@ TEST_CASE_FIXTURE(Type_Checker_Fixture, "from_unary_expression")
         "main() { auto x, p; x = *p + 1; }", "'p' is not a pointer"));
     CHECK(is_valid("main() { auto x; x = 1; x = -x; x = ~x; x = !x; }"));
 }
+
+TEST_CASE_FIXTURE(Type_Checker_Fixture, "from_union_member")
+{
+    CHECK(is_valid(R"b(
+union data_t { ab "", cd 0, list (0, "") };
+
+main() {
+  auto x, *s;
+  union data_t m;
+  x = m.cd;
+  s = m.ab;
+}
+)b"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0, list (0, "") };
+
+main() {
+  auto x;
+  union data_t m;
+  x = m.list;
+}
+)b",
+        "the values of tuple tag 'm.list' are read with an 'is' expression"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x;
+  union data_t m;
+  x = m.xy;
+}
+)b",
+        "invalid union member access, 'xy' is not a tag of union 'data_t'"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x;
+  union data_t m;
+  x = data_t.cd;
+}
+)b",
+        "'data_t.cd' is only the right-hand-side of an 'is' expression"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x;
+  union data_t m;
+  x = m;
+}
+)b",
+        "invalid use of union 'm'"));
+}
+
+TEST_CASE_FIXTURE(Type_Checker_Fixture, "assign_to_union_member")
+{
+    CHECK(is_valid(R"b(
+union data_t { ab "", cd 0, ll 0.0f, list (0, "") };
+
+main() {
+  union data_t m;
+  m.ab = "hello world";
+  m.cd = 5;
+  m.ll = 5.555f;
+  m.list[0] = 5;
+  m.list[1] = "hi";
+}
+)b"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", ll 0.0f };
+
+main() {
+  union data_t m;
+  m.ll = 5;
+}
+)b",
+        "right-hand-side '5' with type 'int' is not the type of tag 'm.ll' "
+        "(float)"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  union data_t m;
+  m.ab = 5;
+}
+)b",
+        "right-hand-side '5' is not a pointer"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  union data_t m;
+  m.cd = "hello";
+}
+)b",
+        "left-hand-side 'm.cd' is not a pointer"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  union data_t m;
+  m.list = 5;
+}
+)b",
+        "tag 'm.list' is a tuple of 2 values"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  union data_t m;
+  m.list[0] = "hi";
+}
+)b",
+        "left-hand-side 'm.list[0]' is not a pointer"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  union data_t m;
+  m.list[2] = 5;
+}
+)b",
+        "'m.list[2]' is out of range of tuple tag 'm.list' with 2 values"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  auto i;
+  union data_t m;
+  i = 0;
+  m.list[i] = 5;
+}
+)b",
+        "'m.list[i]' is not a constant offset of a tuple tag"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  auto x;
+  union data_t m;
+  x = m.list[0];
+}
+)b",
+        "are read with an 'is' expression"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  union data_t m;
+  m = 5;
+}
+)b",
+        "union 'm' is assigned through a tag"));
+}
+
+TEST_CASE_FIXTURE(Type_Checker_Fixture, "from_is_expression")
+{
+    CHECK(is_valid(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x;
+  union data_t m;
+  m.cd = 5;
+  if (m is data_t.cd) {
+    x = m.cd;
+  }
+}
+)b"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+union other_t { ef 0 };
+
+main() {
+  auto x;
+  union data_t m;
+  x = m is other_t.ef;
+}
+)b",
+        "right-hand-side 'other_t.ef' is not a tag of union 'data_t'"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x;
+  union data_t m;
+  x = m.cd is data_t.cd;
+}
+)b",
+        "left-hand-side 'm.cd' is not a union variable"));
+}
+
+TEST_CASE_FIXTURE(Type_Checker_Fixture, "get_union_tag")
+{
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x, n;
+  n = 5;
+  x = n.cd;
+}
+)b",
+        "invalid member access, 'n' is not a union variable"));
+    CHECK(has_semantic_error(R"b(
+union data_t { ab "", cd 0 };
+
+main() {
+  auto x;
+  x = data_t;
+}
+)b",
+        "invalid use of union definition 'data_t'"));
+}
+
+TEST_CASE_FIXTURE(Type_Checker_Fixture, "bind_union_tag")
+{
+    CHECK(is_valid(R"b(
+union data_t { ab "", list (0, "") };
+
+main() {
+  auto n, *s, x;
+  union data_t m;
+  if (m is data_t.list(n, s)) {
+    x = n + 1;
+  }
+}
+)b"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  auto n;
+  union data_t m;
+  if (m is data_t.list(n)) { }
+}
+)b",
+        "tag 'data_t.list' has 2 values, and 1 are bound"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  auto n, x;
+  union data_t m;
+  if (m is data_t.list(n, x)) { }
+}
+)b",
+        "left-hand-side 'x' is not a pointer"));
+    CHECK(has_semantic_error(R"b(
+union data_t { list (0, "") };
+
+main() {
+  auto *s;
+  union data_t m;
+  if (m is data_t.list(n, s)) { }
+}
+)b",
+        "identifier of 'is' binding not declared with 'auto'"));
+}

@@ -1,0 +1,58 @@
+{
+  "x": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 16,
+    "column": 8,
+    "end_pos": 17,
+    "end_column": 9
+  },
+  "main": {
+    "type": "function_definition",
+    "line": 1,
+    "start_pos": 0,
+    "column": 1,
+    "end_pos": 4,
+    "end_column": 5
+  },
+  "a": {
+    "type": "vector_definition",
+    "line": 11,
+    "start_pos": 93,
+    "column": 1,
+    "end_pos": 94,
+    "end_column": 2
+  },
+  "b": {
+    "type": "vector_definition",
+    "line": 12,
+    "start_pos": 103,
+    "column": 1,
+    "end_pos": 104,
+    "end_column": 2
+  },
+  "add": {
+    "type": "function_definition",
+    "line": 6,
+    "start_pos": 39,
+    "column": 1,
+    "end_pos": 42,
+    "end_column": 4
+  },
+  "c": {
+    "type": "vector_definition",
+    "line": 13,
+    "start_pos": 113,
+    "column": 1,
+    "end_pos": 114,
+    "end_column": 2
+  },
+  "mess": {
+    "type": "vector_definition",
+    "line": 15,
+    "start_pos": 124,
+    "column": 1,
+    "end_pos": 128,
+    "end_column": 5
+  }
+}

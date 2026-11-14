@@ -1,0 +1,307 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "left": {
+                  "node": "integer_literal",
+                  "root": 50
+                },
+                "node": "vector_lvalue",
+                "root": "x"
+              },
+              {
+                "left": {
+                  "node": "lvalue",
+                  "root": "y"
+                },
+                "node": "indirect_lvalue",
+                "root": [
+                  "*"
+                ]
+              },
+              {
+                "node": "lvalue",
+                "root": "z"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "putchar"
+              }
+            ],
+            "node": "statement",
+            "root": "extrn"
+          },
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "left": {
+                      "node": "integer_literal",
+                      "root": 10
+                    },
+                    "node": "vector_lvalue",
+                    "root": "x"
+                  },
+                  "node": "assignment_expression",
+                  "right": {
+                    "node": "integer_literal",
+                    "root": 0
+                  },
+                  "root": [
+                    "="
+                  ]
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    },
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "errno"
+        }
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "t"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "unit"
+              },
+              {
+                "node": "lvalue",
+                "root": "mess"
+              }
+            ],
+            "node": "statement",
+            "root": "extrn"
+          },
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "u"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "u"
+                  },
+                  "node": "assignment_expression",
+                  "right": {
+                    "node": "lvalue",
+                    "root": "unit"
+                  },
+                  "root": [
+                    "="
+                  ]
+                }
+              ],
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "unit"
+                  },
+                  "node": "assignment_expression",
+                  "right": {
+                    "node": "integer_literal",
+                    "root": 1
+                  },
+                  "root": [
+                    "="
+                  ]
+                }
+              ],
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "t"
+                  },
+                  "node": "assignment_expression",
+                  "right": {
+                    "left": {
+                      "node": "lvalue",
+                      "root": "errno"
+                    },
+                    "node": "vector_lvalue",
+                    "root": "mess"
+                  },
+                  "root": [
+                    "="
+                  ]
+                }
+              ],
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "printf"
+                  },
+                  "node": "function_expression",
+                  "right": [
+                    {
+                      "node": "string_literal",
+                      "root": "\"error number %d, %s*n'*,errno,mess[errno]\""
+                    }
+                  ],
+                  "root": "printf"
+                }
+              ],
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "unit"
+                  },
+                  "node": "assignment_expression",
+                  "right": {
+                    "node": "lvalue",
+                    "root": "u"
+                  },
+                  "root": [
+                    "="
+                  ]
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "snide"
+    },
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "s"
+        }
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "s"
+              }
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "printf"
+    },
+    {
+      "left": {
+        "node": "v_size",
+        "root": 6
+      },
+      "node": "vector_definition",
+      "right": [
+        {
+          "node": "string_literal",
+          "root": "\"too bad\""
+        },
+        {
+          "node": "string_literal",
+          "root": "\"tough luck\""
+        },
+        {
+          "node": "string_literal",
+          "root": "\"sorry, Charlie\""
+        },
+        {
+          "node": "string_literal",
+          "root": "\"that's the breaks\""
+        },
+        {
+          "node": "string_literal",
+          "root": "\"what a shame\""
+        },
+        {
+          "node": "string_literal",
+          "root": "\"some days you can't win\""
+        }
+      ],
+      "root": "mess"
+    }
+  ],
+  "node": "program",
+  "root": "root",
+  "right": [
+    {
+      "left": "putchar",
+      "node": "declaration",
+      "right": [
+        {
+          "node": "string_literal",
+          "root": "\"puts\""
+        }
+      ],
+      "root": "variable"
+    },
+    {
+      "left": "unit",
+      "node": "declaration",
+      "right": [
+        {
+          "node": "integer_literal",
+          "root": 10
+        }
+      ],
+      "root": "variable"
+    }
+  ]
+}

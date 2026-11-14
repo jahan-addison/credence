@@ -72,7 +72,7 @@
                       },
                       {
                         "node": "float_literal",
-                        "root": 5.550000
+                        "root": 5.55
                       },
                       {
                         "node": "integer_literal",
@@ -130,6 +130,7 @@
       }
     ],
     "node": "program",
-    "root": "definitions"
+    "root": "root",
+    "right": []
   }
 ]

@@ -153,7 +153,7 @@
       },
       {
         "left": {
-          "node": "integer_literal",
+          "node": "v_size",
           "root": 3
         },
         "node": "vector_definition",
@@ -175,6 +175,7 @@
       }
     ],
     "node": "program",
-    "root": "definitions"
+    "root": "root",
+    "right": []
   }
 ]

@@ -145,11 +145,11 @@
                               },
                               {
                                 "node": "double_literal",
-                                "root": 5.200000
+                                "root": 5.2
                               },
                               {
                                 "node": "float_literal",
-                                "root": 5.330000
+                                "root": 5.33
                               },
                               {
                                 "node": "constant_literal",
@@ -182,6 +182,7 @@
       }
     ],
     "node": "program",
-    "root": "definitions"
+    "root": "root",
+    "right": []
   }
 ]

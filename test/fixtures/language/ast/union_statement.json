@@ -1,0 +1,78 @@
+{
+  "left": [
+    {
+      "left": [
+        {
+          "left": [
+            {
+              "node": "string_literal",
+              "root": "\"\""
+            }
+          ],
+          "node": "tag",
+          "root": "ab"
+        },
+        {
+          "left": [
+            {
+              "node": "integer_literal",
+              "root": 0
+            }
+          ],
+          "node": "tag",
+          "root": "cd"
+        }
+      ],
+      "node": "union_definition",
+      "root": "data_t"
+    },
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "x"
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": "data_t",
+            "node": "statement",
+            "right": [
+              {
+                "node": "lvalue",
+                "root": "m"
+              },
+              {
+                "node": "lvalue",
+                "root": "k"
+              }
+            ],
+            "root": "union"
+          },
+          {
+            "left": [
+              null
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "right": [],
+  "root": "root"
+}

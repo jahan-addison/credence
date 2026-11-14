@@ -1,0 +1,100 @@
+{
+  "left": [
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "number"
+                  },
+                  "node": "function_expression",
+                  "right": [
+                    null
+                  ],
+                  "root": "number"
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    },
+    {
+      "left": [
+        {
+          "node": "lvalue",
+          "root": "x"
+        }
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "x"
+              }
+            ],
+            "node": "statement",
+            "root": "return"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "ret"
+    },
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              [
+                {
+                  "left": {
+                    "node": "lvalue",
+                    "root": "ret"
+                  },
+                  "node": "function_expression",
+                  "right": [
+                    {
+                      "node": "integer_literal",
+                      "root": 5
+                    }
+                  ],
+                  "root": "ret"
+                }
+              ]
+            ],
+            "node": "statement",
+            "root": "rvalue"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "number"
+    }
+  ],
+  "node": "program",
+  "root": "root",
+  "right": []
+}

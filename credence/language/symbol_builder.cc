@@ -46,6 +46,15 @@ void Symbol_Builder::visit(util::AST_Node const& node)
                         [&] { visit_function_definition(node); },
                     m::pattern | "vector_definition" =
                         [&] { visit_vector_definition(node); },
+                    m::pattern | "union_definition" =
+                        [&] { visit_union_definition(node); },
+                    m::pattern | "declaration" =
+                        [&] {
+                            if (node["root"].to_string() == "variable")
+                                visit_variable_declaration(node);
+                            if (node["root"].to_string() == "union")
+                                visit_union_declaration(node);
+                        },
                     m::pattern | "lvalue" = [&] { visit_lvalue(node); },
                     m::pattern | "indirect_lvalue" =
                         [&] { visit_indirect_lvalue(node); },
@@ -90,6 +99,50 @@ void Symbol_Builder::visit_vector_definition(util::AST_Node const& node)
     entry["type"] = "vector_definition";
     if (node.has_key("left"))
         entry["size"] = node["left"]["root"].to_int();
+}
+
+/**
+ * @brief Create a union_definition entry
+ */
+void Symbol_Builder::visit_union_definition(util::AST_Node const& node)
+{
+    auto name = node["root"].to_string();
+    table_[name] = util::AST::object();
+    auto& entry = table_[name];
+    entry["type"] = "union_definition";
+}
+
+/**
+ * @brief Create a variable_declaration entry
+ */
+void Symbol_Builder::visit_variable_declaration(util::AST_Node const& node)
+{
+    auto name = node["left"].to_string();
+    table_[name] = util::AST::object();
+    table_[name]["type"] = "variable_declaration";
+}
+
+/**
+ * @brief Create a union_declaration entry for each global union variable
+ *
+ *  Example:
+ *
+ *    union data_t k, j;
+ *
+ *  Becomes:
+ *
+ *    k -> { type: union_declaration, union: data_t }
+ *    j -> { type: union_declaration, union: data_t }
+ */
+void Symbol_Builder::visit_union_declaration(util::AST_Node const& node)
+{
+    auto label = node["left"].to_string();
+    for (auto& ident : node["right"].array_range()) {
+        auto name = ident["root"].to_string();
+        table_[name] = util::AST::object();
+        table_[name]["type"] = "union_declaration";
+        table_[name]["union"] = label;
+    }
 }
 
 /**

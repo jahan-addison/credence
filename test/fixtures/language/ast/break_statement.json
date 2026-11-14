@@ -45,5 +45,6 @@
     }
   ],
   "node": "program",
-  "root": "definitions"
+  "right": [],
+  "root": "root"
 }

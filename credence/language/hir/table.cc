@@ -36,7 +36,8 @@
  * Semantic analysis on the HIR. A pass over each definition and statement
  * of a program that lowers its expressions into the HIR and type checks
  * them in their stack frame. The result is the definitions of the object
- * table - vectors, functions, and parameters - that the IR binds onto.
+ * table - vectors, functions, and parameters - that the IR binds onto. A
+ * global variable is a vector of one element.
  *
  *  Example:
  *
@@ -64,24 +65,38 @@ using checking::Storage;
 using checking::Value;
 
 /**
- * @brief Construct the object table from a set of definitions
+ * @brief Construct the object table from the definitions and declarations
+ * of a program
  *
- *  A set of definitions constitute a Brocoli program.
+ *  The definitions are the left-hand-side of the program node, and the
+ *  declarations are its right-hand-side.
  *
- *   Definition grammar:
+ *   Program grammar:
+ *
+ *     program : ( definition | declaration ) *
  *
  *     definition : function_definition
+ *         | union_definition
  *         | vector_definition
  *
- *  Note that vector definitions are scanned first
+ *     declaration : union_declaration
+ *         | variable_declaration
+ *
+ *  Union definitions are scanned first, then vector definitions and the
+ *  declarations, so each function is built with every global
  */
 void Table::build_from_definitions(Node const& node)
 {
-    credence_assert_equal(node["root"].to_string(), "definitions");
+    credence_assert_equal(node["node"].to_string(), "program");
     auto definitions = node["left"].array_range();
+    for (auto& definition : definitions)
+        if (definition["node"].to_string() == "union_definition")
+            build_from_union_definition(definition);
     for (auto& definition : definitions)
         if (definition["node"].to_string() == "vector_definition")
             build_from_vector_definition(definition);
+    if (node.has_key("right"))
+        build_from_declarations(node["right"]);
     objects_->hoisted_symbols = hoisted_symbols_;
     objects_->globals = globals_;
     build_vector_definitions_from_symbols();
@@ -90,6 +105,7 @@ void Table::build_from_definitions(Node const& node)
         if (definition["node"].to_string() == "function_definition")
             build_from_function_definition(definition);
     set_pointer_parameters_from_call_arguments();
+    set_unset_global_values();
 }
 
 /**
@@ -140,15 +156,43 @@ void Table::set_pointer_parameters_from_call_arguments()
 
 /**
  * @brief Global vector definition and the types of its values
+ *
+ * A vector defined with empty brackets is the size of its values
+ *
+ *  Examples:
+ *
+ *    mess[2] "too bad", "tough luck";   // size 2
+ *    mess[] "too bad", "tough luck";    // size 2
+ *    mess[];                            // not allowed, no size or values
  */
 void Table::build_from_vector_definition(Node const& node)
 {
     credence_assert_equal(node["node"].to_string(), "vector_definition");
     credence_assert(node.has_key("right"));
     auto name = node["root"].to_string();
-    auto size = node.has_key("left") ? node["left"]["root"].to_int() : 1;
-    auto right_child_node = node["right"];
+    auto count = node["right"].to_deque().size();
+    auto size = node.has_key("left")
+                    ? static_cast<std::size_t>(node["left"]["root"].to_int())
+                    : count;
+    if (size == 0)
+        semantic_error(
+            "invalid vector definition, a vector has a size or values", name);
+    build_global_vector(name, size, node["right"]);
+}
+
+/**
+ * @brief A global vector of a size and the types of its values
+ */
+void Table::build_global_vector(Label const& name,
+    std::size_t size,
+    Node const& values)
+{
+    auto right_child_node = values;
     std::vector<literal::Literal> values_at{};
+
+    if (globals_.is_defined(name) or union_globals_.contains(name) or
+        unions_.contains(name))
+        semantic_error("identifier is already defined in global scope", name);
 
     if (std::cmp_not_equal(size, right_child_node.to_deque().size()))
         semantic_error(
@@ -169,12 +213,46 @@ void Table::build_from_vector_definition(Node const& node)
     globals_.set_symbol_by_name(name, values_at);
 
     auto& vector = vectors_[name];
-    vector.size = static_cast<std::size_t>(size);
+    vector.size = size;
     // a string element is a scalar, only a string literal is a pointer
     for (std::size_t index = 0; index < values_at.size(); index++) {
         auto value = checking::get_value_from_literal(values_at[index]);
         value.storage = Storage::SCALAR;
         vector.data[std::to_string(index)] = value;
+    }
+}
+
+/**
+ * @brief Union definition and the values of each of its tags
+ *
+ *  Examples:
+ *
+ *    union data_t { ab "", cd 0, list (0, "") };   // allowed
+ *    union data_t { ab "", ab 0 };                 // not allowed, ab twice
+ *    union data_t { };                             // not allowed, no tags
+ */
+void Table::build_from_union_definition(Node const& node)
+{
+    credence_assert_equal(node["node"].to_string(), "union_definition");
+    auto name = node["root"].to_string();
+    if (unions_.contains(name))
+        semantic_error("union is already defined", name);
+    auto& definition = unions_[name];
+    if (node["left"].to_deque().empty())
+        semantic_error("invalid union definition, a union has a tag", name);
+    for (auto& tag : node["left"].array_range()) {
+        auto label = tag["root"].to_string();
+        if (definition.tags.contains(label))
+            semantic_error(
+                fmt::format("tag '{}' is already defined in union", label),
+                name);
+        auto& values = definition.tags[label];
+        for (auto& constant : tag["left"].array_range()) {
+            auto rvalue = AST_Lowering::lower(
+                constant, hoisted_symbols_, symbols_, globals_);
+            values.emplace_back(checking::get_value_from_literal(
+                std::get<literal::Literal>(rvalue.value)));
+        }
     }
 }
 
@@ -196,6 +274,7 @@ void Table::build_from_function_definition(Node const& node)
     frame.symbol = name;
     objects_->labels.emplace(name);
     symbols_.set_symbol_by_name(name, literal::WORD_LITERAL);
+    set_union_tag_symbols();
 
     if (parameters.JSON_type() == util::AST_Node::Class::Array and
         !parameters.to_deque().front().is_null()) {
@@ -246,6 +325,103 @@ void Table::build_from_function_definition(Node const& node)
 }
 
 /**
+ * @brief Global variables and global union variables of the declarations
+ */
+void Table::build_from_declarations(Node const& node)
+{
+    for (auto& declaration : node.array_range()) {
+        credence_assert_equal(declaration["node"].to_string(), "declaration");
+        m::match(declaration["root"].to_string())(
+            m::pattern | "variable" =
+                [&] { build_from_variable_declaration(declaration); },
+            m::pattern |
+                "union" = [&] { build_from_union_declaration(declaration); });
+    }
+}
+
+/**
+ * @brief A global variable, a vector of its one initial value
+ *
+ * A global variable with no initial value is unset, and its type is the
+ * type of its first assignment
+ *
+ *  Examples:
+ *
+ *    unit 10;        // int
+ *    str "puts";     // string
+ *    unit;           // unset
+ */
+void Table::build_from_variable_declaration(Node const& node)
+{
+    credence_assert_equal(node["root"].to_string(), "variable");
+    auto name = node["left"].to_string();
+    if (!node["right"].to_deque().empty()) {
+        build_global_vector(name, 1, node["right"]);
+        return;
+    }
+    if (globals_.is_defined(name) or union_globals_.contains(name) or
+        unions_.contains(name))
+        semantic_error("identifier is already defined in global scope", name);
+    globals_.set_symbol_by_name(
+        name, std::vector<literal::Literal>{ literal::NULL_LITERAL });
+    auto& vector = vectors_[name];
+    vector.size = 1;
+    vector.data["0"] = Value{ Storage::SCALAR, "null" };
+    unset_globals_.emplace(name);
+}
+
+/**
+ * @brief The value of each unset global variable, the zero of its type
+ *
+ * The type of an unset global is the type of its first assignment in any
+ * function, so its value is set after every function is built. A global
+ * that is never assigned is a zero int.
+ *
+ *  Examples:
+ *
+ *    unit;     // unit = 5; in a function   -> (0:int:4)
+ *    ratio;    // ratio = 2.5; in a function -> (0.0:double:8)
+ *    name;     // name = "x"; in a function  -> ("":string:0)
+ */
+void Table::set_unset_global_values()
+{
+    for (auto const& name : unset_globals_) {
+        auto const& type = vectors_.at(name).data.at("0").type;
+        auto zero = m::match(type)(
+            m::pattern | "int" = [] { return "(0:int:4)"; },
+            m::pattern | "float" = [] { return "(0.0:float:4)"; },
+            m::pattern | "double" = [] { return "(0.0:double:8)"; },
+            m::pattern | "string" = [] { return "(\"\":string:0)"; },
+            m::pattern | m::_ = [] { return "(0:int:4)"; });
+        auto value = credence::type::get_rvalue_datatype_from_string(zero);
+        objects_->data.insert(value);
+        objects_->vectors.at(name).get().data["0"] = value;
+    }
+}
+
+/**
+ * @brief Global union variables of a union definition
+ *
+ * A global union variable is declared in a function with `extrn`, as any
+ * global
+ */
+void Table::build_from_union_declaration(Node const& node)
+{
+    credence_assert_equal(node["root"].to_string(), "union");
+    auto label = node["left"].to_string();
+    if (!unions_.contains(label))
+        semantic_error("union is not defined", label);
+    for (auto& ident : node["right"].array_range()) {
+        auto name = ident["root"].to_string();
+        if (globals_.is_defined(name) or union_globals_.contains(name) or
+            unions_.contains(name))
+            semantic_error(
+                "identifier is already defined in global scope", name);
+        union_globals_[name] = label;
+    }
+}
+
+/**
  * @brief Construct table of vector symbols and size allocation
  */
 void Table::build_vector_definitions_from_symbols()
@@ -291,6 +467,7 @@ void Table::build_from_statement(Node const& node)
     m::match(node["root"].to_string())(
         m::pattern | "block" = [&] { build_from_block_statement(node); },
         m::pattern | "auto" = [&] { build_from_auto_statement(node); },
+        m::pattern | "union" = [&] { build_from_union_statement(node); },
         m::pattern | "extrn" = [&] { build_from_extrn_statement(node); },
         m::pattern | "if" = [&] { build_from_if_statement(node); },
         m::pattern | "while" = [&] { build_from_while_statement(node); },
@@ -358,13 +535,43 @@ void Table::build_from_auto_statement(Node const& node)
 }
 
 /**
- * @brief Declare global vectors in the stack frame from an extrn statement
+ * @brief Declare union variables in the stack frame from a union statement
+ *
+ *  Examples:
+ *
+ *    union data_t m, k;    // allowed
+ *    auto x;
+ *    union data_t x;       // not allowed, x is defined
+ *    union other_t n;      // not allowed, other_t is not defined
+ */
+void Table::build_from_union_statement(Node const& node)
+{
+    credence_assert(node.has_key("right"));
+    auto label = node["left"].to_string();
+    if (!unions_.contains(label))
+        semantic_error("union is not defined", label);
+    for (auto& ident : node["right"].array_range()) {
+        auto name = ident["root"].to_string();
+        if (symbols_.is_defined(name))
+            semantic_error(
+                "identifier is already defined in union declaration", name);
+        set_union_variable(name, label);
+    }
+}
+
+/**
+ * @brief Declare global vectors and global union variables in the stack
+ * frame from an extrn statement
  */
 void Table::build_from_extrn_statement(Node const& node)
 {
     credence_assert(node.has_key("left"));
     for (auto& ident : node["left"].array_range()) {
         auto name = ident["root"].to_string();
+        if (union_globals_.contains(name)) {
+            set_union_variable(name, union_globals_.at(name));
+            continue;
+        }
         if (!globals_.is_defined(name))
             semantic_error("symbol not defined in global scope", name);
         symbols_.set_symbol_by_name(name, globals_.get_pointer_by_name(name));
@@ -442,7 +649,7 @@ void Table::build_from_return_statement(Node const& node)
     if (expressions.empty())
         return;
     auto checker = checking::Type_Checker{
-        get_stack_frame(), vectors_, hoisted_symbols_, &call_arguments_
+        get_stack_frame(), vectors_, unions_, hoisted_symbols_, &call_arguments_
     };
     for (auto it = expressions.begin(); it != expressions.end() - 1; it++)
         checker.from_expression(
@@ -469,7 +676,7 @@ Value Table::from_expression_node(Node const& node)
 {
     Value value{};
     auto checker = checking::Type_Checker{
-        get_stack_frame(), vectors_, hoisted_symbols_, &call_arguments_
+        get_stack_frame(), vectors_, unions_, hoisted_symbols_, &call_arguments_
     };
     for (auto const& expression : get_expression_nodes(node))
         value = checker.from_expression(AST_Lowering::lower(
@@ -503,6 +710,30 @@ checking::Frame& Table::get_stack_frame()
 {
     credence_assert(frames_.contains(stack_frame_symbol_));
     return frames_.at(stack_frame_symbol_);
+}
+
+/**
+ * @brief Declare a union variable in the current stack frame
+ *
+ * Each tag of the variable, `m.ab`, is a member of its symbol, and is
+ * resolved by the type checker
+ */
+void Table::set_union_variable(LValue const& name, Label const& label)
+{
+    get_stack_frame().unions[name] = label;
+    symbols_.set_symbol_by_name(name, literal::WORD_LITERAL);
+}
+
+/**
+ * @brief Declare the label of each union definition in the current function
+ *
+ * A tag of a union definition, `data_t.ab`, is a member of its label, and
+ * is the right-hand-side of an `is` expression
+ */
+void Table::set_union_tag_symbols()
+{
+    for (auto const& definition : unions_)
+        symbols_.set_symbol_by_name(definition.first, literal::WORD_LITERAL);
 }
 
 /**

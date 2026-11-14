@@ -43,11 +43,13 @@ class Parser
     Parser& operator=(Parser const&) = delete;
 
   public:
-    util::AST_Node parse_program();
+    using Node = util::AST_Node;
+    using Maybe_Node = std::optional<Node>;
+    Node parse_program();
 
-    static util::AST_Node parse(std::string source);
+    static Node parse(std::string source);
 
-    // the longest identifier, longer is a syntax error
+    // identifier max size
     static constexpr std::size_t k_identifier_max_length{ 16 };
 
   private:
@@ -60,40 +62,45 @@ class Parser
     Token const& expect(Token_Type type, std::string_view what);
     void error(std::string_view message) const;
 
-    static util::AST_Node make_node(std::string_view node_type,
-        util::AST_Node root,
-        std::optional<util::AST_Node> left = std::nullopt,
-        std::optional<util::AST_Node> right = std::nullopt);
+    static Node make_node(std::string_view node_type,
+        Node root,
+        Maybe_Node left = std::nullopt,
+        Maybe_Node right = std::nullopt);
 
     // clang-format off
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    util::AST_Node parse_definition();
-    util::AST_Node parse_function_definition(Token const& name);
-    util::AST_Node parse_vector_definition(Token const& name);
-    util::AST_Node parse_union_definition();
-    util::AST_Node parse_call_arguments_or_parameters();
-    util::AST_Node parse_vector_symbol();
-    util::AST_Node parse_union_tag_symbol();
-    std::optional<util::AST_Node> parse_vector_size();
+    Node parse_definition();
+    Node parse_function_definition(Token const& name);
+    Node parse_vector_definition(Token const& name);
+    Node parse_union_definition();
+    Node parse_call_arguments_or_parameters();
+    Node parse_vector_symbol();
+    Node parse_union_tag_symbol();
+    Maybe_Node parse_vector_size();
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    util::AST_Node parse_function_body();
-    util::AST_Node parse_statement(bool allow_block_and_return);
-    util::AST_Node parse_block_statement();
-    util::AST_Node parse_label_statement();
-    util::AST_Node parse_auto_statement();
-    util::AST_Node parse_extrn_statement();
-    util::AST_Node parse_union_statement();
-    util::AST_Node parse_case_statement();
-    util::AST_Node parse_goto_statement();
-    util::AST_Node parse_if_statement();
-    util::AST_Node parse_return_statement();
-    util::AST_Node parse_rvalue_statement();
-    util::AST_Node parse_while_statement();
-    util::AST_Node parse_switch_statement();
-    util::AST_Node parse_break_statement();
-    util::AST_Node parse_expression();
+    Maybe_Node parse_declaration();
+    Node parse_union_declaration();
+    Node parse_variable_declaration();
+
+  CREDENCE_PRIVATE_UNLESS_TESTED:
+    Node parse_function_body();
+    Node parse_statement(bool allow_block_and_return);
+    Node parse_block_statement();
+    Node parse_label_statement();
+    Node parse_auto_statement();
+    Node parse_extrn_statement();
+    Node parse_union_statement();
+    Node parse_case_statement();
+    Node parse_goto_statement();
+    Node parse_if_statement();
+    Node parse_return_statement();
+    Node parse_rvalue_statement();
+    Node parse_while_statement();
+    Node parse_switch_statement();
+    Node parse_break_statement();
+    Node parse_expression();
 
   private:
     bool at_statement_keyword() const;
@@ -101,11 +108,12 @@ class Parser
     bool at_expression_start() const;
 
   CREDENCE_PRIVATE_UNLESS_TESTED:
-    util::AST_Node parse_rvalue();
-    util::AST_Node parse_rvalue_primary();
-    util::AST_Node parse_unary_operand();
-    util::AST_Node parse_lvalue();
-    util::AST_Node parse_constant();
+    Node parse_rvalue();
+    Node parse_rvalue_primary();
+    Node parse_union_tag();
+    Node parse_unary_operand();
+    Node parse_lvalue();
+    Node parse_constant();
 
   private:
     bool at_binary_operator() const;

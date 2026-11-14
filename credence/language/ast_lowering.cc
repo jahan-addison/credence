@@ -121,6 +121,11 @@ hir::Data_Kind AST_Lowering::lower_from_node(Node const& node)
                 expression.value = std::make_shared<Data_Kind>(
                     from_ternary_expression_node(node));
             },
+        m::pattern | "is_expression" =
+            [&] {
+                expression.value =
+                    std::make_shared<Data_Kind>(from_is_expression_node(node));
+            },
         m::pattern | "indirect_lvalue" =
             [&] { expression.value = from_lvalue_expression_node(node); },
         m::pattern | "assignment_expression" =
@@ -220,6 +225,53 @@ hir::Data_Kind AST_Lowering::from_ternary_expression_node(Node const& node)
     blocks.emplace_back(make_expression_pointer_from_ast(ternary["root"]));
     blocks.emplace_back(make_expression_pointer_from_ast(ternary["left"]));
     blocks.emplace_back(make_expression_pointer_from_ast(ternary["right"]));
+    expression.value =
+        std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
+    return expression;
+}
+
+/**
+ * @brief The relation of a union variable and a tag of its union, `m is
+ * data_t.ab`
+ *
+ * A tag with no bindings is its lvalue, and a tag that binds its values to
+ * locals is the tag and the lvalue of each local
+ *
+ *  Examples:
+ *
+ *    m is data_t.ab                // the lvalue data_t.ab
+ *    m is data_t.list2(a, b)       // data_t.list2 and the lvalues a and b
+ */
+hir::Data_Kind AST_Lowering::from_is_expression_node(Node const& node)
+{
+    credence_assert_equal(node["node"].to_string(), "is_expression");
+    Data_Kind expression{};
+    auto lhs = node["left"];
+    auto rhs = node["right"];
+    Parameters blocks{};
+    if (node["root"].to_deque().size() == 0)
+        return expression;
+    auto op = node["root"].to_deque().front().to_string();
+    blocks.emplace_back(make_expression_pointer_from_ast(lhs));
+    credence_assert_equal(rhs["node"].to_string(), "union_tag");
+    auto tag = hir::make_lvalue(rhs["root"].to_string());
+    Data_Kind pattern{};
+    if (rhs["left"].to_deque().empty())
+        pattern.value = tag;
+    else {
+        Parameters bindings{};
+        for (auto& binding : rhs["left"].array_range()) {
+            if (!is_symbol(binding))
+                lowering_error("identifier of 'is' binding not declared with "
+                               "'auto'",
+                    binding["root"].to_string());
+            Data_Kind local{};
+            local.value = from_lvalue_expression_node(binding);
+            bindings.emplace_back(std::make_shared<Data_Kind>(local));
+        }
+        pattern.value = std::make_pair(tag, std::move(bindings));
+    }
+    blocks.emplace_back(std::make_shared<Data_Kind>(pattern));
     expression.value =
         std::make_pair(type::BINARY_OPERATORS.at(op), std::move(blocks));
     return expression;
@@ -369,7 +421,8 @@ hir::Data_Kind::LValue AST_Lowering::from_lvalue_expression_node(
 {
     auto constant_type = node["node"].to_string();
     if (!symbols_.is_defined(node["root"].to_string()) and
-        !symbols_.is_defined(node["left"]["root"].to_string())) {
+        !symbols_.is_defined(node["left"]["root"].to_string()) and
+        not is_member_symbol(node["root"].to_string())) {
         std::string name{};
         if (node.has_key("left"))
             name = node["left"]["root"].to_string();
@@ -393,7 +446,7 @@ hir::Data_Kind::LValue AST_Lowering::from_lvalue_expression_node(
         m::pattern | "lvalue" =
             [&] {
                 auto name = node["root"].to_string();
-                if (symbols_.is_pointer(name))
+                if (symbols_.is_pointer(name) or is_member_symbol(name))
                     lvalue = hir::make_lvalue(name);
                 else
                     lvalue = hir::make_lvalue(

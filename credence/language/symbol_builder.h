@@ -64,6 +64,9 @@ class Symbol_Builder
 
     void visit_function_definition(util::AST_Node const& node);
     void visit_vector_definition(util::AST_Node const& node);
+    void visit_union_definition(util::AST_Node const& node);
+    void visit_variable_declaration(util::AST_Node const& node);
+    void visit_union_declaration(util::AST_Node const& node);
     void visit_label_statement(util::AST_Node const& node);
     void visit_lvalue(util::AST_Node const& node);
     void visit_indirect_lvalue(util::AST_Node const& node);

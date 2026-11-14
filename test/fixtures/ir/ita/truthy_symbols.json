@@ -1,0 +1,26 @@
+{
+  "x": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 16,
+    "column": 8,
+    "end_pos": 17,
+    "end_column": 9
+  },
+  "y": {
+    "type": "lvalue",
+    "line": 2,
+    "start_pos": 19,
+    "column": 11,
+    "end_pos": 20,
+    "end_column": 12
+  },
+  "main": {
+    "type": "function_definition",
+    "line": 1,
+    "start_pos": 0,
+    "column": 1,
+    "end_pos": 4,
+    "end_column": 5
+  }
+}

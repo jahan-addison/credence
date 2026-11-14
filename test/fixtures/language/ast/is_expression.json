@@ -1,0 +1,210 @@
+{
+  "left": [
+    {
+      "left": [
+        {
+          "left": [
+            {
+              "node": "string_literal",
+              "root": "\"\""
+            }
+          ],
+          "node": "tag",
+          "root": "ab"
+        },
+        {
+          "left": [
+            {
+              "node": "integer_literal",
+              "root": 0
+            },
+            {
+              "node": "string_literal",
+              "root": "\"\""
+            }
+          ],
+          "node": "tag",
+          "root": "list"
+        }
+      ],
+      "node": "union_definition",
+      "root": "data_t"
+    },
+    {
+      "left": [
+        null
+      ],
+      "node": "function_definition",
+      "right": {
+        "left": [
+          {
+            "left": [
+              {
+                "node": "lvalue",
+                "root": "n"
+              },
+              {
+                "left": {
+                  "node": "lvalue",
+                  "root": "s"
+                },
+                "node": "indirect_lvalue",
+                "root": [
+                  "*"
+                ]
+              }
+            ],
+            "node": "statement",
+            "root": "auto"
+          },
+          {
+            "left": "data_t",
+            "node": "statement",
+            "right": [
+              {
+                "node": "lvalue",
+                "root": "m"
+              }
+            ],
+            "root": "union"
+          },
+          {
+            "left": {
+              "left": {
+                "node": "lvalue",
+                "root": "m"
+              },
+              "node": "is_expression",
+              "right": {
+                "left": [],
+                "node": "union_tag",
+                "root": "data_t.ab"
+              },
+              "root": [
+                "is"
+              ]
+            },
+            "node": "statement",
+            "right": [
+              {
+                "left": [
+                  {
+                    "left": [
+                      [
+                        {
+                          "left": {
+                            "node": "lvalue",
+                            "root": "n"
+                          },
+                          "node": "assignment_expression",
+                          "right": {
+                            "node": "integer_literal",
+                            "root": 1
+                          },
+                          "root": [
+                            "="
+                          ]
+                        }
+                      ]
+                    ],
+                    "node": "statement",
+                    "root": "rvalue"
+                  }
+                ],
+                "node": "statement",
+                "root": "block"
+              },
+              null
+            ],
+            "root": "if"
+          },
+          {
+            "left": {
+              "left": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "m"
+                },
+                "node": "is_expression",
+                "right": {
+                  "left": [
+                    {
+                      "node": "lvalue",
+                      "root": "n"
+                    },
+                    {
+                      "node": "lvalue",
+                      "root": "s"
+                    }
+                  ],
+                  "node": "union_tag",
+                  "root": "data_t.list"
+                },
+                "root": [
+                  "is"
+                ]
+              },
+              "node": "relation_expression",
+              "right": {
+                "left": {
+                  "node": "lvalue",
+                  "root": "n"
+                },
+                "node": "relation_expression",
+                "right": {
+                  "node": "integer_literal",
+                  "root": 0
+                },
+                "root": [
+                  ">"
+                ]
+              },
+              "root": [
+                "&&"
+              ]
+            },
+            "node": "statement",
+            "right": [
+              {
+                "left": [
+                  {
+                    "left": [
+                      [
+                        {
+                          "left": {
+                            "node": "lvalue",
+                            "root": "n"
+                          },
+                          "node": "assignment_expression",
+                          "right": {
+                            "node": "integer_literal",
+                            "root": 2
+                          },
+                          "root": [
+                            "="
+                          ]
+                        }
+                      ]
+                    ],
+                    "node": "statement",
+                    "root": "rvalue"
+                  }
+                ],
+                "node": "statement",
+                "root": "block"
+              },
+              null
+            ],
+            "root": "if"
+          }
+        ],
+        "node": "statement",
+        "root": "block"
+      },
+      "root": "main"
+    }
+  ],
+  "node": "program",
+  "right": [],
+  "root": "root"
+}

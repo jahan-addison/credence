@@ -1,0 +1,42 @@
+{
+  "arg": {
+    "column": 6,
+    "end_column": 9,
+    "end_pos": 8,
+    "line": 1,
+    "start_pos": 5,
+    "type": "lvalue"
+  },
+  "exp": {
+    "column": 1,
+    "end_column": 4,
+    "end_pos": 52,
+    "line": 6,
+    "start_pos": 49,
+    "type": "function_definition"
+  },
+  "main": {
+    "column": 1,
+    "end_column": 5,
+    "end_pos": 4,
+    "line": 1,
+    "start_pos": 0,
+    "type": "function_definition"
+  },
+  "x": {
+    "column": 8,
+    "end_column": 9,
+    "end_pos": 20,
+    "line": 2,
+    "start_pos": 19,
+    "type": "lvalue"
+  },
+  "y": {
+    "column": 7,
+    "end_column": 8,
+    "end_pos": 56,
+    "line": 6,
+    "start_pos": 55,
+    "type": "lvalue"
+  }
+}
