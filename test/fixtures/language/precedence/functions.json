@@ -1,0 +1,57 @@
+{
+  "left": {
+    "node": "lvalue",
+    "root": "x"
+  },
+  "node": "assignment_expression",
+  "right": {
+    "left": {
+      "node": "lvalue",
+      "root": "exp"
+    },
+    "node": "function_expression",
+    "right": [
+      {
+        "left": {
+          "node": "lvalue",
+          "root": "exp"
+        },
+        "node": "function_expression",
+        "right": [
+          {
+            "node": "integer_literal",
+            "root": 1
+          },
+          {
+            "node": "integer_literal",
+            "root": 2
+          }
+        ],
+        "root": "exp"
+      },
+      {
+        "left": {
+          "node": "lvalue",
+          "root": "sub"
+        },
+        "node": "function_expression",
+        "right": [
+          {
+            "node": "integer_literal",
+            "root": 1
+          },
+          {
+            "node": "integer_literal",
+            "root": 2
+          }
+        ],
+        "root": "sub"
+      }
+    ],
+    "root": "exp"
+  },
+  "root": [
+    "=",
+    null
+  ]
+}

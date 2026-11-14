@@ -1,0 +1,127 @@
+[
+  {
+    "node": "constant_literal",
+    "root": "x"
+  },
+  {
+    "node": "integer_literal",
+    "root": 10
+  },
+  {
+    "node": "string_literal",
+    "root": "\"hello world\""
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "assignment_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "root": [
+      "=",
+      null
+    ]
+  },
+  {
+    "node": "evaluated_expression",
+    "root": {
+      "left": {
+        "node": "lvalue",
+        "root": "putchar"
+      },
+      "node": "function_expression",
+      "right": [
+        {
+          "node": "lvalue",
+          "root": "x"
+        }
+      ],
+      "root": "putchar"
+    }
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "getchar"
+    },
+    "node": "function_expression",
+    "right": [
+      {
+        "node": "lvalue",
+        "root": "c"
+      }
+    ],
+    "root": "getchar"
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "root": [
+      "<"
+    ]
+  },
+  {
+    "node": "post_inc_dec_expression",
+    "right": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "root": [
+      "++"
+    ]
+  },
+  {
+    "node": "post_inc_dec_expression",
+    "right": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "root": [
+      "--"
+    ]
+  },
+  {
+    "left": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "node": "unary_expression",
+    "root": [
+      "~"
+    ]
+  },
+  {
+    "left": {
+      "node": "evaluated_expression",
+      "root": {
+        "left": {
+          "node": "integer_literal",
+          "root": 5
+        },
+        "node": "unary_expression",
+        "root": [
+          "~"
+        ]
+      }
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 10
+    },
+    "root": [
+      "^"
+    ]
+  }
+]

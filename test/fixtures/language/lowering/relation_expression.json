@@ -1,0 +1,111 @@
+[
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 10
+    },
+    "root": [
+      "*"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "left": {
+        "node": "integer_literal",
+        "root": 10
+      },
+      "node": "ternary_expression",
+      "right": {
+        "node": "integer_literal",
+        "root": 1
+      },
+      "root": {
+        "node": "integer_literal",
+        "root": 5
+      }
+    },
+    "root": [
+      "<="
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "root": [
+      "=="
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "root": [
+      "!="
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 0
+    },
+    "root": [
+      "^"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "root": [
+      "<"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "integer_literal",
+      "root": 10
+    },
+    "root": [
+      "<="
+    ]
+  }
+]

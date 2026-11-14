@@ -1,0 +1,24 @@
+[
+  {
+    "left": {
+      "node": "integer_literal",
+      "root": 50
+    },
+    "node": "vector_lvalue",
+    "root": "x"
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "y"
+    },
+    "node": "indirect_lvalue",
+    "root": [
+      "*"
+    ]
+  },
+  {
+    "node": "lvalue",
+    "root": "z"
+  }
+]

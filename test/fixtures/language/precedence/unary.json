@@ -1,0 +1,10 @@
+{
+  "left": {
+    "node": "integer_literal",
+    "root": 5
+  },
+  "node": "unary_expression",
+  "root": [
+    "~"
+  ]
+}

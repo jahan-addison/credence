@@ -9,6 +9,7 @@
 #include <map>                              // for map
 #include <memory>                           // for shared_ptr
 #include <string>                           // for basic_string, string
+#include <test/fixture.h>                   // for load_json_fixture
 #include <tuple>                            // for get, tie
 #include <utility>                          // for pair, make_pair, get
 #include <variant>                          // for get, monostate
@@ -23,53 +24,10 @@ struct Fixture
 
     Fixture()
     {
-        assignment_symbol_table = credence::util::AST_Node::load(
-            "{\n  \"main\" : {\n    \"column\" : 1,\n    \"end_column\" : "
-            "5,\n "
-            "   "
-            "\"end_pos\" : 4,\n    \"line\" : 1,\n    \"start_pos\" : "
-            "0,\n    "
-            "\"type\" : \"function_definition\"\n  },\n  \"x\" : {\n    "
-            "\"column\" "
-            ": 3,\n    \"end_column\" : 4,\n    \"end_pos\" : 13,\n    "
-            "\"line\" : "
-            "2,\n    \"start_pos\" : 12,\n    \"type\" : "
-            "\"integer_literal\"\n  "
-            "}\n}");
-        lvalue_ast_node_json = credence::util::AST_Node::load(
-            " {\n        \"left\" : [{\n            \"left\" : [{\n       "
-            "     "
-            "    "
-            "\"node\" : \"lvalue\",\n                \"root\" : \"x\"\n   "
-            "     "
-            "    "
-            "  }, {\n                \"node\" : \"lvalue\",\n             "
-            "   "
-            "\"root\" : \"y\"\n              }, {\n                "
-            "\"node\" : "
-            "\"lvalue\",\n                \"root\" :\"z\"\n              "
-            "}],\n "
-            "   "
-            "        \"node\" : \"statement\",\n            \"root\" : "
-            "\"auto\"\n  "
-            "        }, {\n            \"left\" : [[{\n                  "
-            "\"left\" "
-            ": {\n                    \"node\" : \"lvalue\",\n            "
-            "     "
-            "   "
-            "\"root\" : \"x\"\n                  },\n                  "
-            "\"node\" : "
-            "\"assignment_expression\",\n                  \"right\" : "
-            "{\n     "
-            "    "
-            "           \"node\" : \"integer_literal\",\n                  "
-            "  "
-            "\"root\" : 5\n                  },\n                  "
-            "\"root\" : "
-            "[\"=\", null]\n                }]],\n            \"node\" : "
-            "\"statement\",\n            \"root\" : \"rvalue\"\n          "
-            "}]\n "
-            "}\n ");
+        assignment_symbol_table = credence::test::load_json_fixture(
+            "language/lowering/assignment_symbols");
+        lvalue_ast_node_json =
+            credence::test::load_json_fixture("language/lowering/lvalue");
     }
     ~Fixture() = default;
 };
@@ -78,99 +36,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::lower_from_node")
 {
     credence::util::AST_Node obj;
     using std::get;
-    obj["test"] = credence::util::AST_Node::load(
-        "[{\n                  \"node\" : \"constant_literal\",\n         "
-        "     "
-        "    \"root\" : \"x\"\n                }, {\n                  "
-        "\"node\" : \"integer_literal\",\n                  \"root\" : "
-        "10\n     "
-        "           }, {\n                  \"node\" : "
-        "\"string_literal\",\n   "
-        "               \"root\" : \"\\\"hello world\\\"\"\n              "
-        "  }, "
-        "{\n                  \"left\" : {\n                    \"node\" "
-        ": "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
-        "    "
-        "},\n                  \"node\" : \"assignment_expression\",\n    "
-        "     "
-        "         \"right\" : {\n                    \"node\" : "
-        "\"integer_literal\",\n                    \"root\" : 5\n          "
-        "     "
-        "   },\n                  \"root\" : [\"=\", null]\n              "
-        "  }, "
-        "{\n                  \"node\" : \"evaluated_expression\",\n      "
-        "     "
-        "       \"root\" : {\n                    \"left\" : {\n          "
-        "     "
-        "       \"node\" : \"lvalue\",\n                      \"root\" : "
-        "\"putchar\"\n                    },\n                    "
-        "\"node\" : "
-        "\"function_expression\",\n                    \"right\" : [{\n   "
-        "     "
-        "                \"node\" : \"lvalue\",\n                        "
-        "\"root\" : \"x\"\n                      }],\n                    "
-        "\"root\" : \"putchar\"\n                  }\n                }, "
-        "{\n   "
-        "               \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"getchar\"\n        "
-        "     "
-        "     },\n                  \"node\" : \"function_expression\",\n "
-        "     "
-        "            \"right\" : [{\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"c\"\n            "
-        "     "
-        "   }],\n                  \"root\" : \"getchar\"\n               "
-        " }, "
-        "{\n                  \"left\" : {\n                    \"node\" "
-        ": "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
-        "    "
-        "},\n                  \"node\" : \"relation_expression\",\n      "
-        "     "
-        "       \"right\" : {\n                    \"node\" : "
-        "\"integer_literal\",\n                    \"root\" : 5\n          "
-        "     "
-        "   },\n                  \"root\" : [\"<\"]\n                }, "
-        "{\n   "
-        "               \"node\" : \"post_inc_dec_expression\",\n         "
-        "     "
-        "    \"right\" : {\n                    \"node\" : \"lvalue\",\n  "
-        "     "
-        "             \"root\" : \"x\"\n                  },\n            "
-        "     "
-        " \"root\" : [\"++\"]\n                }, {\n                  "
-        "\"node\" : \"post_inc_dec_expression\",\n                  "
-        "\"right\" "
-        ": {\n                    \"node\" : \"lvalue\",\n                "
-        "    "
-        "\"root\" : \"x\"\n                  },\n                  "
-        "\"root\" : "
-        "[\"--\"]\n                }, {\n                  \"left\" : {\n "
-        "     "
-        "              \"node\" : \"integer_literal\",\n                   "
-        " "
-        "\"root\" : 5\n                  },\n                  \"node\" : "
-        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n    "
-        "     "
-        "       }, {\n                  \"left\" : {\n                    "
-        "\"node\" : \"evaluated_expression\",\n                    "
-        "\"root\" : "
-        "{\n                      \"left\" : {\n                        "
-        "\"node\" : \"integer_literal\",\n                        \"root\" "
-        ": "
-        "5\n                      },\n                      \"node\" : "
-        "\"unary_expression\",\n                      \"root\" : "
-        "[\"~\"]\n     "
-        "               }\n                  },\n                  "
-        "\"node\" : "
-        "\"relation_expression\",\n                  \"right\" : {\n      "
-        "     "
-        "         \"node\" : \"integer_literal\",\n                    "
-        "\"root\" "
-        ": 10\n                  },\n                  \"root\" : "
-        "[\"^\"]\n    "
-        "            }]");
+    obj["test"] =
+        credence::test::load_json_fixture("language/lowering/lower_from_node");
     auto temp = language::AST_Lowering(obj);
     credence::language::literal::Literal null = language::literal::NULL_LITERAL;
 
@@ -188,23 +55,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::function_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\n                  \"left\" : {\n                    \"node\" "
-        ": "
-        "\"lvalue\",\n                    \"root\" : \"putchar\"\n        "
-        "     "
-        "     },\n                  \"node\" : \"function_expression\",\n "
-        "     "
-        "            \"right\" : [{\n                      \"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"x\"\n            "
-        "     "
-        "   }, {\n                      \"node\" : \"lvalue\",\n          "
-        "     "
-        "       \"root\" : \"y\"\n                    }, {\n              "
-        "     "
-        "   \"node\" : \"lvalue\",\n                      \"root\" : "
-        "\"z\"\n   "
-        "                 }]\n}\n                    ");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/function_expression");
     auto temp = language::AST_Lowering(obj);
     credence::language::literal::Literal null = language::literal::NULL_LITERAL;
 
@@ -232,33 +84,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::evaluated_expression")
 {
     credence::util::AST_Node obj;
     using std::get;
-    obj["test"] = credence::util::AST_Node::load(
-        "[{\n                  \"node\" : \"evaluated_expression\",\n     "
-        "     "
-        "        \"root\" : {\n                    \"left\" : {\n         "
-        "     "
-        "        \"node\" : \"integer_literal\",\n                      "
-        "\"root\" : 5\n                    },\n                    "
-        "\"node\" : "
-        "\"relation_expression\",\n                    \"right\" : {\n    "
-        "     "
-        "             \"node\" : \"integer_literal\",\n                    "
-        "  "
-        "\"root\" : 5\n                    },\n                    "
-        "\"root\" : "
-        "[\"*\"]\n                  }\n                }, {\n             "
-        "     "
-        "\"node\" : \"evaluated_expression\",\n                  \"root\" "
-        ": "
-        "{\n                    \"left\" : {\n                      "
-        "\"node\" : "
-        "\"lvalue\",\n                      \"root\" : \"x\"\n            "
-        "     "
-        "   },\n                    \"node\" : \"indirect_lvalue\",\n     "
-        "     "
-        "          \"root\" : [\"*\"]\n                  }\n              "
-        "  "
-        "}]");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/evaluated_expression");
     auto temp = language::AST_Lowering(obj);
     credence::language::literal::Literal null = language::literal::NULL_LITERAL;
 
@@ -280,66 +107,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::evaluated_expression")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_relation_expression")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "[\n  {\n    \"left\": {\n      \"node\": \"lvalue\",\n      "
-        "\"root\": "
-        "\"x\"\n    },\n    \"node\": \"relation_expression\",\n    "
-        "\"right\": "
-        "{\n      \"node\": \"integer_literal\",\n      \"root\": 10\n    "
-        "},\n  "
-        "  \"root\": [\n      \"*\"\n    ]\n  },\n  {\n    \"left\": {\n  "
-        " "
-        "   "
-        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
-        "\"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"left\": {\n  "
-        " "
-        "    "
-        " \"node\": \"integer_literal\",\n        \"root\": 10\n      },\n "
-        " "
-        "    "
-        "\"node\": \"ternary_expression\",\n      \"right\": {\n        "
-        "\"node\": \"integer_literal\",\n        \"root\": 1\n      },\n   "
-        " "
-        "  "
-        "\"root\": {\n        \"node\": \"integer_literal\",\n        "
-        "\"root\": "
-        "5\n      }\n    },\n    \"root\": [\n      \"<=\"\n    ]\n  },\n "
-        " "
-        "{\n "
-        "   \"left\": {\n      \"node\": \"lvalue\",\n      \"root\": "
-        "\"x\"\n  "
-        "  },\n    \"node\": \"relation_expression\",\n    \"right\": {\n "
-        " "
-        "    "
-        "\"node\": \"integer_literal\",\n      \"root\": 5\n    },\n    "
-        "\"root\": [\n      \"==\"\n    ]\n  },\n  {\n    \"left\": {\n   "
-        " "
-        "  "
-        "\"node\": \"lvalue\",\n      \"root\": \"x\"\n    },\n    "
-        "\"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"integer_literal\",\n      \"root\": 5\n    },\n    \"root\": "
-        "[\n "
-        "    "
-        " \"!=\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
-        "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"integer_literal\",\n      \"root\": 0\n    },\n    \"root\": "
-        "[\n "
-        "    "
-        " \"^\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
-        "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"integer_literal\",\n      \"root\": 5\n    },\n    \"root\": "
-        "[\n "
-        "    "
-        " \"<\"\n    ]\n  },\n  {\n    \"left\": {\n      \"node\": "
-        "\"lvalue\",\n      \"root\": \"x\"\n    },\n    \"node\": "
-        "\"relation_expression\",\n    \"right\": {\n      \"node\": "
-        "\"integer_literal\",\n      \"root\": 10\n    },\n    \"root\": "
-        "[\n    "
-        "  \"<=\"\n    ]\n  }\n]");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/relation_expression");
     auto temp = language::AST_Lowering(obj);
     credence::language::literal::Literal null = language::literal::NULL_LITERAL;
 
@@ -453,73 +222,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_relation_expression")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_unary_expression")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "[{\n                  \"node\" : \"post_inc_dec_expression\",\n  "
-        " "
-        "    "
-        "           \"right\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
-        " "
-        "   "
-        "},\n                  \"root\" : [\"++\"]\n                }, "
-        "{\n "
-        "    "
-        "             \"left\" : {\n                    \"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
-        " "
-        "   "
-        "},\n                  \"node\" : \"pre_inc_dec_expression\",\n   "
-        " "
-        "    "
-        "          \"root\" : [\"++\"]\n                }, {\n            "
-        " "
-        "    "
-        " \"left\" : {\n                    \"node\" : \"lvalue\",\n      "
-        " "
-        "    "
-        "         \"root\" : \"x\"\n                  },\n                "
-        " "
-        " "
-        "\"node\" : \"address_of_expression\",\n                  "
-        "\"root\" "
-        ": "
-        "[\"&\"]\n                }, {\n                  \"left\" : {\n  "
-        " "
-        "    "
-        "             \"node\" : \"integer_literal\",\n                    "
-        "\"root\" : 5\n                  },\n                  \"node\" : "
-        "\"unary_expression\",\n                  \"root\" : [\"~\"]\n    "
-        " "
-        "    "
-        "       }, {\n                  \"left\" : {\n                    "
-        "\"node\" : \"lvalue\",\n                    \"root\" : \"x\"\n   "
-        " "
-        "    "
-        "          },\n                  \"node\" : "
-        "\"indirect_lvalue\",\n "
-        "    "
-        "             \"root\" : [\"*\"]\n                }, {\n          "
-        " "
-        "    "
-        "     \"left\" : {\n                      \"node\" : "
-        "\"integer_literal\",\n                      \"root\" : 5\n        "
-        " "
-        "    "
-        "       },\n                    \"node\" : "
-        "\"unary_expression\",\n "
-        "    "
-        "               \"root\" : [\"-\"]\n                  },\n        "
-        " "
-        "    "
-        "   {\n                  \"left\" : {\n                    "
-        "\"node\" : "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
-        " "
-        "   "
-        "},\n                  \"node\" : \"unary_expression\",\n         "
-        " "
-        "    "
-        "    \"root\" : [\"!\"]\n                }]");
+    obj["test"] =
+        credence::test::load_json_fixture("language/lowering/unary_expression");
     auto temp = language::AST_Lowering(obj);
 
     credence::language::literal::Literal null = language::literal::NULL_LITERAL;
@@ -593,22 +297,8 @@ TEST_CASE_FIXTURE(Fixture,
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\n                  \"left\" : {\n                    \"node\" "
-        ": "
-        "\"lvalue\",\n                    \"root\" : \"x\"\n              "
-        " "
-        "   "
-        "},\n                  \"node\" : \"assignment_expression\",\n    "
-        " "
-        "    "
-        "         \"right\" : {\n                    \"node\" : "
-        "\"integer_literal\",\n                    \"root\" : 5\n          "
-        " "
-        "    "
-        "   },\n                  \"root\" : [\"=\", null]\n              "
-        " "
-        " }");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/assignment_expression");
     auto temp = language::AST_Lowering(obj["symbols"]);
     // no declaration with `auto' or `extern', should throw
     CHECK_THROWS(temp.from_assignment_expression_node(obj["test"]));
@@ -639,9 +329,8 @@ TEST_CASE_FIXTURE(Fixture, "ast_lowering.cc: AST_Lowering::is_symbol")
 {
     credence::util::AST_Node obj;
     obj["symbols"] = assignment_symbol_table;
-    obj["test"] = credence::util::AST_Node::load("{\"node\":  \"lvalue\","
-                                                 "\"root\": \"x\""
-                                                 "}");
+    obj["test"] =
+        credence::util::AST_Node::load(R"({"node": "lvalue", "root": "x"})");
     auto temp = language::AST_Lowering(obj["test"]);
     // not declared with `auto' or `extern', should throw
     CHECK(temp.is_symbol(obj["test"]) == false);
@@ -658,27 +347,8 @@ TEST_CASE_FIXTURE(Fixture, "ast_lowering.cc: AST_Lowering::is_symbol")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_lvalue_expression")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "[\n               {\n                \"left\" : {\n              "
-        " "
-        "   "
-        "\"node\" : \"integer_literal\",\n                  \"root\" : "
-        "50\n "
-        "    "
-        "           },\n                \"node\" : \"vector_lvalue\",\n   "
-        " "
-        "    "
-        "        \"root\" : \"x\"\n              }, {\n                "
-        "\"left\" : {\n                  \"node\" : \"lvalue\",\n         "
-        " "
-        "    "
-        "    \"root\" : \"y\"\n                },\n                "
-        "\"node\" : "
-        "\"indirect_lvalue\",\n                \"root\" : [\"*\"]\n       "
-        " "
-        "    "
-        "  }, {\n                \"node\" : \"lvalue\",\n                "
-        "\"root\" : \"z\"\n              }]");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/lvalue_expression");
     auto temp = language::AST_Lowering(obj);
     credence::language::literal::Literal empty_value =
         std::make_pair('0', std::make_pair("byte", 50));
@@ -703,12 +373,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_lvalue_expression")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_indirect_identifier")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\n                \"left\" : {\n                  \"node\" : "
-        "\"lvalue\",\n                  \"root\" : \"x\"\n                "
-        "},\n "
-        "               \"node\" : \"indirect_lvalue\",\n                "
-        "\"root\" : [\"*\"]\n              }");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/indirect_identifier");
 
     auto temp = language::AST_Lowering(obj["test"]);
     CHECK_THROWS(temp.from_indirect_identifier_node(obj["test"]));
@@ -721,15 +387,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_indirect_identifier")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_vector_idenfitier")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\n                \"left\" : {\n                  \"node\" : "
-        "\"integer_literal\",\n                  \"root\" : 50\n           "
-        " "
-        "    "
-        "},\n                \"node\" : \"vector_lvalue\",\n              "
-        " "
-        " "
-        "\"root\" : \"x\"\n              }");
+    obj["test"] = credence::test::load_json_fixture(
+        "language/lowering/vector_identifier");
 
     auto temp = language::AST_Lowering(obj["test"]);
     CHECK_THROWS(temp.from_vector_idenfitier_node(obj["test"]));
@@ -742,10 +401,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_vector_idenfitier")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_constant_expression")
 {
     credence::util::AST_Node obj;
-    obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"integer_literal\","
-                                       "\"root\": 10"
-                                       "}");
+    obj["test"] = credence::util::AST_Node::load(
+        R"({"node": "integer_literal", "root": 10})");
 
     auto temp = language::AST_Lowering(obj);
     auto data = temp.from_constant_expression_node(obj["test"]);
@@ -758,10 +415,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_constant_expression")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_integer_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"integer_literal\","
-                                       "\"root\": 10"
-                                       "}");
+    obj["test"] = credence::util::AST_Node::load(
+        R"({"node": "integer_literal", "root": 10})");
 
     auto temp = language::AST_Lowering(obj);
     auto data = temp.from_integer_literal_node(obj["test"]);
@@ -774,10 +429,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_integer_literal")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_float_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"float_literal\","
-                                       "\"root\": 10.0002"
-                                       "}");
+    obj["test"] = credence::util::AST_Node::load(
+        R"({"node": "float_literal", "root": 10.0002})");
 
     auto temp = language::AST_Lowering(obj);
     auto data = temp.from_float_literal_node(obj["test"]);
@@ -790,10 +443,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_float_literal")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_double_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"double_literal\","
-                                       "\"root\": 10.05"
-                                       "}");
+    obj["test"] = credence::util::AST_Node::load(
+        R"({"node": "double_literal", "root": 10.05})");
 
     auto temp = language::AST_Lowering(obj);
     auto data = temp.from_double_literal_node(obj["test"]);
@@ -806,10 +457,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_double_literal")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_string_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] = credence::util::AST_Node::load(
-        "{\n                  \"node\" : \"string_literal\",\n            "
-        "     "
-        " \"root\" : \"\\\"hello world\\\"\"\n                }");
+    obj["test"] =
+        credence::test::load_json_fixture("language/lowering/string_literal");
 
     auto temp = language::AST_Lowering(obj);
     auto data = temp.from_string_literal_node(obj["test"]);
@@ -818,8 +467,8 @@ TEST_CASE("ast_lowering.cc: AST_Lowering::from_string_literal")
     CHECK(type.first == "string");
     CHECK(type.second == std::string{ "hello world" }.size());
 
-    obj["escaped"] = credence::util::AST_Node::load(
-        "{\"node\" : \"string_literal\", \"root\" : \"\\\"hello\\\\n\\\"\"}");
+    obj["escaped"] = credence::test::load_json_fixture(
+        "language/lowering/escaped_string_literal");
     auto [escaped_value, escaped_type] =
         temp.from_string_literal_node(obj["escaped"]);
     CHECK(std::get<std::string>(escaped_value) == "hello\\n");
@@ -845,10 +494,8 @@ TEST_CASE("literal_to_string")
 TEST_CASE("ast_lowering.cc: AST_Lowering::from_constant_literal")
 {
     credence::util::AST_Node obj;
-    obj["test"] =
-        credence::util::AST_Node::load("{\"node\":  \"constant_literal\","
-                                       "\"root\": \"x\""
-                                       "}");
+    obj["test"] = credence::util::AST_Node::load(
+        R"({"node": "constant_literal", "root": "x"})");
 
     auto temp = language::AST_Lowering(obj);
     auto data = temp.from_constant_literal_node(obj["test"]);

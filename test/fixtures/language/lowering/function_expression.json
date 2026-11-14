@@ -1,0 +1,21 @@
+{
+  "left": {
+    "node": "lvalue",
+    "root": "putchar"
+  },
+  "node": "function_expression",
+  "right": [
+    {
+      "node": "lvalue",
+      "root": "x"
+    },
+    {
+      "node": "lvalue",
+      "root": "y"
+    },
+    {
+      "node": "lvalue",
+      "root": "z"
+    }
+  ]
+}

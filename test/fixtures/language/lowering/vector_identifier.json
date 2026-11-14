@@ -1,0 +1,8 @@
+{
+  "left": {
+    "node": "integer_literal",
+    "root": 50
+  },
+  "node": "vector_lvalue",
+  "root": "x"
+}

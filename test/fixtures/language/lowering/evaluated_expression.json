@@ -1,0 +1,32 @@
+[
+  {
+    "node": "evaluated_expression",
+    "root": {
+      "left": {
+        "node": "integer_literal",
+        "root": 5
+      },
+      "node": "relation_expression",
+      "right": {
+        "node": "integer_literal",
+        "root": 5
+      },
+      "root": [
+        "*"
+      ]
+    }
+  },
+  {
+    "node": "evaluated_expression",
+    "root": {
+      "left": {
+        "node": "lvalue",
+        "root": "x"
+      },
+      "node": "indirect_lvalue",
+      "root": [
+        "*"
+      ]
+    }
+  }
+]

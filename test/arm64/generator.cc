@@ -20,7 +20,6 @@ namespace fs = std::filesystem;
 #define ROOT_PATH STRINGIFY(ROOT_TEST_PATH)
 
 #define EMIT(os, inst) credence::ir::ITA::emit_to(os, inst)
-#define LOAD_JSON_FROM_STRING(str) credence::util::AST_Node::load(str)
 
 inline std::string read_file_from_path(std::string_view path)
 {

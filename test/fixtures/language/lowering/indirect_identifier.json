@@ -1,0 +1,10 @@
+{
+  "left": {
+    "node": "lvalue",
+    "root": "x"
+  },
+  "node": "indirect_lvalue",
+  "root": [
+    "*"
+  ]
+}

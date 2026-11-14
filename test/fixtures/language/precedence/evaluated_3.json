@@ -1,0 +1,51 @@
+{
+  "left": {
+    "node": "lvalue",
+    "root": "x"
+  },
+  "node": "assignment_expression",
+  "right": {
+    "left": {
+      "node": "evaluated_expression",
+      "root": {
+        "left": {
+          "node": "integer_literal",
+          "root": 5
+        },
+        "node": "relation_expression",
+        "right": {
+          "node": "integer_literal",
+          "root": 5
+        },
+        "root": [
+          "+"
+        ]
+      }
+    },
+    "node": "relation_expression",
+    "right": {
+      "node": "evaluated_expression",
+      "root": {
+        "left": {
+          "node": "integer_literal",
+          "root": 6
+        },
+        "node": "relation_expression",
+        "right": {
+          "node": "integer_literal",
+          "root": 6
+        },
+        "root": [
+          "+"
+        ]
+      }
+    },
+    "root": [
+      "*"
+    ]
+  },
+  "root": [
+    "=",
+    null
+  ]
+}

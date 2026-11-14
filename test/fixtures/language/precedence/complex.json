@@ -1,0 +1,64 @@
+{
+  "left": {
+    "node": "integer_literal",
+    "root": 5
+  },
+  "node": "relation_expression",
+  "right": {
+    "left": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "node": "relation_expression",
+    "right": {
+      "left": {
+        "left": {
+          "node": "lvalue",
+          "root": "exp"
+        },
+        "node": "function_expression",
+        "right": [
+          {
+            "node": "integer_literal",
+            "root": 2
+          },
+          {
+            "node": "integer_literal",
+            "root": 5
+          }
+        ],
+        "root": "exp"
+      },
+      "node": "relation_expression",
+      "right": {
+        "left": {
+          "left": {
+            "node": "integer_literal",
+            "root": 4
+          },
+          "node": "unary_expression",
+          "root": [
+            "~"
+          ]
+        },
+        "node": "relation_expression",
+        "right": {
+          "node": "integer_literal",
+          "root": 2
+        },
+        "root": [
+          "^"
+        ]
+      },
+      "root": [
+        "/"
+      ]
+    },
+    "root": [
+      "+"
+    ]
+  },
+  "root": [
+    "*"
+  ]
+}

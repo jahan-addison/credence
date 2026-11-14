@@ -1,0 +1,22 @@
+{
+  "left": {
+    "node": "lvalue",
+    "root": "puts"
+  },
+  "node": "function_expression",
+  "right": [
+    {
+      "node": "integer_literal",
+      "root": 1
+    },
+    {
+      "node": "integer_literal",
+      "root": 2
+    },
+    {
+      "node": "integer_literal",
+      "root": 3
+    }
+  ],
+  "root": "puts"
+}

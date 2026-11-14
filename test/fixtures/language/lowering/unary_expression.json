@@ -1,0 +1,72 @@
+[
+  {
+    "node": "post_inc_dec_expression",
+    "right": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "root": [
+      "++"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "pre_inc_dec_expression",
+    "root": [
+      "++"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "address_of_expression",
+    "root": [
+      "&"
+    ]
+  },
+  {
+    "left": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "node": "unary_expression",
+    "root": [
+      "~"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "indirect_lvalue",
+    "root": [
+      "*"
+    ]
+  },
+  {
+    "left": {
+      "node": "integer_literal",
+      "root": 5
+    },
+    "node": "unary_expression",
+    "root": [
+      "-"
+    ]
+  },
+  {
+    "left": {
+      "node": "lvalue",
+      "root": "x"
+    },
+    "node": "unary_expression",
+    "root": [
+      "!"
+    ]
+  }
+]
