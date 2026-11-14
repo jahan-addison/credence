@@ -61,6 +61,8 @@ std::string_view token_type_to_string(Token_Type type)
             return "KEYWORD_ELSE";
         case Token_Type::KEYWORD_RETURN:
             return "KEYWORD_RETURN";
+        case Token_Type::KEYWORD_IS:
+            return "KEYWORD_IS";
         case Token_Type::KEYWORD_WHILE:
             return "KEYWORD_WHILE";
         case Token_Type::KEYWORD_SWITCH:
@@ -256,8 +258,8 @@ Token Lexer::next()
 
         end           = "\x00";
         ws            = [ \t\r\n]+;
-        line_comment  = "//" [^\r\n]*;
-        block_comment = "/*" ([^*] | ("*" [^/]))* "*" "/";
+        line_comment  = "//" [^\r\n\x00]*;
+        block_comment = "/*" ([^*\x00] | "*"+ [^*/\x00])* "*"+ "/";
 
         digit         = [0-9];
         int_lit       = digit+;
@@ -277,6 +279,7 @@ Token Lexer::next()
         "case"          { return make_token(Token_Type::KEYWORD_CASE); }
         "goto"          { return make_token(Token_Type::KEYWORD_GOTO); }
         "if"            { return make_token(Token_Type::KEYWORD_IF); }
+        "is"            { return make_token(Token_Type::KEYWORD_IS); }
         "else"          { return make_token(Token_Type::KEYWORD_ELSE); }
         "return"        { return make_token(Token_Type::KEYWORD_RETURN); }
         "while"         { return make_token(Token_Type::KEYWORD_WHILE); }

@@ -51,6 +51,7 @@ enum class Token_Type
     KEYWORD_UNION,
     KEYWORD_GOTO,
     KEYWORD_IF,
+    KEYWORD_IS,
     KEYWORD_ELSE,
     KEYWORD_RETURN,
     KEYWORD_WHILE,
