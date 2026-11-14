@@ -339,6 +339,13 @@ class Memory_Accessor final : public X8664_Memory_Accessor
   public:
     Memory_Accessor() = delete;
 
+    // the accessors refer to members of this object, so a copy or a move
+    // would refer to the members of its source
+    Memory_Accessor(Memory_Accessor const&) = delete;
+    Memory_Accessor& operator=(Memory_Accessor const&) = delete;
+    Memory_Accessor(Memory_Accessor&&) = delete;
+    Memory_Accessor& operator=(Memory_Accessor&&) = delete;
+
     explicit Memory_Accessor(Table_Pointer table,
         ir::Instructions_PTR instructions,
         Stack_Pointer stack_pointer)
