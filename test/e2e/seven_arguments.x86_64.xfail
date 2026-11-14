@@ -1,0 +1,1 @@
+a call with more than six arguments, the argument registers are exhausted and the compiler crashes

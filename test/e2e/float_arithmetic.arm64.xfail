@@ -1,0 +1,1 @@
+float and double arithmetic emits an integer register operand and a label as an immediate, which do not assemble

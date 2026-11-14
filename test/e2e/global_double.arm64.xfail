@@ -1,0 +1,1 @@
+a double global is the address of its literal, so printf is passed the address and prints 0.000000

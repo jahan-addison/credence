@@ -1,0 +1,1 @@
+unary minus as an operand of a binary expression, the compiler crashes with std::out_of_range

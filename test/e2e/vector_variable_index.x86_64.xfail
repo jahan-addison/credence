@@ -1,0 +1,1 @@
+a store to a local vector element at a variable offset, v[i] = x, is to the wrong element

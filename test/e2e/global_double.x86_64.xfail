@@ -1,0 +1,1 @@
+a double global is the address of its literal, which is moved into xmm0 from memory and emitted as .double ._L_double1__, and does not assemble

@@ -1,0 +1,1 @@
+a break in an if statement in a while loop does not leave the loop, and the program does not end

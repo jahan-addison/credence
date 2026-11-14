@@ -1,0 +1,1 @@
+a global as an operand of a binary expression is moved from memory, mov x8, [x6] and mov rax, dword ptr [rip + unit], which do not assemble

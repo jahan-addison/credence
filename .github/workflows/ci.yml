@@ -59,7 +59,7 @@ jobs:
           export CREDENCE_ENV_HOME="$(pwd)"
           echo "$(pwd)" > $HOME/.credence
           chmod +x ./bin/credence
-          chmod +x ./test/compiled-test.sh
+          chmod +x ./test/e2e.sh
 
       - name: test x86_64
         if: matrix.platform.arch == 'x86_64'
@@ -119,7 +119,7 @@ jobs:
           export CREDENCE_ENV_HOME="$(pwd)"
           echo "$(pwd)" > $HOME/.credence
           chmod +x ./bin/credence
-          chmod +x ./test/compiled-test.sh
+          chmod +x ./test/e2e.sh
 
       - name: test x86_64
         if: matrix.platform.arch == 'x86_64'

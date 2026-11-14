@@ -1,0 +1,1 @@
+a store to a global moves a word into a doubleword register, mov rax, eax, which does not assemble
