@@ -193,7 +193,7 @@ printf:
     jmp     .loop
 
 .flush:
-    mov     rax, 1              # Syscall 1 (sys_write)
+    mov     rax, 33554436       # Syscall 0x2000004 (sys_write)
     mov     rdi, 1              # stdout
     mov     rsi, rbx            # buffer pointer
     mov     rdx, r13            # buffer length
